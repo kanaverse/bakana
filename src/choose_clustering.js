@@ -1,5 +1,5 @@
 import * as scran from "scran.js";
-import * as utils from "./_utils.js";
+import * as utils from "./utils/general.js";
 import * as snn_cluster from "./snn_graph_cluster.js";
 import * as kmeans_cluster from "./kmeans_cluster.js";
 

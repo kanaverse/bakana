@@ -1,5 +1,5 @@
 import * as scran from "scran.js"; 
-import * as utils from "./_utils.js";
+import * as utils from "./utils/general.js";
 import * as normalization from "./normalization.js";
 import * as qc from "./quality_control.js";
   
@@ -37,7 +37,7 @@ export function compute(span) {
  ***************************/
 
 function format_results({ copy = true } = {}) {
-    copy = utils.copyOrView(copy);
+    copy = (copy ? true : "view");
     return {
         "means": cache.results.means({ copy: copy }),
         "vars": cache.results.variances({ copy: copy }),

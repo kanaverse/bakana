@@ -1,7 +1,7 @@
 import * as scran from "scran.js";
-import * as vizutils from "./_utils_viz_parent.js";
+import * as vizutils from "./utils/viz_parent.js";
 import * as index from "./neighbor_index.js";
-import * as utils from "./_utils.js";
+import * as utils from "./utils/general.js";
 
 var cache = { "counter": 0, "promises": {} };
 var parameters = {};
@@ -71,7 +71,12 @@ async function fetch_results(copy)  {
             x: cache.reloaded.x,
             y: cache.reloaded.y
         };
-        utils.copyVectors(output, copy);
+
+        if (copy) {
+            output.x = output.x.slice();
+            output.y = output.y.slice();
+        }
+    
         output.iterations = parameters.iterations;
         return output;
     } else {
@@ -81,10 +86,6 @@ async function fetch_results(copy)  {
         return vizutils.sendTask(worker, { "cmd": "FETCH" }, cache);
     }
 }
-
-/***************************
- ******** Results **********
- ***************************/
 
 export function results() {
     return fetch_results(true);

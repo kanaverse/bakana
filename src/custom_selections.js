@@ -1,8 +1,8 @@
 import * as scran from "scran.js";
-import * as utils from "./_utils.js";
+import * as utils from "./utils/general.js";
 import * as qc from "./quality_control.js";
 import * as normalization from "./normalization.js";
-import * as markers from "./_utils_markers.js";
+import * as markers from "./utils/markers.js";
 
 var cache = { "results": {} };
 var parameters = { "selections": {} };

@@ -1,5 +1,5 @@
 import * as scran from "scran.js"; 
-import * as utils from "./_utils.js";
+import * as utils from "./utils/general.js";
 import * as inputs from "./_inputs.js";
 import { mito } from "./mito.js";
 
@@ -102,7 +102,7 @@ export function compute(use_mito_default, mito_prefix, nmads) {
  ***************************/
 
 function format_metrics({ copy = true } = {}) {
-    copy = utils.copyOrView(copy);
+    copy = (copy ? true : "view");
     return {
         sums: cache.metrics.sums({ copy: copy }),
         detected: cache.metrics.detected({ copy: copy }),
@@ -111,7 +111,7 @@ function format_metrics({ copy = true } = {}) {
 }
 
 function format_thresholds({ copy = true } = {}) {
-    copy = utils.copyOrView(copy);
+    copy = (copy ? true : "view");
     return {
         sums: cache.filters.thresholdsSums({ copy: copy }),
         detected: cache.filters.thresholdsDetected({ copy: copy }),

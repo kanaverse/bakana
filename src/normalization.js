@@ -1,5 +1,5 @@
 import * as scran from "scran.js"; 
-import * as utils from "./_utils.js";
+import * as utils from "./utils/general.js";
 import * as qc from "./quality_control.js";
 
 var cache = {};

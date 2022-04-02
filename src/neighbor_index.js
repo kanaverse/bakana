@@ -1,5 +1,5 @@
 import * as scran from "scran.js";
-import * as utils from "./_utils.js";
+import * as utils from "./utils/general.js";
 import * as pca from "./pca.js";
 
 var cache = {};

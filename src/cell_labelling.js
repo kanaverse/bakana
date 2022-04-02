@@ -1,7 +1,7 @@
 import * as scran from "scran.js";
-import * as utils from "./_utils.js";
-import * as rutils from "./_utils_reader.js";
-import * as inputs from "./_inputs.js";
+import * as utils from "./utils/general.js";
+import * as rutils from "./utils/reader.js";
+import * as inputs from "./inputs.js";
 import * as markers from "./marker_detection.js";
 import * as downloads from "./DownloadsDBHandler.js";
 

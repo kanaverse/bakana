@@ -16,6 +16,7 @@
   "author": "Aaron Lun",
   "license": "MIT",
   "dependencies": {
+    "pako": "^2.0.4",
     "scran.js": "^0.0.19"
   },
   "devDependencies": {

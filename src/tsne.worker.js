@@ -1,6 +1,6 @@
 import * as scran from "scran.js";
-import * as utils from "./_utils.js";
-import * as vizutils from "./_utils_viz_child.js";
+import * as utils from "./utils/general.js";
+import * as vizutils from "./utils/viz_child.js";
 
 var cache = {};
 var init_changed = false;
