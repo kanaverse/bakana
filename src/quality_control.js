@@ -1,6 +1,6 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import * as inputs from "./_inputs.js";
+import * as inputs from "./inputs.js";
 import { mito } from "./mito.js";
 
 var cache = {};

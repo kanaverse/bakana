@@ -117,7 +117,7 @@ export function unserialize(handle, permuter) {
         let reloaded = {};
 
         // Possibly permuting it to match the new permutation order;
-        // see 'unserialize' in './_inputs.js'.
+        // see 'unserialize' in 'inputs.js'.
         for (const key of [ "means", "vars", "fitted", "resids" ]) {
             let value = rhandle.open(key, { load: true }).values;
             permuter(value);

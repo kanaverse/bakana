@@ -1,6 +1,6 @@
 import * as scran from "scran.js";
 import * as vizutils from "./utils/viz_parent.js";
-import * as index from "./_neighbor_index.js";
+import * as index from "./neighbor_index.js";
 import * as utils from "./utils/general.js";
 
 var cache = { "counter": 0, "promises": {} };
