@@ -38,7 +38,7 @@ let params = {
         method: "snn_graph"
     },
     cell_labelling: {
-        mouse_references: [],
+        mouse_references: [ "ImmGen" ],
         human_references: [ "BlueprintEncode" ],
     }
 };
@@ -89,6 +89,33 @@ test("runAnalysis works correctly (10X)", async () => {
             {
                 format: "tenx",
                 file: [ "files/datasets/pbmc4k-tenx.h5" ]
+            }
+        ],
+        params,
+        {
+            finished: finished,
+            download: ref_download
+        }
+    );
+
+    expect(contents.quality_control instanceof Object).toBe(true);
+    expect(contents.pca instanceof Object).toBe(true);
+    expect(contents.feature_selection instanceof Object).toBe(true);
+    expect(contents.cell_labelling instanceof Object).toBe(true);
+    expect(contents.marker_detection instanceof Object).toBe(true);
+})
+
+test("runAnalysis works correctly (H5AD)", async () => {
+    let contents = {};
+    let finished = (res, step, msg) => {
+        contents[step] = res;
+    };
+
+    let res = await bakana.runAnalysis(
+        [
+            {
+                format: "H5AD",
+                file: [ "files/datasets/zeisel-brain.h5ad" ]
             }
         ],
         params,

@@ -26,7 +26,9 @@ const mm_base = "https://github.com/clusterfork/singlepp-references/releases/dow
 // based on the highest confidence annotation.
 function choose_features() {
     let genes = inputs.fetchGenes();
+    console.log(genes);
     let types = inputs.fetchGeneTypes();
+    console.log(types);
 
     let best_feature = null;
     let best = null;
@@ -156,7 +158,7 @@ export function compute(human_references, mouse_references, download) {
     changed = false;
 
     let rebuild = false;
-    if (inputs.changed || !("feature_space" in cache)) {
+    if (inputs.changed || !("features" in cache)) {
         rebuild = true;
         changed = true;
         let feat_out = choose_features();

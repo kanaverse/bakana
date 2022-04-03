@@ -191,12 +191,21 @@ function process_datasets(files, sample_factor) {
 
 function process_and_cache(new_files, sample_factor) {
     let contents = process_datasets(new_files, sample_factor);
+
     cache.matrix = contents.matrix;
     cache.genes = contents.genes;
     cache.annotations = contents.annotations;
     cache.block_ids = contents.block_ids;
     cache.block_levels = contents.block_levels;
     cache.indices = contents.indices;
+
+    var gene_info_type = {};
+    var gene_info = fetchGenes();
+    for (const [key, val] of Object.entries(gene_info)) {
+        gene_info_type[key] = scran.guessFeatures(val);
+    }
+    cache.gene_types = gene_info_type;
+
     return 
 }
 
@@ -486,14 +495,6 @@ export function fetchGenes() {
 }
 
 export function fetchGeneTypes() {
-    if (!("gene_types" in cache)) {
-        var gene_info_type = {};
-        var gene_info = fetchGenes();
-        for (const [key, val] of Object.entries(gene_info)) {
-            gene_info_type[key] = scran.guessFeatures(val);
-        }
-        cache.gene_types = gene_info_type;
-    }
     return cache.gene_types;
 }
 
