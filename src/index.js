@@ -150,13 +150,13 @@ export function runAnalysis(files, params, { finished, download }) {
     return Promise.all(promises).then(x => null);
 }
  
-export async function saveAnalysis(path, linker) {
+export async function saveAnalysis(path, { linker } = {}) {
     let saver;
     let saved;
     let embedded = (typeof linker == "undefined");
 
     if (embedded) {
-        saved = sutils.embedFiles();
+        saved = serialize_utils.embedFiles();
         saver = saved.saver;
         delete saved.saver;
     } else {
@@ -201,7 +201,7 @@ export async function saveAnalysis(path, linker) {
     return saved;
 }
 
-export async function loadAnalysis(path, finished, loader, embedded) {
+export async function loadAnalysis(path, embedded, { finished, loader }) {
     let response = {};
     let handle = new scran.H5File(path);
 

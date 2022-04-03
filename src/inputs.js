@@ -1,6 +1,7 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as iutils from "./utils/inputs.js";
+import * as afile from "./abstract/file.js";
 
 var cache = {};
 var parameters = {};
@@ -363,14 +364,14 @@ export async function unserialize(handle, loader, embedded) {
 
         if (!embedded) {
             let dhandle = current.open("id", { load: true });
-            curfile.buffer = await loader(dhandle.values[0]);
+            curfile.content = new afile.LoadedFile(await loader(dhandle.values[0]));
         } else {
             let buffer_deets = {};
             for (const field of ["offset", "size"]) {
                 let dhandle = current.open(field, { load: true });
                 buffer_deets[field] = dhandle.values[0];
             }
-            curfile.buffer = await loader(buffer_deets.offset, buffer_deets.size);
+            curfile.content = new afile.LoadedFile(await loader(buffer_deets.offset, buffer_deets.size));
         }
 
         let idx = Number(x);

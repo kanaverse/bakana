@@ -43,6 +43,10 @@ export function results() {
  ******** Saving *********
  *************************/
 
+function valid() {
+    return "raw" in cache;
+}
+
 export function serialize(handle) {
     let ghandle = handle.createGroup("kmeans_cluster");
 

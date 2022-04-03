@@ -154,7 +154,7 @@ export function unserialize(handle) {
         }
     }
 
-    choose_hvgs(num_hvgs);
+    choose_hvgs(parameters.num_hvgs);
 
     {
         let rhandle = ghandle.open("results");
