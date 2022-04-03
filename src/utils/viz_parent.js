@@ -1,6 +1,6 @@
 import * as scran from "scran.js";
-import * as index from "./_neighbor_index.js";
-import * as utils from "./_utils.js";
+import * as index from "./../neighbor_index.js";
+import * as utils from "./general.js";
 
 export function computeNeighbors(k) {
     var nn_index = index.fetchIndex();

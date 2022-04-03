@@ -1,12 +1,10 @@
-import * as hashwasm from "hash-wasm";
-import * as kana_db from "./KanaDBHandler.js";
-import * as from_v0 from "./legacy/from_v0.js";
+import * as from_v0 from "./../legacy/from_v0.js";
 import * as scran from "scran.js";
 import * as pako from "pako";
 
 // Must be integers!
-const FORMAT_EMBEDDED_FILES = 0;
-const FORMAT_EXTERNAL_KANADB = 1;
+const FORMAT_EMBEDDED = 0;
+const FORMAT_LINKED = 1;
 const FORMAT_VERSION = 1001000;
 
 function numberToBuffer(number) {
@@ -35,36 +33,18 @@ function bufferToNumber(buffer) {
     return output;
 }
 
-export function createSaver(embedded) {
-    let output = {
-        collected: []
-    };
-
-    if (embedded) {
-        output.sofar = 0;
-        output.saver = (obj) => {
-            output.collected.push(obj.buffer);
-            let current = output.sofar;
-            let size = obj.buffer.byteLength;
-            output.sofar += size;
-            return {
-                "offset": current,
-                "size": size
-            };
-        };
-    } else {
-        output.saver = async (obj) => {
-            var md5 = await hashwasm.md5(new Uint8Array(obj.buffer));
-            var id = obj.type + "_" + obj.name + "_" + obj.buffer.byteLength + "_" + md5;
-            var ok = await kana_db.saveFile(id, obj.buffer);
-            if (!ok) {
-                throw "failed to save file '" + id + "' to KanaDB";
-            }
-            output.collected.push(id);
-            return id;
+export function embedFiles() {
+    let output = { collected: [], total: 0 };
+    output.saver = (obj) => {
+        output.collected.push(obj.buffer);
+        let current = output.total;
+        let size = obj.buffer.byteLength;
+        output.total += size;
+        return {
+            "offset": current,
+            "size": size
         };
     }
-
     return output;
 }
 
@@ -98,13 +78,13 @@ function save_internal(format_type, state, extras) {
     }
 }
 
-export function saveEmbedded(state, collected) {
+export function createEmbeddedKanaFile(state, collected) {
     let total_len = 0;
     for (const buf of collected) {
         total_len += buf.byteLength;
     }
 
-    let saved = save_internal(FORMAT_EMBEDDED_FILES, state, total_len);
+    let saved = save_internal(FORMAT_EMBEDDED, state, total_len);
     let offset = saved.offset;
     let combined_arr = new Uint8Array(saved.combined);
 
@@ -117,13 +97,12 @@ export function saveEmbedded(state, collected) {
     return saved.combined;
 }
 
-export async function saveLinked(state, collected, title) {
-    let saved = save_internal(FORMAT_EXTERNAL_KANADB, state, 0);
-    let id = await kana_db.saveAnalysis(null, saved.combined, collected, title);
-    return id;
+export function createLinkedKanaFile(state) {
+    let saved = save_internal(FORMAT_LINKED, state, 0);
+    return saved.combined;
 }
 
-export async function load(buffer, state_path) {
+export async function loadKanaFile(buffer, statePath) {
     var offset = 0;
     var format = bufferToNumber(new Uint8Array(buffer, offset, 8));
     offset += 8;
@@ -139,18 +118,17 @@ export async function load(buffer, state_path) {
     if (version < 1000000) {
         let contents = pako.ungzip(state, { "to": "string" });
         let values = JSON.parse(contents);
-        from_v0.convertFromVersion0(values, state_path);
+        from_v0.convertFromVersion0(values, statePath);
     } else {
-        scran.writeFile(state_path, state);
+        scran.writeFile(statePath, state);
     }
 
     let bundle = {};
-    if (format == FORMAT_EMBEDDED_FILES) {
+    if (format == FORMAT_EMBEDDED) {
         bundle.remaining = new Uint8Array(buffer, offset, buffer.byteLength - offset);
         bundle.loader = (start, size) => bundle.remaining.slice(start, start + size);
         bundle.embedded = true;
-    } else if (format == FORMAT_EXTERNAL_KANADB) {
-        bundle.loader = kana_db.loadFile;
+    } else if (format == FORMAT_LINKED) {
         bundle.embedded = false;
     } else {
         throw "unsupported format type";

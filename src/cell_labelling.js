@@ -3,7 +3,6 @@ import * as utils from "./utils/general.js";
 import * as rutils from "./utils/reader.js";
 import * as inputs from "./inputs.js";
 import * as markers from "./marker_detection.js";
-import * as downloads from "./DownloadsDBHandler.js";
 
 var cache = {};
 var parameters = {};
@@ -47,7 +46,7 @@ function choose_features() {
     };
 }
 
-async function build_reference(name, species, rebuild) {
+async function build_reference(name, species, rebuild, download) {
     let base;
     let references;
     let preloaded;
@@ -61,15 +60,13 @@ async function build_reference(name, species, rebuild) {
         references = mm_references;
     }
 
-    downloads.initialize();
-
     if (!(name in preloaded)) {
         let buffers = await Promise.all([
-            downloads.get(proxy + "/" + encodeURIComponent(base + "/" + name + "_genes.csv.gz")),
-            downloads.get(proxy + "/" + encodeURIComponent(base + "/" + name + "_labels_fine.csv.gz")),
-            downloads.get(proxy + "/" + encodeURIComponent(base + "/" + name + "_label_names_fine.csv.gz")),
-            downloads.get(proxy + "/" + encodeURIComponent(base + "/" + name + "_markers_fine.gmt.gz")),
-            downloads.get(proxy + "/" + encodeURIComponent(base + "/" + name + "_matrix.csv.gz"))
+            download(proxy + "/" + encodeURIComponent(base + "/" + name + "_genes.csv.gz")),
+            download(proxy + "/" + encodeURIComponent(base + "/" + name + "_labels_fine.csv.gz")),
+            download(proxy + "/" + encodeURIComponent(base + "/" + name + "_label_names_fine.csv.gz")),
+            download(proxy + "/" + encodeURIComponent(base + "/" + name + "_markers_fine.gmt.gz")),
+            download(proxy + "/" + encodeURIComponent(base + "/" + name + "_matrix.csv.gz"))
         ]);
 
         let loaded;
@@ -155,7 +152,7 @@ function compare_arrays(x, y) {
     return true;
 }
 
-export function compute(human_references, mouse_references) {
+export function compute(human_references, mouse_references, download) {
     changed = false;
 
     let rebuild = false;
@@ -170,15 +167,14 @@ export function compute(human_references, mouse_references) {
         
     // Fetching all of the references. This is effectively a no-op
     // if rebuild = false, so we do it to fill up 'valid'.
-    let init = downloads.initialize();
     let valid = {};
     if (species == "human") {
         for (const ref of human_references) {
-            valid[ref] = build_reference(ref, "human", rebuild);
+            valid[ref] = build_reference(ref, "human", rebuild, download);
         }
     } else if (species == "mouse") {
         for (const ref of mouse_references) {
-            valid[ref] = build_reference(ref, "mouse", rebuild);
+            valid[ref] = build_reference(ref, "mouse", rebuild, download);
         }
     }
 

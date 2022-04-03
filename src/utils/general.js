@@ -1,14 +1,6 @@
 import * as scran from "scran.js";
 import * as wa from "wasmarrays.js";
 
-export function copyVectors(data, copy) {
-    if (copy) {
-        for (const k of Object.keys(data)) {
-            data[k] = data[k].slice();
-        }
-    }
-}
-
 export function mimicGetter(value, copy) {
     if (value instanceof wa.WasmArray) {
         if (copy == "view") {
