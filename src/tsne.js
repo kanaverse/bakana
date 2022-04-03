@@ -2,15 +2,24 @@ import * as scran from "scran.js";
 import * as vizutils from "./utils/viz_parent.js";
 import * as index from "./neighbor_index.js";
 import * as utils from "./utils/general.js";
+import * as aworkers from "./abstract/worker_parent.js";
 
 var cache = { "counter": 0, "promises": {} };
 var parameters = {};
 export var changed = false;
 
+/***************************
+ ******** Workers **********
+ ***************************/
+
 var worker = null;
-export function initialize() {
-    worker = new Worker(new URL("./tsne.worker.js", import.meta.url), { type: "module" });
-    return vizutils.initializeWorker(worker, cache);
+export function initialize(iterator, scranOptions) {
+    worker = aworkers.createWorker(new URL("./tsne.worker.js", import.meta.url));
+    return vizutils.initializeWorker(worker, cache, iterator, scranOptions);
+}
+
+export function terminate() {
+    return aworkers.terminateWorker(worker);
 }
 
 /***************************
@@ -106,7 +115,7 @@ export async function serialize(handle) {
     }
 
     {
-        let res = await getResults(false);
+        let res = await fetch_results(false);
         let rhandle = ghandle.createGroup("results");
         rhandle.writeDataSet("x", "Float64", null, res.x);
         rhandle.writeDataSet("y", "Float64", null, res.y);

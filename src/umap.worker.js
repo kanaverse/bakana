@@ -1,6 +1,7 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as vizutils from "./utils/viz_child.js";
+import * as aworkers from "./abstract/worker_child.js";
 
 var cache = {};
 var init_changed = false;
@@ -18,7 +19,7 @@ function rerun(animate) {
 
             if (animate) {
                 var xy = current_status.extractCoordinates();
-                postMessage({
+                aworkers.sendMessage({
                     "type": "umap_iter",
                     "x": xy.x,
                     "y": xy.y,
@@ -33,21 +34,21 @@ function rerun(animate) {
 }
 
 var loaded;
-onmessage = function(msg) {
+aworkers.registerCallback(msg => {
     var id = msg.data.id;
 
     if (msg.data.cmd == "INIT") {
-        loaded = scran.initialize({ numberOfThreads: 1 });
+        loaded = scran.initialize(msg.data.scranOptions);
         loaded
             .then(x => {
-                postMessage({
+                aworkers.sendMessage({
                     "id": id,
                     "type": "init_worker",
                     "data": { "status": "SUCCESS" }
                 });
             })
             .catch(error => {
-                postMessage({ 
+                aworkers.sendMessage({ 
                     "id": id,
                     "type": "error",
                     "error": error
@@ -83,14 +84,14 @@ onmessage = function(msg) {
                     run_parameters = run_args;
                 }
         
-                postMessage({
+                aworkers.sendMessage({
                     "id": id,
                     "type": "umap_run",
                     "data": { "status": "SUCCESS" }
                 });
             })
             .catch(error => {
-                postMessage({ 
+                aworkers.sendMessage({ 
                     "id": id,
                     "type": "error",
                     "error": error
@@ -101,14 +102,14 @@ onmessage = function(msg) {
         loaded
             .then(x => {
                 rerun(true);
-                postMessage({
+                aworkers.sendMessage({
                     "id": id,
                     "type": "umap_rerun",
                     "data": { "status": "SUCCESS" }
                 });
             })
             .catch(error => {
-                postMessage({
+                aworkers.sendMessage({
                     "id": id,
                     "type": "error",
                     "error": error
@@ -123,21 +124,19 @@ onmessage = function(msg) {
                     "y": cache.final.y.slice(),
                     "iterations": cache.total
                 };
-                
-                var transfer = [];
-                utils.extractBuffers(info, transfer);
-                postMessage({
+                var transfer = [info.x.buffer, info.y.buffer];
+                aworkers.sendMessage({
                     "id": id,
                     "type": "umap_fetch",
                     "data": info
                 }, transfer);
             })
             .catch(error => {
-                postMessage({ 
+                aworkers.sendMessage({ 
                     "id": id,
                     "type": "error",
                     "error": error
                 });
             });
     }
-}
+});

@@ -1,6 +1,7 @@
 import * as scran from "scran.js";
 import * as index from "./../neighbor_index.js";
 import * as utils from "./general.js";
+import * as aworkers from "../abstract/worker_parent.js";
 
 export function computeNeighbors(k) {
     var nn_index = index.fetchIndex();
@@ -45,22 +46,15 @@ export function sendTask(worker, payload, cache, transferrable = []) {
     });
     cache.counter++;
     payload.id = i;
-    worker.postMessage(payload, transferrable);
+    aworkers.sendMessage(worker, payload, transferrable);
     return p;
 }
 
-export function initializeWorker(worker, cache) {
-    worker.onmessage = function (msg) {
+export function initializeWorker(worker, cache, iterator, scranOptions) {
+    aworkers.registerCallback(worker, msg => {
         var type = msg.data.type;
         if (type.endsWith("_iter")) {
-            postMessage({
-                "type": type,
-                "resp": {
-                    "x": msg.data.x,
-                    "y": msg.data.y,
-                    "iteration": msg.data.iteration
-                },
-            }, [msg.data.x.buffer, msg.data.y.buffer]);
+            iterator(type, msg.data.x, msg.data.y, msg.data.iteration);
             return;
         }
   
@@ -72,8 +66,9 @@ export function initializeWorker(worker, cache) {
             fun.resolve(msg.data.data);
         }
         delete cache.promises[id];
-    };
-    return sendTask(worker, { "cmd": "INIT" }, cache);
+    });
+
+    return sendTask(worker, { "cmd": "INIT", scranOptions: scranOptions }, cache);
 }
 
 export function runWithNeighbors(worker, args, nn_out, cache) {
@@ -84,8 +79,12 @@ export function runWithNeighbors(worker, args, nn_out, cache) {
 
     var transferrable = [];
     if (nn_out !== null) {
+        transferrable = [
+            nn_out.runs.buffer,
+            nn_out.indices.buffer,
+            nn_out.distances.buffer
+        ];
         run_msg.neighbors = nn_out;
-        utils.extractBuffers(nn_out, transferrable);
     }
 
     return sendTask(worker, run_msg, cache, transferrable);
