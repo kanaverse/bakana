@@ -1,7 +1,6 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as iutils from "./utils/inputs.js";
-import * as file from "./abstract/file.js";
 
 var cache = {};
 var parameters = {};
@@ -217,7 +216,7 @@ export function compute(files, sample_factor) {
     let tmp_abbreviated = {};
     for (const [key, val] of entries) {
         let namespace = iutils.chooseNamespace(val.format);
-        tmp_abbreviated[key] = namespace.formatFiles(val, f.size);
+        tmp_abbreviated[key] = namespace.formatFiles(val, true);
     }
 
     if (!utils.changedParameters(tmp_abbreviated, abbreviated) && parameters.sample_factor === sample_factor) {
@@ -228,7 +227,7 @@ export function compute(files, sample_factor) {
     let new_files = {};
     for (const [key, val] of Object.entries(files)) {
         let namespace = iutils.chooseNamespace(val.format);
-        new_files[key] = namespace.formatFiles(val, f.buffer);
+        new_files[key] = namespace.formatFiles(val, false);
     }
 
     utils.freeCache(cache.matrix);

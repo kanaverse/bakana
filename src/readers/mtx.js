@@ -2,21 +2,21 @@ import * as scran from "scran.js";
 import * as utils from "./../utils/general.js";
 import * as rutils from "./../utils/reader.js";
 
-export function formatFiles(args, bufferFun) {
+export function formatFiles(args, sizeOnly) {
     var formatted = { "format": "MatrixMarket", "files": [] };
 
     if (args.mtx.length != 1) {
         throw new Error("expected exactly one 'mtx' file");
     }
     var mtx_file = args.mtx[0];
-    formatted.files.push({ "type": "mtx", "name": mtx_file.name, "buffer": bufferFun(mtx_file) });
+    formatted.files.push({ "type": "mtx", ...rutils.formatFile(mtx_file, sizeOnly) });
 
     if ("gene" in args) {
         if (args.gene.length !== 1) {
             throw "expected no more than one gene file";
         }
         var genes_file = args.gene[0];
-        formatted.files.push({ "type": "genes", "name": genes_file.name, "buffer": bufferFun(genes_file) });
+        formatted.files.push({ "type": "genes", ...rutils.formatFile(genes_file, sizeOnly) });
     }
 
     if ("barcode" in args) {
@@ -24,7 +24,7 @@ export function formatFiles(args, bufferFun) {
             throw "expected no more than one cell annotation file";
         }
         var annotations_file = args.barcode[0];
-        formatted.files.push({ "type": "annotations", "name": annotations_file.name, "buffer": bufferFun(annotations_file) });
+        formatted.files.push({ "type": "annotations", ...rutils.formatFile(annotations_file, sizeOnly) });
     }
 
     return formatted;
@@ -36,7 +36,7 @@ export function extractFeatures(files, { numberOfRows = null } = {}) {
 
     if (genes_file.length == 1) {
         const gene_file = genes_file[0]
-        const content = new Uint8Array(gene_file.buffer);
+        const content = new Uint8Array(gene_file.content.buffer());
 
         let parsed = rutils.readDSVFromBuffer(content, gene_file);
         if (numberOfRows !== null && parsed.length !== numberOfRows) {
@@ -61,7 +61,7 @@ function extractAnnotations(files, { numberOfColumns = null, namesOnly = false }
 
     if (annotations_file.length == 1) {
         const annotation_file = annotations_file[0]
-        const content = new Uint8Array(annotation_file.buffer);
+        const content = new Uint8Array(annotation_file.content.buffer());
         let parsed = rutils.readDSVFromBuffer(content, annotation_file);
 
         // Check if a header is present or not
@@ -106,7 +106,7 @@ export function loadData(input) {
     var mtx_files = input.files.filter(x => x.type == "mtx");
 
     var first_mtx = mtx_files[0];
-    var contents = new Uint8Array(first_mtx.buffer);
+    var contents = new Uint8Array(first_mtx.content.buffer());
     var ext = first_mtx.name.split('.').pop();
     var is_compressed = (ext == "gz");
 

@@ -3,12 +3,39 @@
  */
 
 import * as fs from "fs";
+import * as path from "path";
 
-export function size(obj) {
+export function rawSize(obj) {
     return fs.statSync(obj).size;
 }
 
-export function buffer(obj) {
-    let f = fs.readFileSync(obj);
-    return f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
+export function rawName(obj) {
+    return path.basename(obj);
+}
+
+export class LoadedFile {
+    constructor(obj) {
+        this.path = obj;
+    }
+
+    buffer() {
+        let f = fs.readFileSync(this.path);
+        return f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
+    }
+
+    size() {
+        return fs.statSync(this.path).size;
+    }
+
+    serialized() {
+        return this.path;
+    }
+};
+
+export function removeH5(path) {  
+    return;
+}
+
+export function realizeH5(loaded) {
+    return this.path;
 }

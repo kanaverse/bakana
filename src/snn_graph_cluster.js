@@ -85,6 +85,10 @@ export function results() {
  ******** Saving *********
  *************************/
 
+function valid() {
+    return "clusters" in cache;
+}
+
 export function serialize(handle) {
     let ghandle = handle.createGroup("snn_graph_cluster");
 

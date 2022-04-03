@@ -22,20 +22,23 @@ import * as rutils from "./utils/reader.js";
 const step_inputs = "inputs";
 const step_qc = "quality_control";
 const step_norm = "normalizaton";
-const step_feat = "feature_selecton";
+const step_feat = "feature_selection";
 const step_pca = "pca";
 const step_neighbors = "neighbor_index";
 const step_tsne = "tsne";
 const step_umap = "umap";
 const step_kmeans = "kmeans_cluster";
-const step_snn = "snn_cluster_graph";
+const step_snn = "snn_graph_cluster";
 const step_choice = "choose_clustering";
 const step_markers = "marker_detection";
 const step_labels = "cell_labelling";
 const step_custom = "custom_marker_management";
 
-export function runAnalysis(files, params, finished, download) {
-    inputs.compute(files, state.files.batch);
+export function runAnalysis(files, params, { finished, download }) {
+    inputs.compute(
+        files, 
+        params[step_inputs]["sample_factor"]
+    );
     if (inputs.changed) {
         finished(inputs.results(), step_inputs, "Count matrix loaded");
     }
@@ -71,30 +74,30 @@ export function runAnalysis(files, params, finished, download) {
     }
 
     index.compute(
-        params[step_neighbors]["clus-approx"]
+        params[step_neighbors]["approximate"]
     );
     if (index.changed) {
         finished(index.results(), step_neighbors, "Neighbor search index constructed");
     }
 
-    tsne.compute(
-        params[step_tsne]["perplexity"],
-        params[step_tsne]["iterations"], 
-        params[step_tsne]["animate"]
-    );
-    if (tsne.changed) {
-        tsne.results().then(res => finished(res, step_tsne, "t-SNE completed"));
-    }
-
-    umap.compute(
-        params[step_umap]["num_neighbors"], 
-        params[step_umap]["num_epochs"], 
-        params[step_umap]["min_dist"], 
-        params[step_umap]["animate"]
-    );
-    if (umap.changed) {
-        umap.results().then(res => finished(umap, step_umap, "UMAP completed"));
-    }
+//    tsne.compute(
+//        params[step_tsne]["perplexity"],
+//        params[step_tsne]["iterations"], 
+//        params[step_tsne]["animate"]
+//    );
+//    if (tsne.changed) {
+//        tsne.results().then(res => finished(res, step_tsne, "t-SNE completed"));
+//    }
+//
+//    umap.compute(
+//        params[step_umap]["num_neighbors"], 
+//        params[step_umap]["num_epochs"], 
+//        params[step_umap]["min_dist"], 
+//        params[step_umap]["animate"]
+//    );
+//    if (umap.changed) {
+//        umap.results().then(res => finished(umap, step_umap, "UMAP completed"));
+//    }
 
     let method = params[step_choice]["method"];
 
@@ -145,9 +148,7 @@ export function runAnalysis(files, params, finished, download) {
     return;
 }
  
-export async function saveAnalysis(linker) {
-    const path = generateRandomName("state", ".h5");
-
+export async function saveAnalysis(path, linker) {
     let saver;
     let saved;
     let embedded = (typeof linker == "undefined");
@@ -165,49 +166,37 @@ export async function saveAnalysis(linker) {
         }
     }
 
-    let output;
-    try {
-        let handle = scran.createNewHDF5File(path);
+    let handle = scran.createNewHDF5File(path);
 
-        await inputs.serialize(handle, saver, embedded);
+    await inputs.serialize(handle, saver, embedded);
 
-        qc.serialize(handle);
+    qc.serialize(handle);
 
-        normalization.serialize(handle);
+    normalization.serialize(handle);
 
-        variance.serialize(handle);
+    variance.serialize(handle);
 
-        pca.serialize(handle);
+    pca.serialize(handle);
 
-        index.serialize(handle);
+    index.serialize(handle);
 
-        await tsne.serialize(handle);
+//    await tsne.serialize(handle);
+//
+//    await umap.serialize(handle);
 
-        await umap.serialize(handle);
+    kmeans_cluster.serialize(handle);
 
-        kmeans_cluster.serialize(handle);
+    snn_cluster.serialize(handle);
 
-        snn_cluster.serialize(handle);
+    cluster_choice.serialize(handle);
 
-        cluster_choice.serialize(handle);
+    cluster_markers.serialize(handle);
 
-        cluster_markers.serialize(handle);
+    await label_cells.serialize(handle);
 
-        await label_cells.serialize(handle);
+    custom_markers.serialize(handle);
 
-        custom_markers.serialize(handle);
-
-        output = scran.readFile(path);
-    } finally {
-        if (scran.fileExists(path)) {
-            scran.removeFile(path);
-        }
-    }
-
-    return {
-        "state": output,
-        "saved": saved
-    };
+    return saved;
 }
 
 export async function loadAnalysis(path, finished, loader, embedded) {
@@ -232,11 +221,11 @@ export async function loadAnalysis(path, finished, loader, embedded) {
     response[step_neighbors] = index.unserialize(handle);
     finished(index.results(), step_neighbors, "Reloaded neighbor search index");
 
-    response[step_tsne] = tsne.unserialize(handle);
-    tsne.results().then(res => finished(res, step_tsne, "t-SNE reloaded"));
-
-    response[step_umap] = umap.unserialize(handle);
-    umap.results().then(res => finished(res, step_umap, "UMAP reloaded"));
+//    response[step_tsne] = tsne.unserialize(handle);
+//    tsne.results().then(res => finished(res, step_tsne, "t-SNE reloaded"));
+//
+//    response[step_umap] = umap.unserialize(handle);
+//    umap.results().then(res => finished(res, step_umap, "UMAP reloaded"));
 
     response[step_kmeans] = kmeans_cluster.unserialize(handle);
     finished(kmeans_cluster.results(), step_kmeans, "K-means clustering reloaded");

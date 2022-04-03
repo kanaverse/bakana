@@ -1,4 +1,5 @@
 import * as pako from "pako";
+import * as afile from "../abstract/file.js";
 
 export function extractHDF5Strings(handle, name) {
     if (!(name in handle.children)) {
@@ -43,6 +44,12 @@ export function readDSVFromBuffer(content, fname, delim = "\t") {
     return lines;
 }
 
-export function generateRandomName(prefix = "", suffix = "") {
-    return prefix + String(Number(new Date())) + suffix
+export function formatFile(file, sizeOnly) {
+    let output = { "name": afile.rawName(file) };
+    if (sizeOnly) {
+        output.size = afile.rawSize(file);
+    } else {
+        output.content = new afile.LoadedFile(file);
+    }
+    return output;
 }

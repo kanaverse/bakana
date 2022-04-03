@@ -36,9 +36,9 @@ function bufferToNumber(buffer) {
 export function embedFiles() {
     let output = { collected: [], total: 0 };
     output.saver = (obj) => {
-        output.collected.push(obj.buffer);
+        output.collected.push(obj.content.serialized());
         let current = output.total;
-        let size = obj.buffer.byteLength;
+        let size = obj.content.size();
         output.total += size;
         return {
             "offset": current,
@@ -48,12 +48,12 @@ export function embedFiles() {
     return output;
 }
 
-function save_internal(format_type, state, extras) {
-    var combined = new ArrayBuffer(24 + state.length + extras);
+export function createPreamble(embedded, stateSize) {
+    var combined = new ArrayBuffer(24);
     var combined_arr = new Uint8Array(combined);
     var offset = 0;
 
-    let format = numberToBuffer(format_type);
+    let format = numberToBuffer(embedded ? FORMAT_EMBEDDED : FORMAT_LINKED);
     combined_arr.set(format, offset); 
     offset += format.length;
 
@@ -69,40 +69,10 @@ function save_internal(format_type, state, extras) {
         throw "oops - accounting error in the serialization code!";
     }
 
-    combined_arr.set(state, offset);
-    offset += state.length;
-
-    return {
-        "offset": offset,
-        "combined": combined                
-    }
+    return combined;
 }
 
-export function createEmbeddedKanaFile(state, collected) {
-    let total_len = 0;
-    for (const buf of collected) {
-        total_len += buf.byteLength;
-    }
-
-    let saved = save_internal(FORMAT_EMBEDDED, state, total_len);
-    let offset = saved.offset;
-    let combined_arr = new Uint8Array(saved.combined);
-
-    for (const buf of collected) {
-        const tmp = new Uint8Array(buf);
-        combined_arr.set(tmp, offset);
-        offset += tmp.length;
-    }
-
-    return saved.combined;
-}
-
-export function createLinkedKanaFile(state) {
-    let saved = save_internal(FORMAT_LINKED, state, 0);
-    return saved.combined;
-}
-
-export async function loadKanaFile(buffer, statePath) {
+export function parsePreamble(buffer) {
     var offset = 0;
     var format = bufferToNumber(new Uint8Array(buffer, offset, 8));
     offset += 8;
@@ -113,26 +83,10 @@ export async function loadKanaFile(buffer, statePath) {
     var state_len = bufferToNumber(new Uint8Array(buffer, offset, 8));
     offset += 8;
 
-    let state = new Uint8Array(buffer, offset, state_len);
-    offset += state_len;
-    if (version < 1000000) {
-        let contents = pako.ungzip(state, { "to": "string" });
-        let values = JSON.parse(contents);
-        from_v0.convertFromVersion0(values, statePath);
-    } else {
-        scran.writeFile(statePath, state);
-    }
-
-    let bundle = {};
-    if (format == FORMAT_EMBEDDED) {
-        bundle.remaining = new Uint8Array(buffer, offset, buffer.byteLength - offset);
-        bundle.loader = (start, size) => bundle.remaining.slice(start, start + size);
-        bundle.embedded = true;
-    } else if (format == FORMAT_LINKED) {
-        bundle.embedded = false;
-    } else {
-        throw "unsupported format type";
-    }
-
-    return bundle;
+    return {
+        "embedded": (format == FORMAT_EMBEDDED),
+        "version": version,
+        "state": state_len,
+        "offset": offset
+    };
 }

@@ -1,6 +1,7 @@
 import * as scran from "scran.js";
 import * as utils from "./../utils/general.js";
 import * as rutils from "./../utils/reader.js";
+import * as afile from "./../abstract/file.js";
 
 export function formatFiles(args, bufferFun) {
     var formatted = { "format": "H5AD", "files": [] };
@@ -10,7 +11,7 @@ export function formatFiles(args, bufferFun) {
     }
 
     let h5file = args.file[0];
-    formatted.files.push({ "type": "h5", "name": h5file.name, "buffer": bufferFun(h5file) });
+    formatted.files.push({ "type": "h5", ...rutils.formatFile(h5file) });
     return formatted;
 }
 
@@ -88,15 +89,14 @@ function extract_annotations(handle, { namesOnly = false } = {}) {
 export function loadPreflight(input) {
     let output = {};
 
-    const tmppath = rutils.generateRandomName("h5ad_", ".h5");
-    scran.writeFile(tmppath, new Uint8Array(input.files[0].buffer));
+    const tmppath = afile.realizeH5(input.files[0].content);
     try {
         let handle = new scran.H5File(tmppath);
         output.genes = extract_features(handle);
         let annotations = extract_annotations(handle, { load: false });
         output.annotations = Object.keys(annotations); 
     } finally {
-        scran.removeFile(tmppath);
+        afile.removeH5(tmppath);
     }
 
     return output;
@@ -105,15 +105,14 @@ export function loadPreflight(input) {
 export function loadData(input){
     let output = {};
 
-    const tmppath = rutils.generateRandomName("h5ad_", ".h5");
-    scran.writeFile(tmppath, new Uint8Array(input.files[0].buffer));
+    const tmppath = afile.realizeH5(input.files[0].content);
     try {
         output.matrix = scran.initializeSparseMatrixFromHDF5(tmppath, "X");
         let handle = new scran.H5File(tmppath);
         output.genes = extract_features(handle); 
         output.annotations = extract_annotations(handle); // Adding the annotations.
     } finally {
-        scran.removeFile(tmppath);
+        afile.removeH5(tmppath);
     }
 
     return output;
