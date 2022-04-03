@@ -37,5 +37,5 @@ export function removeH5(path) {
 }
 
 export function realizeH5(loaded) {
-    return this.path;
+    return loaded.path;
 }

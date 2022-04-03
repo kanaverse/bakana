@@ -76,7 +76,7 @@ async function build_reference(name, species, rebuild, download) {
                 new Uint8Array(buffers[3]), // markers
                 new Uint8Array(buffers[1])) // label per sample
 
-            let gene_lines = quickLineReader(new Uint8Array(buffers[0])); // gene names
+            let gene_lines = rutils.readTextLines(new Uint8Array(buffers[0])); // gene names
             let ensembl = [];
             let symbol = [];
             gene_lines.forEach(x => {
@@ -85,7 +85,7 @@ async function build_reference(name, species, rebuild, download) {
                 symbol.push(fields[1]);
             });
 
-            let labels = quickLineReader(new Uint8Array(buffers[2])); // full label names
+            let labels = rutils.readTextLines(new Uint8Array(buffers[2])); // full label names
             preloaded[name] = { 
                 "raw": loaded, 
                 "genes": {

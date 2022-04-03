@@ -35,6 +35,8 @@ const step_labels = "cell_labelling";
 const step_custom = "custom_marker_management";
 
 export function runAnalysis(files, params, { finished, download }) {
+    let promises = [];
+
     inputs.compute(
         files, 
         params[step_inputs]["sample_factor"]
@@ -86,7 +88,7 @@ export function runAnalysis(files, params, { finished, download }) {
 //        params[step_tsne]["animate"]
 //    );
 //    if (tsne.changed) {
-//        tsne.results().then(res => finished(res, step_tsne, "t-SNE completed"));
+//        promises.push(tsne.results().then(res => finished(res, step_tsne, "t-SNE completed")));
 //    }
 //
 //    umap.compute(
@@ -96,7 +98,7 @@ export function runAnalysis(files, params, { finished, download }) {
 //        params[step_umap]["animate"]
 //    );
 //    if (umap.changed) {
-//        umap.results().then(res => finished(umap, step_umap, "UMAP completed"));
+//        promises.push(umap.results().then(res => finished(umap, step_umap, "UMAP completed")));
 //    }
 
     let method = params[step_choice]["method"];
@@ -137,7 +139,7 @@ export function runAnalysis(files, params, { finished, download }) {
         download
     );
     if (label_cells.changed) {
-        label_cells.results().then(res => finished(res, step_labels, "Cell type labelling complete"));
+        promises.push(label_cells.results().then(res => finished(res, step_labels, "Cell type labelling complete")));
     }
 
     custom_markers.compute();
@@ -145,7 +147,7 @@ export function runAnalysis(files, params, { finished, download }) {
         finished(custom_markers.results(), step_custom, "Pruning of custom markers finished");
     }
 
-    return;
+    return Promise.all(promises).then(x => null);
 }
  
 export async function saveAnalysis(path, linker) {

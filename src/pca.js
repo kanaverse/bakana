@@ -34,7 +34,7 @@ export function compute(num_hvgs, num_pcs, block_method) {
         changed = true;
     }
 
-    if (changed || normalization.changed || num_pcs !== parameters.num_pcs, block_method !== parameters.block_method) { 
+    if (changed || normalization.changed || num_pcs !== parameters.num_pcs || block_method !== parameters.block_method) { 
         let sub = cache.hvg_buffer;
 
         let block = qc.fetchFilteredBlock();
@@ -46,6 +46,7 @@ export function compute(num_hvgs, num_pcs, block_method) {
         }
 
         var mat = normalization.fetchNormalizedMatrix();
+
         utils.freeCache(cache.pcs);
         cache.pcs = scran.runPCA(mat, { features: sub, numberOfPCs: num_pcs, block: block, blockMethod: block_type });
 

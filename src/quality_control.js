@@ -30,7 +30,7 @@ function apply_filters() {
         let disc_arr = disc.array();
         let j = 0;
         for (let i = 0; i < block_arr.length; i++) {
-            if (disc_arr[i] == -1) {
+            if (disc_arr[i] == 0) {
                 bcache_arr[j] = block_arr[i];
                 j++;
             }
@@ -135,7 +135,7 @@ export function results() {
         for (var b = 0; b < blocks.length; b++) {
             let current = {};
             for (const [key, val] of Object.entries(metrics)) {
-                current[key] = val.filter((x, i) => barray[i] == b);
+                current[key] = val.array().filter((x, i) => barray[i] == b);
             }
             data[blocks[b]] = current;
         }
