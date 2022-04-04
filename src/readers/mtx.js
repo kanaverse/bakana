@@ -4,27 +4,14 @@ import * as rutils from "./../utils/reader.js";
 
 export function formatFiles(args, sizeOnly) {
     var formatted = { "format": "MatrixMarket", "files": [] };
+    formatted.files.push({ "type": "mtx", ...rutils.formatFile(args.mtx, sizeOnly) });
 
-    if (args.mtx.length != 1) {
-        throw new Error("expected exactly one 'mtx' file");
-    }
-    var mtx_file = args.mtx[0];
-    formatted.files.push({ "type": "mtx", ...rutils.formatFile(mtx_file, sizeOnly) });
-
-    if ("gene" in args) {
-        if (args.gene.length !== 1) {
-            throw "expected no more than one gene file";
-        }
-        var genes_file = args.gene[0];
-        formatted.files.push({ "type": "genes", ...rutils.formatFile(genes_file, sizeOnly) });
+    if ("genes" in args) {
+        formatted.files.push({ "type": "genes", ...rutils.formatFile(args.genes, sizeOnly) });
     }
 
-    if ("barcode" in args) {
-        if (args.barcode.length !== 1) {
-            throw "expected no more than one cell annotation file";
-        }
-        var annotations_file = args.barcode[0];
-        formatted.files.push({ "type": "annotations", ...rutils.formatFile(annotations_file, sizeOnly) });
+    if ("annotations" in args) {
+        formatted.files.push({ "type": "annotations", ...rutils.formatFile(args.annotations, sizeOnly) });
     }
 
     return formatted;

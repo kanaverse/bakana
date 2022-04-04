@@ -3,15 +3,9 @@ import * as utils from "./../utils/general.js";
 import * as rutils from "./../utils/reader.js";
 import * as afile from "./../abstract/file.js";
 
-export function formatFiles(args, bufferFun) {
+export function formatFiles(args, sizeOnly) {
     var formatted = { "format": "10X", "files": [] };
-
-    if (args.file.length != 1) {
-        throw new Error("expected exactly one 'h5' file");
-    }
-
-    let h5file = args.file[0];
-    formatted.files.push({ "type": "h5", ...rutils.formatFile(h5file) });
+    formatted.files.push({ "type": "h5", ...rutils.formatFile(args.h5, sizeOnly) });
     return formatted;
 }
 
