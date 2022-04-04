@@ -451,7 +451,7 @@ Otherwise, a supplied function should accept three arguments, in the following o
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line55">line 55</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line57">line 57</a>
     </li></ul></dd>
     
 
@@ -743,7 +743,7 @@ If <code>null</code>, a no-op function is automatically created.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line317">line 317</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line319">line 319</a>
     </li></ul></dd>
     
 
@@ -860,8 +860,8 @@ This will cache the results from each step so that, if the parameters change, on
 
             
 
-            <td class="description last"><p>An array of input matrices.
-Each matrix is represented as an object with property <code>type</code> and additional properties referring to individual data files.
+            <td class="description last"><p>Object where each (arbitrarily named) property corresponds to an input matrix.
+Each matrix is itself represented as an object with property <code>type</code> and additional properties referring to individual data files.
 In the browser, each data file manifests as a <code>File</code> object; for Node.js, each data file should be represented as a string containing a file path.</p>
 <ul>
 <li>If <code>type: &quot;MatrixMarket&quot;</code>, the object should contain an <code>mtx</code> property, referring to a (possibly Gzipped) Matrix Market file containing a count matrix.
@@ -1070,7 +1070,7 @@ If <code>null</code>, a no-op function is automatically created.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line107">line 107</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line109">line 109</a>
     </li></ul></dd>
     
 
@@ -1330,7 +1330,7 @@ If <code>null</code>, we assume that embedding of the file is desired instead.</
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line249">line 249</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line251">line 251</a>
     </li></ul></dd>
     
 
@@ -1437,7 +1437,7 @@ This is typically necessary for a clean shutdown in Node.js applications.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line77">line 77</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line79">line 79</a>
     </li></ul></dd>
     
 
@@ -1478,6 +1478,169 @@ This is typically necessary for a clean shutdown in Node.js applications.</p>
 
 
         
+            
+
+    
+
+    
+    <h4 class="name" id="validateAnnotations"><span class="type-signature"></span>validateAnnotations<span class="signature">(matrices)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Perform preflight validation of the annotations in the input matrices.</p>
+<p>This is usually done in regards to the consistency of gene annotations for multiple matrices.
+If multiple matrices are present, an error is raised if any matrix does not contain gene annotations;
+or there is no common species and feature type for annotations across all matrices;
+or the intersection of genes is empty.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>matrices</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>An object where each property is itself an object representing a single input matrix.
+See the argument of the same name in <a href="global.html#runAnalysis"><code>runAnalysis</code></a> for more details.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="preflight.js.html">preflight.js</a>, <a href="preflight.js.html#line26">line 26</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>An object containing preflight check information:</p>
+<ul>
+<li><code>annotations</code>: an object where each property corresponds to an input matrix in <code>matrices</code>.
+Each element is an array containing the names of the cell annotation fields in the corresponding matrix;
+or <code>null</code>, if that matrix does not contain any annotations.</li>
+</ul>
+<p>If <code>matrices</code> has more than one matrix, the output will also contain:</p>
+<ul>
+<li><code>common_genes</code>: an integer containing the number of common genes across all matrices.</li>
+<li><code>best_gene_fields</code>: an object where each property corresponds to an input matrix in <code>matrices</code>.
+Each property is a string containing the name of the gene annotation field that was chosen for the intersection in the corresponding matrix.</li>
+</ul>
+</div>
+
+
+
+    
+
+
+
+
+
+        
     
 
     
@@ -1493,13 +1656,13 @@ This is typically necessary for a clean shutdown in Node.js applications.</p>
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#terminate">terminate</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Mon Apr 04 2022 15:30:37 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Mon Apr 04 2022 17:28:39 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
