@@ -17,6 +17,7 @@ import * as custom_markers from "./custom_selections.js";
 
 export { analysisDefaults } from "./defaults.js";
 export { validateAnnotations } from "./preflight.js";
+export { availableReaders } from "./utils/inputs.js";
 
 import * as utils from "./utils/general.js";
 import * as serialize_utils from "./utils/serialize.js";

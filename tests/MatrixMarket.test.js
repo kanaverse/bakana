@@ -38,7 +38,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     let collected = await bakana.saveAnalysis(path);
     expect(collected.collected.length).toBe(3);
     expect(typeof(collected.collected[0])).toBe("string");
-    
+
     let offsets = utils.mockOffsets(collected.collected);
     let new_params = await bakana.loadAnalysis(
         path, 

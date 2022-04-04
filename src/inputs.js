@@ -26,8 +26,8 @@ function process_datasets(files, sample_factor) {
     let datasets = {};
     try {
         for (const [key, val] of Object.entries(files)) {
-            let namespace = iutils.chooseNamespace(val.format);
-            let current = namespace.loadData(val);
+            let namespace = iutils.chooseReader(val.format);
+            let current = namespace.load(val);
 
             if (!("genes" in current)) {
                 current.genes = dummy_genes(current.matrix.numberOfRows());
@@ -236,8 +236,8 @@ export function compute(files, sample_factor) {
 
     let tmp_abbreviated = {};
     for (const [key, val] of entries) {
-        let namespace = iutils.chooseNamespace(val.format);
-        tmp_abbreviated[key] = namespace.formatFiles(val, true);
+        let namespace = iutils.chooseReader(val.format);
+        tmp_abbreviated[key] = namespace.format(val, true);
     }
 
     if (!utils.changedParameters(tmp_abbreviated, abbreviated) && parameters.sample_factor === sample_factor) {
@@ -247,8 +247,8 @@ export function compute(files, sample_factor) {
 
     let new_files = {};
     for (const [key, val] of Object.entries(files)) {
-        let namespace = iutils.chooseNamespace(val.format);
-        new_files[key] = namespace.formatFiles(val, false);
+        let namespace = iutils.chooseReader(val.format);
+        new_files[key] = namespace.format(val, false);
     }
 
     utils.freeCache(cache.matrix);
@@ -284,7 +284,7 @@ export function results() {
  ******** Saving *********
  *************************/
 
-export async function serialize(handle, saver) {
+export async function serialize(handle, embeddedSaver) {
     let ghandle = handle.createGroup("inputs");
 
     let multifile = false;
@@ -292,17 +292,35 @@ export async function serialize(handle, saver) {
         let phandle = ghandle.createGroup("parameters");
 
         let formats = [];
-        let files = [];
         let names = [];
         let numbers = [];
+        let fihandle = phandle.createGroup("files");
+        let sofar = 0;
 
         for (const [key, val] of Object.entries(parameters.files)) {
             formats.push(val.format);
-            for (const x of val.files) {
-                files.push(x);
-            }
             names.push(key);
-            numbers.push(val.files.length);
+
+            let namespace = iutils.chooseReader(val.format);
+            let files = await namespace.serialize(val, embeddedSaver);
+            numbers.push(files.length);
+
+            for (const obj of files) {
+                let curhandle = fihandle.createGroup(String(sofar));
+                curhandle.writeDataSet("type", "String", [], obj.type);
+                curhandle.writeDataSet("name", "String", [], obj.name);
+
+                if (typeof obj.id == "string") {
+                    curhandle.writeDataSet("id", "String", [], obj.id);
+                } else if (typeof obj.offset == "number" && typeof obj.size == "number") {
+                    curhandle.writeDataSet("offset", "Uint32", [], obj.offset);
+                    curhandle.writeDataSet("size", "Uint32", [], obj.size);
+                } else {
+                    throw new Error("object should contain either an 'id' string or 'offset' and 'size' numbers"); 
+                }
+
+                sofar++;
+            }
         }
 
         if (formats.length > 1) {
@@ -312,23 +330,6 @@ export async function serialize(handle, saver) {
             phandle.writeDataSet("sample_names", "String", null, names);
         } else {
             phandle.writeDataSet("format", "String", [], formats[0]);
-        }
-
-        let fihandle = phandle.createGroup("files");
-        for (const [index, obj] of files.entries()) {
-            let curhandle = fihandle.createGroup(String(index));
-            curhandle.writeDataSet("type", "String", [], obj.type);
-            curhandle.writeDataSet("name", "String", [], obj.name);
-
-            let res = await saver(obj);
-            if (typeof res === "string") {
-                curhandle.writeDataSet("id", "String", [], res);
-            } else if (typeof res.offset == "number" && typeof res.size == "number") {
-                curhandle.writeDataSet("offset", "Uint32", [], res.offset);
-                curhandle.writeDataSet("size", "Uint32", [], res.size);
-            } else {
-                throw new Error("saver should either return a string or an object with 'offset' and 'size' numbers"); 
-            }
         }
     }
 
@@ -357,7 +358,7 @@ export async function serialize(handle, saver) {
  ******** Loading *********
  **************************/
 
-export async function unserialize(handle, loadFun) {
+export async function unserialize(handle, embeddedLoader) {
     let ghandle = handle.open("inputs");
     let phandle = ghandle.open("parameters");
 
@@ -376,15 +377,11 @@ export async function unserialize(handle, loadFun) {
         }
 
         if ("id" in current.children) {
-            let dhandle = current.open("id", { load: true });
-            curfile.content = new afile.LoadedFile(await loadFun(dhandle.values[0]));
+            curfile.id = current.open("id", { load: true }).values[0];
         } else {
-            let buffer_deets = {};
             for (const field of ["offset", "size"]) {
-                let dhandle = current.open(field, { load: true });
-                buffer_deets[field] = dhandle.values[0];
+                curfile[field] = current.open(field, { load: true }).values[0];
             }
-            curfile.content = new afile.LoadedFile(await loadFun(buffer_deets.offset, buffer_deets.size));
         }
 
         let idx = Number(x);
@@ -395,11 +392,11 @@ export async function unserialize(handle, loadFun) {
     parameters = { files: {}, sample_factor: null };
     let fohandle = phandle.open("format", { load: true });
     let solofile = (fohandle.shape.length == 0);
+
     if (solofile) {
-        parameters.files["default"] = {
-            format: fohandle.values[0],
-            files: all_files
-        };
+        let format = fohandle.values[0];
+        let namespace = iutils.chooseReader(format);
+        parameters.files["default"] = await namespace.unserialize(all_files, embeddedLoader);
 
         let sf = null;
         if ("sample_factor" in phandle.children) {
@@ -414,16 +411,11 @@ export async function unserialize(handle, loadFun) {
 
         let sofar = 0;
         for (var i = 0; i < formats.length; i++) {
-            let curfiles = [];
-            for (var j = 0; j < sample_groups[i]; j++) {
-                curfiles.push(all_files[sofar]);
-                sofar++;
-            }
-
-            parameters.files[sample_names[i]] = {
-                format: formats[i],
-                files: curfiles
-            };
+            let start = sofar;
+            sofar += sample_groups[i];
+            let curfiles = all_files.slice(start, sofar);
+            let namespace = iutils.chooseReader(formats[i]);
+            parameters.files[sample_names[i]] = await namespace.unserialize(curfiles, embeddedLoader);
         }
     }
 

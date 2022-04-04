@@ -35,10 +35,9 @@ function bufferToNumber(buffer) {
 
 export function embedFiles() {
     let output = { collected: [], total: 0 };
-    output.saver = (obj) => {
-        output.collected.push(obj.content.serialized());
+    output.saver = (serialized, size) => {
+        output.collected.push(serialized);
         let current = output.total;
-        let size = obj.content.size();
         output.total += size;
         return {
             "offset": current,

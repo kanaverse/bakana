@@ -68,20 +68,19 @@ export function commonFeatureTypes(genes) {
     };
 }
 
-export function chooseNamespace(format) {
-    let namespace;
-    switch (format) {
-        case "MatrixMarket":
-            namespace = MtxReader;
-            break;
-        case "10X":
-            namespace = TENxReader;
-            break;
-        case "H5AD":
-            namespace = H5ADReader;
-            break;
-        default:
-            throw "unknown matrix format '" + format + "'";
+export function chooseReader(format) {
+    if (!(format in availableReaders)) {
+        throw "unknown matrix format '" + format + "'";
     }
-    return namespace;
+    return availableReaders[format];
 }
+
+/**
+ * List of available readers.
+ * Each key specifies a matrix format; the corresponding value should be an ES6 module containing methods to interpret that format.
+ */
+export var availableReaders = {
+    "MatrixMarket": MtxReader,
+    "10X": TENxReader,
+    "H5AD": H5ADReader
+};

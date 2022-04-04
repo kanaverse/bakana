@@ -3,10 +3,11 @@ import * as utils from "./../utils/general.js";
 import * as rutils from "./../utils/reader.js";
 import * as afile from "./../abstract/file.js";
 
-export function formatFiles(args, sizeOnly) {
-    var formatted = { "format": "H5AD", "files": [] };
-    formatted.files.push({ "type": "h5", ...rutils.formatFile(args.h5, sizeOnly) });
-    return formatted;
+export function format(args, signatureOnly) {
+    return { 
+        "format": "H5AD", 
+        "h5": rutils.formatFile(args.h5, signatureOnly)
+    };
 }
 
 function extract_features(handle) {
@@ -80,10 +81,11 @@ function extract_annotations(handle, { namesOnly = false } = {}) {
     }
 }
 
-export function loadPreflight(input) {
+export function preflight(args) {
     let output = {};
+    let formatted = format(args, false)
 
-    const tmppath = afile.realizeH5(input.files[0].content);
+    const tmppath = afile.realizeH5(formatted.h5.content);
     try {
         let handle = new scran.H5File(tmppath);
         output.genes = extract_features(handle);
@@ -96,18 +98,32 @@ export function loadPreflight(input) {
     return output;
 }
 
-export function loadData(input){
+export function load(formatted) {
     let output = {};
 
-    const tmppath = afile.realizeH5(input.files[0].content);
+    const tmppath = afile.realizeH5(formatted.h5.content);
     try {
         output.matrix = scran.initializeSparseMatrixFromHDF5(tmppath, "X");
         let handle = new scran.H5File(tmppath);
         output.genes = extract_features(handle); 
-        output.annotations = extract_annotations(handle); // Adding the annotations.
+        output.annotations = extract_annotations(handle);
+    } catch (e) {
+        utils.freeCache(output.matrix);
+        throw e;
     } finally {
         afile.removeH5(tmppath);
     }
 
     return output;
+}
+
+export async function serialize(formatted, embeddedSaver) {
+    return [await rutils.standardSerialize(formatted.h5, "h5", embeddedSaver)];
+}
+
+export async function unserialize(values, embeddedLoader) {
+    return { 
+        "format": "H5AD",
+        "h5": await rutils.standardUnserialize(values[0], embeddedLoader)
+    };
 }

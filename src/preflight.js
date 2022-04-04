@@ -29,9 +29,8 @@ export function validateAnnotations(matrices) {
     let entries = Object.entries(matrices);
 
     for (const [key, val] of entries) {
-        let namespace = iutils.chooseNamespace(val.format);
-        let formatted = namespace.formatFiles(val, f.buffer);
-        let stuff = namespace.loadPreflight(formatted);
+        let namespace = iutils.chooseReader(val.format);
+        let stuff = namespace.preflight(val);
 
         if (stuff.genes !== null) {
             genes[key] = stuff.genes;
