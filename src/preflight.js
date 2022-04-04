@@ -45,17 +45,27 @@ export function validateAnnotations(matrices) {
     let output = { annotations: annotations };
 
     if (entries.length > 1) {
-        let results = iutils.intersectGenes(genes);
+        let results = iutils.commonFeatureTypes(genes);
         if (results.best_type === null) {
             throw new Error("cannot find common feature types across all matrices");
         }
+        output.best_gene_fields = results.best_fields;
 
-        if (results.intersection.length === 0) {
-            throw new Error("cannot find common genes across all matrices");
+        let intersection = null;
+        for (const [k, v] of Object.entries(results.best_fields)) {
+            let curgenes = genes[k][v];
+            if (intersection === null) {
+                intersection = curgenes;
+            } else {
+                let dset = new Set(curgenes);
+                intersection = intersection.filter(n => dset.has(n));
+            }
         }
 
-        output.common_genes = results.intersection.length;
-        output.best_gene_fields = results.best_fields;
+        if (intersection.length === 0) {
+            throw new Error("cannot find common genes across all matrices");
+        }
+        output.common_genes = intersection.length;
     }
 
     return output;

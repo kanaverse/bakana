@@ -3,7 +3,7 @@ import * as TENxReader from "./../readers/10x.js";
 import * as H5ADReader from "./../readers/h5ad.js";
 import * as MtxReader from "./../readers/mtx.js";
 
-export function intersectGenes(genes) {
+export function commonFeatureTypes(genes) {
     // Choosing the features to intersect.
     let scores = {
         "symbol-mouse": [],
@@ -47,8 +47,6 @@ export function intersectGenes(genes) {
         }
     }
 
-    // Now actually performing an intersection.
-    let intersection = [];
     let best_fields = {};
     let best_features = null;
 
@@ -59,24 +57,12 @@ export function intersectGenes(genes) {
             type: best_features_sub[0],
             species: best_features_sub[1]
         };
-
         for (var i = 0; i < names.length; i++) {
-            let name = names[i];
-            let best = best_type_cols[i];
-            let curgenes = genes[name][best];
-
-            if (i == 0) {
-                intersection = curgenes;
-            } else {
-                let dset = new Set(curgenes);
-                intersection = intersection.filter(n => dset.has(n));
-            }
-            best_fields[name] = best;
+            best_fields[names[i]] = best_type_cols[i];
         }
     }
 
     return { 
-        "intersection": intersection, 
         "best_type": best_features,
         "best_fields": best_fields
     };

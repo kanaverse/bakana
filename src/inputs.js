@@ -95,15 +95,26 @@ function process_datasets(files, sample_factor) {
 
         try {
             // Identify the gene columns to use
-            let result = iutils.getCommonGenes(datasets);
+            let genes = {};
+            for (const k of dkeys) {
+                genes[k] = datasets[k].genes;
+                if (genes[k] === null) {
+                    throw new Error("no gene annotations found in matrix '" + k + "'");
+                }
+            }
+
+            let result = iutils.commonFeatureTypes(genes);
+            if (result.best_type === null) {
+                throw new Error("no common feature types available across all matrices");
+            }
             let best_fields = result.best_fields;
 
             let gnames = [];
             let mats = [];
             let total = 0;
-            for (var i = 0; i < dkeys.length; i++) {
-                let current = datasets[dkeys[i]];
-                gnames.push(current.genes[best_fields[i]]);
+            for (const k of dkeys) {
+                let current = datasets[k];
+                gnames.push(current.genes[best_fields[k]]);
                 mats.push(current.matrix);
                 total += current.matrix.numberOfColumns();
             }
