@@ -12,12 +12,12 @@ test("runAnalysis works correctly (10X)", async () => {
     };
 
     let res = await bakana.runAnalysis(
-        [
-            {
+        {
+            default: {
                 format: "10X",
                 h5: "files/datasets/pbmc4k-tenx.h5"
             }
-        ],
+        },
         utils.baseParams,
         utils.downloadReference,
         {

@@ -87,8 +87,8 @@ export function terminate() {
  * Run a basic single-cell RNA-seq analysis with the specified files and parameters.
  * This will cache the results from each step so that, if the parameters change, only the affected steps will be rerun.
  *
- * @param {Array} matrices - An array of input matrices.
- * Each matrix is represented as an object with property `type` and additional properties referring to individual data files.
+ * @param {Array} matrices - Object where each (arbitrarily named) property corresponds to an input matrix. 
+ * Each matrix is itself represented as an object with property `type` and additional properties referring to individual data files.
  * In the browser, each data file manifests as a `File` object; for Node.js, each data file should be represented as a string containing a file path.
  * - If `type: "MatrixMarket"`, the object should contain an `mtx` property, referring to a (possibly Gzipped) Matrix Market file containing a count matrix.
  *   The object may contain a `genes` property, referring to a (possibly Gzipped) tab-separated file with the gene ID and symbols for each row of the count matrix.

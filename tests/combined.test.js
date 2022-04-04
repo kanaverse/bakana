@@ -12,18 +12,18 @@ test("runAnalysis works correctly (combined)", async () => {
     };
 
     let res = await bakana.runAnalysis(
-        [
-            {
+        { 
+            "4K": {
                 format: "10X",
                 h5: "files/datasets/pbmc4k-tenx.h5"
             },
-            {
+            "3K": {
                 format: "MatrixMarket",
                 mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
                 genes: "files/datasets/pbmc3k-features.tsv.gz",
                 annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
             }
-        ],
+        },
         utils.baseParams,
         utils.downloadReference,
         {

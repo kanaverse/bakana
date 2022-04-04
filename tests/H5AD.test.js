@@ -12,12 +12,12 @@ test("runAnalysis works correctly (H5AD)", async () => {
     };
 
     let res = await bakana.runAnalysis(
-        [
-            {
+        { 
+            default: {
                 format: "H5AD",
                 h5: "files/datasets/zeisel-brain.h5ad"
             }
-        ],
+        },
         utils.baseParams,
         utils.downloadReference,
         {

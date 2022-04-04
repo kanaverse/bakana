@@ -12,14 +12,14 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     };
 
     let res = await bakana.runAnalysis(
-        [
-            {
+        { 
+            default: {
                 format: "MatrixMarket",
                 mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
                 genes: "files/datasets/pbmc3k-features.tsv.gz",
                 annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
             }
-        ],
+        },
         utils.baseParams,
         utils.downloadReference,
         {
