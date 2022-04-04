@@ -3,109 +3,99 @@ import * as TENxReader from "./../readers/10x.js";
 import * as H5ADReader from "./../readers/h5ad.js";
 import * as MtxReader from "./../readers/mtx.js";
 
-export function fetchGeneTypes(obj) {
-    if (!("gene_types" in obj.cache)) {
-        var gene_info_type = {};
-        var gene_info = obj.cache.genes;
-        for (const [key, val] of Object.entries(gene_info)) {
-            gene_info_type[key] = scran.guessFeatures(val);
-        }
-        cache.gene_types = gene_info_type;
-    }
-    return cache.gene_types;
-}
-
-export function guessBestFeatures(dataset) {
-    let scores = {}, fields = {};
-    for (const f in dataset.genes) {
-        let fscore = scran.guessFeatures(dataset.genes[f]);
-
-        if ((!scores[`${fscore.type}-${fscore.species}`]) ||
-            fscore.confidence > scores[`${fscore.type}-${fscore.species}`]) {
-            scores[`${fscore.type}-${fscore.species}`] = fscore.confidence;
-            fields[`${fscore.type}-${fscore.species}`] = f;
-        }
-    }
-
-    return { scores, fields };
-}
-
-export function getCommonGenes(datasets) {
-    // now perform intersection
-    let num_common_genes = 0;
-    let keys = Object.keys(datasets);
-
+export function intersectGenes(genes) {
+    // Choosing the features to intersect.
     let scores = {
         "symbol-mouse": [],
         "symbol-human": [],
         "ensembl-mouse": [],
-        "ensembl-human": [],
+        "ensembl-human": []
     };
-
     let fields = JSON.parse(JSON.stringify(scores));
 
-    for (let j = 0; j < keys.length; j++) {
-        let fscores = guessBestFeatures(datasets[keys[j]]);
+    let names = Object.keys(genes);
+    for (const name of names) {
+        let curgenes = genes[name];
 
-        for (const i in fscores.fields) {
-            fields[i].push(fscores.fields[i]);
+        let best_scores = {};
+        let best_fields = {};
+        for (const [k, v] of Object.entries(curgenes)) {
+            let fscore = scran.guessFeatures(v);
+            let curname = fscore.type + "-" + fscore.species;
+            if (!(curname in best_scores) || fscore.confidence > best_scores[curname]) {
+                best_scores[curname] = fscore.confidence;
+                best_fields[curname] = k;
+            }
         }
 
-        for (const i in fscores.scores) {
-            scores[i].push(fscores.scores[i]);
+        for (const [k, v] of Object.entries(best_fields)) {
+            fields[k].push(v);
+            scores[k].push(best_scores[k]);
         }
     }
 
-    let multiplier = -1000;
-    let bscore;
+    let best_score = -1000;
+    let best_type = null;
 
-    for (const i in scores) {
-        if (scores[i].length == keys.length) {
-            let nscore = scores[i].reduce((a, b) => a * b);
-            if (nscore > multiplier) {
-                multiplier = nscore;
-                bscore = i;
+    for (const [k, v] of Object.entries(scores)) {
+        if (v.length == names.length) { // skipping if not represented in all entries.
+            let nscore = v.reduce((a, b) => a * b);
+            if (nscore > best_score) {
+                best_score = nscore;
+                best_type = k;
             }
         }
     }
 
-    let intersection;
-    if (bscore) {
-        intersection = datasets[keys[0]].genes[fields[bscore][0]];
-        for (var i = 1; i < Object.keys(datasets).length; i++) {
-            let dset = new Set(datasets[keys[i]].genes[fields[bscore][i]]);
-            intersection = intersection.filter((n) => {
-                return dset.has(n);
-            });
+    // Now actually performing an intersection.
+    let intersection = [];
+    let best_fields = {};
+    let best_features = null;
+
+    if (best_type !== null) {
+        let best_type_cols = fields[best_type];
+        let best_features_sub = best_type.split("-");
+        best_features = { 
+            type: best_features_sub[0],
+            species: best_features_sub[1]
+        };
+
+        for (var i = 0; i < names.length; i++) {
+            let name = names[i];
+            let best = best_type_cols[i];
+            let curgenes = genes[name][best];
+
+            if (i == 0) {
+                intersection = curgenes;
+            } else {
+                let dset = new Set(curgenes);
+                intersection = intersection.filter(n => dset.has(n));
+            }
+            best_fields[name] = best;
         }
-        num_common_genes = intersection.length;
     }
 
-    return {
-        "num_common_genes": num_common_genes,
-        "intersection": intersection,
-        "best_fields": bscore ? fields[bscore] : null
+    return { 
+        "intersection": intersection, 
+        "best_type": best_features,
+        "best_fields": best_fields
     };
 }
 
 export function chooseNamespace(format) {
     let namespace;
     switch (format) {
-        case "mtx":
         case "MatrixMarket":
             namespace = MtxReader;
             break;
-        case "tenx":
-        case "hdf5":
         case "10X":
             namespace = TENxReader;
             break;
-        case "h5ad":
         case "H5AD":
             namespace = H5ADReader;
             break;
         default:
-            throw "unknown matrix file extension: '" + format + "'";
+            throw "unknown matrix format '" + format + "'";
     }
     return namespace;
 }

@@ -2,71 +2,61 @@ import * as utils from "./utils/general.js";
 import * as iutils from "./utils/inputs.js";
 import * as f from "./abstract/file.js";
 
-export function validate(files) {
-    let datasets = {};
+/**
+ * Perform preflight validation of the annotations in the input matrices.
+ *
+ * This is usually done in regards to the consistency of gene annotations for multiple matrices.
+ * If multiple matrices are present, an error is raised if any matrix does not contain gene annotations;
+ * or there is no common species and feature type for annotations across all matrices;
+ * or the intersection of genes is empty.
+ *
+ * @param {object} matrices - An object where each property is itself an object representing a single input matrix.
+ * See the argument of the same name in {@linkcode runAnalysis} for more details.
+ *
+ * @return An object containing preflight check information:
+ * - `annotations`: an object where each property corresponds to an input matrix in `matrices`.
+ *   Each element is an array containing the names of the cell annotation fields in the corresponding matrix;
+ *   or `null`, if that matrix does not contain any annotations.
+ *
+ * If `matrices` has more than one matrix, the output will also contain:
+ * - `common_genes`: an integer containing the number of common genes across all matrices.
+ * - `best_gene_fields`: an object where each property corresponds to an input matrix in `matrices`.
+ *   Each property is a string containing the name of the gene annotation field that was chosen for the intersection in the corresponding matrix.
+ */
+export function validateAnnotations(matrices) {
+    let genes = {};
+    let annotations = {};
+    let entries = Object.entries(matrices);
 
-    for (const [key, val] of Object.entries(files)) {
+    for (const [key, val] of entries) {
         let namespace = iutils.chooseNamespace(val.format);
         let formatted = namespace.formatFiles(val, f.buffer);
-        datasets[key] = namespace.loadPreflight(formatted);
-    }
+        let stuff = namespace.loadPreflight(formatted);
 
-    // possible check if genes is empty in atleast one of them
-    let all_valid = true;
-    let common_genes = 0;
-    let fkeys = Object.keys(datasets);
-    let annotation_names = [];
-    let error_messages = []
-
-    // do all datasets contain genes ?
-    for (const [key, val] of Object.entries(datasets)) {
-        if (!("genes" in val)) {
-            all_valid = false;
-            if (fkeys.length > 1) {
-                error_messages.push("all imported datasets must contain genes for integration/batch correction");
-                break;
-            }
-        }
-        annotation_names.push(val.annotations);
-    }
-
-    // if all files contain genes, run checks to see if they have common genes;
-    // we don't do this if the earlier step already failed
-    let result;
-    if (all_valid) {
-        result = iutils.getCommonGenes(datasets);
-        common_genes = result?.num_common_genes;
-
-        // if there are no common genes
-        if (common_genes == 0) {
-            all_valid = false;
-            error_messages.push("no common genes across datasets");
+        if (stuff.genes !== null) {
+            genes[key] = stuff.genes;
+        } else if (entries.length > 1) {
+            throw new Error("cannot find gene annotations for matrix '" + key + "'");
         }
 
-        if (fkeys.length !== 1) {
-            // also check if the assumptions in guessing the best column to use for genes 
-            // is consistent across datasets
-            // e.g. dataset1 is human and dataset2 cannot be mouse
-            // TODO: not sure if this is useful anymore 
-            // I guess the common genes would've failed in this case
-            if (!result?.best_fields) {
-                all_valid = false;
-                error_messages.push("we cannot guess the best set of feature columns to use for integrating datasets");
-            }
+        annotations[key] = stuff.annotations;
+    }
+
+    let output = { annotations: annotations };
+
+    if (entries.length > 1) {
+        let results = iutils.intersectGenes(genes);
+        if (results.best_type === null) {
+            throw new Error("cannot find common feature types across all matrices");
         }
+
+        if (results.intersection.length === 0) {
+            throw new Error("cannot find common genes across all matrices");
+        }
+
+        output.common_genes = results.intersection.length;
+        output.best_gene_fields = results.best_fields;
     }
 
-    // if there's only a single dataset; none of the above holds
-    // the ui takes care of batch column selection
-    if (fkeys.length == 1) {
-        all_valid = true;
-    }
-
-    return {
-        "valid": all_valid,
-        "common_genes": common_genes,
-        "annotations": annotation_names,
-        "errors": error_messages,
-        "best_genes": result.best_fields
-    }
+    return output;
 }

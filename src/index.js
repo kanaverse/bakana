@@ -14,7 +14,9 @@ import * as umap from "./umap.js";
 import * as cluster_markers from "./marker_detection.js";
 import * as label_cells from "./cell_labelling.js";
 import * as custom_markers from "./custom_selections.js";
+
 export { analysisDefaults } from "./defaults.js";
+export { validateAnnotations } from "./preflight.js";
 
 import * as utils from "./utils/general.js";
 import * as serialize_utils from "./utils/serialize.js";
