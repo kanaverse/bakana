@@ -26,9 +26,7 @@ const mm_base = "https://github.com/clusterfork/singlepp-references/releases/dow
 // based on the highest confidence annotation.
 function choose_features() {
     let genes = inputs.fetchGenes();
-    console.log(genes);
     let types = inputs.fetchGeneTypes();
-    console.log(types);
 
     let best_feature = null;
     let best = null;
@@ -48,7 +46,7 @@ function choose_features() {
     };
 }
 
-async function build_reference(name, species, rebuild, download) {
+async function build_reference(name, species, rebuild, downloadFun) {
     let base;
     let references;
     let preloaded;
@@ -64,11 +62,11 @@ async function build_reference(name, species, rebuild, download) {
 
     if (!(name in preloaded)) {
         let buffers = await Promise.all([
-            download(proxy + "/" + encodeURIComponent(base + "/" + name + "_genes.csv.gz")),
-            download(proxy + "/" + encodeURIComponent(base + "/" + name + "_labels_fine.csv.gz")),
-            download(proxy + "/" + encodeURIComponent(base + "/" + name + "_label_names_fine.csv.gz")),
-            download(proxy + "/" + encodeURIComponent(base + "/" + name + "_markers_fine.gmt.gz")),
-            download(proxy + "/" + encodeURIComponent(base + "/" + name + "_matrix.csv.gz"))
+            downloadFun(proxy + "/" + encodeURIComponent(base + "/" + name + "_genes.csv.gz")),
+            downloadFun(proxy + "/" + encodeURIComponent(base + "/" + name + "_labels_fine.csv.gz")),
+            downloadFun(proxy + "/" + encodeURIComponent(base + "/" + name + "_label_names_fine.csv.gz")),
+            downloadFun(proxy + "/" + encodeURIComponent(base + "/" + name + "_markers_fine.gmt.gz")),
+            downloadFun(proxy + "/" + encodeURIComponent(base + "/" + name + "_matrix.csv.gz"))
         ]);
 
         let loaded;
@@ -154,7 +152,7 @@ function compare_arrays(x, y) {
     return true;
 }
 
-export function compute(human_references, mouse_references, download) {
+export function compute(human_references, mouse_references, downloadFun) {
     changed = false;
 
     let rebuild = false;
@@ -172,11 +170,11 @@ export function compute(human_references, mouse_references, download) {
     let valid = {};
     if (species == "human") {
         for (const ref of human_references) {
-            valid[ref] = build_reference(ref, "human", rebuild, download);
+            valid[ref] = build_reference(ref, "human", rebuild, downloadFun);
         }
     } else if (species == "mouse") {
         for (const ref of mouse_references) {
-            valid[ref] = build_reference(ref, "mouse", rebuild, download);
+            valid[ref] = build_reference(ref, "mouse", rebuild, downloadFun);
         }
     }
 

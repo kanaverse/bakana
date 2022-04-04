@@ -7,7 +7,7 @@ afterAll(async () => await bakana.terminate());
 
 test("runAnalysis works correctly (H5AD)", async () => {
     let contents = {};
-    let finished = (res, step, msg) => {
+    let finished = (step, res) => {
         contents[step] = res;
     };
 
@@ -19,9 +19,9 @@ test("runAnalysis works correctly (H5AD)", async () => {
             }
         ],
         utils.baseParams,
+        utils.downloadReference,
         {
-            finished: finished,
-            download: utils.downloadReference
+            finishFun: finished,
         }
     );
 
@@ -40,11 +40,7 @@ test("runAnalysis works correctly (H5AD)", async () => {
     let offsets = utils.mockOffsets(collected.collected);
     let new_params = await bakana.loadAnalysis(
         path, 
-        true,
-        {
-            finished: (x, y, z) => null,
-            loader: (offset, size) => offsets[offset]
-        }
+        (offset, size) => offsets[offset]
     );
 
     expect(new_params.quality_control instanceof Object).toBe(true);

@@ -273,7 +273,7 @@ export function results() {
  ******** Saving *********
  *************************/
 
-export async function serialize(handle, saver, embedded) {
+export async function serialize(handle, saver) {
     let ghandle = handle.createGroup("inputs");
 
     let multifile = false;
@@ -310,11 +310,13 @@ export async function serialize(handle, saver, embedded) {
             curhandle.writeDataSet("name", "String", [], obj.name);
 
             let res = await saver(obj);
-            if (embedded) {
+            if (typeof res === "string") {
+                curhandle.writeDataSet("id", "String", [], res);
+            } else if (typeof res.offset == "number" && typeof res.size == "number") {
                 curhandle.writeDataSet("offset", "Uint32", [], res.offset);
                 curhandle.writeDataSet("size", "Uint32", [], res.size);
             } else {
-                curhandle.writeDataSet("id", "String", [], res);
+                throw new Error("saver should either return a string or an object with 'offset' and 'size' numbers"); 
             }
         }
     }
@@ -344,7 +346,7 @@ export async function serialize(handle, saver, embedded) {
  ******** Loading *********
  **************************/
 
-export async function unserialize(handle, loader, embedded) {
+export async function unserialize(handle, loadFun) {
     let ghandle = handle.open("inputs");
     let phandle = ghandle.open("parameters");
 
@@ -362,16 +364,16 @@ export async function unserialize(handle, loader, embedded) {
             curfile[field] = dhandle.values[0];
         }
 
-        if (!embedded) {
+        if ("id" in current.children) {
             let dhandle = current.open("id", { load: true });
-            curfile.content = new afile.LoadedFile(await loader(dhandle.values[0]));
+            curfile.content = new afile.LoadedFile(await loadFun(dhandle.values[0]));
         } else {
             let buffer_deets = {};
             for (const field of ["offset", "size"]) {
                 let dhandle = current.open(field, { load: true });
                 buffer_deets[field] = dhandle.values[0];
             }
-            curfile.content = new afile.LoadedFile(await loader(buffer_deets.offset, buffer_deets.size));
+            curfile.content = new afile.LoadedFile(await loadFun(buffer_deets.offset, buffer_deets.size));
         }
 
         let idx = Number(x);

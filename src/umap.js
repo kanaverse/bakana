@@ -13,9 +13,9 @@ export var changed = false;
  ***************************/
 
 var worker = null;
-export function initialize(iterator, scranOptions) {
+export function initialize(animateFun, scranOptions) {
     worker = aworkers.createWorker(new URL("./umap.worker.js", import.meta.url));
-    return vizutils.initializeWorker(worker, cache, iterator, scranOptions);
+    return vizutils.initializeWorker(worker, cache, animateFun, scranOptions);
 }
 
 export function terminate() {

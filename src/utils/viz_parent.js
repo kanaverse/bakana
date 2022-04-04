@@ -50,11 +50,11 @@ export function sendTask(worker, payload, cache, transferrable = []) {
     return p;
 }
 
-export function initializeWorker(worker, cache, iterator, scranOptions) {
+export function initializeWorker(worker, cache, animateFun, scranOptions) {
     aworkers.registerCallback(worker, msg => {
         var type = msg.data.type;
         if (type.endsWith("_iter")) {
-            iterator(type, msg.data.x, msg.data.y, msg.data.iteration);
+            animateFun(msg.data.x, msg.data.y, msg.data.iteration);
             return;
         }
   
