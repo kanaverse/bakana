@@ -15,16 +15,28 @@ jobs:
       uses: actions/cache@v2
       with:
         path: '**/node_modules'
-        key: modules
+        key: modules-${{ hashFiles('**/package.json') }}
+
+    - name: Restore the dataset files 
+      uses: actions/cache@v2
+      with:
+        path: '**/files/datasets'
+        key: datasets-${{ hashFiles('**/files/download-datasets.sh') }}
+
+    - name: Restore the dataset files 
+      uses: actions/cache@v2
+      with:
+        path: '**/files/references'
+        key: references-${{ hashFiles('**/files/download-references.sh') }}
 
     - name: Install packages
       run: npm i --include-dev
 
     - name: Download datasets
-      run: cd files/datasets && bash download.sh
+      run: cd files && bash download-datasets.sh
 
     - name: Download references
-      run: cd files/references && bash download.sh
+      run: cd files && bash download-references.sh
 
     - name: Run tests
       run: node --experimental-vm-modules --experimental-wasm-threads node_modules/jest/bin/jest.js --testTimeout=1000000 --runInBand
