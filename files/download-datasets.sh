@@ -21,5 +21,9 @@ download 10x-pbmc-v1.0.0/pbmc3k-features.tsv.gz pbmc3k-features.tsv.gz
 download 10x-pbmc-v1.0.0/pbmc3k-barcodes.tsv.gz pbmc3k-barcodes.tsv.gz
 download 10x-pbmc-v1.0.0/pbmc4k-tenx.h5 pbmc4k-tenx.h5
 
+download 10x-pbmc-v1.0.0/combined-matrix.mtx.gz pbmc-combined-matrix.mtx.gz
+download 10x-pbmc-v1.0.0/combined-features.tsv.gz pbmc-combined-features.tsv.gz
+download 10x-pbmc-v1.0.0/combined-barcodes.tsv.gz pbmc-combined-barcodes.tsv.gz
+
 # Download Zeisel datasets.
 download zeisel-brain-v1.0.0/csc.h5ad zeisel-brain.h5ad
