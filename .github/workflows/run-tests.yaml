@@ -1,0 +1,30 @@
+on: [push]
+
+name: Run tests
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Node
+      uses: actions/setup-node@v2
+
+    - name: Restore the node modules
+      uses: actions/cache@v2
+      with:
+        path: '**/node_modules'
+        key: modules
+
+    - name: Install packages
+      run: npm i --include-dev
+
+    - name: Download datasets
+      run: cd files/datasets && bash download.sh
+
+    - name: Download references
+      run: cd files/references && bash download.sh
+
+    - name: Run tests
+      run: node --experimental-vm-modules --experimental-wasm-threads node_modules/jest/bin/jest.js --testTimeout=1000000 --runInBand

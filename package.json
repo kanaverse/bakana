@@ -21,6 +21,7 @@
     "scran.js": "0.0.19"
   },
   "devDependencies": {
-    "jest": "^27.5.1"
+    "jest": "^27.5.1",
+    "jsdoc": "^3.6.10"
   }
 }
