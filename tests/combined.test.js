@@ -1,11 +1,11 @@
 import * as bakana from "../src/index.js";
 import * as scran from "scran.js";
-import * as utils from "./utils.js";
+import * as utils from "./utils.js"
 
 beforeAll(async () => await bakana.initialize({ localFile: true }));
 afterAll(async () => await bakana.terminate());
 
-test("runAnalysis works correctly (MatrixMarket)", async () => {
+test("runAnalysis works correctly (combined)", async () => {
     let contents = {};
     let finished = (res, step, msg) => {
         contents[step] = res;
@@ -13,6 +13,10 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 
     let res = await bakana.runAnalysis(
         [
+            {
+                format: "10X",
+                h5: "files/datasets/pbmc4k-tenx.h5"
+            },
             {
                 format: "MatrixMarket",
                 mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
@@ -34,9 +38,9 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     expect(contents.marker_detection instanceof Object).toBe(true);
 
     // Saving and loading.
-    const path = "TEST_state_MatrixMarket.h5";
+    const path = "TEST_state_multi-matrix.h5";
     let collected = await bakana.saveAnalysis(path);
-    expect(collected.collected.length).toBe(3);
+    expect(collected.collected.length).toBe(4);
     expect(typeof(collected.collected[0])).toBe("string");
     
     let offsets = utils.mockOffsets(collected.collected);

@@ -5,7 +5,7 @@ import * as utils from "./utils.js";
 beforeAll(async () => await bakana.initialize({ localFile: true }));
 afterAll(async () => await bakana.terminate());
 
-test("runAnalysis works correctly (MatrixMarket)", async () => {
+test("runAnalysis works correctly (H5AD)", async () => {
     let contents = {};
     let finished = (res, step, msg) => {
         contents[step] = res;
@@ -14,10 +14,8 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     let res = await bakana.runAnalysis(
         [
             {
-                format: "MatrixMarket",
-                mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
-                genes: "files/datasets/pbmc3k-features.tsv.gz",
-                annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
+                format: "H5AD",
+                h5: "files/datasets/zeisel-brain.h5ad"
             }
         ],
         utils.baseParams,
@@ -34,9 +32,9 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     expect(contents.marker_detection instanceof Object).toBe(true);
 
     // Saving and loading.
-    const path = "TEST_state_MatrixMarket.h5";
+    const path = "TEST_state_H5AD.h5";
     let collected = await bakana.saveAnalysis(path);
-    expect(collected.collected.length).toBe(3);
+    expect(collected.collected.length).toBe(1);
     expect(typeof(collected.collected[0])).toBe("string");
     
     let offsets = utils.mockOffsets(collected.collected);
@@ -52,3 +50,4 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
 })
+
