@@ -4,7 +4,7 @@ import * as markers from "./utils/markers.js";
 import * as qc_module from "./quality_control.js";
 import * as norm_module from "./normalization.js";
 
-class State {
+export class State {
     #qc;
     #norm;
     #cache;

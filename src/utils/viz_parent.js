@@ -19,9 +19,11 @@ var animateFun = (x, y, i) => null;
  */
 export function setVisualizationAnimate(fun) {
     let previous = animateFun;
-    aniamteFun = fun;
+    animateFun = fun;
     return previous;
 }
+
+export var scranOptions = {};
 
 export function computeNeighbors(index, k) {
     var nn_index = index.fetchIndex();
@@ -70,7 +72,13 @@ export function sendTask(worker, payload, cache, transferrable = []) {
     return p;
 }
 
-export function initializeWorker(worker, cache, scranOptions) {
+const worker_registry = [];
+
+export function createWorker(url, cache, scranOptions) { 
+    let worker = aworkers.createWorker(url);
+    let n = worker_registry.length;
+    worker_registry.push(worker);
+
     aworkers.registerCallback(worker, msg => {
         var type = msg.data.type;
         if (type.endsWith("_iter")) {
@@ -88,7 +96,27 @@ export function initializeWorker(worker, cache, scranOptions) {
         delete cache.promises[id];
     });
 
-    return sendTask(worker, { "cmd": "INIT", scranOptions: scranOptions }, cache);
+    return {
+        "worker": worker,
+        "worker_id": n,
+        "ready": sendTask(worker, { "cmd": "INIT", scranOptions: scranOptions }, cache)
+    };
+}
+
+export function killWorker(worker_id) {
+    let worker = worker_registry[worker_id];
+    worker_registry[worker_id] = null;
+    return aworkers.terminateWorker(worker);
+}
+
+export function killAllWorkers() {
+    let p = [];
+    for (const x of worker_registry) {
+        if (x !== null) {
+            p.push(aworkers.terminateWorker(x));
+        }
+    }
+    return Promise.all(p).then(x => null);
 }
 
 export function runWithNeighbors(worker, args, nn_out, cache) {

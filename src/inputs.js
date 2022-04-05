@@ -78,19 +78,6 @@ export class State {
      ******** Compute **********
      ***************************/
 
-    #process_and_cache(new_files, sample_factor) {
-        this.#cache = process_datasets(new_files, sample_factor);
-
-        var gene_info_type = {};
-        var gene_info = this.fetchGenes();
-        for (const [key, val] of Object.entries(gene_info)) {
-            gene_info_type[key] = scran.guessFeatures(val);
-        }
-        this.#cache.gene_types = gene_info_type;
-
-        return 
-    }
-
     compute(files, sample_factor) {
         // Don't bother proceeding with any of the below
         // if we're operating from a reloaded state.
@@ -124,7 +111,7 @@ export class State {
 
         utils.freeCache(this.#cache.matrix);
         utils.freeCache(this.#cache.block_ids);
-        process_and_cache(new_files, sample_factor);
+        this.#cache = process_and_cache(new_files, sample_factor);
 
         this.#abbreviated = tmp_abbreviated;
         this.#parameters.files = new_files;
@@ -416,6 +403,19 @@ function process_datasets(files, sample_factor) {
     }
 }
 
+function process_and_cache(new_files, sample_factor) {
+    let cache = process_datasets(new_files, sample_factor);
+
+    var gene_info_type = {};
+    var gene_info = cache.genes;
+    for (const [key, val] of Object.entries(gene_info)) {
+        gene_info_type[key] = scran.guessFeatures(val);
+    }
+    cache.gene_types = gene_info_type;
+
+    return cache;
+}
+
 /**************************
  ******** Loading *********
  **************************/
@@ -458,7 +458,7 @@ export async function unserialize(handle, embeddedLoader) {
     if (solofile) {
         let format = fohandle.values[0];
         let namespace = iutils.chooseReader(format);
-        this.#parameters.files["default"] = await namespace.unserialize(all_files, embeddedLoader);
+        parameters.files["default"] = await namespace.unserialize(all_files, embeddedLoader);
         if ("sample_factor" in phandle.children) {
             parameters.sample_factor = phandle.open("sample_factor", { load: true }).values[0];
         }
@@ -479,8 +479,7 @@ export async function unserialize(handle, embeddedLoader) {
     }
 
     // Loading matrix data.
-    let cache = {};
-    process_and_cache(parameters.files, parameters.sample_factor, cache);
+    let cache = process_and_cache(parameters.files, parameters.sample_factor);
 
     // We need to do something if the permutation is not the same.
     let rhandle = ghandle.open("results");
@@ -547,6 +546,7 @@ export async function unserialize(handle, embeddedLoader) {
 
     return { 
         state: new State(parameters, cache),
+        parameters: { sample_factor: parameters.sample_factor }, // only returning the sample factor - we don't pass the files back. 
         permuter: permuter
     }
 }

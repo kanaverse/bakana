@@ -41,7 +41,7 @@ export class State {
      ***************************/
 
     #valid() {
-        return "clusters" in cache;
+        return "clusters" in this.#cache;
     }
 
     #compute_neighbors(k) {

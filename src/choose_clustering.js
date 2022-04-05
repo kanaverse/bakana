@@ -107,7 +107,7 @@ export function unserialize(handle, snn, kmeans) {
     let cache = {};
 
     return {
-        state: new State(snn, kmeans, parameters, cache);
+        state: new State(snn, kmeans, parameters, cache),
         parameters: { ...parameters }
     };
 }

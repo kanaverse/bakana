@@ -58,7 +58,7 @@ export class State {
      ***************************/
 
     compute() {
-        this.#changed = false;
+        this.changed = false;
 
         if (this.#norm.changed || this.#choice.changed) {
             var mat = this.#norm.fetchNormalizedMatrix();

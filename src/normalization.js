@@ -7,7 +7,7 @@ export class State {
     #parameters;
     #cache;
 
-    constructor(qc, parameters = null, cache = null){
+    constructor(qc, parameters = null, cache = null) {
         if (!(qc instanceof qc_module.State)) {
             throw new Error("'qc' should be a State object from './quality_control.js'");
         }
@@ -33,7 +33,7 @@ export class State {
         return this.#cache.matrix;
     }
 
-    export function fetchExpression(index) {
+    fetchExpression(index) {
         var mat = this.fetchNormalizedMatrix();
         var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache); // re-using the buffer.
         mat.row(index, { buffer: buffer });
@@ -109,5 +109,8 @@ export class State {
  **************************/
 
 export function unserialize(handle, qc) {
-    return new State(qc);
+    return {
+        state: new State(qc),
+        parameters: {}
+    }
 }

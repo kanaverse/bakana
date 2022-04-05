@@ -1,15 +1,16 @@
 import * as scran from "scran.js";
 import * as vizutils from "./utils/viz_parent.js";
 import * as utils from "./utils/general.js";
-import * as aworkers from "./abstract/worker_parent.js";
 import * as neighbor_module from "./neighbor_index.js";
 
 export class State {
     #index;
     #parameters;
     #cache;
-    #worker;
     #reloaded;
+
+    #worker;
+    #worker_id;
 
     #ready;
     #run;
@@ -25,8 +26,11 @@ export class State {
         this.#reloaded = reloaded;
         this.changed = false;
 
-        this.#worker = aworkers.createWorker(new URL("./tsne.worker.js", import.meta.url));
-        this.#ready = vizutils.initializeWorker(worker, cache, scranOptions);
+        let { worker, worker_id, ready } = vizutils.createWorker(new URL("./tsne.worker.js", import.meta.url), this.#cache, vizutils.scranOptions);
+        this.#worker = worker;
+        this.#worker_id = worker_id;
+        this.#ready = ready;
+
         this.#run = null;
     }
 
@@ -37,7 +41,7 @@ export class State {
     }
 
     free() {
-        return aworkers.terminateWorker(this.#worker);
+        return vizutils.killWorker(this.#worker_id);
     }
 
     /***************************
@@ -67,7 +71,7 @@ export class State {
     }
 
     compute(perplexity, iterations, animate) {
-        this.#changed = false;
+        this.changed = false;
 
         // In the reloaded state, we must send the neighbor
         // information, because it hasn't ever been sent before.

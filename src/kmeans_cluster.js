@@ -7,7 +7,7 @@ export class State {
     #parameters;
     #cache;
 
-    constructor(neighbors, parameters = null, cache = null) {
+    constructor(pca, parameters = null, cache = null) {
         if (!(pca instanceof pca_module.State)) {
             throw new Error("'pca' should be a State object from './pca.js'");
         }
@@ -39,7 +39,7 @@ export class State {
      ***************************/
 
     #valid() {
-        return "raw" in cache;
+        return "raw" in this.#cache;
     }
 
     compute(run_me, k) {

@@ -167,8 +167,8 @@ export function unserialize(handle, permuter, qc, norm) {
     cache.sorted_residuals.sort();
 
     return { 
-        state: new State(qc, norm, parameters, cache)
-        parameters: ...parameters 
+        state: new State(qc, norm, parameters, cache),
+        parameters: { ...parameters }
     };
 }
 

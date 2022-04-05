@@ -131,7 +131,7 @@ export class State {
             this.changed = true;
         }
 
-        if (changed || nmads !== this.#parameters.nmads) {
+        if (this.changed || nmads !== this.#parameters.nmads) {
             let block = this.#inputs.fetchBlock();
             utils.freeCache(this.#cache.filters);
             this.#cache.filters = scran.computePerCellQCFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
@@ -140,9 +140,9 @@ export class State {
             this.changed = true;
         }
 
-        if (changed) {
+        if (this.changed) {
             this.#apply_filters();
-            this.changed = true;
+            this.changed = true; // left in for consistency.
         }
 
         return;
@@ -224,7 +224,7 @@ export class State {
         }
 
         let remaining = 0;
-        if ("matrix" in cache) {
+        if ("matrix" in this.#cache) {
             remaining = this.#cache.matrix.numberOfColumns();
         } else {
             this.fetchDiscards().array().forEach(x => {

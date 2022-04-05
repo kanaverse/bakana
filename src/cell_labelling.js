@@ -50,6 +50,7 @@ export class State {
     }
 
     free() {
+        utils.freeCache(this.#cache.buffer);
         for (const [k, v] of Object.entries(this.#hs_built)) {
             v.raw.free();
         }
@@ -124,7 +125,7 @@ export class State {
                     utils.freeCache(all_built[name].raw);
                 }
 
-                let current = preloaded[name];
+                let current = all_loaded[name];
                 let loaded = current.raw;
 
                 let chosen_ids;
@@ -158,7 +159,7 @@ export class State {
         let rebuild = false;
         if (this.#inputs.changed || !("features" in cache)) {
             rebuild = true;
-            this.#changed = true;
+            this.changed = true;
             let feat_out = choose_features(this.#inputs);
             this.#cache.features = feat_out.features;
             this.#cache.feature_details = feat_out.details;
@@ -184,13 +185,13 @@ export class State {
             this.changed = true;
         }
 
-        if (this.#changed) {
+        if (this.changed) {
             // Creating a column-major array of mean vectors.
             let ngenes = this.#cache.features.length;
-            let ngroups = markers.numberOfGroups(); 
-            let cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", cache);
+            let ngroups = this.#markers.numberOfGroups(); 
+            let cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", this.#cache);
             for (var g = 0; g < ngroups; g++) {
-                let means = markers.fetchGroupMeans(g, { copy: false }); // Warning: direct view in wasm space - be careful.
+                let means = this.#markers.fetchGroupMeans(g, { copy: false }); // Warning: direct view in wasm space - be careful.
                 let cluster_array = cluster_means.array();
                 cluster_array.set(means, g * ngenes);
             }
@@ -350,7 +351,7 @@ function compare_arrays(x, y) {
  ******** Loading *********
  **************************/
 
-export function unserialize(handle) {
+export function unserialize(handle, inputs, markers) {
     let parameters =  {
         mouse_references: [],
         human_references: []
