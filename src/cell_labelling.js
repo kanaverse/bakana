@@ -317,11 +317,24 @@ export async function serialize(handle) {
  **************************/
 
 export function unserialize(handle) {
+    // Flushing as much of the existing state as we can.
+    // '*_loaded' is constant so we don't have to reset that.
     parameters =  {
         mouse_references: [],
         human_references: []
     };
-    cache.results = {};
+
+    for (const [k, v] of Object.entries(hs_references)) {
+        v.raw.free();
+    }
+    hs_references = {};
+
+    for (const [k, v] of Object.entries(mm_references)) {
+        v.raw.free();
+    }
+    mm_references = {};
+
+    cache = { results: {} };
 
     // Protect against old analysis states that don't have cell_labelling.
     if ("cell_labelling" in handle.children) {

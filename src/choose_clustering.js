@@ -3,7 +3,6 @@ import * as utils from "./utils/general.js";
 import * as snn_cluster from "./snn_graph_cluster.js";
 import * as kmeans_cluster from "./kmeans_cluster.js";
 
-var cache = {};
 var parameters = {};
 
 export var changed = false;

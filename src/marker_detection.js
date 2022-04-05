@@ -115,6 +115,9 @@ export function unserialize(handle, permuter) {
 
     // No parameters to unserialize.
 
+    utils.freeCache(cache.raw);
+    cache = {};
+
     {
         let chandle = ghandle.open("results");
         let rhandle = chandle.open("clusters");

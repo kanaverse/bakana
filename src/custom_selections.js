@@ -122,19 +122,29 @@ class CustomMarkersMimic {
 export function unserialize(handle, permuter) {
     let ghandle = handle.open("custom_selections");
 
+    for (const [k, v] of Object.entries(parameters.selections)) {
+        v.free();
+    }
+    parameters = { selections: {} };
+
     {
         let phandle = ghandle.open("parameters");
         let rhandle = phandle.open("selections");
-        parameters = { selections: {} };
+
         for (const key of Object.keys(rhandle.children)) {
             parameters.selections[key] = rhandle.open(key, { load: true }).values;
         }
     }
 
+    for (const [k, v] of Object.entries(cache.results)) {
+        v.free();
+    }
+    cache = { results: {} };
+
     {
         let chandle = ghandle.open("results");
         let rhandle = chandle.open("markers");
-        cache.results = {};
+
         for (const sel of Object.keys(rhandle.children)) {
             let current = markers.unserializeGroupStats(rhandle.open(sel), permuter, { no_summaries: true });
             cache.results[sel] = new CustomMarkersMimic(current);

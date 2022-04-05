@@ -207,6 +207,7 @@ function process_and_cache(new_files, sample_factor) {
     cache.matrix = contents.matrix;
     cache.genes = contents.genes;
     cache.annotations = contents.annotations;
+
     cache.block_ids = contents.block_ids;
     cache.block_levels = contents.block_levels;
     cache.indices = contents.indices;
@@ -228,6 +229,7 @@ export function compute(files, sample_factor) {
     if (entries.length == 1) {
         let form = entries[0][1].format;
         if (form == "kana" || form == "kanadb") {
+            changed = false;
             return;
         }
     }
@@ -390,6 +392,7 @@ export async function unserialize(handle, embeddedLoader) {
 
     // Extracting the format and organizing the files.
     parameters = { files: {}, sample_factor: null };
+    abbreviated = {};
     let fohandle = phandle.open("format", { load: true });
     let solofile = (fohandle.shape.length == 0);
 
@@ -397,12 +400,9 @@ export async function unserialize(handle, embeddedLoader) {
         let format = fohandle.values[0];
         let namespace = iutils.chooseReader(format);
         parameters.files["default"] = await namespace.unserialize(all_files, embeddedLoader);
-
-        let sf = null;
         if ("sample_factor" in phandle.children) {
-            sf = phandle.open("sample_factor", { load: true }).values[0];
+            parameters.sample_factor = phandle.open("sample_factor", { load: true }).values[0];
         }
-        parameters.sample_factor = sf;
 
     } else {
         let formats = fohandle.values;
@@ -420,6 +420,9 @@ export async function unserialize(handle, embeddedLoader) {
     }
 
     // Loading matrix data.
+    utils.freeCache(cache.matrix);
+    utils.freeCache(cache.block_ids);
+    cache = {};
     process_and_cache(parameters.files, parameters.sample_factor);
 
     // We need to do something if the permutation is not the same.

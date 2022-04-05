@@ -142,6 +142,11 @@ export function unserialize(handle) {
         parameters.scheme = { "rank": 0, "number": 1, "jaccard": 2 }[parameters.scheme];
     }
 
+    utils.freeCache(cache.neighbors);
+    utils.freeCache(cache.graph);
+    utils.freeCache(cache.clusters);
+    cache = {};
+
     {
         let rhandle = ghandle.open("results");
         if ("clusters" in rhandle.children) {

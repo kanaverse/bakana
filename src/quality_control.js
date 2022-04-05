@@ -279,11 +279,17 @@ export function unserialize(handle) {
         }
     }
 
+    utils.freeCache(cache.metrics);
+    utils.freeCache(cache.filters);
+    utils.freeCache(cache.block_buffer);
+    cache = {};
+
     {
         let rhandle = ghandle.open("results");
 
         let mhandle = rhandle.open("metrics");
         let sums = mhandle.open("sums", { load: true }).values;
+
         cache.metrics = scran.emptyPerCellQCMetricsResults(sums.length, 1);
         cache.metrics.sums({ copy: false }).set(sums);
 

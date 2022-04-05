@@ -112,6 +112,9 @@ export function unserialize(handle, permuter) {
         };
     }
 
+    utils.freeCache(cache.results);
+    cache = {};
+
     {
         let rhandle = ghandle.open("results");
         let reloaded = {};

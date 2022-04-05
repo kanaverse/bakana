@@ -154,6 +154,11 @@ export function unserialize(handle) {
         }
     }
 
+    utils.freeCache(cache.hvg_buffer);
+    utils.freeCache(cache.pcs);
+    utils.freeCache(cache.corrected);
+    cache = {};
+
     choose_hvgs(parameters.num_hvgs);
 
     {

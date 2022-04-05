@@ -21,6 +21,7 @@ export function compute(approximate) {
     changed = false;
 
     if (pca.changed || approximate != parameters.approximate) {
+        utils.freeCache(cache.raw);
         raw_compute(approximate);
         parameters.approximate = approximate;
         changed = true;
@@ -67,6 +68,9 @@ export function unserialize(handle) {
         };
     }
 
+    utils.freeCache(cache.raw);
+    cache = {};
+
     return { ...parameters };
 }
 
@@ -76,7 +80,7 @@ export function unserialize(handle) {
 
 export function fetchIndex() {
     if (!("raw" in cache)) {
-        rawCompute(parameters.approximate);
+        raw_compute(parameters.approximate);
     }
     return cache.raw;
 }
