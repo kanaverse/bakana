@@ -6,8 +6,15 @@ import * as markers from "./marker_detection.js";
 
 var cache = {};
 var parameters = {};
-
 export var changed = false;
+
+var downloadFun = async (url) => {
+    let resp = await fetch(url);
+    if (!resp.ok) {
+        throw new Error("failed to fetch content at " + url + "(" + resp.status + ")");
+    }
+    return await resp.arrayBuffer();
+};
 
 var hs_loaded = {};
 var mm_loaded = {};
@@ -46,7 +53,7 @@ function choose_features() {
     };
 }
 
-async function build_reference(name, species, rebuild, downloadFun) {
+async function build_reference(name, species, rebuild) {
     let base;
     let references;
     let preloaded;
@@ -152,7 +159,7 @@ function compare_arrays(x, y) {
     return true;
 }
 
-export function compute(human_references, mouse_references, downloadFun) {
+export function compute(human_references, mouse_references) {
     changed = false;
 
     let rebuild = false;
@@ -170,11 +177,11 @@ export function compute(human_references, mouse_references, downloadFun) {
     let valid = {};
     if (species == "human") {
         for (const ref of human_references) {
-            valid[ref] = build_reference(ref, "human", rebuild, downloadFun);
+            valid[ref] = build_reference(ref, "human", rebuild);
         }
     } else if (species == "mouse") {
         for (const ref of mouse_references) {
-            valid[ref] = build_reference(ref, "mouse", rebuild, downloadFun);
+            valid[ref] = build_reference(ref, "mouse", rebuild);
         }
     }
 
@@ -339,4 +346,23 @@ export function unserialize(handle) {
     }
 
     return { ...parameters };
+}
+
+/**************************
+ ******** Setters *********
+ **************************/
+
+/**
+ * Specify a function to download references for the cell labelling step.
+ *
+ * @param {function} fun - Function that accepts a single string containing a URL,
+ * and returns an ArrayBuffer of that URL's contents.
+ *
+ * @return `fun` is set as the global downloader for this step. 
+ * The _previous_ value of the downloader is returned.
+ */
+export function setCellLabellingDownload(fun) {
+    let previous = downloadFun;
+    downloadFun = fun;
+    return previous;
 }

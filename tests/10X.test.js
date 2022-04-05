@@ -19,7 +19,6 @@ test("runAnalysis works correctly (10X)", async () => {
             }
         },
         utils.baseParams,
-        utils.downloadReference,
         {
             finishFun: finished,
         }

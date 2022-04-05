@@ -19,7 +19,6 @@ test("runAnalysis works correctly (H5AD)", async () => {
             }
         },
         utils.baseParams,
-        utils.downloadReference,
         {
             finishFun: finished,
         }

@@ -25,7 +25,6 @@ test("multi-matrix analyses work correctly", async () => {
             }
         },
         utils.baseParams,
-        utils.downloadReference,
         {
             finishFun: finished,
         }
@@ -72,7 +71,6 @@ test("single-matrix multi-sample analyses work correctly", async () => {
             }
         },
         paramcopy,
-        utils.downloadReference,
         {
             finishFun: finished,
         }

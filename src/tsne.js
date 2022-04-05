@@ -13,9 +13,9 @@ export var changed = false;
  ***************************/
 
 var worker = null;
-export function initialize(animateFun, scranOptions) {
+export function initialize(scranOptions) {
     worker = aworkers.createWorker(new URL("./tsne.worker.js", import.meta.url));
-    return vizutils.initializeWorker(worker, cache, animateFun, scranOptions);
+    return vizutils.initializeWorker(worker, cache, scranOptions);
 }
 
 export function terminate() {

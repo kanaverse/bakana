@@ -3,6 +3,27 @@ import * as index from "./../neighbor_index.js";
 import * as utils from "./general.js";
 import * as aworkers from "../abstract/worker_parent.js";
 
+var animateFun = (x, y, i) => null;
+
+/**
+ * Specify a function to handle animation iterations for the low-dimensional embeddings.
+ * The exact nature of this handling is arbitrary - developers may post the contents to another thread, save them to file, etc.
+ *
+ * @param {function} fun - Function to process each animation iteration.
+ * This should accept three arguments, in the following order:
+ * - A `Float64Array` containing the x-coordinates for each cell.
+ * - A `Float64Array` containing the y-coordinates for each cell.
+ * - An integer specifying the iteration number.
+ *
+ * @return `fun` is set as the global animator function for t-SNE and UMAP.
+ * The _previous_ value of the animator is returned.
+ */
+export function setVisualizationAnimate(fun) {
+    let previous = animateFun;
+    aniamteFun = fun;
+    return previous;
+}
+
 export function computeNeighbors(k) {
     var nn_index = index.fetchIndex();
 
@@ -50,7 +71,7 @@ export function sendTask(worker, payload, cache, transferrable = []) {
     return p;
 }
 
-export function initializeWorker(worker, cache, animateFun, scranOptions) {
+export function initializeWorker(worker, cache, scranOptions) {
     aworkers.registerCallback(worker, msg => {
         var type = msg.data.type;
         if (type.endsWith("_iter")) {

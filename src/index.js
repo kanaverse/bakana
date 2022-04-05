@@ -18,6 +18,9 @@ import * as custom_markers from "./custom_selections.js";
 export { analysisDefaults } from "./defaults.js";
 export { validateAnnotations } from "./preflight.js";
 export { availableReaders } from "./utils/inputs.js";
+export { setVisualizationAnimate } from "./utils/viz_parent.js";
+export { setCreateLink, setResolveLink } from "./utils/reader.js";
+export { setCellLabellingDownload } from "./cell_labelling.js";
 
 import * as utils from "./utils/general.js";
 import * as serialize_utils from "./utils/serialize.js";
@@ -46,27 +49,17 @@ const step_custom = "custom_selections";
  * @param {number} [options.numberOfThreads] - Number of threads used by **scran.js**.
  * @param {boolean} [options.localFile] - Whether to use local file paths for imported modules in **scran.js**.
  * This only needs to be `true` for old Node versions that do not support file URIs.
- * @param {function} [options.animateFun] - Function to handle animation iterations for t-SNE or UMAP.
- * If `null`, a no-op function is automatically created.
- * Otherwise, a supplied function should accept three arguments, in the following order:
- * - A `Float64Array` containing the x-coordinates for each cell.
- * - A `Float64Array` containing the y-coordinates for each cell.
- * - An integer specifying the iteration number.
  * 
  * @return A promise that resolves to `null` when initialization is complete.
  */
-export function initialize({ numberOfThreads = 1, localFile = false, animateFun = null } = {}) {
+export function initialize({ numberOfThreads = 1, localFile = false } = {}) {
     let s = scran.initialize({ 
         numberOfThreads: numberOfThreads,
         localFile: localFile
     });
 
-    // Making a dummy iterator, if none is supplied.
-    if (animateFun === null) {
-        animateFun = (x, y, it) => true;
-    }
-    let t = tsne.initialize(animateFun, { localFile: localFile });
-    let u = umap.initialize(animateFun, { localFile: localFile });
+    let t = tsne.initialize({ localFile: localFile });
+    let u = umap.initialize({ localFile: localFile });
 
     return Promise.all([s, t, u]).then(x => null); 
 }
@@ -99,7 +92,6 @@ export function terminate() {
  * - If `type: "H5AD"`, the object should contain an `h5` property, referring to a H5AD file.
  * @param {object} params - An object containing parameters for all steps.
  * See {@linkcode analysisDefaults} for more details.
- * @param {function} downloadFun - Function that accepts a single URL, downloads the requested resource, and returns an ArrayBuffer of the contents.
  * @param {object} [options] - Optional parameters.
  * @param {function} [options.finishFun] - Function that is called on successful execution of each step.
  * This should accept two arguments - the name of the step and an object containing the results of that step.
@@ -107,7 +99,7 @@ export function terminate() {
  * 
  * @return A promise that resolves to `null` when all asynchronous analysis steps are complete.
  */
-export function runAnalysis(matrices, params, downloadFun, { finishFun = null } = {}) {
+export function runAnalysis(matrices, params, { finishFun = null } = {}) {
     if (finishFun === null) {
         finishFun = (name, results) => true;
     }
@@ -212,8 +204,7 @@ export function runAnalysis(matrices, params, downloadFun, { finishFun = null } 
 
     label_cells.compute(
         params[step_labels]["human_references"],
-        params[step_labels]["mouse_references"],
-        downloadFun
+        params[step_labels]["mouse_references"]
     );
     if (label_cells.changed) {
         promises.push(label_cells.results().then(res => finishFun(step_labels, res)));
@@ -234,36 +225,26 @@ export function runAnalysis(matrices, params, downloadFun, { finishFun = null } 
  * @param {string} path - Path to the output HDF5 file.
  * On browsers, this will lie inside the virtual file system of the **scran.js** module.
  * @param {object} [options] - Optional parameters.
- * @param {?function} [options.linkFun] - Function that returns a linking idenfier to a data file.
- * Each link is stored in the state file, which is ultimately used to create a `*.kana` file where the data files are linked rather than embedded.
- * The function should accept an ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
- * and return a string containing some unique identifier to the file.
- * This is most typically used to register the file with some user-specified database system for later retrieval.
- * If `null`, we assume that embedding of the file is desired instead.
+ * @param {boolean} [options.embedded] - Whether to store information for embedded data files.
+ * If `false`, links to data files are stored instead, see {@linkcode setCreateLink}.
  * 
  * @return A HDF5 file is created at `path` containing the analysis parameters and results - see https://ltla.github.io/kanaval for more details on the structure.
- * An object is returned containing:
+ * If `embedded = false`, `null` is returned.
+ * Otherwise, an object is returned containing:
  * - `collected`: an array of length equal to the number of data files.
  *   If `linkFun: null`, each element is an ArrayBuffer containing the file contents, which can be used to assemble an embedded `*.kana` file.
  *   Otherwise, if `linkFun` is supplied, each element is a string containing the linking identifier to the corresponding file.
  * - `total`: an integer containing the total length of all ArrayBuffers in `collected`.
  *   This will only be present if `linkFun` is not supplied.
  */
-export async function saveAnalysis(path, { linkFun = null } = {}) {
-    let saver;
-    let saved;
+export async function saveAnalysis(path, { embedded = true } = {}) {
+    let saver = null;
+    let saved = null;
 
-    if (linkFun === null) {
+    if (embedded) {
         saved = serialize_utils.embedFiles();
         saver = saved.saver;
         delete saved.saver;
-    } else {
-        saved = { collected: [] };
-        saver = (obj) => {
-            let id = linkFun(obj);
-            saved.collected.push(id);
-            return id;
-        }
     }
 
     let handle = scran.createNewHDF5File(path);
@@ -305,11 +286,12 @@ export async function saveAnalysis(path, { linkFun = null } = {}) {
  *
  * @param {string} path - Path to the HDF5 file containing the analysis state.
  * On browsers, this should lie inside the virtual file system of the **scran.js** module.
- * @param {function} loadFun - Function to load the individual data file.
- * - If the state file contains links to files, the function should accept a single string.
- *   Otherwise, the function should accept two arguments - an offset to the start of the file in the embedded file buffer, and the size of the file.
- * - In the browser, the function should return an ArrayBuffer containing the contents of the file.
- *   For Node.js, the function should return a string containing a path to the file.
+ * @param {function} loadFun - Function to load each embedded data file.
+ * This should accept two arguments - an offset to the start of the file in the embedded file buffer, and the size of the file.
+ * In the browser, the function should return an ArrayBuffer containing the contents of the file.
+ * For Node.js, the function should return a string containing a path to the file.
+ * Note that this function is only used if the state file at `path` contains information for embedded files; 
+ * otherwise, links are resolved using reader-specific functions (see {@linkcode setResolveLink} for the common use cases).
  * @param {object} [options] - Optional parameters.
  * @param {function} [options.finishFun] - Function that is called on after extracting results for each step.
  * This should accept two arguments - the name of the step and an object containing the results of that step.

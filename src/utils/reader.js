@@ -49,14 +49,38 @@ var cache = {
     link2file: null
 };
 
+/**
+ * Specify a function to create links for data files.
+ * By default, this only affects files for the MatrixMarket, H5AD and 10X formats, and is only used when linking is requested.
+ *
+ * @param {function} fun - Function that returns a linking idenfier to a data file.
+ * The function should accept an ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
+ * and return a string containing some unique identifier to the file.
+ * This is most typically used to register the file with some user-specified database system for later retrieval.
+ *
+ * @return `fun` is set as the global link creator for this step. 
+ * The _previous_ value of the creator is returned.
+ */
 export function setCreateLink(fun) {
+    let previous = cache.file2link;
     cache.file2link = fun;
-    return;
+    return previous;
 }
 
+/**
+ * Specify a function to resolve links for data files.
+ * By default, this only affects files for the MatrixMarket, H5AD and 10X formats, and is only used when links are detected.
+ *
+ * @param {function} fun - Function that accepts a string containing a linking idenfier and returns an ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
+ * This is most typically used to retrieve a file from some user-specified database system.
+ *
+ * @return `fun` is set as the global resolver for this step. 
+ * The _previous_ value of the resolver is returned.
+ */
 export function setResolveLink(fun) {
+    let previous = cache.link2file;
     cache.link2file = fun;
-    return;
+    return previous;
 }
 
 export async function standardSerialize(details, type, embeddedSaver) {

@@ -8,11 +8,11 @@ baseParams.cell_labelling = {
     human_references: [ "BlueprintEncode" ]
 };
 
-export function downloadReference(url) {
+bakana.setCellLabellingDownload(url => {
     let fpath = path.basename(decodeURIComponent(url));
     let obj = fs.readFileSync("files/references/" + fpath);
     return obj.buffer.slice(obj.byteOffset, obj.byteOffset + obj.byteLength);
-}
+});
 
 export function mockOffsets(paths) {
     let offsets = {};

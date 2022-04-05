@@ -21,7 +21,6 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
             }
         },
         utils.baseParams,
-        utils.downloadReference,
         {
             finishFun: finished,
         }
