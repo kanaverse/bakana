@@ -1,2 +1,6 @@
 package-lock.json
 node_modules
+*.swp
+TEST_*
+raw.js
+jsdoc*
