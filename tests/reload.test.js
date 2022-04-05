@@ -14,40 +14,36 @@ test("reanalysis from a reloaded analysis works correctly", async () => {
             annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
         }
     }
-    await bakana.runAnalysis(files, utils.baseParams);
 
-    // Saving.
+    let params = bakana.analysisDefaults();
+    let state = await bakana.createAnalysis();
+    await bakana.runAnalysis(state, files, params);
+
+    // Saving and reloading.
     const path = "TEST_state_reloaded.h5";
-    let collected = await bakana.saveAnalysis(path);
+    let collected = await bakana.saveAnalysis(state, path);
+    bakana.freeAnalysis(state);
 
-    // Doing a completely different analysis.
-    await bakana.runAnalysis(
-        { 
-            default: {
-                format: "10X",
-                h5: "files/datasets/pbmc4k-tenx.h5"
-            }
-        },
-        utils.baseParams
-    );
-
-    // Now reloading from the first analysis. 
     let offsets = utils.mockOffsets(collected.collected);
-    let new_params = await bakana.loadAnalysis(
+    let reloaded = await bakana.loadAnalysis(
         path, 
         (offset, size) => offsets[offset]
     );
 
     // Further re-analyzing from the first analysis.
-    let paramcopy = bakana.analysisDefaults();
-    paramcopy.quality_control.nmads = 2.5;
+    let new_state = reloaded.state;
+    let new_params = reloaded.parameters;
+    new_params.quality_control.nmads = 2.5;
 
     let contents = {};
     let finished = (step, res) => {
         contents[step] = res;
     };
-    await bakana.runAnalysis({ default: { format: "kana" } }, paramcopy, { finishFun: finished });
+    await bakana.runAnalysis(new_state, { default: { format: "kana" } }, new_params, { finishFun: finished });
 
     expect(contents.inputs).toBeUndefined();
     expect(contents.quality_control instanceof Object).toBe(true);
+
+    // Liberation.
+    bakana.freeAnalysis(new_state);
 })

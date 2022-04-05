@@ -63,7 +63,7 @@ export class State {
     compute(num_hvgs, num_pcs, block_method) {
         this.changed = false;
         
-        if (this.#feat.changed || num_hvgs !== parameters.num_hvgs) {
+        if (this.#feat.changed || num_hvgs !== this.#parameters.num_hvgs) {
             choose_hvgs(num_hvgs, this.#feat, this.#cache);
             this.#parameters.num_hvgs = num_hvgs;
             this.changed = true;

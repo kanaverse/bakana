@@ -11,7 +11,10 @@ test("multi-matrix analyses work correctly", async () => {
         contents[step] = res;
     };
 
+    let paramcopy = bakana.analysisDefaults();
+    let state = await bakana.createAnalysis();
     let res = await bakana.runAnalysis(
+        state,
         { 
             "4K": {
                 format: "10X",
@@ -24,7 +27,7 @@ test("multi-matrix analyses work correctly", async () => {
                 annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
             }
         },
-        utils.baseParams,
+        paramcopy,
         {
             finishFun: finished,
         }
@@ -36,18 +39,22 @@ test("multi-matrix analyses work correctly", async () => {
 
     // Saving and loading.
     const path = "TEST_state_multi-matrix.h5";
-    let collected = await bakana.saveAnalysis(path);
+    let collected = await bakana.saveAnalysis(state, path);
     expect(collected.collected.length).toBe(4);
     expect(typeof(collected.collected[0])).toBe("string");
     
     let offsets = utils.mockOffsets(collected.collected);
-    let new_params = await bakana.loadAnalysis(
+    let reloaded = await bakana.loadAnalysis(
         path, 
         (offset, size) => offsets[offset]
     );
 
+    let new_params = reloaded.parameters;
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
+
+    // Freeing.
+    bakana.freeAnalysis(state);
 })
 
 test("single-matrix multi-sample analyses work correctly", async () => {
@@ -56,12 +63,13 @@ test("single-matrix multi-sample analyses work correctly", async () => {
         contents[step] = res;
     };
     
-    let paramcopy = { ...utils.baseParams };
+    let paramcopy = bakana.analysisDefaults();
     paramcopy.inputs = {
         sample_factor: "3k"
     };
-
+    let state = await bakana.createAnalysis();
     let res = await bakana.runAnalysis(
+        state,
         { 
             "combined": {
                 format: "MatrixMarket",
@@ -82,16 +90,20 @@ test("single-matrix multi-sample analyses work correctly", async () => {
 
     // Saving and loading.
     const path = "TEST_state_multi-matrix.h5";
-    let collected = await bakana.saveAnalysis(path);
+    let collected = await bakana.saveAnalysis(state, path);
     expect(collected.collected.length).toBe(3);
     expect(typeof(collected.collected[0])).toBe("string");
     
     let offsets = utils.mockOffsets(collected.collected);
-    let new_params = await bakana.loadAnalysis(
+    let reloaded = await bakana.loadAnalysis(
         path, 
         (offset, size) => offsets[offset]
     );
 
+    let new_params = reloaded.parameters;
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
+
+    // Freeing.
+    bakana.freeAnalysis(state);
 })

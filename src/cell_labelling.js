@@ -157,7 +157,7 @@ export class State {
         this.changed = false;
 
         let rebuild = false;
-        if (this.#inputs.changed || !("features" in cache)) {
+        if (this.#inputs.changed || !("features" in this.#cache)) {
             rebuild = true;
             this.changed = true;
             let feat_out = choose_features(this.#inputs);
