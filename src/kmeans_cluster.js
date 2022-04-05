@@ -11,10 +11,14 @@ export var changed = false;
  ******** Compute **********
  ***************************/
 
+function valid() {
+    return "raw" in cache;
+}
+
 export function compute(run_me, k) {
     changed = false;
 
-    if (pca.changed || k != parameters.k) {
+    if (pca.changed || k != parameters.k || (!valid() && run_me)) {
         utils.freeCache(cache.raw);
         if (run_me) {
             var pcs = pca.fetchPCs();
@@ -42,10 +46,6 @@ export function results() {
 /*************************
  ******** Saving *********
  *************************/
-
-function valid() {
-    return "raw" in cache;
-}
 
 export function serialize(handle) {
     let ghandle = handle.createGroup("kmeans_cluster");

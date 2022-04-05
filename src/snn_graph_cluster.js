@@ -11,6 +11,10 @@ export var changed = false;
  ******** Compute **********
  ***************************/
 
+function valid() {
+    return "clusters" in cache;
+}
+
 export function compute_neighbors(k) {
     cache.neighbors = scran.findNearestNeighbors(index.fetchIndex(), k);
     return;
@@ -57,7 +61,7 @@ export function compute(run_me, k, scheme, resolution) {
         changed = true 
     }
 
-    if (changed || resolution !== parameters.resolution) {
+    if (changed || resolution !== parameters.resolution || (!valid() && run_me)) {
         utils.freeCache(cache.clusters);
         if (run_me) {
             compute_clusters(resolution);
@@ -84,10 +88,6 @@ export function results() {
 /*************************
  ******** Saving *********
  *************************/
-
-function valid() {
-    return "clusters" in cache;
-}
 
 export function serialize(handle) {
     let ghandle = handle.createGroup("snn_graph_cluster");
