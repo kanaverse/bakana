@@ -1,5 +1,4 @@
 import * as scran from "scran.js";
-import * as index from "./../neighbor_index.js";
 import * as utils from "./general.js";
 import * as aworkers from "../abstract/worker_parent.js";
 
@@ -24,7 +23,7 @@ export function setVisualizationAnimate(fun) {
     return previous;
 }
 
-export function computeNeighbors(k) {
+export function computeNeighbors(index, k) {
     var nn_index = index.fetchIndex();
 
     var output = { "num_obs": nn_index.numberOfCells() };

@@ -1,66 +1,94 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
-import * as pca from "./pca.js";
+import * as pca_module from "./pca.js";
 
-var cache = {};
-var parameters = {};
+export class State {
+    #pca;
+    #parameters;
+    #cache;
 
-export var changed = false;
+    constructor(pca, parameters = null, cache = null) {
+        if (!(pca instanceof pca_module.State)) {
+            throw new Error("'pca' should be a State object from './pca.js'");
+        }
+        this.#pca = pca;
 
-/***************************
- ******** Compute **********
- ***************************/
-
-export function raw_compute(approximate) {
-    var pcs = pca.fetchPCs();
-    cache.raw = scran.buildNeighborSearchIndex(pcs.pcs, { approximate: approximate, numberOfDims: pcs.num_pcs, numberOfCells: pcs.num_obs });
-    return;
-}
-
-export function compute(approximate) {
-    changed = false;
-
-    if (pca.changed || approximate != parameters.approximate) {
-        utils.freeCache(cache.raw);
-        raw_compute(approximate);
-        parameters.approximate = approximate;
-        changed = true;
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
     }
 
-    return;
-}
-
-/***************************
- ******** Results **********
- ***************************/
-
-export function results() {
-    return {};
-}
-
-/*************************
- ******** Saving *********
- *************************/
-
-export function serialize(handle) {
-    let ghandle = handle.createGroup("neighbor_index");
-
-    {
-        let phandle = ghandle.createGroup("parameters");
-        phandle.writeDataSet("approximate", "Uint8", [], Number(parameters.approximate));
+    free() {
+        utils.freeCache(this.#cache.raw);
     }
 
-    ghandle.createGroup("results");
-    return;
+    /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchIndex() {
+        if (!("raw" in this.#cache)) {
+            this.#raw_compute(this.#parameters.approximate);
+        }
+        return this.#cache.raw;
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    #raw_compute(approximate) {
+        var pcs = this.#pca.fetchPCs();
+        this.#cache.raw = scran.buildNeighborSearchIndex(pcs.pcs, { approximate: approximate, numberOfDims: pcs.num_pcs, numberOfCells: pcs.num_obs });
+        return;
+    }
+
+    compute(approximate) {
+        this.changed = false;
+
+        if (this.#pca.changed || approximate != this.#parameters.approximate) {
+            utils.freeCache(this.#cache.raw);
+            this.#raw_compute(approximate);
+            this.#parameters.approximate = approximate;
+            this.changed = true;
+        }
+
+        return;
+    }
+
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    results() {
+        return {};
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup("neighbor_index");
+
+        {
+            let phandle = ghandle.createGroup("parameters");
+            phandle.writeDataSet("approximate", "Uint8", [], Number(this.#parameters.approximate));
+        }
+
+        ghandle.createGroup("results");
+        return;
+    }
 }
 
 /**************************
  ******** Loading *********
  **************************/
 
-export function unserialize(handle) {
+export function unserialize(handle, pca) {
     let ghandle = handle.open("neighbor_index");
 
+    let parameters = {};
     {
         let phandle = ghandle.open("parameters");
         parameters = {
@@ -68,20 +96,10 @@ export function unserialize(handle) {
         };
     }
 
-    utils.freeCache(cache.raw);
-    cache = {};
-    changed = false;
+    let cache = {};
 
-    return { ...parameters };
-}
-
-/***************************
- ******** Getters **********
- ***************************/
-
-export function fetchIndex() {
-    if (!("raw" in cache)) {
-        raw_compute(parameters.approximate);
-    }
-    return cache.raw;
+    return { 
+        state: new State(pca, parameters, cache),
+        parameters: {...parameters }
+    };
 }

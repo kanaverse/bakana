@@ -1,17 +1,233 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as iutils from "./utils/inputs.js";
-import * as afile from "./abstract/file.js";
 
-var cache = {};
-var parameters = {};
-var abbreviated = {};
+export class State {
+    #parameters;
+    #cache;
+    #abbreviated;
 
-export var changed = false;
+    constructor(parameters = null, cache = null) {
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.#abbreviated = {};
+        this.changed = false;
+        return;
+    }
 
-/***************************
- ******** Compute **********
- ***************************/
+    free() {
+        utils.freeCache(this.#cache.matrix);
+        utils.freeCache(this.#cache.block_ids);
+        return;
+    }
+
+    /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchCountMatrix() {
+        return this.#cache.matrix;
+    }
+
+    fetchGenes() {
+        return this.#cache.genes;
+    }
+
+    fetchGeneTypes() {
+        return this.#cache.gene_types;
+    }
+
+    fetchAnnotations(col) {
+        let annots = this.#cache.annotations;
+        let size = this.#cache.matrix.numberOfColumns();
+
+        if (!(col in annots)) {
+            throw new Error(`${col} does not exist in the column annotations`);
+        }
+
+        // i.e., is it already a factor?
+        if (utils.isObject(annots[col]) && "type" in annots[col]) {
+            return annots[col];
+        }
+
+        let uvals = {};
+        let uTypedAray = new Uint8Array(size);
+        annots[col].map((x, i) => {
+            if (!(x in uvals)) {
+                uvals[x] = Object.keys(uvals).length;
+            }
+
+            uTypedAray[i] = uvals[x];
+        });
+
+        return {
+            "index": Object.keys(uvals),
+            "factor": uTypedAray
+        };
+    }
+
+    fetchBlock() {
+        return this.#cache.block_ids;
+    }
+
+    fetchBlockLevels() {
+        return this.#cache.block_levels;
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    #process_and_cache(new_files, sample_factor) {
+        this.#cache = process_datasets(new_files, sample_factor);
+
+        var gene_info_type = {};
+        var gene_info = this.fetchGenes();
+        for (const [key, val] of Object.entries(gene_info)) {
+            gene_info_type[key] = scran.guessFeatures(val);
+        }
+        this.#cache.gene_types = gene_info_type;
+
+        return 
+    }
+
+    compute(files, sample_factor) {
+        // Don't bother proceeding with any of the below
+        // if we're operating from a reloaded state.
+        let entries = Object.entries(files);
+        if (entries.length == 1) {
+            let form = entries[0][1].format;
+            if (form == "kana" || form == "kanadb") {
+                this.changed = false;
+                return;
+            }
+        }
+
+        this.changed = true;
+
+        let tmp_abbreviated = {};
+        for (const [key, val] of entries) {
+            let namespace = iutils.chooseReader(val.format);
+            tmp_abbreviated[key] = namespace.abbreviate(val);
+        }
+
+        if (!utils.changedParameters(tmp_abbreviated, this.#abbreviated) && this.#parameters.sample_factor === sample_factor) {
+            this.changed = false;
+            return;
+        }
+
+        let new_files = {};
+        for (const [key, val] of Object.entries(files)) {
+            let namespace = iutils.chooseReader(val.format);
+            new_files[key] = new namespace.Reader(val);
+        }
+
+        utils.freeCache(this.#cache.matrix);
+        utils.freeCache(this.#cache.block_ids);
+        process_and_cache(new_files, sample_factor);
+
+        this.#abbreviated = tmp_abbreviated;
+        this.#parameters.files = new_files;
+        this.#parameters.sample_factor = sample_factor;
+
+        return;
+    }
+
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    results() {
+        var output = {
+            "dimensions": {
+                "num_genes": this.#cache.matrix.numberOfRows(),
+                "num_cells": this.#cache.matrix.numberOfColumns()
+            },
+            "genes": { ...(this.#cache.genes) }
+        };
+        if (this.#cache.annotations !== null) {
+            output.annotations = Object.keys(this.#cache.annotations);
+        }
+        return output;
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    async serialize(handle, embeddedSaver) {
+        let ghandle = handle.createGroup("inputs");
+
+        let multifile = false;
+        {
+            let phandle = ghandle.createGroup("parameters");
+
+            let formats = [];
+            let names = [];
+            let numbers = [];
+            let fihandle = phandle.createGroup("files");
+            let sofar = 0;
+
+            for (const [key, val] of Object.entries(this.#parameters.files)) {
+                formats.push(val.format());
+                names.push(key);
+
+                let files = await val.serialize(embeddedSaver);
+                numbers.push(files.length);
+
+                for (const obj of files) {
+                    let curhandle = fihandle.createGroup(String(sofar));
+                    curhandle.writeDataSet("type", "String", [], obj.type);
+                    curhandle.writeDataSet("name", "String", [], obj.name);
+
+                    if (typeof obj.id == "string") {
+                        curhandle.writeDataSet("id", "String", [], obj.id);
+                    } else if (typeof obj.offset == "number" && typeof obj.size == "number") {
+                        curhandle.writeDataSet("offset", "Uint32", [], obj.offset);
+                        curhandle.writeDataSet("size", "Uint32", [], obj.size);
+                    } else {
+                        throw new Error("object should contain either an 'id' string or 'offset' and 'size' numbers"); 
+                    }
+
+                    sofar++;
+                }
+            }
+
+            if (formats.length > 1) {
+                multifile = true;
+                phandle.writeDataSet("format", "String", null, formats);
+                phandle.writeDataSet("sample_groups", "Int32", null, numbers);
+                phandle.writeDataSet("sample_names", "String", null, names);
+            } else {
+                phandle.writeDataSet("format", "String", [], formats[0]);
+            }
+        }
+
+        {
+            let rhandle = ghandle.createGroup("results");
+            rhandle.writeDataSet("dimensions", "Int32", null, [this.#cache.matrix.numberOfRows(), this.#cache.matrix.numberOfColumns()]);
+
+            // For diagnostic purposes, we store the number of samples;
+            // this may not be captured by the parameters if we're dealing
+            // with a sample_factor from a single file.
+            if (this.#cache.block_levels !== null) {
+                rhandle.writeDataSet("num_samples", "Int32", [], this.#cache.block_levels.length); 
+            }
+
+            if (multifile) {
+                rhandle.writeDataSet("indices", "Int32", null, this.#cache.indices);
+            } else {
+                rhandle.writeDataSet("permutation", "Int32", null, this.#cache.matrix.permutation({ copy: "view" }));
+            }
+        }
+
+        return;
+    }
+}
+
+/**************************
+ ******* Internals ********
+ **************************/
 
 function dummy_genes(numberOfRows) {
     let genes = []
@@ -200,160 +416,6 @@ function process_datasets(files, sample_factor) {
     }
 }
 
-function process_and_cache(new_files, sample_factor) {
-    let contents = process_datasets(new_files, sample_factor);
-
-    cache.matrix = contents.matrix;
-    cache.genes = contents.genes;
-    cache.annotations = contents.annotations;
-
-    cache.block_ids = contents.block_ids;
-    cache.block_levels = contents.block_levels;
-    cache.indices = contents.indices;
-
-    var gene_info_type = {};
-    var gene_info = fetchGenes();
-    for (const [key, val] of Object.entries(gene_info)) {
-        gene_info_type[key] = scran.guessFeatures(val);
-    }
-    cache.gene_types = gene_info_type;
-
-    return 
-}
-
-export function compute(files, sample_factor) {
-    // Don't bother proceeding with any of the below
-    // if we're operating from a reloaded state.
-    let entries = Object.entries(files);
-    if (entries.length == 1) {
-        let form = entries[0][1].format;
-        if (form == "kana" || form == "kanadb") {
-            changed = false;
-            return;
-        }
-    }
-
-    changed = true;
-
-    let tmp_abbreviated = {};
-    for (const [key, val] of entries) {
-        let namespace = iutils.chooseReader(val.format);
-        tmp_abbreviated[key] = namespace.abbreviate(val);
-    }
-
-    if (!utils.changedParameters(tmp_abbreviated, abbreviated) && parameters.sample_factor === sample_factor) {
-        changed = false;
-        return;
-    }
-
-    let new_files = {};
-    for (const [key, val] of Object.entries(files)) {
-        let namespace = iutils.chooseReader(val.format);
-        new_files[key] = new namespace.Reader(val);
-    }
-
-    utils.freeCache(cache.matrix);
-    utils.freeCache(cache.block_ids);
-    process_and_cache(new_files, sample_factor);
-
-    abbreviated = tmp_abbreviated;
-    parameters.files = new_files;
-    parameters.sample_factor = sample_factor;
-
-    return;
-}
-
-/***************************
- ******** Results **********
- ***************************/
-
-export function results() {
-    var output = {
-        "dimensions": {
-            "num_genes": cache.matrix.numberOfRows(),
-            "num_cells": cache.matrix.numberOfColumns()
-        },
-        "genes": { ...cache.genes }
-    };
-    if (cache.annotations) {
-        output.annotations = Object.keys(cache.annotations);
-    }
-    return output;
-}
-
-/*************************
- ******** Saving *********
- *************************/
-
-export async function serialize(handle, embeddedSaver) {
-    let ghandle = handle.createGroup("inputs");
-
-    let multifile = false;
-    {
-        let phandle = ghandle.createGroup("parameters");
-
-        let formats = [];
-        let names = [];
-        let numbers = [];
-        let fihandle = phandle.createGroup("files");
-        let sofar = 0;
-
-        for (const [key, val] of Object.entries(parameters.files)) {
-            formats.push(val.format());
-            names.push(key);
-
-            let files = await val.serialize(embeddedSaver);
-            numbers.push(files.length);
-
-            for (const obj of files) {
-                let curhandle = fihandle.createGroup(String(sofar));
-                curhandle.writeDataSet("type", "String", [], obj.type);
-                curhandle.writeDataSet("name", "String", [], obj.name);
-
-                if (typeof obj.id == "string") {
-                    curhandle.writeDataSet("id", "String", [], obj.id);
-                } else if (typeof obj.offset == "number" && typeof obj.size == "number") {
-                    curhandle.writeDataSet("offset", "Uint32", [], obj.offset);
-                    curhandle.writeDataSet("size", "Uint32", [], obj.size);
-                } else {
-                    throw new Error("object should contain either an 'id' string or 'offset' and 'size' numbers"); 
-                }
-
-                sofar++;
-            }
-        }
-
-        if (formats.length > 1) {
-            multifile = true;
-            phandle.writeDataSet("format", "String", null, formats);
-            phandle.writeDataSet("sample_groups", "Int32", null, numbers);
-            phandle.writeDataSet("sample_names", "String", null, names);
-        } else {
-            phandle.writeDataSet("format", "String", [], formats[0]);
-        }
-    }
-
-    {
-        let rhandle = ghandle.createGroup("results");
-        rhandle.writeDataSet("dimensions", "Int32", null, [cache.matrix.numberOfRows(), cache.matrix.numberOfColumns()]);
-
-        // For diagnostic purposes, we store the number of samples;
-        // this may not be captured by the parameters if we're dealing
-        // with a sample_factor from a single file.
-        if (cache.block_levels !== null) {
-            rhandle.writeDataSet("num_samples", "Int32", [], cache.block_levels.length); 
-        }
-
-        if (multifile) {
-            rhandle.writeDataSet("indices", "Int32", null, cache.indices);
-        } else {
-            rhandle.writeDataSet("permutation", "Int32", null, cache.matrix.permutation({ copy: "view" }));
-        }
-    }
-
-    return;
-}
-
 /**************************
  ******** Loading *********
  **************************/
@@ -389,16 +451,14 @@ export async function unserialize(handle, embeddedLoader) {
     }
 
     // Extracting the format and organizing the files.
-    parameters = { files: {}, sample_factor: null };
-    abbreviated = {};
-    changed = false;
+    let parameters = { files: {}, sample_factor: null };
     let fohandle = phandle.open("format", { load: true });
     let solofile = (fohandle.shape.length == 0);
 
     if (solofile) {
         let format = fohandle.values[0];
         let namespace = iutils.chooseReader(format);
-        parameters.files["default"] = await namespace.unserialize(all_files, embeddedLoader);
+        this.#parameters.files["default"] = await namespace.unserialize(all_files, embeddedLoader);
         if ("sample_factor" in phandle.children) {
             parameters.sample_factor = phandle.open("sample_factor", { load: true }).values[0];
         }
@@ -419,10 +479,8 @@ export async function unserialize(handle, embeddedLoader) {
     }
 
     // Loading matrix data.
-    utils.freeCache(cache.matrix);
-    utils.freeCache(cache.block_ids);
-    cache = {};
-    process_and_cache(parameters.files, parameters.sample_factor);
+    let cache = {};
+    process_and_cache(parameters.files, parameters.sample_factor, cache);
 
     // We need to do something if the permutation is not the same.
     let rhandle = ghandle.open("results");
@@ -487,57 +545,8 @@ export async function unserialize(handle, embeddedLoader) {
         }
     }
 
-    return permuter;
-}
-
-/***************************
- ******** Getters **********
- ***************************/
-
-export function fetchCountMatrix() {
-    return cache.matrix;
-}
-
-export function fetchGenes() {
-    return cache.genes;
-}
-
-export function fetchGeneTypes() {
-    return cache.gene_types;
-}
-
-export function fetchAnnotations(col) {
-    let annots = cache.annotations;
-    let size = cache.matrix.numberOfColumns();
-
-    if (!(col in annots)) {
-        throw `column ${col} does not exist in col.tsv`;
+    return { 
+        state: new State(parameters, cache),
+        permuter: permuter
     }
-
-    if (utils.isObject(annots[col]) && "type" in annots[col]) {
-        return annots[col];
-    }
-
-    let uvals = {};
-    let uTypedAray = new Uint8Array(size);
-    annots[col].map((x, i) => {
-        if (!(x in uvals)) {
-            uvals[x] = Object.keys(uvals).length;
-        }
-
-        uTypedAray[i] = uvals[x];
-    });
-
-    return {
-        "index": Object.keys(uvals),
-        "factor": uTypedAray
-    }
-}
-
-export function fetchBlock() {
-    return cache.block_ids;
-}
-
-export function fetchBlockLevels() {
-    return cache.block_levels;
 }

@@ -1,68 +1,135 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
-import * as qc from "./quality_control.js";
-import * as normalization from "./normalization.js";
 import * as markers from "./utils/markers.js";
+import * as qc_module from "./quality_control.js";
+import * as norm_module from "./normalization.js";
 
-var cache = { "results": {} };
-var parameters = { "selections": {} };
+class State {
+    #qc;
+    #norm;
+    #cache;
+    #parameters;
 
-export var changed = false;
-
-/***************************
- ******** Compute **********
- ***************************/
-
-export function compute(args) {
-    /* If the QC filter was re-run, all of the selections are invalidated as
-     * the identity of the indices may have changed.
-     */
-    if (qc.changed) {
-        parameters.selections = {};
-        for (const [key, val] of Object.entries(cache.results)) {
-            utils.freeCache(val.raw);                    
+    constructor(qc, norm, parameters = null, cache = null) {
+        if (!(qc instanceof qc_module.State)) {
+            throw new Error("'qc' should be a State object from './quality_control.js'");
         }
-        cache.results = {};
+        this.#qc = qc;
+
+        if (!(norm instanceof norm_module.State)) {
+            throw new Error("'norm' should be a State object from './normalization.js'");
+        }
+        this.#norm = norm;
+
+        this.#cache = (cache === null ? { "results": {} } : cache); 
+        this.#parameters = (parameters === null ? { "selections": {} } : parameters);
+        this.changed = false;
     }
 
-    /*
-     * Technically we would need to re-run detection on the existing selections
-     * if the normalization changed but the QC was the same. In practice, this
-     * never happens, so we'll deal with it later.
-     */
-    
-    changed = true;
-    return;
-}
-
-/***************************
- ******** Results **********
- **************************/
-
-export function results() {
-    return {};
-}
-
-/*************************
- ******** Saving *********
- *************************/
-
-export function serialize(handle) {
-    let ghandle = handle.createGroup("custom_selections");
-
-    {
-        let phandle = ghandle.createGroup("parameters");
-        let rhandle = phandle.createGroup("selections");
-        for (const [key, val] of Object.entries(parameters.selections)) {
-            rhandle.writeDataSet(String(key), "Uint8", null, val);
+    free() {
+        utils.freeCache(this.#cache.buffer);
+        for (const [k, v] of Object.entries(this.#cache.results)) {
+            v.free();
         }
     }
 
-    {
-        let chandle = ghandle.createGroup("results");
-        let rhandle = chandle.createGroup("markers");
-        for (const [key, val] of Object.entries(cache.results)) {
-            markers.serializeGroupStats(rhandle, val, 1, { no_summaries: true });
+    /***************************
+     ******** Setters **********
+     ***************************/
+
+    addSelection(id, selection) {
+        var mat = this.#norm.fetchNormalizedMatrix();
+
+        var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Int32Array", this.#cache);
+        buffer.fill(0);
+        var tmp = buffer.array();
+        selection.forEach(element => { tmp[element] = 1; });
+
+        // Assumes that we have at least one cell in and outside the selection!
+        var res = scran.scoreMarkers(mat, buffer); 
+      
+        // Removing previous results, if there were any.
+        if (id in this.#cache.results) {
+            utils.freeCache(this.#cache.results[id].raw);
+        }
+      
+        this.#cache.results[id] = { "raw": res };
+        this.#parameters.selections[id] = selection;
+    }
+
+    removeSelection(id) {
+        utils.freeCache(this.#cache.results[id].raw);
+        delete this.#cache.results[id];
+        delete parameters.selections[id];
+        return;
+    }
+
+    /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchResults(id, rank_type) {
+        var current = this.#cache.results[id].raw;
+        return markers.fetchGroupResults(current, rank_type, 1); 
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    compute() {
+        this.changed = false;
+
+        /* If the QC filter was re-run, all of the selections are invalidated as
+         * the identity of the indices may have changed.
+         */
+        if (this.#qc.changed) {
+            for (const [key, val] of Object.entries(this.#cache.results)) {
+                utils.freeCache(val.raw);                    
+            }
+            this.#parameters.selections = {};
+            this.#cache.results = {};
+            this.changed = true;
+        }
+
+        /*
+         * Technically we would need to re-run detection on the existing selections
+         * if the normalization changed but the QC was the same. In practice, this
+         * never happens, so we'll deal with it later.
+         */
+
+        return;
+    }
+
+    /***************************
+     ******** Results **********
+     **************************/
+
+    results() {
+        return {};
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup("custom_selections");
+
+        {
+            let phandle = ghandle.createGroup("parameters");
+            let rhandle = phandle.createGroup("selections");
+            for (const [key, val] of Object.entries(this.#parameters.selections)) {
+                rhandle.writeDataSet(String(key), "Uint8", null, val);
+            }
+        }
+
+        {
+            let chandle = ghandle.createGroup("results");
+            let rhandle = chandle.createGroup("markers");
+            for (const [key, val] of Object.entries(this.#cache.results)) {
+                markers.serializeGroupStats(rhandle, val, 1, { no_summaries: true });
+            }
         }
     }
 }
@@ -119,14 +186,10 @@ class CustomMarkersMimic {
     free() {}
 }
 
-export function unserialize(handle, permuter) {
+export function unserialize(handle, permuter, qc, norm) {
     let ghandle = handle.open("custom_selections");
 
-    for (const [k, v] of Object.entries(parameters.selections)) {
-        v.free();
-    }
-    parameters = { selections: {} };
-
+    let parameters = { selections: {} };
     {
         let phandle = ghandle.open("parameters");
         let rhandle = phandle.open("selections");
@@ -136,12 +199,7 @@ export function unserialize(handle, permuter) {
         }
     }
 
-    for (const [k, v] of Object.entries(cache.results)) {
-        v.free();
-    }
-    cache = { results: {} };
-    changed = false;
-
+    let cache = { results: {} };
     {
         let chandle = ghandle.open("results");
         let rhandle = chandle.open("markers");
@@ -157,46 +215,10 @@ export function unserialize(handle, permuter) {
     for (const [k, v] of Object.entries(parameters.selections)) {
         output.selections[k] = v.slice();        
     }
-    return output;
+
+    return {
+        state: new State(qc, norm, parameters, cache),
+        parameters: output
+    };
 }
 
-/***************************
- ******** Setters **********
- ***************************/
-
-export function addSelection(id, selection) {
-    var mat = normalization.fetchNormalizedMatrix();
-
-    var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Int32Array", cache);
-    buffer.fill(0);
-    var tmp = buffer.array();
-    selection.forEach(element => { tmp[element] = 1; });
-
-    // Assumes that we have at least one cell in and outside the selection!
-    var res = scran.scoreMarkers(mat, buffer); 
-  
-    // Removing previous results, if there were any.
-    if (id in cache.results) {
-        utils.freeCache(cache.results[id].raw);
-        delete cache.results[id];
-    }
-  
-    cache.results[id] = { "raw": res };
-    parameters.selections[id] = selection;
-}
-
-export function removeSelection(id) {
-    utils.freeCache(cache.results[id].raw);
-    delete cache.results[id];
-    delete parameters.selections[id];
-    return;
-}
-
-/***************************
- ******** Getters **********
- ***************************/
-
-export function fetchResults(id, rank_type) {
-    var current = cache.results[id].raw;
-    return markers.fetchGroupResults(current, rank_type, 1); 
-}

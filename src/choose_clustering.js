@@ -1,68 +1,102 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
-import * as snn_cluster from "./snn_graph_cluster.js";
-import * as kmeans_cluster from "./kmeans_cluster.js";
+import * as snn_module from "./snn_graph_cluster.js";
+import * as kmeans_module from "./kmeans_cluster.js";
 
-var parameters = {};
+export class State {
+    #snn_cluster;
+    #kmeans_cluster;
+    #parameters;
+    #cache;
 
-export var changed = false;
+    constructor(snn, kmeans, parameters = null, cache = null) {
+        if (!(snn instanceof snn_module.State)) {
+            throw new Error("'snn' should be a State object from './snn_graph_cluster.js'");
+        }
+        this.#snn_cluster = snn;
 
-/***************************
- ******** Compute **********
- ***************************/
+        if (!(kmeans instanceof kmeans_module.State)) {
+            throw new Error("'kmeans' should be a State object from './kmeans_cluster.js'");
+        }
+        this.#kmeans_cluster = kmeans;
 
-export function compute(method) {
-    changed = true;
-    
-    if (method == parameters.method) {
-        if (method == "snn_graph") {
-            if (!snn_cluster.changed) {
-                changed = false;
-            }
-        } else if (method == "kmeans") {
-            if (!kmeans_cluster.changed) {
-                changed = false;
-            }
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
+    }
+
+    free() {}
+
+    /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchClustersAsWasmArray() {
+        if (this.#parameters.method == "snn_graph") {
+            return this.#snn_cluster.fetchClustersAsWasmArray();
+        } else if (this.#parameters.method == "kmeans") {
+            return this.#kmeans_cluster.fetchClustersAsWasmArray();
         }
     }
 
-    parameters.method = method;
-    return;
-}
+    /***************************
+     ******** Compute **********
+     ***************************/
 
-/***************************
- ******** Results **********
- ***************************/
+    compute(method) {
+        this.changed = true;
+        
+        if (method == this.#parameters.method) {
+            if (method == "snn_graph") {
+                if (!this.#snn_cluster.changed) {
+                    this.changed = false;
+                }
+            } else if (method == "kmeans") {
+                if (!this.#kmeans_cluster.changed) {
+                    this.changed = false;
+                }
+            }
+        }
 
-export function results() {
-    var clusters = fetchClustersAsWasmArray();
-    return { "clusters": clusters.slice() };
-}
-
-/*************************
- ******** Saving *********
- *************************/
-
-export function serialize(handle) {
-    let ghandle = handle.createGroup("choose_clustering");
-
-    {
-        let phandle = ghandle.createGroup("parameters");
-        phandle.writeDataSet("method", "String", [], parameters.method);
+        this.#parameters.method = method;
+        return;
     }
 
-    // No need to serialize the cluster IDs as this is done for each step.
-    ghandle.createGroup("results");
-    return;
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    results() {
+        var clusters = this.fetchClustersAsWasmArray();
+        return { "clusters": clusters.slice() };
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup("choose_clustering");
+
+        {
+            let phandle = ghandle.createGroup("parameters");
+            phandle.writeDataSet("method", "String", [], this.#parameters.method);
+        }
+
+        // No need to serialize the cluster IDs as this is done for each step.
+        ghandle.createGroup("results");
+        return;
+    }
 }
 
 /**************************
  ******** Loading *********
  **************************/
 
-export function unserialize(handle) {
+export function unserialize(handle, snn, kmeans) {
     let ghandle = handle.open("choose_clustering");
 
+    let parameters;
     {
         let phandle = ghandle.open("parameters");
         parameters = {
@@ -70,18 +104,10 @@ export function unserialize(handle) {
         };
     }
 
-    changed = false;
-    return { ...parameters };
-}
+    let cache = {};
 
-/***************************
- ******** Getters **********
- ***************************/
-
-export function fetchClustersAsWasmArray() {
-    if (parameters.method == "snn_graph") {
-        return snn_cluster.fetchClustersAsWasmArray();
-    } else if (parameters.method == "kmeans") {
-        return kmeans_cluster.fetchClustersAsWasmArray();
-    }
+    return {
+        state: new State(snn, kmeans, parameters, cache);
+        parameters: { ...parameters }
+    };
 }

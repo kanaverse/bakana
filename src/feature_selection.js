@@ -1,72 +1,106 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import * as normalization from "./normalization.js";
-import * as qc from "./quality_control.js";
+import * as qc_module from "./quality_control.js";
+import * as norm_module from "./normalization.js";
   
-var cache = {};
-var parameters = {};
+export class State {
+    #qc;
+    #norm;
+    #cache;
+    #parameters;
 
-export var changed = false;
+    constructor(qc, norm, parameters = null, cache = null) {
+        if (!(qc instanceof qc_module.State)) {
+            throw new Error("'qc' should be a State object from './quality_control.js'");
+        }
+        this.#qc = qc;
 
-/***************************
- ******** Compute **********
- ***************************/
+        if (!(norm instanceof norm_module.State)) {
+            throw new Error("'norm' should be a State object from './normalization.js'");
+        }
+        this.#norm = norm;
 
-export function compute(span) {
-    changed = false;
-    
-    if (normalization.changed || span != parameters.span) {
-        utils.freeCache(cache.results);
-
-        let mat = normalization.fetchNormalizedMatrix();
-        let block = qc.fetchFilteredBlock();
-        cache.results = scran.modelGeneVar(mat, { span: span, block: block });
-
-        cache.sorted_residuals = cache.results.residuals().slice(); // a separate copy.
-        cache.sorted_residuals.sort();
-
-        parameters.span = span;
-        changed = true;
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
     }
 
-    return;
-}
-
-/***************************
- ******** Results **********
- ***************************/
-
-function format_results({ copy = true } = {}) {
-    copy = (copy ? true : "view");
-    return {
-        "means": cache.results.means({ copy: copy }),
-        "vars": cache.results.variances({ copy: copy }),
-        "fitted": cache.results.fitted({ copy: copy }),
-        "resids": cache.results.residuals({copy: copy })
-    };
-}
-
-export function results() {
-    return format_results();
-}
-
-/*************************
- ******** Saving *********
- *************************/
-
-export function serialize(handle) {
-    let ghandle = handle.createGroup("feature_selection");
-
-    {
-        let phandle = ghandle.createGroup("parameters"); 
-        phandle.writeDataSet("span", "Float64", [], parameters.span);
+    free() {
+        utils.freeCache(this.#cache.matrix);
     }
 
-    {
-        let res = format_results({ copy: false });
-        let rhandle = ghandle.createGroup("results"); 
-        for (const [k, v] of Object.entries(res)) {
-            rhandle.writeDataSet(k, "Float64", null, v);
+    /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchSortedResiduals() {
+        return this.#cache.sorted_residuals;
+    }
+
+    fetchResiduals({ unsafe = false } = {}) {
+        return this.#cache.results.residuals({ copy: !unsafe });
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    compute(span) {
+        this.changed = false;
+        
+        if (this.#norm.changed || span != this.#parameters.span) {
+            utils.freeCache(this.#cache.results);
+
+            let mat = this.#norm.fetchNormalizedMatrix();
+            let block = this.#qc.fetchFilteredBlock();
+            this.#cache.results = scran.modelGeneVar(mat, { span: span, block: block });
+
+            this.#cache.sorted_residuals = this.#cache.results.residuals().slice(); // a separate copy.
+            this.#cache.sorted_residuals.sort();
+
+            this.#parameters.span = span;
+            this.changed = true;
+        }
+
+        return;
+    }
+
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    #format_results({ copy = true } = {}) {
+        copy = (copy ? true : "view");
+        return {
+            "means": this.#cache.results.means({ copy: copy }),
+            "vars": this.#cache.results.variances({ copy: copy }),
+            "fitted": this.#cache.results.fitted({ copy: copy }),
+            "resids": this.#cache.results.residuals({copy: copy })
+        };
+    }
+
+    results() {
+        return this.#format_results();
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup("feature_selection");
+
+        {
+            let phandle = ghandle.createGroup("parameters"); 
+            phandle.writeDataSet("span", "Float64", [], this.#parameters.span);
+        }
+
+        {
+            let res = this.#format_results({ copy: false });
+            let rhandle = ghandle.createGroup("results"); 
+            for (const [k, v] of Object.entries(res)) {
+                rhandle.writeDataSet(k, "Float64", null, v);
+            }
         }
     }
 }
@@ -102,9 +136,10 @@ class ModelGeneVarMimic {
     free() {}
 }
 
-export function unserialize(handle, permuter) {
+export function unserialize(handle, permuter, qc, norm) {
     let ghandle = handle.open("feature_selection");
 
+    let parameters;
     {
         let phandle = ghandle.open("parameters");
         parameters = {
@@ -112,10 +147,7 @@ export function unserialize(handle, permuter) {
         };
     }
 
-    utils.freeCache(cache.results);
-    cache = {};
-    changed = false;
-
+    let cache = {};
     {
         let rhandle = ghandle.open("results");
         let reloaded = {};
@@ -134,17 +166,9 @@ export function unserialize(handle, permuter) {
     cache.sorted_residuals = cache.results.residuals({ copy: true });
     cache.sorted_residuals.sort();
 
-    return { ...parameters };
+    return { 
+        state: new State(qc, norm, parameters, cache)
+        parameters: ...parameters 
+    };
 }
 
-/***************************
- ******** Getters **********
- ***************************/
-
-export function fetchSortedResiduals() {
-    return cache.sorted_residuals;
-}
-
-export function fetchResiduals({ unsafe = false } = {}) {
-    return cache.results.residuals({ copy: !unsafe });
-}

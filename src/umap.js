@@ -1,133 +1,181 @@
 import * as scran from "scran.js";
 import * as vizutils from "./utils/viz_parent.js";
-import * as index from "./neighbor_index.js";
 import * as utils from "./utils/general.js";
 import * as aworkers from "./abstract/worker_parent.js";
+import * as neighbor_module from "./neighbor_index.js";
 
-var cache = { "counter": 0, "promises": {} };
-var parameters = {};
-export var changed = false;
+export class State {
+    #index;
+    #parameters;
+    #cache;
+    #worker;
+    #reloaded;
 
-/***************************
- ******** Workers **********
- ***************************/
+    #ready;
+    #run;
 
-var worker = null;
-export function initialize(scranOptions) {
-    worker = aworkers.createWorker(new URL("./umap.worker.js", import.meta.url));
-    return vizutils.initializeWorker(worker, cache, scranOptions);
-}
+    constructor(index, parameters = null, reloaded = null) {
+        if (!(index instanceof neighbor_module.State)) {
+            throw new Error("'index' should be a State object from './neighbor_index.js'");
+        }
+        this.#index = index;
 
-export function terminate() {
-    return aworkers.terminateWorker(worker);
-}
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = { "counter": 0, "promises": {} };
+        this.#reloaded = reloaded;
+        this.changed = false;
 
-/***************************
- ******** Compute **********
- ***************************/
-
-function core(num_neighbors, num_epochs, min_dist, animate, reneighbor) {
-    var nn_out = null;
-    if (reneighbor) {
-        nn_out = vizutils.computeNeighbors(num_neighbors);
+        this.#worker = aworkers.createWorker(new URL("./tsne.worker.js", import.meta.url));
+        this.#ready = vizutils.initializeWorker(worker, cache, scranOptions);
+        this.#run = null;
     }
 
-    let args = {
-        "num_neighbors": num_neighbors,
-        "num_epochs": num_epochs,
-        "min_dist": min_dist,
-        "animate": animate
-    };
-
-    // This returns a promise but the message itself is sent synchronously,
-    // which is important to ensure that the UMAP runs in its worker in
-    // parallel with other analysis steps. Do NOT put the runWithNeighbors
-    // call in a .then() as this may defer the message sending until 
-    // the current thread is completely done processing.
-    cache.run = vizutils.runWithNeighbors(worker, args, nn_out, cache);
-    return;
-}
-
-export function compute(num_neighbors, num_epochs, min_dist, animate) {
-    let reneighbor = (index.changed || parameters.num_neighbors != num_neighbors || "reloaded" in cache);
-    changed = (reneighbor || num_epochs != parameters.num_epochs || min_dist != parameters.min_dist);
-
-    if (changed) {
-        core(num_neighbors, num_epochs, min_dist, animate, reneighbor);
-
-        parameters.num_neighbors = num_neighbors;
-        parameters.num_epochs = num_epochs;
-        parameters.min_dist = min_dist;
-        parameters.animate = animate;
-
-        delete cache.reloaded;
+    ready() {
+        // It is assumed that the caller will await the ready()
+        // status before calling any other methods of this instance.
+        return this.#ready;
     }
 
-    return;
-}
+    free() {
+        return aworkers.terminateWorker(this.#worker);
+    }
 
-/***************************
- ******** Results **********
- ***************************/
+    /***************************
+     ******** Compute **********
+     ***************************/
 
-async function fetch_results(copy)  {
-    if ("reloaded" in cache) {
-        let output = {
-            x: cache.reloaded.x,
-            y: cache.reloaded.y
-        };
-
-        if (copy) {
-            output.x = output.x.slice();
-            output.y = output.y.slice();
+    #core(num_neighbors, num_epochs, min_dist, animate, reneighbor) {
+        var nn_out = null;
+        if (reneighbor) {
+            nn_out = vizutils.computeNeighbors(this.#index, num_neighbors);
         }
 
-        output.iterations = parameters.num_epochs;
-        return output;
-    } else {
-        // Vectors that we get from the worker are inherently
-        // copied, so no need to do anything extra here.
-        await cache.run;
-        return vizutils.sendTask(worker, { "cmd": "FETCH" }, cache);
-    }
-}
+        let args = {
+            "num_neighbors": num_neighbors,
+            "num_epochs": num_epochs,
+            "min_dist": min_dist,
+            "animate": animate
+        };
 
-export function results() {
-    return fetch_results(true);
-}
-
-/*************************
- ******** Saving *********
- *************************/
-
-export async function serialize(handle) {
-    let ghandle = handle.createGroup("umap");
-
-    {
-        let phandle = ghandle.createGroup("parameters");
-        phandle.writeDataSet("num_neighbors", "Int32", [], parameters.num_neighbors);
-        phandle.writeDataSet("num_epochs", "Int32", [], parameters.num_epochs);
-        phandle.writeDataSet("min_dist", "Float64", [], parameters.min_dist);
-        phandle.writeDataSet("animate", "Uint8", [], Number(parameters.animate));
+        // This returns a promise but the message itself is sent synchronously,
+        // which is important to ensure that the UMAP runs in its worker in
+        // parallel with other analysis steps. Do NOT put the runWithNeighbors
+        // call in a .then() as this may defer the message sending until 
+        // the current thread is completely done processing.
+        this.#run = vizutils.runWithNeighbors(this.#worker, args, nn_out, this.#cache);
+        return;
     }
 
-    {
-        let res = await fetch_results(false);
-        let rhandle = ghandle.createGroup("results");
-        rhandle.writeDataSet("x", "Float64", null, res.x);
-        rhandle.writeDataSet("y", "Float64", null, res.y);
+    compute(num_neighbors, num_epochs, min_dist, animate) {
+        this.changed = false;
+
+        // In the reloaded state, we must send the neighbor
+        // information, because it hasn't ever been sent before.
+
+        let reneighbor = (this.#index.changed || this.#parameters.num_neighbors != num_neighbors || this.#reloaded !== null);
+        if (reneighbor || num_epochs != this.#parameters.num_epochs || min_dist != this.#parameters.min_dist) {
+            this.#core(num_neighbors, num_epochs, min_dist, animate, reneighbor);
+
+            parameters.num_neighbors = num_neighbors;
+            parameters.num_epochs = num_epochs;
+            parameters.min_dist = min_dist;
+            parameters.animate = animate;
+
+            this.changed = true;
+            this.#reloaded = null;
+        }
+
+        return;
     }
 
-    return;
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    async #fetch_results(copy)  {
+        if (this.#reloaded !== null) {
+            let output = {
+                x: this.#reloaded.x,
+                y: this.#reloaded.y
+            };
+
+            if (copy) {
+                output.x = output.x.slice();
+                output.y = output.y.slice();
+            }
+
+            output.iterations = this.#parameters.num_epochs;
+            return output;
+        } else {
+            // Vectors that we get from the worker are inherently
+            // copied, so no need to do anything extra here.
+            await this.#run;
+            return vizutils.sendTask(this.#worker, { "cmd": "FETCH" }, this.#cache);
+        }
+    }
+
+    results() {
+        return this.#fetch_results(true);
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    async serialize(handle) {
+        let ghandle = handle.createGroup("umap");
+
+        {
+            let phandle = ghandle.createGroup("parameters");
+            phandle.writeDataSet("num_neighbors", "Int32", [], this.#parameters.num_neighbors);
+            phandle.writeDataSet("num_epochs", "Int32", [], this.#parameters.num_epochs);
+            phandle.writeDataSet("min_dist", "Float64", [], this.#parameters.min_dist);
+            phandle.writeDataSet("animate", "Uint8", [], Number(this.#parameters.animate));
+        }
+
+        {
+            let res = await this.#fetch_results(false);
+            let rhandle = ghandle.createGroup("results");
+            rhandle.writeDataSet("x", "Float64", null, res.x);
+            rhandle.writeDataSet("y", "Float64", null, res.y);
+        }
+
+        return;
+    }
+
+    /***************************
+     ******** Getters **********
+     ***************************/
+
+    animate() {
+        if (this.#reloaded !== null) {
+            this.#reloaded = null;
+
+            // We need to reneighbor because we haven't sent the neighbors across yet.
+            this.#core(this.#parameters.num_neighbors, this.#parameters.num_epochs, this.#parameters.min_dist, true, true);
+      
+            // Mimicking the response from the re-run.
+            return this.#run
+                .then(contents => { 
+                    return {
+                        "type": "umap_rerun",
+                        "data": { "status": "SUCCESS" }
+                    };
+                });
+        } else {
+            return vizutils.sendTask(this.#worker, { "cmd": "RERUN" }, this.#cache);
+        }
+    }
 }
 
 /**************************
  ******** Loading *********
  **************************/
 
-export function unserialize(handle) {
+export function unserialize(handle, index) {
     let ghandle = handle.open("umap");
 
+    let parameters;
     {
         let phandle = ghandle.open("parameters");
         parameters = {
@@ -138,37 +186,17 @@ export function unserialize(handle) {
         };
     }
 
-    changed = false;
-
+    let reloaded;
     {
         let rhandle = ghandle.open("results");
-        cache.reloaded = {
+        reloaded = {
             x: rhandle.open("x", { load: true }).values,
             y: rhandle.open("y", { load: true }).values
         };
     }
 
-    return { ...parameters };
-}
-
-/***************************
- ******** Getters **********
- ***************************/
-
-export function animate() {
-    if ("reloaded" in cache) {
-        // We need to reneighbor because we haven't sent the neighbors across yet.
-        core(parameters.num_neighbors, parameters.num_epochs, parameters.min_dist, true, true);
-  
-        // Mimicking the response from the re-run.
-        return cache.run
-            .then(contents => { 
-                return {
-                    "type": "umap_rerun",
-                    "data": { "status": "SUCCESS" }
-                };
-            });
-    } else {
-        return vizutils.sendTask(worker, { "cmd": "RERUN" }, cache);
-    }
+    return {
+        state: new State(index, parameters, reloaded),
+        parameters: { ...parameters }
+    };
 }
