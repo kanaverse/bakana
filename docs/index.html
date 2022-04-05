@@ -44,10 +44,77 @@
 
     <section>
         <article><h1>Backend for kana</h1>
+<h2>Overview</h2>
 <p><strong>kanako</strong> provides the compute backend for the <a href="https://github.com/jkanche/kana"><strong>kana</strong></a> application.
 This can be used either in the browser or with Node.js.</p>
 <pre class="prettyprint source lang-sh"><code>node --experimental-vm-modules --experimental-wasm-threads --experimental-wasm-bulk-memory --experimental-wasm-bigint node_modules/jest/bin/jest.js 
-</code></pre></article>
+</code></pre>
+<h2>Adding custom readers</h2>
+<p>Developers can add new data readers to supplement the defaults in <code>src/readers</code>.
+This is most useful for pulling data from external databases for entry into the <strong>bakana</strong> workflow.
+A new reader should be implemented as an ES6 module with the required exports below.</p>
+<p><strong><code>abbreviate(args)</code>:</strong> generate a summary of the matrix to check whether the inputs have changed on re-analysis.</p>
+<ul>
+<li>This should accept an object <code>args</code> containing information about a single count matrix in the reader's desired format.
+<code>args</code> may contain an arbitrary number of properties - their specification is left to the reader.
+By convention, properties referring to files should be <code>File</code> objects in the browser and strings containing file paths for Node.js.</li>
+<li>This should quickly return an object that summarizes the information about the count matrix.
+The returned object should be easily stringified for quick comparison,
+and should be unique enough to distinguish between most other values of <code>args</code>.
+We generally recommend generating a summary based on the file name and size, which is fast and unique enough for most comparisons.</li>
+</ul>
+<p><strong><code>preflight(args)</code>:</strong> fetch annotations from the matrix before the analysis begins.</p>
+<ul>
+<li>This should accept an object <code>args</code> containing information about a single count matrix in the reader's desired format.
+The expected structure of <code>args</code> is identical to that described for <code>abbreviate()</code>.</li>
+<li>This should return an object containing the <code>genes</code> and <code>annotations</code> properties.
+<code>genes</code> should be an object where each key is a gene annotation field name and each value is an array of per-gene information, usually strings containing Ensembl identifiers or symbols.
+<code>annotations</code> should be an array of strings containing the names of the per-cell annotation fields.</li>
+</ul>
+<p><strong><code>Reader(args)</code>:</strong> the <code>Reader</code> class, where each instance contains all information about a single count matrix.</p>
+<ul>
+<li>This constructor should accept an object <code>args</code> containing information about a single count matrix in the reader's desired format.
+The expected structure of <code>args</code> is identical to that described for <code>abbreviate()</code>.</li>
+<li>The structure of the class is left as an implementation detail for each reader.</li>
+</ul>
+<p><strong><code>Reader.format()</code>:</strong> specify the format of the count matrix.</p>
+<ul>
+<li>This should return a string specifying the format of the count matrix corresponding to this reader.
+The value of the string is defined by the reader's developer.</li>
+</ul>
+<p><strong><code>Reader.load()</code>:</strong></p>
+<ul>
+<li>This should return an object containing <code>matrix</code>, a <code>ScranMatrix</code> object.
+The object may also contain <code>genes</code>, an object where each key is a gene annotation field name and each value is an array of per-gene information;
+and/or <code>annotations</code>, an object where each key is a cell annotation field name and each value is an array of per-cell information.</li>
+</ul>
+<p><strong><code>Reader.serialize(embeddedSaver)</code>:</strong></p>
+<ul>
+<li>This should return an array of objects where each object represents a data file used to create the count matrix.
+Each object should contain <code>type</code>, a string specifying the type of file; and <code>name</code>, the name of the file.</li>
+<li>If <code>embeddedSaver</code> is a function, it should be called on each file, in the same order as they occur in the returned array.
+<code>embeddedSaver</code> will accept two arguments - a file and its size - and will return a Promise that resolves to an object containing <code>offset</code> and <code>size</code>.
+(Here, a &quot;file&quot; is defined as an <code>ArrayBuffer</code> containing the contents of the file in the browser, or a path to a file in Node.js.)
+The reported <code>offset</code> and <code>size</code> should then be included in the properties of the corresponding object in the returned array.</li>
+<li>If <code>embeddedSaver = null</code>, each object in the returned array should instead contain <code>id</code>.
+This should be a unique string, typically containing a link to some external database system that holds the corresponding file.
+The interpretation of <code>id</code> is left to the reader, as long as it can be used to meaningfully recover the same file in <code>unserialize()</code> below.</li>
+<li>This method should be <code>async</code>.</li>
+</ul>
+<p><strong><code>unserialize(values, embeddedLoader)</code>:</strong></p>
+<ul>
+<li><code>values</code> should be an array of objects where object represents a data file used to create the count matrix.
+Each object should contain <code>type</code> and <code>name</code>, as described in the <code>Reader.serialize()</code> method.</li>
+<li>If <code>embeddedLoader</code> is a function, each object in <code>values</code> will additionally contain <code>offset</code> and <code>size</code> integers.
+<code>embeddedLoader</code> will accept two arguments - the offset and size - and will return the corresponding file.
+(Again, a &quot;file&quot; is defined as an <code>ArrayBuffer</code> containing the contents of the file in the browser, or a path to a file in Node.js.)
+<code>embeddedLoader</code> should be called on each entry of <code>values</code> in order - note, this should be done even if not all files are used.</li>
+<li>If <code>embeddedLoader = null</code>, each object in <code>values</code> will additionally contain an <code>id</code> string.
+This usually contains a link to some external database system as defined by <code>Reader.serialize()</code>.</li>
+<li>This method should return an instance of the <code>Reader</code> class containing all information related to the count matrix represented by <code>values</code>.
+Presumably this is done using the file contents returned by <code>embeddedLoader</code> or the linked files from the <code>id</code> values.</li>
+<li>This method should be <code>async</code>.</li>
+</ul></article>
     </section>
 
 
@@ -64,7 +131,7 @@ This can be used either in the browser or with Node.js.</p>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Tue Apr 05 2022 05:14:44 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Tue Apr 05 2022 16:53:24 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
