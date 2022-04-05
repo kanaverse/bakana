@@ -140,6 +140,7 @@ export function unserialize(handle, permuter) {
         v.free();
     }
     cache = { results: {} };
+    changed = false;
 
     {
         let chandle = ghandle.open("results");

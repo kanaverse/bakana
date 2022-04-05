@@ -77,6 +77,7 @@ export function serialize(handle) {
 export function unserialize(path) {
     utils.freeCache(cache.matrix);
     delete cache.matrix;
+    changed = false;
     return;
 }
 

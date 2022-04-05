@@ -158,6 +158,7 @@ export function unserialize(handle) {
     utils.freeCache(cache.pcs);
     utils.freeCache(cache.corrected);
     cache = {};
+    changed = false;
 
     choose_hvgs(parameters.num_hvgs);
 

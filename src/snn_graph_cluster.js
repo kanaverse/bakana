@@ -146,6 +146,7 @@ export function unserialize(handle) {
     utils.freeCache(cache.graph);
     utils.freeCache(cache.clusters);
     cache = {};
+    changed = false;
 
     {
         let rhandle = ghandle.open("results");

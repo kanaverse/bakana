@@ -70,6 +70,7 @@ export function unserialize(handle) {
         };
     }
 
+    changed = false;
     return { ...parameters };
 }
 

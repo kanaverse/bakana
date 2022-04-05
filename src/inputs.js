@@ -393,6 +393,7 @@ export async function unserialize(handle, embeddedLoader) {
     // Extracting the format and organizing the files.
     parameters = { files: {}, sample_factor: null };
     abbreviated = {};
+    changed = false;
     let fohandle = phandle.open("format", { load: true });
     let solofile = (fohandle.shape.length == 0);
 

@@ -335,6 +335,7 @@ export function unserialize(handle) {
     mm_references = {};
 
     cache = { results: {} };
+    changed = false;
 
     // Protect against old analysis states that don't have cell_labelling.
     if ("cell_labelling" in handle.children) {

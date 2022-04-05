@@ -70,6 +70,7 @@ export function unserialize(handle) {
 
     utils.freeCache(cache.raw);
     cache = {};
+    changed = false;
 
     return { ...parameters };
 }

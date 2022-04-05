@@ -138,6 +138,8 @@ export function unserialize(handle) {
         };
     }
 
+    changed = false;
+
     {
         let rhandle = ghandle.open("results");
         cache.reloaded = {

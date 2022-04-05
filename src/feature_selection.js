@@ -114,6 +114,7 @@ export function unserialize(handle, permuter) {
 
     utils.freeCache(cache.results);
     cache = {};
+    changed = false;
 
     {
         let rhandle = ghandle.open("results");

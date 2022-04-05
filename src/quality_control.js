@@ -283,6 +283,7 @@ export function unserialize(handle) {
     utils.freeCache(cache.filters);
     utils.freeCache(cache.block_buffer);
     cache = {};
+    changed = false;
 
     {
         let rhandle = ghandle.open("results");

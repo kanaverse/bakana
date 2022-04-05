@@ -91,6 +91,7 @@ export function unserialize(handle) {
     };
     utils.freeCache(cache.raw);
     cache = {};
+    changed = false;
 
     // Protect against old analysis states that don't have kmeans_cluster.
     if ("kmeans_cluster" in handle.children) {
