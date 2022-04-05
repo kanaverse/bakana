@@ -367,46 +367,6 @@ This only needs to be <code>true</code> for old Node versions that do not suppor
         </tr>
 
     
-
-        <tr>
-            
-                <td class="name"><code>animateFun</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">function</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Function to handle animation iterations for t-SNE or UMAP.
-If <code>null</code>, a no-op function is automatically created.
-Otherwise, a supplied function should accept three arguments, in the following order:</p>
-<ul>
-<li>A <code>Float64Array</code> containing the x-coordinates for each cell.</li>
-<li>A <code>Float64Array</code> containing the y-coordinates for each cell.</li>
-<li>An integer specifying the iteration number.</li>
-</ul></td>
-        </tr>
-
-    
     </tbody>
 </table>
 
@@ -451,7 +411,7 @@ Otherwise, a supplied function should accept three arguments, in the following o
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line58">line 58</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line55">line 55</a>
     </li></ul></dd>
     
 
@@ -600,13 +560,12 @@ On browsers, this should lie inside the virtual file system of the <strong>scran
 
             
 
-            <td class="description last"><p>Function to load the individual data file.</p>
-<ul>
-<li>If the state file contains links to files, the function should accept a single string.
-Otherwise, the function should accept two arguments - an offset to the start of the file in the embedded file buffer, and the size of the file.</li>
-<li>In the browser, the function should return an ArrayBuffer containing the contents of the file.
-For Node.js, the function should return a string containing a path to the file.</li>
-</ul></td>
+            <td class="description last"><p>Function to load each embedded data file.
+This should accept two arguments - an offset to the start of the file in the embedded file buffer, and the size of the file.
+In the browser, the function should return an ArrayBuffer containing the contents of the file.
+For Node.js, the function should return a string containing a path to the file.
+Note that this function is only used if the state file at <code>path</code> contains information for embedded files;
+otherwise, links are resolved using reader-specific functions (see <code>setResolveLink</code> for the common use cases).</p></td>
         </tr>
 
     
@@ -743,7 +702,7 @@ If <code>null</code>, a no-op function is automatically created.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line320">line 320</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line302">line 302</a>
     </li></ul></dd>
     
 
@@ -789,7 +748,7 @@ If <code>null</code>, a no-op function is automatically created.</p></td>
     
 
     
-    <h4 class="name" id="runAnalysis"><span class="type-signature"></span>runAnalysis<span class="signature">(matrices, params, downloadFun, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="runAnalysis"><span class="type-signature"></span>runAnalysis<span class="signature">(matrices, params, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
     
 
     
@@ -903,37 +862,6 @@ It is assumed that the matrix has already been filtered to contain only the cell
 
             <td class="description last"><p>An object containing parameters for all steps.
 See <a href="global.html#analysisDefaults"><code>analysisDefaults</code></a> for more details.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>downloadFun</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">function</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Function that accepts a single URL, downloads the requested resource, and returns an ArrayBuffer of the contents.</p></td>
         </tr>
 
     
@@ -1070,7 +998,7 @@ If <code>null</code>, a no-op function is automatically created.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line110">line 110</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line102">line 102</a>
     </li></ul></dd>
     
 
@@ -1249,13 +1177,13 @@ On browsers, this will lie inside the virtual file system of the <strong>scran.j
 
         <tr>
             
-                <td class="name"><code>linkFun</code></td>
+                <td class="name"><code>embedded</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">function</span>
+<span class="param-type">boolean</span>
 
 
             
@@ -1268,8 +1196,6 @@ On browsers, this will lie inside the virtual file system of the <strong>scran.j
                 
 
                 
-                    &lt;nullable><br>
-                
 
                 
                 </td>
@@ -1277,12 +1203,8 @@ On browsers, this will lie inside the virtual file system of the <strong>scran.j
 
             
 
-            <td class="description last"><p>Function that returns a linking idenfier to a data file.
-Each link is stored in the state file, which is ultimately used to create a <code>*.kana</code> file where the data files are linked rather than embedded.
-The function should accept an ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
-and return a string containing some unique identifier to the file.
-This is most typically used to register the file with some user-specified database system for later retrieval.
-If <code>null</code>, we assume that embedding of the file is desired instead.</p></td>
+            <td class="description last"><p>Whether to store information for embedded data files.
+If <code>false</code>, links to data files are stored instead, see <code>setCreateLink</code>.</p></td>
         </tr>
 
     
@@ -1330,7 +1252,7 @@ If <code>null</code>, we assume that embedding of the file is desired instead.</
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line252">line 252</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line240">line 240</a>
     </li></ul></dd>
     
 
@@ -1360,7 +1282,8 @@ If <code>null</code>, we assume that embedding of the file is desired instead.</
         
 <div class="param-desc">
     <p>A HDF5 file is created at <code>path</code> containing the analysis parameters and results - see https://ltla.github.io/kanaval for more details on the structure.
-An object is returned containing:</p>
+If <code>embedded = false</code>, <code>null</code> is returned.
+Otherwise, an object is returned containing:</p>
 <ul>
 <li><code>collected</code>: an array of length equal to the number of data files.
 If <code>linkFun: null</code>, each element is an ArrayBuffer containing the file contents, which can be used to assemble an embedded <code>*.kana</code> file.
@@ -1368,6 +1291,155 @@ Otherwise, if <code>linkFun</code> is supplied, each element is a string contain
 <li><code>total</code>: an integer containing the total length of all ArrayBuffers in <code>collected</code>.
 This will only be present if <code>linkFun</code> is not supplied.</li>
 </ul>
+</div>
+
+
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="setCellLabellingDownload"><span class="type-signature"></span>setCellLabellingDownload<span class="signature">(fun)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Specify a function to download references for the cell labelling step.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>fun</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Function that accepts a single string containing a URL,
+and returns an ArrayBuffer of that URL's contents.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="cell_labelling.js.html">cell_labelling.js</a>, <a href="cell_labelling.js.html#line364">line 364</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p><code>fun</code> is set as the global downloader for this step.
+The <em>previous</em> value of the downloader is returned.</p>
 </div>
 
 
@@ -1437,7 +1509,7 @@ This is typically necessary for a clean shutdown in Node.js applications.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line80">line 80</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line73">line 73</a>
     </li></ul></dd>
     
 
@@ -1656,13 +1728,13 @@ Each property is a string containing the name of the gene annotation field that 
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Mon Apr 04 2022 22:20:06 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Tue Apr 05 2022 00:27:15 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
