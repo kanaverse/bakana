@@ -3,18 +3,18 @@ import * as utils from "./../utils/general.js";
 import * as rutils from "./../utils/reader.js";
 import * as afile from "./../abstract/file.js";
 
-export function format(args, signatureOnly) {
+export function abbreviate(args) {
     var formatted = {
         "format": "MatrixMarket", 
-        "mtx": rutils.formatFile(args.mtx, signatureOnly)
+        "mtx": rutils.formatFile(args.mtx, true)
     };
 
     if ("genes" in args) {
-        formatted.genes = rutils.formatFile(args.genes, signatureOnly);
+        formatted.genes = rutils.formatFile(args.genes, true);
     }
 
     if ("annotations" in args) {
-        formatted.annotations = rutils.formatFile(args.annotations, signatureOnly);
+        formatted.annotations = rutils.formatFile(args.annotations, true);
     }
 
     return formatted;
@@ -89,54 +89,87 @@ export function preflight(args) {
     return output;
 }
 
-export function load(formatted) {
-    var contents = new Uint8Array(formatted.mtx.content.buffer());
-    var ext = formatted.mtx.name.split('.').pop();
-    var is_compressed = (ext == "gz");
+export class Reader {
+    #mtx;
+    #genes;
+    #annotations;
 
-    let output = {};
-    try {
-        output.matrix = scran.initializeSparseMatrixFromMatrixMarketBuffer(contents, { "compressed": is_compressed });
+    constructor(args, formatted = false) {
+        if (!formatted) {
+            this.#mtx = rutils.formatFile(args.mtx, false);
 
-        if ("genes" in formatted) {
-            output.genes = extract_features(formatted.genes, { numberOfRows: output.matrix.numberOfRows() });
+            if ("genes" in args) {
+                this.#genes = rutils.formatFile(args.genes, false);
+            } else {
+                this.#genes = null;
+            }
+
+            if ("annotations" in args) {
+                this.#annotations = rutils.formatFile(args.annotations, false);
+            } else {
+                this.#annotations = null;
+            }
         } else {
-            output.genes = null;
+            this.#mtx = args.mtx;
+            this.#genes = args.genes;
+            this.#annotations = args.annotations;
+        }
+    }
+
+    load() {
+        var contents = new Uint8Array(this.#mtx.content.buffer());
+        var ext = this.#mtx.name.split('.').pop();
+        var is_compressed = (ext == "gz");
+
+        let output = {};
+        try {
+            output.matrix = scran.initializeSparseMatrixFromMatrixMarketBuffer(contents, { "compressed": is_compressed });
+
+            if (this.#genes !== null) {
+                output.genes = extract_features(this.#genes, { numberOfRows: output.matrix.numberOfRows() });
+            } else {
+                output.genes = null;
+            }
+
+            if (this.#annotations !== null) {
+                output.annotations = extract_annotations(this.#annotations, { numberOfColumns: output.matrix.numberOfColumns() });
+            } else {
+                output.annotations = null;
+            }
+        } catch (e) {
+            utils.freeCache(output.matrix);
+            throw e;
         }
 
-        if ("annotations" in formatted) {
-            output.annotations = extract_annotations(formatted.annotations, { numberOfColumns: output.matrix.numberOfColumns() });
-        } else {
-            output.annotations = null;
+        return output;
+    }
+
+    format() {
+        return "MatrixMarket";
+    }
+
+    async serialize(embeddedSaver) {
+        let files = [await rutils.standardSerialize(this.#mtx, "mtx", embeddedSaver)];
+
+        if (this.#genes !== null) {
+            files.push(await rutils.standardSerialize(this.#genes, "genes", embeddedSaver));
         }
-    } catch (e) {
-        utils.freeCache(output.matrix);
-        throw e;
+
+        if (this.#annotations !== null) {
+            files.push(await rutils.standardSerialize(this.#annotations, "annotations", embeddedSaver));
+        }
+
+        return files;
     }
-
-    return output;
-}
-
-export async function serialize(formatted, embeddedSaver) {
-    let files = [await rutils.standardSerialize(formatted.mtx, "mtx", embeddedSaver)];
-
-    if ("genes" in formatted) {
-        files.push(await rutils.standardSerialize(formatted.genes, "genes", embeddedSaver));
-    }
-
-    if ("annotations" in formatted) {
-        files.push(await rutils.standardSerialize(formatted.annotations, "annotations", embeddedSaver));
-    }
-
-    return files;
 }
 
 export async function unserialize(values, embeddedLoader) {
-    let output = { "format": "MatrixMarket" };
+    let args = {};
 
+    // This should contain 'mtx', and possibly 'genes' and/or 'annotations'.
     for (const x of values) {
-        output[x.type] = await rutils.standardUnserialize(x, embeddedLoader);
+        args[x.type] = await rutils.standardUnserialize(x, embeddedLoader);
     }
 
-    return output;
+    return new Reader(args, true);
 }

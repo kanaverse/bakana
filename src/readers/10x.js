@@ -3,10 +3,10 @@ import * as utils from "./../utils/general.js";
 import * as rutils from "./../utils/reader.js";
 import * as afile from "./../abstract/file.js";
 
-export function format(args, signatureOnly) {
+export function abbreviate(args) {
     return { 
         "format": "10X", 
-        "h5": rutils.formatFile(args.h5, signatureOnly)
+        "h5": rutils.formatFile(args.h5, true)
     };
 }
 
@@ -36,9 +36,9 @@ function extract_features(handle) {
 
 export function preflight(args) {
     let output = {};
-    let formatted = format(args, false)
+    let formatted = rutils.formatFile(args.h5, false)
 
-    const tmppath = afile.realizeH5(formatted.h5.content);
+    const tmppath = afile.realizeH5(formatted.content);
     try {
         let handle = new scran.H5File(tmppath);
         output.genes = extract_features(handle);
@@ -51,32 +51,46 @@ export function preflight(args) {
     return output;
 }
 
-export function load(formatted) {
-    let output = {};
+export class Reader {
+    #h5;
 
-    const tmppath = afile.realizeH5(formatted.h5.content);
-    try {
-        output.matrix = scran.initializeSparseMatrixFromHDF5(tmppath, "matrix");
-        let handle = new scran.H5File(tmppath);
-        output.genes = extract_features(handle);
-        output.annotations = null;
-    } catch (e) {
-        utils.freeCache(output.matrix);
-        throw e;
-    } finally {
-        afile.removeH5(tmppath);
+    constructor(args, formatted = false) {
+        if (formatted) {
+            this.#h5 = args;
+        } else {
+            this.#h5 = rutils.formatFile(args.h5, false);
+        }
+        return;
     }
 
-    return output;
-}
+    load() {
+        let output = {};
 
-export async function serialize(formatted, embeddedSaver) {
-    return [await rutils.standardSerialize(formatted.h5, "h5", embeddedSaver)];
+        const tmppath = afile.realizeH5(this.#h5.content);
+        try {
+            output.matrix = scran.initializeSparseMatrixFromHDF5(tmppath, "matrix");
+            let handle = new scran.H5File(tmppath);
+            output.genes = extract_features(handle);
+            output.annotations = null;
+        } catch (e) {
+            utils.freeCache(output.matrix);
+            throw e;
+        } finally {
+            afile.removeH5(tmppath);
+        }
+
+        return output;
+    }
+
+    format() {
+        return "10X";
+    }
+
+    async serialize(embeddedSaver) {
+        return [await rutils.standardSerialize(this.#h5, "h5", embeddedSaver)];
+    }
 }
 
 export async function unserialize(values, embeddedLoader) {
-    return { 
-        "format": "10X",
-        "h5": await rutils.standardUnserialize(values[0], embeddedLoader)
-    };
+    return new Reader(await rutils.standardUnserialize(values[0], embeddedLoader), true);
 }

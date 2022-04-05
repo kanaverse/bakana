@@ -26,8 +26,7 @@ function process_datasets(files, sample_factor) {
     let datasets = {};
     try {
         for (const [key, val] of Object.entries(files)) {
-            let namespace = iutils.chooseReader(val.format);
-            let current = namespace.load(val);
+            let current = val.load();
 
             if (!("genes" in current)) {
                 current.genes = dummy_genes(current.matrix.numberOfRows());
@@ -239,7 +238,7 @@ export function compute(files, sample_factor) {
     let tmp_abbreviated = {};
     for (const [key, val] of entries) {
         let namespace = iutils.chooseReader(val.format);
-        tmp_abbreviated[key] = namespace.format(val, true);
+        tmp_abbreviated[key] = namespace.abbreviate(val);
     }
 
     if (!utils.changedParameters(tmp_abbreviated, abbreviated) && parameters.sample_factor === sample_factor) {
@@ -250,7 +249,7 @@ export function compute(files, sample_factor) {
     let new_files = {};
     for (const [key, val] of Object.entries(files)) {
         let namespace = iutils.chooseReader(val.format);
-        new_files[key] = namespace.format(val, false);
+        new_files[key] = new namespace.Reader(val);
     }
 
     utils.freeCache(cache.matrix);
@@ -300,11 +299,10 @@ export async function serialize(handle, embeddedSaver) {
         let sofar = 0;
 
         for (const [key, val] of Object.entries(parameters.files)) {
-            formats.push(val.format);
+            formats.push(val.format());
             names.push(key);
 
-            let namespace = iutils.chooseReader(val.format);
-            let files = await namespace.serialize(val, embeddedSaver);
+            let files = await val.serialize(embeddedSaver);
             numbers.push(files.length);
 
             for (const obj of files) {
