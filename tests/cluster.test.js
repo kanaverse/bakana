@@ -40,8 +40,8 @@ test("switching between clustering methods (SNN first)", async () => {
 
     // Now trying with k-means. This should cause both sets of
     // results to be saved, as both clusterings are still valid.
-    let paramcopy = { ...utils.baseParams };
-    paramcopy.choose_clustering = { method: "kmeans" };
+    let paramcopy = bakana.analysisDefaults();
+    paramcopy.choose_clustering.method = "kmeans";
 
     contents = {};
     await bakana.runAnalysis(files, paramcopy, { finishFun: finished });
@@ -49,7 +49,7 @@ test("switching between clustering methods (SNN first)", async () => {
     expect(contents.snn_graph_cluster).toBeUndefined();
     expect(contents.kmeans_cluster instanceof Object).toBe(true);
 
-    let collected2 = await bakana.saveAnalysis(path);
+    await bakana.saveAnalysis(path);
     {
         let handle = new scran.H5File(path);
         let khandle = handle.open("kmeans_cluster");
@@ -60,16 +60,6 @@ test("switching between clustering methods (SNN first)", async () => {
         let srhandle = shandle.open("results");
         expect("clusters" in srhandle.children).toBe(true);
     }
-
-    // Checking that we can load everything back in.
-    let offsets = utils.mockOffsets(collected2.collected);
-    let new_params = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
-
-    expect(new_params.snn_graph_cluster instanceof Object).toBe(true);
-    expect(new_params.kmeans_cluster instanceof Object).toBe(true);
 
     // Checking that invalidation of the results behaves correctly.
     // If we change the parameters but we're still on the old set of
@@ -111,7 +101,7 @@ test("switching between clustering methods (k-means first)", async () => {
         contents[step] = res;
     };
 
-    let paramcopy = { ...utils.baseParams };
+    let paramcopy = bakana.analysisDefaults();
     paramcopy.choose_clustering = { method: "kmeans" };
     await bakana.runAnalysis(files, paramcopy, { finishFun: finished });
     expect(contents.snn_graph_cluster instanceof Object).toBe(true);
