@@ -2,11 +2,150 @@
 
 ## Overview
 
-**kanako** provides the compute backend for the [**kana**](https://github.com/jkanche/kana) application.
-This can be used either in the browser or with Node.js.
+**bakana** provides the compute backend for the [**kana**](https://github.com/jkanche/kana) application.
+It provides a pipeline for a routine single-cell RNA-seq analysis, starting from the count matrix and finishing with the usual results (markers, clusters, t-SNE and so on).
+Datasets involving multiple samples in one or multiple matrices can also be analyzed with blocking and batch correction.
+The pipeline can be executed both in the browser and on Node.js.
+It supports in-memory caching of the analysis state for fast iterative re-analysis,
+as well as serialization of the state for storage and distribution to other machines.
 
-```sh
-node --experimental-vm-modules --experimental-wasm-threads --experimental-wasm-bulk-memory --experimental-wasm-bigint node_modules/jest/bin/jest.js 
+## Running analyses
+
+We can perform an analysis with the following minimal commands:
+
+```js
+import * as bakana from "bakana";
+await bakana.initialize({ numberOfThreads: 8 });
+
+let state = await bakana.createAnalysis();
+let params = bakana.analysisDefaults();
+
+await bakana.runAnalysis(state, 
+    // Specify files using paths (Node.js) or File objects (browser).
+    { my_data: { format: "10X", h5: "/some/file/path" } },
+    params
+);
+```
+
+This will fill `state` with results that can be extracted for each step:
+
+```js
+state.quality_control.results();
+## {
+##   data: {
+##     default: {
+##       sums: [Float64Array],
+##       detected: [Int32Array],
+##       proportion: [Float64Array]
+##     }
+##   },
+##   ...
+## }
+
+state.pca.results():
+## {
+##   var_exp: Float64Array(20) [...]
+## }
+
+// Some results() are promises, see the relevant documentation.
+await state.tsne.results();
+## {
+##   x: [Float64Array],
+##   y: [Float64Array],
+##   iterations: 500
+## }
+```
+
+Alternatively, we can supply a callback that processes results from each step as soon as it finishes.
+This can be useful for, e.g., posting results to another system once they become available.
+
+```js
+function finisher(step, results) {
+    console.log(step);
+    // Do other stuff with 'results' here.
+}
+
+await bakana.runAnalysis(state, 
+    // Specify files using paths (Node.js) or File objects (browser).
+    { my_data: { format: "10X", h5: "/some/file/path" } },
+    params,
+    { finishFun: finisher }
+);
+## inputs
+## quality_control
+## normalizaton
+## feature_selection
+## pca
+## neighbor_index
+## kmeans_cluster
+## ...
+```
+
+If the analysis is re-run with different parameters, **bakana** will only re-run the affected steps.
+This includes all steps downstream of any step with changed parameters.
+
+```js
+params.pca.num_pcs = 15;
+
+await bakana.runAnalysis(state, 
+    // Specify files using paths (Node.js) or File objects (browser).
+    { my_data: { format: "10X", h5: "/some/file/path" } },
+    params,
+    { finishFun: finisher }
+);
+## pca
+## neighbor_index
+## ...
+```
+
+## Saving and loading analyses
+
+Given an analysis state, we can save the parameters and results to a HDF5 file.
+
+```js
+let collected = await bakana.saveAnalysis(state, "whee.h5");
+```
+
+`saveAnalysis` will return a promise that resolves to an array of paths (Node.js) or `File` objects for the original data files.
+These can be used to assemble a `*.kana`-format file following the [**kanaval** specification](https://ltla.github.io/kanaval).
+By default, this assumes that we are embedding the data files into the `*.kana` file.
+
+```js
+// TODO: add code here.
+```
+
+It is also reasonably straightforward to extract the various state and data files from a `*.kana` file.
+
+```js
+// TODO: add code here.
+```
+
+Now, given an HDF5 state file, we can reload the analysis state into memory.
+This will also report the parameters used at each step.
+
+```js
+// TODO: implement a default handler for embedded loader.
+let reloaded = await bakana.loadAnalysis("whee.h5", loader);
+let new_state = reloaded.state;
+let new_params = reloaded.parameters;
+```
+
+As with `runAnalysis()`, we can also supply a callback that runs on the results once they become available.
+
+```js
+let reloaded = await bakana.loadAnalysis("whee.h5", loader, { finishFun: finisher });
+```
+
+Advanced users may prefer to store links to the data files rather than embedding them.
+This can be achieved using the `setCreateLink()` and `setResolveLink()` functions to define application-specific links.
+For example, the **kana** application uses IndexedDB to cache each file for later use in the browser.
+
+## Terminating the session
+
+On Node.js, it is usually necessary to terminate all workers so that the runtime will properly exit.
+
+```js
+bakana.terminate();
 ```
 
 ## Adding custom readers
@@ -40,12 +179,12 @@ A new reader should be implemented as an ES6 module with the required exports be
 - This should return a string specifying the format of the count matrix corresponding to this reader.
   The value of the string is defined by the reader's developer.
 
-**`Reader.load()`:** 
+**`Reader.load()`:** load the count matrix into memory.
 - This should return an object containing `matrix`, a `ScranMatrix` object.
   The object may also contain `genes`, an object where each key is a gene annotation field name and each value is an array of per-gene information;
   and/or `annotations`, an object where each key is a cell annotation field name and each value is an array of per-cell information.
 
-**`Reader.serialize(embeddedSaver)`:**
+**`Reader.serialize(embeddedSaver)`:** register the count matrix in the state file. 
 - This should return an array of objects where each object represents a data file used to create the count matrix.
   Each object should contain `type`, a string specifying the type of file; and `name`, the name of the file.
 - If `embeddedSaver` is a function, it should be called on each file, in the same order as they occur in the returned array.
@@ -57,7 +196,7 @@ A new reader should be implemented as an ES6 module with the required exports be
   The interpretation of `id` is left to the reader, as long as it can be used to meaningfully recover the same file in `unserialize()` below.
 - This method should be `async`.
 
-**`unserialize(values, embeddedLoader)`:**
+**`unserialize(values, embeddedLoader)`:** load the count matrix from the state file.
 - `values` should be an array of objects where object represents a data file used to create the count matrix.
   Each object should contain `type` and `name`, as described in the `Reader.serialize()` method.
 - If `embeddedLoader` is a function, each object in `values` will additionally contain `offset` and `size` integers.
@@ -69,3 +208,19 @@ A new reader should be implemented as an ES6 module with the required exports be
 - This method should return an instance of the `Reader` class containing all information related to the count matrix represented by `values`.
   Presumably this is done using the file contents returned by `embeddedLoader` or the linked files from the `id` values.
 - This method should be `async`.
+
+## Developer notes
+
+Testing requires some combination of the options below,
+depending on the version of Node.js available.
+
+```sh
+node --experimental-vm-modules \
+    --experimental-wasm-threads \
+    --experimental-wasm-bulk-memory \
+    --experimental-wasm-bigint \
+    node_modules/jest/bin/jest.js \
+    --testTimeout=100000000 \
+    --runInBand
+```
+
