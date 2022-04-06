@@ -81,17 +81,12 @@ export class State {
     compute(files, sample_factor) {
         // Don't bother proceeding with any of the below
         // if we're operating from a reloaded state.
-        let entries = Object.entries(files);
-        if (entries.length == 1) {
-            let form = entries[0][1].format;
-            if (form == "kana" || form == "kanadb") {
-                this.changed = false;
-                return;
-            }
+        if (files === null) {
+            this.changed = false;
+            return;
         }
 
-        this.changed = true;
-
+        let entries = Object.entries(files);
         let tmp_abbreviated = {};
         for (const [key, val] of entries) {
             let namespace = iutils.chooseReader(val.format);
@@ -104,7 +99,7 @@ export class State {
         }
 
         let new_files = {};
-        for (const [key, val] of Object.entries(files)) {
+        for (const [key, val] of entries) {
             let namespace = iutils.chooseReader(val.format);
             new_files[key] = new namespace.Reader(val);
         }
@@ -116,6 +111,8 @@ export class State {
         this.#abbreviated = tmp_abbreviated;
         this.#parameters.files = new_files;
         this.#parameters.sample_factor = sample_factor;
+
+        this.changed = true;
 
         return;
     }

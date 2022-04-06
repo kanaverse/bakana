@@ -39,7 +39,7 @@ test("reanalysis from a reloaded analysis works correctly", async () => {
     let finished = (step, res) => {
         contents[step] = res;
     };
-    await bakana.runAnalysis(new_state, { default: { format: "kana" } }, new_params, { finishFun: finished });
+    await bakana.runAnalysis(new_state, null, new_params, { finishFun: finished });
 
     expect(contents.inputs).toBeUndefined();
     expect(contents.quality_control instanceof Object).toBe(true);

@@ -128,14 +128,20 @@ export function freeAnalysis(state) {
  *
  * @param {object} state - Object containing the analysis state, produced by {@linkcode createAnalysis} or {@linkcode loadAnalysis}.
  * @param {Array} matrices - Object where each (arbitrarily named) property corresponds to an input matrix. 
- * Each matrix is itself represented as an object with property `type` and additional properties referring to individual data files.
- * In the browser, each data file manifests as a `File` object; for Node.js, each data file should be represented as a string containing a file path.
+ * Each matrix should be an object with `type` string property and any number of additional properties referring to individual data files.
+ *
  * - If `type: "MatrixMarket"`, the object should contain an `mtx` property, referring to a (possibly Gzipped) Matrix Market file containing a count matrix.
  *   The object may contain a `genes` property, referring to a (possibly Gzipped) tab-separated file with the gene ID and symbols for each row of the count matrix.
  *   The object may contain a `annotation` property, referring to a (possibly Gzipped) tab-separated file with the gene ID and symbols for each row of the count matrix.
  * - If `type: "10X"`, the object should contain an `h5` property, referring to a HDF5 file following the 10X Genomics feature-barcode matrix format.
  *   It is assumed that the matrix has already been filtered to contain only the cell barcodes.
  * - If `type: "H5AD"`, the object should contain an `h5` property, referring to a H5AD file.
+ *
+ * The representation of each reference to a data file depends on the runtime.
+ * In the browser, each data file manifests as a `File` object; for Node.js, each data file should be represented as a string containing a file path.
+ *
+ * Alternatively, `matrices` may be `null`, in which case the count matrices are extracted from `state`.
+ * This assumes that the data matrices were already cached in `state`, either from a previous call to {@linkcode runAnalysis} or from @{linkcode loadAnalysis}.
  * @param {object} params - An object containing parameters for all steps.
  * See {@linkcode analysisDefaults} for more details.
  * @param {object} [options] - Optional parameters.
