@@ -1,232 +1,284 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import * as inputs from "./inputs.js";
 import { mito } from "./mito.js";
+import * as inputs_module from "./inputs.js";
 
-var cache = {};
-var parameters = {};
+export class State {
+    #inputs;
+    #cache;
+    #parameters;
 
-export var changed = false;
+    constructor(inputs, parameters = null, cache = null) {
+        if (!(inputs instanceof inputs_module.State)) {
+            throw new Error("'inputs' should be a State object from './inputs.js'");
+        }
+        this.#inputs = inputs;
 
-/***************************
- ******** Compute **********
- ***************************/
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
+    }
 
-function apply_filters() {
-    var mat = inputs.fetchCountMatrix();
-    var disc = fetchDiscards();
+    free() {
+        utils.freeCache(this.#cache.metrics);
+        utils.freeCache(this.#cache.filters);
+        utils.freeCache(this.#cache.matrix);
+        utils.freeCache(this.#cache.block_buffer);
+        utils.freeCache(this.#cache.metrics_buffer);
+    }
 
-    utils.freeCache(cache.matrix);
-    cache.matrix = scran.filterCells(mat, disc);
+    /***************************
+     ******** Getters **********
+     ***************************/
 
-    let block = inputs.fetchBlock();
-    cache.blocked = (block !== null);
+    fetchSums({ unsafe = false } = {}) {
+        // Unsafe, because we're returning a raw view into the Wasm heap,
+        // which might be invalidated upon further allocations.
+        return this.#cache.metrics.sums({ copy: !unsafe });
+    }
 
-    if (cache.blocked) {
-        let bcache = utils.allocateCachedArray(cache.matrix.numberOfColumns(), "Int32Array", cache, "block_buffer");
+    fetchDiscards() {
+        return this.#cache.filters.discardOverall({ copy: "view" });
+    }
 
-        let bcache_arr = bcache.array();
-        let block_arr = block.array();
-        let disc_arr = disc.array();
-        let j = 0;
-        for (let i = 0; i < block_arr.length; i++) {
-            if (disc_arr[i] == 0) {
-                bcache_arr[j] = block_arr[i];
-                j++;
-            }
+    fetchFilteredMatrix() {
+        if (!("matrix" in this.#cache)) {
+            this.#apply_filters();
+        }
+        return this.#cache.matrix;
+    }
+
+    fetchFilteredBlock() {
+        if (!("blocked" in this.#cache)) {
+            this.#apply_filters();
+        }
+        if (this.#cache.blocked) {
+            return this.#cache.block_buffer;
+        } else {
+            return null;
         }
     }
 
-    return;
-}
+    /***************************
+     ******** Compute **********
+     ***************************/
 
-export function compute(use_mito_default, mito_prefix, nmads) {
-    changed = false;
+    #apply_filters() {
+        var mat = this.#inputs.fetchCountMatrix();
+        var disc = this.fetchDiscards();
 
-    if (inputs.changed || use_mito_default !== parameters.use_mito_default || mito_prefix !== parameters.mito_prefix) {
-        var mat = inputs.fetchCountMatrix();
+        utils.freeCache(this.#cache.matrix);
+        this.#cache.matrix = scran.filterCells(mat, disc);
 
-        // TODO: add more choices.
-        var nsubsets = 1;
-        var subsets = utils.allocateCachedArray(mat.numberOfRows() * nsubsets, "Uint8Array", cache, "metrics_buffer");
-        subsets.fill(0);
+        let block = this.#inputs.fetchBlock();
+        this.#cache.blocked = (block !== null);
 
-        // Finding the prefix.
-        // TODO: use the guessed features to narrow the Ensembl/symbol search.
-        var gene_info = inputs.fetchGenes();
-        var sub_arr = subsets.array();
-        for (const [key, val] of Object.entries(gene_info)) {
-            if (use_mito_default) {
-                val.forEach((x, i) => {
-                    if (mito.symbol.has(x) || mito.ensembl.has(x)) {
-                        sub_arr[i] = 1;
-                    }
-                });
-            } else {
-                var lower_mito = mito_prefix.toLowerCase();
-                val.forEach((x, i) => {
-                    if(x.toLowerCase().startsWith(lower_mito)) {
-                        sub_arr[i] = 1;
-                    }
-                });
+        if (this.#cache.blocked) {
+            let bcache = utils.allocateCachedArray(this.#cache.matrix.numberOfColumns(), "Int32Array", this.#cache, "block_buffer");
+
+            let bcache_arr = bcache.array();
+            let block_arr = block.array();
+            let disc_arr = disc.array();
+            let j = 0;
+            for (let i = 0; i < block_arr.length; i++) {
+                if (disc_arr[i] == 0) {
+                    bcache_arr[j] = block_arr[i];
+                    j++;
+                }
             }
         }
 
-        utils.freeCache(cache.metrics);
-        cache.metrics = scran.computePerCellQCMetrics(mat, subsets);
-
-        parameters.use_mito_default = use_mito_default;
-        parameters.mito_prefix = mito_prefix;
-        changed = true;
+        return;
     }
 
-    if (changed || nmads !== parameters.nmads) {
-        let block = inputs.fetchBlock();
-        utils.freeCache(cache.filters);
-        cache.filters = scran.computePerCellQCFilters(cache.metrics, { numberOfMADs: nmads, block: block });
+    compute(use_mito_default, mito_prefix, nmads) {
+        this.changed = false;
 
-        parameters.nmads = nmads;
-        changed = true;
+        if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix) {
+            var mat = this.#inputs.fetchCountMatrix();
+
+            // TODO: add more choices.
+            var nsubsets = 1;
+            var subsets = utils.allocateCachedArray(mat.numberOfRows() * nsubsets, "Uint8Array", this.#cache, "metrics_buffer");
+            subsets.fill(0);
+
+            // Finding the prefix.
+            // TODO: use the guessed features to narrow the Ensembl/symbol search.
+            var gene_info = this.#inputs.fetchGenes();
+            var sub_arr = subsets.array();
+            for (const [key, val] of Object.entries(gene_info)) {
+                if (use_mito_default) {
+                    val.forEach((x, i) => {
+                        if (mito.symbol.has(x) || mito.ensembl.has(x)) {
+                            sub_arr[i] = 1;
+                        }
+                    });
+                } else {
+                    var lower_mito = mito_prefix.toLowerCase();
+                    val.forEach((x, i) => {
+                        if(x.toLowerCase().startsWith(lower_mito)) {
+                            sub_arr[i] = 1;
+                        }
+                    });
+                }
+            }
+
+            utils.freeCache(this.#cache.metrics);
+            this.#cache.metrics = scran.computePerCellQCMetrics(mat, subsets);
+
+            this.#parameters.use_mito_default = use_mito_default;
+            this.#parameters.mito_prefix = mito_prefix;
+            this.changed = true;
+        }
+
+        if (this.changed || nmads !== this.#parameters.nmads) {
+            let block = this.#inputs.fetchBlock();
+            utils.freeCache(this.#cache.filters);
+            this.#cache.filters = scran.computePerCellQCFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
+
+            this.#parameters.nmads = nmads;
+            this.changed = true;
+        }
+
+        if (this.changed) {
+            this.#apply_filters();
+            this.changed = true; // left in for consistency.
+        }
+
+        return;
     }
 
-    if (changed) {
-        apply_filters();
-        changed = true;
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    #format_metrics({ copy = true } = {}) {
+        copy = (copy ? true : "view");
+        return {
+            sums: this.#cache.metrics.sums({ copy: copy }),
+            detected: this.#cache.metrics.detected({ copy: copy }),
+            proportion: this.#cache.metrics.subsetProportions(0, { copy: copy })
+        };
     }
 
-    return;
-}
-
-/***************************
- ******** Results **********
- ***************************/
-
-function format_metrics({ copy = true } = {}) {
-    copy = (copy ? true : "view");
-    return {
-        sums: cache.metrics.sums({ copy: copy }),
-        detected: cache.metrics.detected({ copy: copy }),
-        proportion: cache.metrics.subsetProportions(0, { copy: copy })
-    };
-}
-
-function format_thresholds({ copy = true } = {}) {
-    copy = (copy ? true : "view");
-    return {
-        sums: cache.filters.thresholdsSums({ copy: copy }),
-        detected: cache.filters.thresholdsDetected({ copy: copy }),
-        proportion: cache.filters.thresholdsSubsetProportions(0, { copy: copy })
+    #format_thresholds({ copy = true } = {}) {
+        copy = (copy ? true : "view");
+        return {
+            sums: this.#cache.filters.thresholdsSums({ copy: copy }),
+            detected: this.#cache.filters.thresholdsDetected({ copy: copy }),
+            proportion: this.#cache.filters.thresholdsSubsetProportions(0, { copy: copy })
+        }
     }
-}
 
-export function results() {
-    // This function should not do any Wasm allocations, so copy: false is safe.
+    results() {
+        // This function should not do any Wasm allocations, so copy: false is safe.
 
-    var data = {};
-    var blocks = inputs.fetchBlockLevels();
-    if (blocks === null) {
-        blocks = [ "default" ];
-        data["default"] = format_metrics();
-    } else {
-        let metrics = format_metrics({ copy: false });
-        let bids = inputs.fetchBlock();
-        let barray = bids.array();
+        var data = {};
+        var blocks = this.#inputs.fetchBlockLevels();
+        if (blocks === null) {
+            blocks = [ "default" ];
+            data["default"] = this.#format_metrics();
+        } else {
+            let metrics = this.#format_metrics({ copy: false });
+            let bids = this.#inputs.fetchBlock();
+            let barray = bids.array();
 
+            for (var b = 0; b < blocks.length; b++) {
+                let current = {};
+                for (const [key, val] of Object.entries(metrics)) {
+                    current[key] = val.array().filter((x, i) => barray[i] == b);
+                }
+                data[blocks[b]] = current;
+            }
+        }
+
+        var thresholds = {};
+        let listed = this.#format_thresholds({ copy: false });
         for (var b = 0; b < blocks.length; b++) {
             let current = {};
-            for (const [key, val] of Object.entries(metrics)) {
-                current[key] = val.array().filter((x, i) => barray[i] == b);
+            for (const [key, val] of Object.entries(listed)) {
+                current[key] = val[b];
             }
-            data[blocks[b]] = current;
+            thresholds[blocks[b]] = current;
         }
-    }
 
-    var thresholds = {};
-    let listed = format_thresholds({ copy: false });
-    for (var b = 0; b < blocks.length; b++) {
-        let current = {};
-        for (const [key, val] of Object.entries(listed)) {
-            current[key] = val[b];
+        var ranges = {};
+        for (var b = 0; b < blocks.length; b++) {
+            let curranges = {};
+            let curdata = data[blocks[b]];
+
+            for (const [key, val] of Object.entries(curdata)) {
+                var max = -Infinity, min = Infinity;
+                val.forEach(function (x) {
+                    if (max < x) {
+                        max = x;
+                    }
+                    if (min > x) {
+                        min = x;
+                    }
+                });
+                curranges[key] = [min, max];
+            }
+
+            ranges[blocks[b]] = curranges;
         }
-        thresholds[blocks[b]] = current;
-    }
 
-    var ranges = {};
-    for (var b = 0; b < blocks.length; b++) {
-        let curranges = {};
-        let curdata = data[blocks[b]];
-
-        for (const [key, val] of Object.entries(curdata)) {
-            var max = -Infinity, min = Infinity;
-            val.forEach(function (x) {
-                if (max < x) {
-                    max = x;
-                }
-                if (min > x) {
-                    min = x;
+        let remaining = 0;
+        if ("matrix" in this.#cache) {
+            remaining = this.#cache.matrix.numberOfColumns();
+        } else {
+            this.fetchDiscards().array().forEach(x => {
+                if (x == 0) {
+                    remaining++;
                 }
             });
-            curranges[key] = [min, max];
         }
 
-        ranges[blocks[b]] = curranges;
+        return { 
+            "data": data, 
+            "ranges": ranges,
+            "thresholds": thresholds,
+            "retained": remaining
+        };
     }
 
-    let remaining = 0;
-    if ("matrix" in cache) {
-        remaining = cache.matrix.numberOfColumns();
-    } else {
-        fetchDiscards().array().forEach(x => {
-            if (x == 0) {
-                remaining++;
-            }
-        });
-    }
+    /*************************
+     ******** Saving *********
+     *************************/
 
-    return { 
-        "data": data, 
-        "ranges": ranges,
-        "thresholds": thresholds,
-        "retained": remaining
-    };
-}
-
-/*************************
- ******** Saving *********
- *************************/
-
-export function serialize(handle) {
-    let ghandle = handle.createGroup("quality_control");
-
-    {
-        let phandle = ghandle.createGroup("parameters"); 
-        phandle.writeDataSet("use_mito_default", "Uint8", [], Number(parameters.use_mito_default));
-        phandle.writeDataSet("mito_prefix", "String", [], parameters.mito_prefix);
-        phandle.writeDataSet("nmads", "Float64", [], parameters.nmads);
-    }
-
-    {
-        let rhandle = ghandle.createGroup("results"); 
+    serialize(handle) {
+        let ghandle = handle.createGroup("quality_control");
 
         {
-            let mhandle = rhandle.createGroup("metrics");
-            let data = format_metrics({ copy: false });
-            mhandle.writeDataSet("sums", "Float64", null, data.sums)
-            mhandle.writeDataSet("detected", "Int32", null, data.detected);
-            mhandle.writeDataSet("proportion", "Float64", null, data.proportion);
+            let phandle = ghandle.createGroup("parameters"); 
+            phandle.writeDataSet("use_mito_default", "Uint8", [], Number(this.#parameters.use_mito_default));
+            phandle.writeDataSet("mito_prefix", "String", [], this.#parameters.mito_prefix);
+            phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
         }
 
         {
-            let thandle = rhandle.createGroup("thresholds");
-            let thresholds = format_thresholds({ copy: false });
-            for (const x of [ "sums", "detected", "proportion" ]) {
-                let current = thresholds[x];
-                thandle.writeDataSet(x, "Float64", null, current);
-            }
-        }
+            let rhandle = ghandle.createGroup("results"); 
 
-        let disc = fetchDiscards();
-        rhandle.writeDataSet("discards", "Uint8", null, disc);
+            {
+                let mhandle = rhandle.createGroup("metrics");
+                let data = this.#format_metrics({ copy: false });
+                mhandle.writeDataSet("sums", "Float64", null, data.sums)
+                mhandle.writeDataSet("detected", "Int32", null, data.detected);
+                mhandle.writeDataSet("proportion", "Float64", null, data.proportion);
+            }
+
+            {
+                let thandle = rhandle.createGroup("thresholds");
+                let thresholds = this.#format_thresholds({ copy: false });
+                for (const x of [ "sums", "detected", "proportion" ]) {
+                    let current = thresholds[x];
+                    thandle.writeDataSet(x, "Float64", null, current);
+                }
+            }
+
+            let disc = this.fetchDiscards();
+            rhandle.writeDataSet("discards", "Uint8", null, disc);
+        }
     }
 }
 
@@ -267,9 +319,10 @@ class QCFiltersMimic {
     }
 }
 
-export function unserialize(handle) {
+export function unserialize(handle, inputs) {
     let ghandle = handle.open("quality_control");
 
+    let parameters = {};
     {
         let phandle = ghandle.open("parameters"); 
         parameters = {
@@ -279,12 +332,7 @@ export function unserialize(handle) {
         }
     }
 
-    utils.freeCache(cache.metrics);
-    utils.freeCache(cache.filters);
-    utils.freeCache(cache.block_buffer);
-    cache = {};
-    changed = false;
-
+    let cache = {};
     {
         let rhandle = ghandle.open("results");
 
@@ -313,37 +361,8 @@ export function unserialize(handle) {
         );
     }
 
-    return { ...parameters };
-}
-
-/***************************
- ******** Getters **********
- ***************************/
-
-export function fetchSums({ unsafe = false } = {}) {
-    // Unsafe, because we're returning a raw view into the Wasm heap,
-    // which might be invalidated upon further allocations.
-    return cache.metrics.sums({ copy: !unsafe });
-}
-
-export function fetchDiscards() {
-    return cache.filters.discardOverall({ copy: "view" });
-}
-
-export function fetchFilteredMatrix() {
-    if (!("matrix" in cache)) {
-        apply_filters();
-    }
-    return cache.matrix;
-}
-
-export function fetchFilteredBlock() {
-    if (!("blocked" in cache)) {
-        apply_filters();
-    }
-    if (cache.blocked) {
-        return cache.block_buffer;
-    } else {
-        return null;
-    }
+    return {
+        state: new State(inputs, parameters, cache),
+        parameters: { ...parameters }
+    };
 }

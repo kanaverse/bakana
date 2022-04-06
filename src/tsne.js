@@ -1,136 +1,183 @@
 import * as scran from "scran.js";
 import * as vizutils from "./utils/viz_parent.js";
-import * as index from "./neighbor_index.js";
 import * as utils from "./utils/general.js";
-import * as aworkers from "./abstract/worker_parent.js";
+import * as neighbor_module from "./neighbor_index.js";
 
-var cache = { "counter": 0, "promises": {} };
-var parameters = {};
-export var changed = false;
+export class State {
+    #index;
+    #parameters;
+    #cache;
+    #reloaded;
 
-/***************************
- ******** Workers **********
- ***************************/
+    #worker;
+    #worker_id;
 
-var worker = null;
-export function initialize(scranOptions) {
-    worker = aworkers.createWorker(new URL("./tsne.worker.js", import.meta.url));
-    return vizutils.initializeWorker(worker, cache, scranOptions);
-}
+    #ready;
+    #run;
 
-export function terminate() {
-    return aworkers.terminateWorker(worker);
-}
+    constructor(index, parameters = null, reloaded = null) {
+        if (!(index instanceof neighbor_module.State)) {
+            throw new Error("'index' should be a State object from './neighbor_index.js'");
+        }
+        this.#index = index;
 
-/***************************
- ******** Compute **********
- ***************************/
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = { "counter": 0, "promises": {} };
+        this.#reloaded = reloaded;
+        this.changed = false;
 
-function core(perplexity, iterations, animate, reneighbor) {
-    var nn_out = null;
-    if (reneighbor) {
-        var k = scran.perplexityToNeighbors(perplexity);
-        nn_out = vizutils.computeNeighbors(k);
+        let { worker, worker_id, ready } = vizutils.createWorker(new URL("./tsne.worker.js", import.meta.url), this.#cache, vizutils.scranOptions);
+        this.#worker = worker;
+        this.#worker_id = worker_id;
+        this.#ready = ready;
+
+        this.#run = null;
     }
 
-    let args = {
-        "perplexity": perplexity,
-        "iterations": iterations,
-        "animate": animate
-    };
+    ready() {
+        // It is assumed that the caller will await the ready()
+        // status before calling any other methods of this instance.
+        return this.#ready;
+    }
 
-    // This returns a promise but the message itself is sent synchronously,
-    // which is important to ensure that the t-SNE runs in its worker in
-    // parallel with other analysis steps. Do NOT put the runWithNeighbors
-    // call in a .then() as this may defer the message sending until 
-    // the current thread is completely done processing.
-    return vizutils.runWithNeighbors(worker, args, nn_out, cache);
-}
+    free() {
+        return vizutils.killWorker(this.#worker_id);
+    }
 
-export function compute(perplexity, iterations, animate) {
-    let reneighbor = (index.changed || perplexity != parameters.perplexity);
+    /***************************
+     ******** Compute **********
+     ***************************/
 
-    if (reneighbor || iterations != parameters.iterations) {
-        // Dealing with reloaded data; in this case, we must send the neighbor
-        // information, because it hasn't ever been sent before.
-        if ("reloaded" in cache) {
-            reneighbor = true;
-            delete cache.reloaded;
+    #core(perplexity, iterations, animate, reneighbor) {
+        var nn_out = null;
+        if (reneighbor) {
+            var k = scran.perplexityToNeighbors(perplexity);
+            nn_out = vizutils.computeNeighbors(this.#index, k);
         }
 
-        cache.run = core(perplexity, iterations, animate, reneighbor);
-
-        parameters.perplexity = perplexity;
-        parameters.iterations = iterations;
-        parameters.animate = animate;
-
-        changed = true;
-    }
-
-    return;
-}
-
-/***************************
- ******** Results **********
- ***************************/
-
-async function fetch_results(copy)  {
-    if ("reloaded" in cache) {
-        let output = {
-            x: cache.reloaded.x,
-            y: cache.reloaded.y
+        let args = {
+            "perplexity": perplexity,
+            "iterations": iterations,
+            "animate": animate
         };
 
-        if (copy) {
-            output.x = output.x.slice();
-            output.y = output.y.slice();
+        // This returns a promise but the message itself is sent synchronously,
+        // which is important to ensure that the t-SNE runs in its worker in
+        // parallel with other analysis steps. Do NOT put the runWithNeighbors
+        // call in a .then() as this may defer the message sending until 
+        // the current thread is completely done processing.
+        this.#run = vizutils.runWithNeighbors(this.#worker, args, nn_out, this.#cache);
+        return;
+    }
+
+    compute(perplexity, iterations, animate) {
+        this.changed = false;
+
+        // In the reloaded state, we must send the neighbor
+        // information, because it hasn't ever been sent before.
+
+        let reneighbor = (this.#index.changed || perplexity != this.#parameters.perplexity || this.#reloaded !== null);
+        if (reneighbor || iterations != this.#parameters.iterations) {
+            this.#core(perplexity, iterations, animate, reneighbor);
+
+            this.#parameters.perplexity = perplexity;
+            this.#parameters.iterations = iterations;
+            this.#parameters.animate = animate;
+
+            this.changed = true;
+            this.#reloaded = null;
         }
-    
-        output.iterations = parameters.iterations;
-        return output;
-    } else {
-        // Vectors that we get from the worker are inherently
-        // copied, so no need to do anything extra here.
-        await cache.run;
-        return vizutils.sendTask(worker, { "cmd": "FETCH" }, cache);
-    }
-}
 
-export function results() {
-    return fetch_results(true);
-}
-
-/*************************
- ******** Saving *********
- *************************/
-
-export async function serialize(handle) {
-    let ghandle = handle.createGroup("tsne");
-
-    {
-        let phandle = ghandle.createGroup("parameters");
-        phandle.writeDataSet("perplexity", "Float64", [], parameters.perplexity);
-        phandle.writeDataSet("iterations", "Int32", [], parameters.iterations);
-        phandle.writeDataSet("animate", "Uint8", [], Number(parameters.animate));
+        return;
     }
 
-    {
-        let res = await fetch_results(false);
-        let rhandle = ghandle.createGroup("results");
-        rhandle.writeDataSet("x", "Float64", null, res.x);
-        rhandle.writeDataSet("y", "Float64", null, res.y);
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    async #fetch_results(copy)  {
+        if (this.#reloaded !== null) {
+            let output = {
+                x: this.#reloaded.x,
+                y: this.#reloaded.y
+            };
+
+            if (copy) {
+                output.x = output.x.slice();
+                output.y = output.y.slice();
+            }
+        
+            output.iterations = this.#parameters.iterations;
+            return output;
+        } else {
+            // Vectors that we get from the worker are inherently
+            // copied, so no need to do anything extra here.
+            await this.#run;
+            return vizutils.sendTask(this.#worker, { "cmd": "FETCH" }, this.#cache);
+        }
     }
 
-    return;
+    results() {
+        return this.#fetch_results(true);
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    async serialize(handle) {
+        let ghandle = handle.createGroup("tsne");
+
+        {
+            let phandle = ghandle.createGroup("parameters");
+            phandle.writeDataSet("perplexity", "Float64", [], this.#parameters.perplexity);
+            phandle.writeDataSet("iterations", "Int32", [], this.#parameters.iterations);
+            phandle.writeDataSet("animate", "Uint8", [], Number(this.#parameters.animate));
+        }
+
+        {
+            let res = await this.#fetch_results(false);
+            let rhandle = ghandle.createGroup("results");
+            rhandle.writeDataSet("x", "Float64", null, res.x);
+            rhandle.writeDataSet("y", "Float64", null, res.y);
+        }
+
+        return;
+    }
+
+    /***************************
+     ******* Animators *********
+     ***************************/
+
+    animate() {
+        if (this.#reloaded !== null) {
+            this.#reloaded = null;
+
+            // We need to reneighbor because we haven't sent the neighbors across yet.
+            this.#core(this.#parameters.perplexity, this.#parameters.iterations, true, true);
+
+            // Mimicking the response from the re-run.
+            return this.#run
+                .then(contents => {
+                    return {
+                        "type": "tsne_rerun",
+                        "data": { "status": "SUCCESS" }
+                    };
+                });
+        } else {
+            return vizutils.sendTask(this.#worker, { "cmd": "RERUN" }, this.#cache);
+        }
+    }
 }
 
 /**************************
  ******** Loading *********
  **************************/
 
-export function unserialize(handle) {
+export function unserialize(handle, index) {
     let ghandle = handle.open("tsne");
 
+    let parameters;
     {
         let phandle = ghandle.open("parameters");
         parameters = {
@@ -140,39 +187,17 @@ export function unserialize(handle) {
         };
     }
 
-    changed = false;
-
+    let reloaded;
     {
         let rhandle = ghandle.open("results");
-        cache.reloaded = {
+        reloaded = {
             x: rhandle.open("x", { load: true }).values,
             y: rhandle.open("y", { load: true }).values
         };
     }
 
-    return { ...parameters };
-}
-
-/***************************
- ******** Getters **********
- ***************************/
-
-export function animate() {
-    if ("reloaded" in cache) {
-        delete cache.reloaded;
-
-        // We need to reneighbor because we haven't sent the neighbors across yet.
-        core(parameters.perplexity, parameters.iterations, true, true);
-
-        // Mimicking the response from the re-run.
-        return cache.run
-            .then(contents => {
-                return {
-                    "type": "tsne_rerun",
-                    "data": { "status": "SUCCESS" }
-                };
-            });
-    } else {
-        return vizutils.sendTask(worker, { "cmd": "RERUN" }, cache);
-    }
+    return {
+        state: new State(index, parameters, reloaded),
+        parameters: { ...parameters }
+    };
 }

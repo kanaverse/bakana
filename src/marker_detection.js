@@ -1,60 +1,105 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import * as normalization from "./normalization.js";
-import * as qc from "./quality_control.js";
-import * as choice from "./choose_clustering.js";
 import * as markers from "./utils/markers.js";
+import * as qc_module from "./quality_control.js";
+import * as norm_module from "./normalization.js";
+import * as choice_module from "./choose_clustering.js";
 
-var cache = {};
-var parameters = {};
+export class State {
+    #qc;
+    #norm;
+    #choice;
+    #parameters;
+    #cache;
 
-export var changed = false;
+    constructor(qc, norm, choice, parameters = null, cache = null) {
+        if (!(qc instanceof qc_module.State)) {
+            throw new Error("'qc' should be a State object from './quality_control.js'");
+        }
+        this.#qc = qc;
 
-/***************************
- ******** Compute **********
- ***************************/
+        if (!(norm instanceof norm_module.State)) {
+            throw new Error("'norm' should be a State object from './normalization.js'");
+        }
+        this.#norm = norm;
 
-export function compute() {
-    changed = false;
+        if (!(choice instanceof choice_module.State)) {
+            throw new Error("'choice' should be a State object from './choose_clustering.js'");
+        }
+        this.#choice = choice;
 
-    if (normalization.changed || choice.changed) {
-        var mat = normalization.fetchNormalizedMatrix();
-        var clusters = choice.fetchClustersAsWasmArray();
-        var block = qc.fetchFilteredBlock();
-        
-        utils.freeCache(cache.raw);
-        cache.raw = scran.scoreMarkers(mat, clusters, { block: block });
-
-        // No parameters to set.
-        changed = true;
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
     }
 
-    return;
-}
+    free() {
+        utils.freeCache(this.#cache.raw);
+    }
 
-/***************************
- ******** Results **********
- ***************************/
+    /***************************
+     ******** Getters **********
+     ***************************/
 
-export function results() {
-    return {};
-}
+    fetchGroupResults(rank_type, group) {
+        return markers.fetchGroupResults(this.#cache.raw, rank_type, group); 
+    }
 
-/*************************
- ******** Saving *********
- *************************/
+    numberOfGroups() {
+        return this.#cache.raw.numberOfGroups();
+    }
 
-export function serialize(handle) {
-    let ghandle = handle.createGroup("marker_detection");
-    ghandle.createGroup("parameters");
+    fetchGroupMeans(group, { copy = true }) {
+        return this.#cache.raw.means(group, { copy: copy });
+    }
 
-    {
-        let chandle = ghandle.createGroup("results");
-        let rhandle = chandle.createGroup("clusters");
+    /***************************
+     ******** Compute **********
+     ***************************/
 
-        var num = cache.raw.numberOfGroups();
-        for (var i = 0; i < num; i++) {
-            markers.serializeGroupStats(rhandle, cache.raw, i);
+    compute() {
+        this.changed = false;
+
+        if (this.#norm.changed || this.#choice.changed) {
+            var mat = this.#norm.fetchNormalizedMatrix();
+            var clusters = this.#choice.fetchClustersAsWasmArray();
+            var block = this.#qc.fetchFilteredBlock();
+            
+            utils.freeCache(this.#cache.raw);
+            this.#cache.raw = scran.scoreMarkers(mat, clusters, { block: block });
+
+            // No parameters to set.
+
+            this.changed = true;
+        }
+
+        return;
+    }
+
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    results() {
+        return {};
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup("marker_detection");
+        ghandle.createGroup("parameters");
+
+        {
+            let chandle = ghandle.createGroup("results");
+            let rhandle = chandle.createGroup("clusters");
+
+            var num = this.#cache.raw.numberOfGroups();
+            for (var i = 0; i < num; i++) {
+                markers.serializeGroupStats(rhandle, this.#cache.raw, i);
+            }
         }
     }
 }
@@ -110,15 +155,13 @@ class ScoreMarkersMimic {
     free() {}
 }
 
-export function unserialize(handle, permuter) {
+export function unserialize(handle, permuter, qc, norm, choice) {
     let ghandle = handle.open("marker_detection");
 
     // No parameters to unserialize.
+    let parameters = {};
 
-    utils.freeCache(cache.raw);
-    cache = {};
-    changed = false;
-
+    let cache = {};
     {
         let chandle = ghandle.open("results");
         let rhandle = chandle.open("clusters");
@@ -129,21 +172,9 @@ export function unserialize(handle, permuter) {
         cache.raw = new ScoreMarkersMimic(clusters);
     }
 
-    return;
+    return {
+        state: new State(qc, norm, choice, parameters, cache),
+        parameters: { ...parameters }
+    };
 }
 
-/***************************
- ******** Getters **********
- ***************************/
-
-export function fetchGroupResults(rank_type, group) {
-    return markers.fetchGroupResults(cache.raw, rank_type, group); 
-}
-
-export function numberOfGroups() {
-    return cache.raw.numberOfGroups();
-}
-
-export function fetchGroupMeans(group, { copy = true }) {
-    return cache.raw.means(group, { copy: copy });
-}

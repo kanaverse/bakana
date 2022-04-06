@@ -1,111 +1,162 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
-import * as normalization from "./normalization.js";
-import * as qc from "./quality_control.js";
-import * as variance from "./feature_selection.js";
-import * as wa from "wasmarrays.js";
+import * as qc_module from "./quality_control.js";
+import * as norm_module from "./normalization.js";
+import * as feat_module from "./feature_selection.js";
 
-var cache = {};
-var parameters = {};
+export class State {
+    #qc;
+    #norm;
+    #feat;
+    #cache;
+    #parameters;
 
-export var changed = false;
+    constructor(qc, norm, feat, parameters = null, cache = null) {
+        if (!(qc instanceof qc_module.State)) {
+            throw new Error("'qc' should be a State object from './quality_control.js'");
+        }
+        this.#qc = qc;
 
-/***************************
- ******** Compute **********
- ***************************/
+        if (!(norm instanceof norm_module.State)) {
+            throw new Error("'norm' should be a State object from './normalization.js'");
+        }
+        this.#norm = norm;
 
-function choose_hvgs(num_hvgs) {
-    var sorted_resids = variance.fetchSortedResiduals();
+        if (!(feat instanceof feat_module.State)) {
+            throw new Error("'feat' should be a State object from './feature_selection.js'");
+        }
+        this.#feat = feat;
+
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
+    }
+
+    free() {
+        utils.freeCache(this.#cache.hvg_buffer);
+        utils.freeCache(this.#cache.pcs);
+        utils.freeCache(this.#cache.corrected);
+    }
+
+    /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchPCs({ original = false } = {}) {
+        let pcs;
+        if (!original && this.#parameters.block_method == "mnn") {
+            pcs = this.#cache.corrected;
+        } else {
+            pcs = this.#cache.pcs.principalComponents({ copy: "view" });
+        }
+        return {
+            "pcs": pcs,
+            "num_pcs": this.#parameters.num_pcs,
+            "num_obs": pcs.length / this.#parameters.num_pcs
+        };
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    compute(num_hvgs, num_pcs, block_method) {
+        this.changed = false;
+        
+        if (this.#feat.changed || num_hvgs !== this.#parameters.num_hvgs) {
+            choose_hvgs(num_hvgs, this.#feat, this.#cache);
+            this.#parameters.num_hvgs = num_hvgs;
+            this.changed = true;
+        }
+
+        if (this.changed || this.#norm.changed || num_pcs !== this.#parameters.num_pcs || block_method !== this.#parameters.block_method) { 
+            let sub = this.#cache.hvg_buffer;
+
+            let block = this.#qc.fetchFilteredBlock();
+            let block_type = "block";
+            if (block_method == "none") {
+                block = null;
+            } else if (block_method == "mnn") {
+                block_type = "weight";
+            }
+
+            var mat = this.#norm.fetchNormalizedMatrix();
+
+            utils.freeCache(this.#cache.pcs);
+            this.#cache.pcs = scran.runPCA(mat, { features: sub, numberOfPCs: num_pcs, block: block, blockMethod: block_type });
+
+            if (block_method == "mnn") {
+                let pcs = this.#cache.pcs.principalComponents({ copy:"view" });
+                let corrected = utils.allocateCachedArray(pcs.length, "Float64Array", this.#cache, "corrected");
+                scran.mnnCorrect(this.#cache.pcs, block, { buffer: corrected });
+            }
+
+            this.#parameters.num_pcs = num_pcs;
+            this.#parameters.block_method = block_method;
+            this.changed = true;
+        }
+
+        return;
+    }
+
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    results() {
+        var pca_output = this.#cache.pcs;
+        var var_exp = pca_output.varianceExplained();
+        var total_var = pca_output.totalVariance();
+        var_exp.forEach((x, i) => {
+            var_exp[i] = x/total_var;
+        });
+        return { "var_exp": var_exp };
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup("pca");
+
+        {
+            let phandle = ghandle.createGroup("parameters"); 
+            phandle.writeDataSet("num_hvgs", "Int32", [], this.#parameters.num_hvgs);
+            phandle.writeDataSet("num_pcs", "Int32", [], this.#parameters.num_pcs);
+            phandle.writeDataSet("block_method", "String", [], this.#parameters.block_method);
+        }
+
+        {
+            let rhandle = ghandle.createGroup("results");
+
+            let ve = this.results().var_exp;
+            rhandle.writeDataSet("var_exp", "Float64", null, ve);
+
+            let pcs = this.fetchPCs({ original: true });
+            rhandle.writeDataSet("pcs", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
+
+            if (this.#parameters.block_method == "mnn") {
+                let corrected = this.#cache.corrected;
+                rhandle.writeDataSet("corrected", "Float64", [pcs.num_obs, pcs.num_pcs], corrected); 
+            }
+        }
+    }
+}
+
+/**************************
+ ******* Internals ********
+ **************************/
+
+function choose_hvgs(num_hvgs, feat, cache) {
+    var sorted_resids = feat.fetchSortedResiduals();
     var threshold_at = sorted_resids[sorted_resids.length - num_hvgs];
     var sub = utils.allocateCachedArray(sorted_resids.length, "Uint8Array", cache, "hvg_buffer");
-    var unsorted_resids = variance.fetchResiduals({ unsafe: true });
+    var unsorted_resids = feat.fetchResiduals({ unsafe: true });
     sub.array().forEach((element, index, array) => {
         array[index] = unsorted_resids[index] >= threshold_at;
     });
     return sub;
-}
-
-export function compute(num_hvgs, num_pcs, block_method) {
-    changed = false;
-    
-    if (variance.changed || num_hvgs !== parameters.num_hvgs) {
-        choose_hvgs(num_hvgs);
-        parameters.num_hvgs = num_hvgs;
-        changed = true;
-    }
-
-    if (changed || normalization.changed || num_pcs !== parameters.num_pcs || block_method !== parameters.block_method) { 
-        let sub = cache.hvg_buffer;
-
-        let block = qc.fetchFilteredBlock();
-        let block_type = "block";
-        if (block_method == "none") {
-            block = null;
-        } else if (block_method == "mnn") {
-            block_type = "weight";
-        }
-
-        var mat = normalization.fetchNormalizedMatrix();
-
-        utils.freeCache(cache.pcs);
-        cache.pcs = scran.runPCA(mat, { features: sub, numberOfPCs: num_pcs, block: block, blockMethod: block_type });
-
-        if (block_method == "mnn") {
-            let pcs =  cache.pcs.principalComponents({ copy:"view" });
-            let corrected = utils.allocateCachedArray(pcs.length, "Float64Array", cache, "corrected");
-            scran.mnnCorrect(cache.pcs, block, { buffer: corrected });
-        }
-
-        parameters.num_pcs = num_pcs;
-        parameters.block_method = block_method;
-        changed = true;
-    }
-
-    return;
-}
-
-/***************************
- ******** Results **********
- ***************************/
-
-export function results() {
-    var pca_output = cache.pcs;
-    var var_exp = pca_output.varianceExplained();
-    var total_var = pca_output.totalVariance();
-    var_exp.forEach((x, i) => {
-        var_exp[i] = x/total_var;
-    });
-    return { "var_exp": var_exp };
-}
-
-/*************************
- ******** Saving *********
- *************************/
-
-export function serialize(handle) {
-    let ghandle = handle.createGroup("pca");
-
-    {
-        let phandle = ghandle.createGroup("parameters"); 
-        phandle.writeDataSet("num_hvgs", "Int32", [], parameters.num_hvgs);
-        phandle.writeDataSet("num_pcs", "Int32", [], parameters.num_pcs);
-        phandle.writeDataSet("block_method", "String", [], parameters.block_method);
-    }
-
-    {
-        let rhandle = ghandle.createGroup("results");
-
-        let ve = results().var_exp;
-        rhandle.writeDataSet("var_exp", "Float64", null, ve);
-
-        let pcs = fetchPCs({ original: true });
-        rhandle.writeDataSet("pcs", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
-
-        if (parameters.block_method == "mnn") {
-            let corrected = cache.corrected;
-            rhandle.writeDataSet("corrected", "Float64", [pcs.num_obs, pcs.num_pcs], corrected); 
-        }
-    }
 }
 
 /**************************
@@ -136,9 +187,10 @@ class PCAMimic {
     }
 }
 
-export function unserialize(handle) {
+export function unserialize(handle, qc, norm, feat) {
     let ghandle = handle.open("pca");
 
+    let parameters = {};
     {
         let phandle = ghandle.open("parameters"); 
         parameters = { 
@@ -154,13 +206,8 @@ export function unserialize(handle) {
         }
     }
 
-    utils.freeCache(cache.hvg_buffer);
-    utils.freeCache(cache.pcs);
-    utils.freeCache(cache.corrected);
-    cache = {};
-    changed = false;
-
-    choose_hvgs(parameters.num_hvgs);
+    let cache = {};
+    choose_hvgs(parameters.num_hvgs, feat, cache);
 
     {
         let rhandle = ghandle.open("results");
@@ -175,23 +222,8 @@ export function unserialize(handle) {
         }
     }
 
-    return { ...parameters };
-}
-
-/***************************
- ******** Getters **********
- ***************************/
-
-export function fetchPCs({ original = false } = {}) {
-    let pcs;
-    if (!original && parameters.block_method == "mnn") {
-        pcs = cache.corrected;
-    } else {
-        pcs = cache.pcs.principalComponents({ copy: "view" });
-    }
     return {
-        "pcs": pcs,
-        "num_pcs": parameters.num_pcs,
-        "num_obs": pcs.length / parameters.num_pcs
+        state: new State(qc, norm, feat, parameters, cache),
+        parameters: { ...parameters }
     };
 }

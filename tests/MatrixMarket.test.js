@@ -11,7 +11,8 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         contents[step] = res;
     };
 
-    let res = await bakana.runAnalysis(
+    let state = await bakana.createAnalysis();
+    let res = await bakana.runAnalysis(state, 
         { 
             default: {
                 format: "MatrixMarket",
@@ -34,16 +35,20 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 
     // Saving and loading.
     const path = "TEST_state_MatrixMarket.h5";
-    let collected = await bakana.saveAnalysis(path);
+    let collected = await bakana.saveAnalysis(state, path);
     expect(collected.collected.length).toBe(3);
     expect(typeof(collected.collected[0])).toBe("string");
 
     let offsets = utils.mockOffsets(collected.collected);
-    let new_params = await bakana.loadAnalysis(
+    let reloaded = await bakana.loadAnalysis(
         path, 
         (offset, size) => offsets[offset]
     );
 
+    let new_params = reloaded.parameters;
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
+
+    // Release me!
+    await bakana.freeAnalysis(state);
 })

@@ -11,7 +11,9 @@ test("runAnalysis works correctly (H5AD)", async () => {
         contents[step] = res;
     };
 
+    let state = await bakana.createAnalysis();
     let res = await bakana.runAnalysis(
+        state,
         { 
             default: {
                 format: "H5AD",
@@ -32,17 +34,21 @@ test("runAnalysis works correctly (H5AD)", async () => {
 
     // Saving and loading.
     const path = "TEST_state_H5AD.h5";
-    let collected = await bakana.saveAnalysis(path);
+    let collected = await bakana.saveAnalysis(state, path);
     expect(collected.collected.length).toBe(1);
     expect(typeof(collected.collected[0])).toBe("string");
     
     let offsets = utils.mockOffsets(collected.collected);
-    let new_params = await bakana.loadAnalysis(
+    let reloaded = await bakana.loadAnalysis(
         path, 
         (offset, size) => offsets[offset]
     );
 
+    let new_params = reloaded.parameters;
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
+
+    // Freeing.
+    await bakana.freeAnalysis(state);
 })
 

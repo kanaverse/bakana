@@ -1,113 +1,143 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import * as index from "./neighbor_index.js";
+import * as neighbor_module from "./neighbor_index.js";
 
-var cache = {};
-var parameters = {};
+export class State {
+    #index;
+    #parameters;
+    #cache;
 
-export var changed = false;
+    constructor(index, parameters = null, cache = null) {
+        if (!(index instanceof neighbor_module.State)) {
+            throw new Error("'index' should be a State object from './neighbor_index.js'");
+        }
+        this.#index = index;
 
-/***************************
- ******** Compute **********
- ***************************/
-
-function valid() {
-    return "clusters" in cache;
-}
-
-export function compute_neighbors(k) {
-    cache.neighbors = scran.findNearestNeighbors(index.fetchIndex(), k);
-    return;
-}
-
-export function compute_graph(scheme) {
-    if (!("neighbors" in cache)) { // need to check as reloaded state will not populate the internals.
-        compute_neighbors(parameters.k);
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
     }
-    cache.graph = scran.buildSNNGraph(cache.neighbors, { scheme: scheme });
-    return;
-}
 
-export function compute_clusters(resolution) {
-    if (!("graph" in cache)) {
-        compute_graph(parameters.scheme);
+    free() {
+        utils.freeCache(this.#cache.neighbors);
+        utils.freeCache(this.#cache.graph);
+        utils.freeCache(this.#cache.clusters);
     }
-    cache.clusters = scran.clusterSNNGraph(cache.graph, { resolution: resolution });
-    return;
-}
 
-export function compute(run_me, k, scheme, resolution) {
-    changed = false;
+    /***************************
+     ******** Getters **********
+     ***************************/
 
-    if (index.changed || k !== parameters.k) {
-        utils.freeCache(cache.neighbors);
-        if (run_me) {
-            compute_neighbors(k);
+    fetchClustersAsWasmArray() {
+        if (!this.#valid()) {
+            throw "cannot fetch SNN clusters from an invalid state";
         } else {
-            delete cache.neighbors; // ensuring that this is re-run on future calls to compute() with run_me = true.
-        }
-        parameters.k = k;
-        changed = true;
-    }
-
-    if (changed || scheme !== parameters.scheme) {
-        utils.freeCache(cache.graph);
-        if (run_me) {
-            compute_graph(scheme);
-        } else {
-            delete cache.graph;
-        }
-        parameters.scheme = scheme;
-        changed = true 
-    }
-
-    if (changed || resolution !== parameters.resolution || (!valid() && run_me)) {
-        utils.freeCache(cache.clusters);
-        if (run_me) {
-            compute_clusters(resolution);
-        } else {
-            delete cache.clusters;
-        }
-        parameters.resolution = resolution;
-        changed = true;
-    }
-
-    return;
-}
-
-/***************************
- ******** Results **********
- ***************************/
-
-export function results() {
-    // Cluster IDs will be passed to main thread in 
-    // choose_clustering, so no need to do it here.
-    return {};
-}
-
-/*************************
- ******** Saving *********
- *************************/
-
-export function serialize(handle) {
-    let ghandle = handle.createGroup("snn_graph_cluster");
-
-    {
-        let phandle = ghandle.createGroup("parameters");
-        phandle.writeDataSet("k", "Int32", [], parameters.k);
-        phandle.writeDataSet("scheme", "String", [], ["rank", "number", "jaccard"][parameters.scheme]); // TODO: parameters.scheme should just directly be the string.
-        phandle.writeDataSet("resolution", "Float64", [], parameters.resolution);
-    }
-
-    {
-        let rhandle = ghandle.createGroup("results");
-        if (valid()) {
-            let clusters = fetchClustersAsWasmArray();
-            rhandle.writeDataSet("clusters", "Int32", null, clusters);
+            return this.#cache.clusters.membership({ copy: "view" });
         }
     }
 
-    return;
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    #valid() {
+        return "clusters" in this.#cache;
+    }
+
+    #compute_neighbors(k) {
+        this.#cache.neighbors = scran.findNearestNeighbors(this.#index.fetchIndex(), k);
+        return;
+    }
+
+    #compute_graph(scheme) {
+        if (!("neighbors" in this.#cache)) { // need to check as reloaded state will not populate the internals.
+            this.#compute_neighbors(this.#parameters.k);
+        }
+        this.#cache.graph = scran.buildSNNGraph(this.#cache.neighbors, { scheme: scheme });
+        return;
+    }
+
+    #compute_clusters(resolution) {
+        if (!("graph" in this.#cache)) {
+            this.#compute_graph(this.#parameters.scheme);
+        }
+        this.#cache.clusters = scran.clusterSNNGraph(this.#cache.graph, { resolution: resolution });
+        return;
+    }
+
+    compute(run_me, k, scheme, resolution) {
+        this.changed = false;
+
+        if (this.#index.changed || k !== this.#parameters.k) {
+            utils.freeCache(this.#cache.neighbors);
+            if (run_me) {
+                this.#compute_neighbors(k);
+            } else {
+                delete this.#cache.neighbors; // ensuring that this is re-run on future calls to compute() with run_me = true.
+            }
+            this.#parameters.k = k;
+            this.changed = true;
+        }
+
+        if (this.changed || scheme !== this.#parameters.scheme) {
+            utils.freeCache(this.#cache.graph);
+            if (run_me) {
+                this.#compute_graph(scheme);
+            } else {
+                delete this.#cache.graph;
+            }
+            this.#parameters.scheme = scheme;
+            this.changed = true 
+        }
+
+        if (this.changed || resolution !== this.#parameters.resolution || (!this.#valid() && run_me)) {
+            utils.freeCache(this.#cache.clusters);
+            if (run_me) {
+                this.#compute_clusters(resolution);
+            } else {
+                delete this.#cache.clusters;
+            }
+            this.#parameters.resolution = resolution;
+            this.changed = true;
+        }
+
+        return;
+    }
+
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    results() {
+        // Cluster IDs will be passed to main thread in 
+        // choose_clustering, so no need to do it here.
+        return {};
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup("snn_graph_cluster");
+
+        {
+            let phandle = ghandle.createGroup("parameters");
+            phandle.writeDataSet("k", "Int32", [], this.#parameters.k);
+            phandle.writeDataSet("scheme", "String", [], ["rank", "number", "jaccard"][this.#parameters.scheme]); // TODO: parameters.scheme should just directly be the string.
+            phandle.writeDataSet("resolution", "Float64", [], this.#parameters.resolution);
+        }
+
+        {
+            let rhandle = ghandle.createGroup("results");
+            if (this.#valid()) {
+                let clusters = this.fetchClustersAsWasmArray();
+                rhandle.writeDataSet("clusters", "Int32", null, clusters);
+            }
+        }
+
+        return;
+    }
 }
 
 /**************************
@@ -129,25 +159,19 @@ class SNNClusterMimic {
     }
 }
 
-export function unserialize(handle) {
+export function unserialize(handle, index) {
     let ghandle = handle.open("snn_graph_cluster");
 
+    let parameters = {};
     {
         let phandle = ghandle.open("parameters");
-        parameters = {
-            k: phandle.open("k", { load: true }).values[0],
-            scheme: phandle.open("scheme", { load: true }).values[0],
-            resolution: phandle.open("resolution", { load: true }).values[0]
-        };
+        parameters.k = phandle.open("k", { load: true }).values[0];
+        parameters.scheme = phandle.open("scheme", { load: true }).values[0];
         parameters.scheme = { "rank": 0, "number": 1, "jaccard": 2 }[parameters.scheme];
+        parameters.resolution = phandle.open("resolution", { load: true }).values[0];
     }
 
-    utils.freeCache(cache.neighbors);
-    utils.freeCache(cache.graph);
-    utils.freeCache(cache.clusters);
-    cache = {};
-    changed = false;
-
+    let cache = {};
     {
         let rhandle = ghandle.open("results");
         if ("clusters" in rhandle.children) {
@@ -156,19 +180,10 @@ export function unserialize(handle) {
         }
     }
 
-    return { ...parameters };
-}
-
-/***************************
- ******** Getters **********
- ***************************/
-
-export function fetchClustersAsWasmArray() {
-    if (!valid()) {
-        throw "cannot fetch SNN clusters from an invalid state";
-    } else {
-        return cache.clusters.membership({ copy: "view" });
-    }
+    return {
+        state: new State(index, parameters, cache),
+        parameters: { ...parameters }
+    };
 }
 
 
