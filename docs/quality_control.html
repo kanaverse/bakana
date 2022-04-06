@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: defaults.js</title>
+    <title>JSDoc: Namespace: quality_control</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,72 +17,118 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: defaults.js</h1>
+    <h1 class="page-title">Namespace: quality_control</h1>
 
     
 
 
 
+
+<section>
+
+<header>
     
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>/**
- * Generate an object containing all of the default analysis parameters.
- *
- * @return An object where each property corresponds to an analysis step and contains the default parameters for that step.
- */
-export function analysisDefaults() {
-    return {
-        inputs: {
-            sample_factor: null
-        },
-        quality_control: {
-            use_mito_default: true,
-            mito_prefix: "mt-",
-            nmads: 3
-        },
-        feature_selection: {
-            span: 0.3
-        },
-        pca: {
-            num_hvgs: 2000,
-            num_pcs: 20,
-            block_method: "none"
-        },
-        neighbor_index: {
-            approximate: true
-        },
-        tsne: {
-            perplexity: 30,
-            iterations: 500,
-            animate: false
-        },
-        umap: {
-            num_neighbors: 15,
-            num_epochs: 500,
-            min_dist: 0.1,
-            animate: false
-        },
-        kmeans_cluster: {
-            k: 10
-        },
-        snn_graph_cluster: {
-            k: 10,
-            scheme: 0,
-            resolution: 1
-        },
-        choose_clustering: {
-            method: "snn_graph"
-        },
-        cell_labelling: {
-            mouse_references: [],
-            human_references: []
-        }
-    };
-}
-</code></pre>
-        </article>
-    </section>
+        <h2>quality_control</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description"><p>This step applies quality control on the original count matrix.
+After removing low-quality cells, the filtered matrix is used for all downstream steps.
+This wraps <code>computePerCellQCMetrics</code> and related functions from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.</p>
+<p>The parameters in <a href="global.html#runAnalysis"><code>runAnalysis</code></a> should be an object containing:</p>
+<ul>
+<li><code>use_mito_default</code>: boolean indicating whether the internal mitochondrial gene lists should be used.</li>
+<li><code>mito_prefix</code>: string containing the prefix for mitochondrial genes, when <code>use_mito_default = false</code>.</li>
+<li><code>nmads</code>: number of MADs to use for automatically selecting the filter threshold for each metric.</li>
+</ul>
+<p>Calling the <strong><code>results()</code></strong> method for the relevant state instance will return an object containing:</p>
+<ul>
+<li><code>data</code>: an object containing one property for each sample.
+Each property is itself an object containing <code>sums</code>, <code>detected</code> and <code>proportion</code>,
+which are TypedArrays contaning the relevant QC metrics for all cells in that sample.</li>
+<li><code>thresholds</code>: an object containing one property for each sample.
+Each property is itself an object containing <code>sums</code>, <code>detected</code> and <code>proportion</code>,
+which are numbers containing the thresholds on the corresponding QC metrics for that sample.</li>
+<li><code>retained</code>: the number of cells remaining after QC filtering.</li>
+</ul>
+<p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="quality_control.js.html">quality_control.js</a>, <a href="quality_control.js.html#line6">line 6</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
 
 
 

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: utils/viz_parent.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: utils/viz_parent.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import * as scran from "scran.js";
+import * as utils from "./general.js";
+import * as aworkers from "../abstract/worker_parent.js";
+
+var animateFun = (x, y, i) => null;
+
+/**
+ * Specify a function to handle animation iterations for the low-dimensional embeddings.
+ * The exact nature of this handling is arbitrary - developers may post the contents to another thread, save them to file, etc.
+ *
+ * @param {function} fun - Function to process each animation iteration.
+ * This should accept three arguments, in the following order:
+ * - A `Float64Array` containing the x-coordinates for each cell.
+ * - A `Float64Array` containing the y-coordinates for each cell.
+ * - An integer specifying the iteration number.
+ *
+ * @return `fun` is set as the global animator function for t-SNE and UMAP.
+ * The _previous_ value of the animator is returned.
+ */
+export function setVisualizationAnimate(fun) {
+    let previous = animateFun;
+    animateFun = fun;
+    return previous;
+}
+
+export var scranOptions = {};
+
+export function computeNeighbors(index, k) {
+    var nn_index = index.fetchIndex();
+
+    var output = { "num_obs": nn_index.numberOfCells() };
+    var results = null, rbuf = null, ibuf = null, dbuf = null;
+    try {
+        results = scran.findNearestNeighbors(nn_index, k);
+
+        rbuf = scran.createInt32WasmArray(results.numberOfCells());
+        ibuf = scran.createInt32WasmArray(results.size());
+        dbuf = scran.createFloat64WasmArray(results.size());
+
+        results.serialize({ runs: rbuf, indices: ibuf, distances: dbuf });
+        output["size"] = results.size();
+        output["runs"] = rbuf.array().slice();
+        output["indices"] = ibuf.array().slice();
+        output["distances"] = dbuf.array().slice();
+
+    } finally {
+        if (results !== null) {
+            results.free();
+        }
+        if (rbuf !== null) {
+            rbuf.free();
+        }
+        if (ibuf !== null) {
+            ibuf.free();
+        }
+        if (dbuf !== null) {
+            dbuf.free();
+        }
+    }
+
+    return output;
+}
+
+export function sendTask(worker, payload, cache, transferrable = []) {
+    var i = cache.counter;
+    var p = new Promise((resolve, reject) => {
+        cache.promises[i] = { "resolve": resolve, "reject": reject };
+    });
+    cache.counter++;
+    payload.id = i;
+    aworkers.sendMessage(worker, payload, transferrable);
+    return p;
+}
+
+const worker_registry = [];
+
+export function createWorker(url, cache, scranOptions) { 
+    let worker = aworkers.createWorker(url);
+    let n = worker_registry.length;
+    worker_registry.push(worker);
+
+    aworkers.registerCallback(worker, msg => {
+        var type = msg.data.type;
+        if (type.endsWith("_iter")) {
+            animateFun(msg.data.x, msg.data.y, msg.data.iteration);
+            return;
+        }
+  
+        var id = msg.data.id;
+        var fun = cache.promises[id];
+        if (type == "error") {
+            fun.reject(msg.data.error);
+        } else {
+            fun.resolve(msg.data.data);
+        }
+        delete cache.promises[id];
+    });
+
+    return {
+        "worker": worker,
+        "worker_id": n,
+        "ready": sendTask(worker, { "cmd": "INIT", scranOptions: scranOptions }, cache)
+    };
+}
+
+export function killWorker(worker_id) {
+    let worker = worker_registry[worker_id];
+    worker_registry[worker_id] = null;
+    return aworkers.terminateWorker(worker);
+}
+
+export function killAllWorkers() {
+    let p = [];
+    for (const x of worker_registry) {
+        if (x !== null) {
+            p.push(aworkers.terminateWorker(x));
+        }
+    }
+    return Promise.all(p).then(x => null);
+}
+
+export function runWithNeighbors(worker, args, nn_out, cache) {
+    var run_msg = {
+        "cmd": "RUN",
+        "params": args 
+    };
+
+    var transferrable = [];
+    if (nn_out !== null) {
+        transferrable = [
+            nn_out.runs.buffer,
+            nn_out.indices.buffer,
+            nn_out.distances.buffer
+        ];
+        run_msg.neighbors = nn_out;
+    }
+
+    return sendTask(worker, run_msg, cache, transferrable);
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="cell_labelling.html">cell_labelling</a></li><li><a href="choose_clustering.html">choose_clustering</a></li><li><a href="custom_selections.html">custom_selections</a></li><li><a href="feature_selection.html">feature_selection</a></li><li><a href="inputs.html">inputs</a></li><li><a href="kmeans_cluster.html">kmeans_cluster</a></li><li><a href="marker_detection.html">marker_detection</a></li><li><a href="neighbor_index.html">neighbor_index</a></li><li><a href="normalization.html">normalization</a></li><li><a href="pca.html">pca</a></li><li><a href="quality_control.html">quality_control</a></li><li><a href="snn_graph_cluster.html">snn_graph_cluster</a></li><li><a href="tsne.html">tsne</a></li><li><a href="umap.html">umap</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 18:15:24 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

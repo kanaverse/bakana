@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: kmeans_cluster.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: kmeans_cluster.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import * as scran from "scran.js"; 
+import * as utils from "./utils/general.js";
+import * as pca_module from "./pca.js";
+
+/**
+ * This step performs k-means clustering on the PCs, wrapping the `clusterKmeans` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ *
+ * The parameters in {@linkcode runAnalysis} should be an object containing:
+ *
+ * - `k`: the number of clusters to create.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an empty object.
+ * See the {@linkcode choose_clustering} step to actually obtain the cluster assignments.
+ * 
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace kmeans_cluster
+ */
+
+export class State {
+    #pca;
+    #parameters;
+    #cache;
+
+    constructor(pca, parameters = null, cache = null) {
+        if (!(pca instanceof pca_module.State)) {
+            throw new Error("'pca' should be a State object from './pca.js'");
+        }
+        this.#pca = pca;
+
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
+    }
+
+    free() {
+        utils.freeCache(this.#cache.raw);
+    }
+
+    /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchClustersAsWasmArray() {
+        if (!this.#valid()) {
+            throw new Error("cannot fetch k-means clusters from an invalid state");
+        } else {
+            return this.#cache.raw.clusters({ copy: "view" });
+        }
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    #valid() {
+        return "raw" in this.#cache;
+    }
+
+    compute(run_me, k) {
+        this.changed = false;
+
+        if (this.#pca.changed || k != this.#parameters.k || (!this.#valid() &amp;&amp; run_me)) {
+            utils.freeCache(this.#cache.raw);
+
+            if (run_me) {
+                var pcs = this.#pca.fetchPCs();
+                this.#cache.raw = scran.clusterKmeans(pcs.pcs, k, { numberOfDims: pcs.num_pcs, numberOfCells: pcs.num_obs, initMethod: "pca-part" });
+            } else {
+                delete this.#cache.raw; // ensure this step gets re-run later when run_me = true. 
+            }
+
+            this.#parameters.k = k;
+            this.changed = true;
+        }
+
+        return;
+    }
+
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    results() {
+        // Cluster IDs will be passed to main thread in 
+        // choose_clustering, so no need to do it here.
+        return {};
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup("kmeans_cluster");
+
+        {
+            let phandle = ghandle.createGroup("parameters");
+            phandle.writeDataSet("k", "Int32", [], this.#parameters.k);
+        }
+
+        {
+            let rhandle = ghandle.createGroup("results");
+            if (this.#valid()) {
+                let clusters = this.fetchClustersAsWasmArray();
+                rhandle.writeDataSet("clusters", "Int32", null, clusters);
+             }
+        }
+
+        return;
+    }
+}
+
+/**************************
+ ******** Loading *********
+ **************************/
+
+class KmeansMimic {
+    constructor(clusters) {
+        this.buffer = scran.createInt32WasmArray(clusters.length);
+        this.buffer.set(clusters);
+    }
+
+    clusters({ copy }) {
+        return utils.mimicGetter(this.buffer, copy);
+    }
+
+    free() {
+        this.buffer.free();
+    }
+}
+
+export function unserialize(handle, pca) {
+    let parameters = {
+        k: 10
+    };
+    let cache = {};
+
+    // Protect against old analysis states that don't have kmeans_cluster.
+    if ("kmeans_cluster" in handle.children) {
+        let ghandle = handle.open("kmeans_cluster");
+
+        {
+            let phandle = ghandle.open("parameters");
+            parameters.k = phandle.open("k", { load: true }).values[0];
+        }
+
+        {
+            let rhandle = ghandle.open("results");
+            if ("clusters" in rhandle.children) {
+                let clusters = rhandle.open("clusters", { load: true }).values;
+                cache.raw = new KmeansMimic(clusters);
+            }
+        }
+    }
+
+    return {
+        state: new State(pca, parameters, cache),
+        parameters: { ...parameters }
+    };
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="cell_labelling.html">cell_labelling</a></li><li><a href="choose_clustering.html">choose_clustering</a></li><li><a href="custom_selections.html">custom_selections</a></li><li><a href="feature_selection.html">feature_selection</a></li><li><a href="inputs.html">inputs</a></li><li><a href="kmeans_cluster.html">kmeans_cluster</a></li><li><a href="marker_detection.html">marker_detection</a></li><li><a href="neighbor_index.html">neighbor_index</a></li><li><a href="normalization.html">normalization</a></li><li><a href="pca.html">pca</a></li><li><a href="quality_control.html">quality_control</a></li><li><a href="snn_graph_cluster.html">snn_graph_cluster</a></li><li><a href="tsne.html">tsne</a></li><li><a href="umap.html">umap</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 18:15:24 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

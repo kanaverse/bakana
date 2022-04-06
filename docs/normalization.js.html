@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: normalization.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: normalization.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import * as scran from "scran.js"; 
+import * as utils from "./utils/general.js";
+import * as qc_module from "./quality_control.js";
+
+/**
+ * This step performs normalization and log-transformation on the QC-filtered matrix from {@linkcode quality_control}.
+ * It wraps the `logNormCounts` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ *
+ * The parameters in {@linkcode runAnalysis} should be an empty object.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an empty object.
+ * 
+ * The state instance has a **`fetchExpression(index)`** method:
+ *
+ * - `index` should be an integer specifying the row index to extract.
+ * - The return value is a Float64Array containing the log-normalized expression values for each cell.
+ *
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace normalization
+ */
+
+export class State {
+    #qc;
+    #parameters;
+    #cache;
+
+    constructor(qc, parameters = null, cache = null) {
+        if (!(qc instanceof qc_module.State)) {
+            throw new Error("'qc' should be a State object from './quality_control.js'");
+        }
+        this.#qc = qc;
+
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
+    }
+
+    free() {
+        utils.freeCache(this.#cache.matrix);
+    }
+
+    /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchNormalizedMatrix() {
+        if (!("matrix" in this.#cache)) {
+            this.#raw_compute();
+        }
+        return this.#cache.matrix;
+    }
+
+    fetchExpression(index) {
+        var mat = this.fetchNormalizedMatrix();
+        var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache); // re-using the buffer.
+        mat.row(index, { buffer: buffer });
+        return buffer.slice();
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    #raw_compute() {
+        var mat = this.#qc.fetchFilteredMatrix();
+        var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache);
+
+        var discards = this.#qc.fetchDiscards();
+        var sums = this.#qc.fetchSums({ unsafe: true }); // Better not have any more allocations in between now and filling of size_factors!
+
+        // Reusing the totals computed earlier.
+        var size_factors = buffer.array();
+        var j = 0;
+        discards.array().forEach((x, i) => {
+            if (!x) {
+                size_factors[j] = sums[i];
+                j++;
+            }
+        });
+
+        if (j != mat.numberOfColumns()) {
+            throw "normalization and filtering are not in sync";
+        }
+
+        var block = this.#qc.fetchFilteredBlock();
+
+        utils.freeCache(this.#cache.matrix);
+        this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: block });
+        return;
+    }
+
+    compute() {
+        this.changed = false;
+        if (this.#qc.changed) {
+            this.changed = true;
+        } 
+
+        if (this.changed) {
+            this.#raw_compute();
+        }
+        return;
+    }
+
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    results() {
+        return {};
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        // Token effort.
+        let ghandle = handle.createGroup("normalization");
+        ghandle.createGroup("parameters"); 
+        ghandle.createGroup("results"); 
+    }
+}
+
+/**************************
+ ******** Loading *********
+ **************************/
+
+export function unserialize(handle, qc) {
+    return {
+        state: new State(qc),
+        parameters: {}
+    }
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="cell_labelling.html">cell_labelling</a></li><li><a href="choose_clustering.html">choose_clustering</a></li><li><a href="custom_selections.html">custom_selections</a></li><li><a href="feature_selection.html">feature_selection</a></li><li><a href="inputs.html">inputs</a></li><li><a href="kmeans_cluster.html">kmeans_cluster</a></li><li><a href="marker_detection.html">marker_detection</a></li><li><a href="neighbor_index.html">neighbor_index</a></li><li><a href="normalization.html">normalization</a></li><li><a href="pca.html">pca</a></li><li><a href="quality_control.html">quality_control</a></li><li><a href="snn_graph_cluster.html">snn_graph_cluster</a></li><li><a href="tsne.html">tsne</a></li><li><a href="umap.html">umap</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 18:15:24 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

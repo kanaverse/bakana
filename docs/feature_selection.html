@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: defaults.js</title>
+    <title>JSDoc: Namespace: feature_selection</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,72 +17,112 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: defaults.js</h1>
+    <h1 class="page-title">Namespace: feature_selection</h1>
 
     
 
 
 
+
+<section>
+
+<header>
     
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>/**
- * Generate an object containing all of the default analysis parameters.
- *
- * @return An object where each property corresponds to an analysis step and contains the default parameters for that step.
- */
-export function analysisDefaults() {
-    return {
-        inputs: {
-            sample_factor: null
-        },
-        quality_control: {
-            use_mito_default: true,
-            mito_prefix: "mt-",
-            nmads: 3
-        },
-        feature_selection: {
-            span: 0.3
-        },
-        pca: {
-            num_hvgs: 2000,
-            num_pcs: 20,
-            block_method: "none"
-        },
-        neighbor_index: {
-            approximate: true
-        },
-        tsne: {
-            perplexity: 30,
-            iterations: 500,
-            animate: false
-        },
-        umap: {
-            num_neighbors: 15,
-            num_epochs: 500,
-            min_dist: 0.1,
-            animate: false
-        },
-        kmeans_cluster: {
-            k: 10
-        },
-        snn_graph_cluster: {
-            k: 10,
-            scheme: 0,
-            resolution: 1
-        },
-        choose_clustering: {
-            method: "snn_graph"
-        },
-        cell_labelling: {
-            mouse_references: [],
-            human_references: []
-        }
-    };
-}
-</code></pre>
-        </article>
-    </section>
+        <h2>feature_selection</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description"><p>Feature selection is performed by modelling the per-gene variance and finding highly variable genes.
+This wraps the <code>modelGeneVar</code> function from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.</p>
+<p>The parameters in <a href="global.html#runAnalysis"><code>runAnalysis</code></a> should be an object containing:</p>
+<ul>
+<li><code>span</code>: a number between 0 and 1 specifying the span for the LOWESS smoother.</li>
+</ul>
+<p>Calling the <strong><code>results()</code></strong> method for the relevant state instance will return an object containing:</p>
+<ul>
+<li><code>means</code>: a <code>Float64Array</code> containing the mean log-expression for each gene.</li>
+<li><code>vars</code>: a <code>Float64Array</code> containing the variance in log-expression for each gene.</li>
+<li><code>fitted</code>: a <code>Float64Array</code> containing the fitted value of the mean-variance trend for each gene.</li>
+<li><code>resids</code>: a <code>Float64Array</code> containing the residuals from the mean-variance trend for each gene.</li>
+</ul>
+<p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="feature_selection.js.html">feature_selection.js</a>, <a href="feature_selection.js.html#line6">line 6</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
 
 
 

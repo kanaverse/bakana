@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Namespace: custom_selections</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Namespace: custom_selections</h1>
+
+    
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>custom_selections</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description"><p>Applications can perform marker detection on custom selections of cells.
+This allows users to dynamically select cells on a UI and quickly obtain a list of distinguishing markers for that selection.
+This wraps the <code>scoreMarkers</code> function from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.</p>
+<p>The parameters in <a href="global.html#runAnalysis"><code>runAnalysis</code></a> should be an empty object.</p>
+<p>Calling the <strong><code>results()</code></strong> method for the relevant state instance will return an empty object.</p>
+<p>The state instance for this step has an <strong><code>addSelection(id, selection)</code></strong> method.</p>
+<ul>
+<li><code>id</code> should be a string containing a unique identifier for the new custom selection.</li>
+<li><code>selection</code> should be an array containing the indices of the cells in the selection.
+Note that indices should refer to positions of cells in the QC-filtered matrix, not the original matrix.</li>
+<li>The custom selection is added to the state and calculation of its markers is performed.
+Nothing is returned.</li>
+</ul>
+<p>The state instance for this step has a <strong><code>fetchResults(id, rank_type)</code></strong> method.</p>
+<ul>
+<li><code>id</code> should be a string containing an identifier for the desired selection.</li>
+<li><code>rank_type</code> should be a string specifying the effect size to use for ranking markers.
+This should follow the format of <code>&lt;effect&gt;-&lt;summary&gt;</code> where <code>&lt;effect&gt;</code> may be <code>lfc</code>, <code>cohen</code>, <code>auc</code> or <code>delta_detected</code>,
+and <code>&lt;summary&gt;</code> may be <code>min</code>, <code>mean</code> or <code>min-rank</code> (though the latter has no effect here, as only one pairwise comparison is involved).</li>
+<li>An object is returned containing the marker statistics for the selection, sorted by the specified effect and summary size from <code>rank_type</code>.
+This contains:
+<ul>
+<li><code>means</code>: a <code>Float64Array</code> of length equal to the number of genes, containing the mean expression within the selection.</li>
+<li><code>detected</code>: a <code>Float64Array</code> of length equal to the number of genes, containing the proportion of cells with detected expression inside the selection.</li>
+<li><code>lfc</code>: a <code>Float64Array</code> of length equal to the number of genes, containing the log-fold changes for the comparison between cells inside and outside the selection.</li>
+<li><code>delta_detected</code>: a <code>Float64Array</code> of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.</li>
+</ul>
+</li>
+</ul>
+<p>The state instance for this step has a <strong><code>removeSelection(id)</code></strong> method.</p>
+<ul>
+<li><code>id</code> should be a string containing an identifier for the desired selection.</li>
+<li>The specified selection and its results are removed from the state.
+Nothing is returned.</li>
+</ul>
+<p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="custom_selections.js.html">custom_selections.js</a>, <a href="custom_selections.js.html#line7">line 7</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="cell_labelling.html">cell_labelling</a></li><li><a href="choose_clustering.html">choose_clustering</a></li><li><a href="custom_selections.html">custom_selections</a></li><li><a href="feature_selection.html">feature_selection</a></li><li><a href="inputs.html">inputs</a></li><li><a href="kmeans_cluster.html">kmeans_cluster</a></li><li><a href="marker_detection.html">marker_detection</a></li><li><a href="neighbor_index.html">neighbor_index</a></li><li><a href="normalization.html">normalization</a></li><li><a href="pca.html">pca</a></li><li><a href="quality_control.html">quality_control</a></li><li><a href="snn_graph_cluster.html">snn_graph_cluster</a></li><li><a href="tsne.html">tsne</a></li><li><a href="umap.html">umap</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 18:15:24 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

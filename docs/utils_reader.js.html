@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: utils/reader.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: utils/reader.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import * as pako from "pako";
+import * as afile from "../abstract/file.js";
+
+export function extractHDF5Strings(handle, name) {
+    if (!(name in handle.children)) {
+        return null;
+    }
+
+    if (handle.children[name] !== "DataSet") {
+        return null;
+    }
+
+    let content = handle.open(name);
+    if (content.type !== "String") {
+        return null;
+    }
+
+    return content.load();
+}
+
+export function readTextLines(buffer, compression = "gz") {
+    let txt = buffer;
+    if (compression == "gz") {
+        txt = pako.ungzip(buffer);
+    }
+
+    const dec = new TextDecoder();
+    let decoded = dec.decode(txt);
+
+    let lines = decoded.split("\n");
+    if (lines.length > 0 &amp;&amp; lines[lines.length - 1] == "") { // ignoring the trailing newline.
+        lines.pop();
+    }
+
+    return lines;    
+}
+
+export function readDSVFromBuffer(content, fname, delim = "\t") {
+    var ext = fname.name.split('.').pop();
+    let lines = readTextLines(content, ext);
+    lines.forEach((x, i) => {
+        lines[i] = x.split(delim);
+    });
+    return lines;
+}
+
+var cache = {
+    file2link: null, 
+    link2file: null
+};
+
+/**
+ * Specify a function to create links for data files.
+ * By default, this only affects files for the MatrixMarket, H5AD and 10X formats, and is only used when linking is requested.
+ *
+ * @param {function} fun - Function that returns a linking idenfier to a data file.
+ * The function should accept an ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
+ * and return a string containing some unique identifier to the file.
+ * This is most typically used to register the file with some user-specified database system for later retrieval.
+ *
+ * @return `fun` is set as the global link creator for this step. 
+ * The _previous_ value of the creator is returned.
+ */
+export function setCreateLink(fun) {
+    let previous = cache.file2link;
+    cache.file2link = fun;
+    return previous;
+}
+
+/**
+ * Specify a function to resolve links for data files.
+ * By default, this only affects files for the MatrixMarket, H5AD and 10X formats, and is only used when links are detected.
+ *
+ * @param {function} fun - Function that accepts a string containing a linking idenfier and returns an ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
+ * This is most typically used to retrieve a file from some user-specified database system.
+ *
+ * @return `fun` is set as the global resolver for this step. 
+ * The _previous_ value of the resolver is returned.
+ */
+export function setResolveLink(fun) {
+    let previous = cache.link2file;
+    cache.link2file = fun;
+    return previous;
+}
+
+export async function standardSerialize(details, type, embeddedSaver) {
+    let output = { 
+        "type": type,
+        "name": details.name 
+    };
+    let serialized = details.content.serialized();
+
+    if (embeddedSaver !== null) {
+        let eout = await embeddedSaver(serialized, details.content.size());
+        output.offset = eout.offset;
+        output.size = eout.size;
+    } else {
+        let fun = cache.file2link;
+        if (fun === null) {
+            throw new Error("link-creating function has not been set by 'setCreateLink'");
+        }
+        output.id = await fun(serialized);
+    }
+
+    return output;
+}
+
+export async function standardUnserialize(details, embeddedLoader) {
+    let output = { name: details.name };
+
+    if ("id" in details) {
+        let fun = cache.link2file;
+        if (fun === null) {
+            throw new Error("link-resolving function has not been set by 'setResolveLink'");
+        }
+        output.content = new afile.LoadedFile(await fun(details.id));
+    } else {
+        output.content = new afile.LoadedFile(await embeddedLoader(details.offset, details.size));
+    }
+
+    return output;
+}
+
+export function formatFile(file, sizeOnly) {
+    let output = { "name": afile.rawName(file) };
+    if (sizeOnly) {
+        output.size = afile.rawSize(file);
+    } else {
+        output.content = new afile.LoadedFile(file);
+    }
+    return output;
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="cell_labelling.html">cell_labelling</a></li><li><a href="choose_clustering.html">choose_clustering</a></li><li><a href="custom_selections.html">custom_selections</a></li><li><a href="feature_selection.html">feature_selection</a></li><li><a href="inputs.html">inputs</a></li><li><a href="kmeans_cluster.html">kmeans_cluster</a></li><li><a href="marker_detection.html">marker_detection</a></li><li><a href="neighbor_index.html">neighbor_index</a></li><li><a href="normalization.html">normalization</a></li><li><a href="pca.html">pca</a></li><li><a href="quality_control.html">quality_control</a></li><li><a href="snn_graph_cluster.html">snn_graph_cluster</a></li><li><a href="tsne.html">tsne</a></li><li><a href="umap.html">umap</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 18:15:24 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

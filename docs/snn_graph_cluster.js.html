@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: snn_graph_cluster.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: snn_graph_cluster.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import * as scran from "scran.js"; 
+import * as utils from "./utils/general.js";
+import * as neighbor_module from "./neighbor_index.js";
+
+/**
+ * This step does SNN graph clustering based on the neighbor search index built by {@linkcode neighbor_index}.
+ * This wraps `clusterSNNGraph` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ *
+ * The parameters in {@linkcode runAnalysis} should be an object containing:
+ *
+ * - `k`: the number of nearest neighbors used to construct the graph.
+ * - `scheme`: string specifying the weighting scheme for graph construction.
+ * - `resolution`: number containing the resolution of the community detection.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an empty object.
+ * See the {@linkcode choose_clustering} step to actually obtain the cluster assignments.
+ * 
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace snn_graph_cluster
+ */
+
+export class State {
+    #index;
+    #parameters;
+    #cache;
+
+    constructor(index, parameters = null, cache = null) {
+        if (!(index instanceof neighbor_module.State)) {
+            throw new Error("'index' should be a State object from './neighbor_index.js'");
+        }
+        this.#index = index;
+
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
+    }
+
+    free() {
+        utils.freeCache(this.#cache.neighbors);
+        utils.freeCache(this.#cache.graph);
+        utils.freeCache(this.#cache.clusters);
+    }
+
+    /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchClustersAsWasmArray() {
+        if (!this.#valid()) {
+            throw "cannot fetch SNN clusters from an invalid state";
+        } else {
+            return this.#cache.clusters.membership({ copy: "view" });
+        }
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    #valid() {
+        return "clusters" in this.#cache;
+    }
+
+    #compute_neighbors(k) {
+        this.#cache.neighbors = scran.findNearestNeighbors(this.#index.fetchIndex(), k);
+        return;
+    }
+
+    #compute_graph(scheme) {
+        if (!("neighbors" in this.#cache)) { // need to check as reloaded state will not populate the internals.
+            this.#compute_neighbors(this.#parameters.k);
+        }
+        this.#cache.graph = scran.buildSNNGraph(this.#cache.neighbors, { scheme: scheme });
+        return;
+    }
+
+    #compute_clusters(resolution) {
+        if (!("graph" in this.#cache)) {
+            this.#compute_graph(this.#parameters.scheme);
+        }
+        this.#cache.clusters = scran.clusterSNNGraph(this.#cache.graph, { resolution: resolution });
+        return;
+    }
+
+    compute(run_me, k, scheme, resolution) {
+        this.changed = false;
+
+        if (this.#index.changed || k !== this.#parameters.k) {
+            utils.freeCache(this.#cache.neighbors);
+            if (run_me) {
+                this.#compute_neighbors(k);
+            } else {
+                delete this.#cache.neighbors; // ensuring that this is re-run on future calls to compute() with run_me = true.
+            }
+            this.#parameters.k = k;
+            this.changed = true;
+        }
+
+        if (this.changed || scheme !== this.#parameters.scheme) {
+            utils.freeCache(this.#cache.graph);
+            if (run_me) {
+                this.#compute_graph(scheme);
+            } else {
+                delete this.#cache.graph;
+            }
+            this.#parameters.scheme = scheme;
+            this.changed = true 
+        }
+
+        if (this.changed || resolution !== this.#parameters.resolution || (!this.#valid() &amp;&amp; run_me)) {
+            utils.freeCache(this.#cache.clusters);
+            if (run_me) {
+                this.#compute_clusters(resolution);
+            } else {
+                delete this.#cache.clusters;
+            }
+            this.#parameters.resolution = resolution;
+            this.changed = true;
+        }
+
+        return;
+    }
+
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    results() {
+        // Cluster IDs will be passed to main thread in 
+        // choose_clustering, so no need to do it here.
+        return {};
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup("snn_graph_cluster");
+
+        {
+            let phandle = ghandle.createGroup("parameters");
+            phandle.writeDataSet("k", "Int32", [], this.#parameters.k);
+            phandle.writeDataSet("scheme", "String", [], ["rank", "number", "jaccard"][this.#parameters.scheme]); // TODO: parameters.scheme should just directly be the string.
+            phandle.writeDataSet("resolution", "Float64", [], this.#parameters.resolution);
+        }
+
+        {
+            let rhandle = ghandle.createGroup("results");
+            if (this.#valid()) {
+                let clusters = this.fetchClustersAsWasmArray();
+                rhandle.writeDataSet("clusters", "Int32", null, clusters);
+            }
+        }
+
+        return;
+    }
+}
+
+/**************************
+ ******** Loading *********
+ **************************/
+
+class SNNClusterMimic {
+    constructor(clusters) {
+        this.buffer = scran.createInt32WasmArray(clusters.length);
+        this.buffer.set(clusters);
+    }
+
+    membership({ copy }) {
+        return utils.mimicGetter(this.buffer, copy);
+    }
+
+    free() {
+        this.buffer.free();
+    }
+}
+
+export function unserialize(handle, index) {
+    let ghandle = handle.open("snn_graph_cluster");
+
+    let parameters = {};
+    {
+        let phandle = ghandle.open("parameters");
+        parameters.k = phandle.open("k", { load: true }).values[0];
+        parameters.scheme = phandle.open("scheme", { load: true }).values[0];
+        parameters.scheme = { "rank": 0, "number": 1, "jaccard": 2 }[parameters.scheme];
+        parameters.resolution = phandle.open("resolution", { load: true }).values[0];
+    }
+
+    let cache = {};
+    {
+        let rhandle = ghandle.open("results");
+        if ("clusters" in rhandle.children) {
+            let clusters = rhandle.open("clusters", { load: true }).values;
+            cache.clusters = new SNNClusterMimic(clusters);
+        }
+    }
+
+    return {
+        state: new State(index, parameters, cache),
+        parameters: { ...parameters }
+    };
+}
+
+
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="cell_labelling.html">cell_labelling</a></li><li><a href="choose_clustering.html">choose_clustering</a></li><li><a href="custom_selections.html">custom_selections</a></li><li><a href="feature_selection.html">feature_selection</a></li><li><a href="inputs.html">inputs</a></li><li><a href="kmeans_cluster.html">kmeans_cluster</a></li><li><a href="marker_detection.html">marker_detection</a></li><li><a href="neighbor_index.html">neighbor_index</a></li><li><a href="normalization.html">normalization</a></li><li><a href="pca.html">pca</a></li><li><a href="quality_control.html">quality_control</a></li><li><a href="snn_graph_cluster.html">snn_graph_cluster</a></li><li><a href="tsne.html">tsne</a></li><li><a href="umap.html">umap</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 18:15:24 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

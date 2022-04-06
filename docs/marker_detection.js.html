@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: marker_detection.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: marker_detection.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import * as scran from "scran.js"; 
+import * as utils from "./utils/general.js";
+import * as markers from "./utils/markers.js";
+import * as qc_module from "./quality_control.js";
+import * as norm_module from "./normalization.js";
+import * as choice_module from "./choose_clustering.js";
+
+/**
+ * This step performs marker detection for each cluster of cells by performing pairwise comparisons to each other cluster.
+ * This wraps the `scoreMarkers` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * The clustering is obtained from the {@linkcode choose_clustering} step.
+ *
+ * The parameters in {@linkcode runAnalysis} should be an empty object.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an empty object.
+ *
+ * The state instance for this step has a **`fetchGroupResults(rank_type, group)`** method.
+ * 
+ * - `group` should be an integer specifying the cluster of interest.
+ * - `rank_type` should be a string specifying the effect size to use for ranking markers.
+ *   This should follow the format of `&lt;effect>-&lt;summary>` where `&lt;effect>` may be `lfc`, `cohen`, `auc` or `delta_detected`,
+ *   and `&lt;summary>` may be `min`, `mean` or `min-rank`.
+ * - An object is returned containing the marker statistics for the selection, sorted by the specified effect and summary size from `rank_type`.
+ *   This contains:
+ *   - `means`: a `Float64Array` of length equal to the number of genes, containing the mean expression within the selection.
+ *   - `detected`: a `Float64Array` of length equal to the number of genes, containing the proportion of cells with detected expression inside the selection.
+ *   - `lfc`: a `Float64Array` of length equal to the number of genes, containing the log-fold changes for the comparison between cells inside and outside the selection.
+ *   - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
+ *
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace marker_detection
+ */
+
+export class State {
+    #qc;
+    #norm;
+    #choice;
+    #parameters;
+    #cache;
+
+    constructor(qc, norm, choice, parameters = null, cache = null) {
+        if (!(qc instanceof qc_module.State)) {
+            throw new Error("'qc' should be a State object from './quality_control.js'");
+        }
+        this.#qc = qc;
+
+        if (!(norm instanceof norm_module.State)) {
+            throw new Error("'norm' should be a State object from './normalization.js'");
+        }
+        this.#norm = norm;
+
+        if (!(choice instanceof choice_module.State)) {
+            throw new Error("'choice' should be a State object from './choose_clustering.js'");
+        }
+        this.#choice = choice;
+
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
+    }
+
+    free() {
+        utils.freeCache(this.#cache.raw);
+    }
+
+    /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchGroupResults(rank_type, group) {
+        return markers.fetchGroupResults(this.#cache.raw, rank_type, group); 
+    }
+
+    numberOfGroups() {
+        return this.#cache.raw.numberOfGroups();
+    }
+
+    fetchGroupMeans(group, { copy = true }) {
+        return this.#cache.raw.means(group, { copy: copy });
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    compute() {
+        this.changed = false;
+
+        if (this.#norm.changed || this.#choice.changed) {
+            var mat = this.#norm.fetchNormalizedMatrix();
+            var clusters = this.#choice.fetchClustersAsWasmArray();
+            var block = this.#qc.fetchFilteredBlock();
+            
+            utils.freeCache(this.#cache.raw);
+            this.#cache.raw = scran.scoreMarkers(mat, clusters, { block: block });
+
+            // No parameters to set.
+
+            this.changed = true;
+        }
+
+        return;
+    }
+
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    results() {
+        return {};
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup("marker_detection");
+        ghandle.createGroup("parameters");
+
+        {
+            let chandle = ghandle.createGroup("results");
+            let rhandle = chandle.createGroup("clusters");
+
+            var num = this.#cache.raw.numberOfGroups();
+            for (var i = 0; i &lt; num; i++) {
+                markers.serializeGroupStats(rhandle, this.#cache.raw, i);
+            }
+        }
+    }
+}
+
+/**************************
+ ******** Loading *********
+ **************************/
+
+class ScoreMarkersMimic {
+    constructor(clusters) {
+        this.clusters = clusters;
+    }
+
+    effect_grabber(key, group, summary, copy) {
+        let sidx = markers.int2summaries[summary];
+        let chosen = this.clusters[group][key][sidx];
+        return utils.mimicGetter(chosen, copy);
+    }
+
+    lfc(group, { summary, copy }) {
+        return this.effect_grabber("lfc", group, summary, copy);
+    }
+
+    deltaDetected(group, { summary, copy }) {
+        return this.effect_grabber("delta_detected", group, summary, copy);
+    }
+
+    cohen(group, { summary, copy }) {
+        return this.effect_grabber("cohen", group, summary, copy);
+    }
+
+    auc(group, { summary, copy }) {
+        return this.effect_grabber("auc", group, summary, copy);
+    }
+
+    stat_grabber(key, group, copy) {
+        let chosen = this.clusters[group][key];
+        return utils.mimicGetter(chosen, copy);
+    }
+
+    means(group, { copy }) {
+        return this.stat_grabber("means", group, copy);
+    }
+
+    detected(group, { copy }) {
+        return this.stat_grabber("detected", group, copy);
+    }
+
+    numberOfGroups() {
+        return Object.keys(this.clusters).length;
+    }
+
+    free() {}
+}
+
+export function unserialize(handle, permuter, qc, norm, choice) {
+    let ghandle = handle.open("marker_detection");
+
+    // No parameters to unserialize.
+    let parameters = {};
+
+    let cache = {};
+    {
+        let chandle = ghandle.open("results");
+        let rhandle = chandle.open("clusters");
+        let clusters = {};
+        for (const cl of Object.keys(rhandle.children)) {
+            clusters[Number(cl)] = markers.unserializeGroupStats(rhandle.open(cl), permuter);
+        }
+        cache.raw = new ScoreMarkersMimic(clusters);
+    }
+
+    return {
+        state: new State(qc, norm, choice, parameters, cache),
+        parameters: { ...parameters }
+    };
+}
+
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="cell_labelling.html">cell_labelling</a></li><li><a href="choose_clustering.html">choose_clustering</a></li><li><a href="custom_selections.html">custom_selections</a></li><li><a href="feature_selection.html">feature_selection</a></li><li><a href="inputs.html">inputs</a></li><li><a href="kmeans_cluster.html">kmeans_cluster</a></li><li><a href="marker_detection.html">marker_detection</a></li><li><a href="neighbor_index.html">neighbor_index</a></li><li><a href="normalization.html">normalization</a></li><li><a href="pca.html">pca</a></li><li><a href="quality_control.html">quality_control</a></li><li><a href="snn_graph_cluster.html">snn_graph_cluster</a></li><li><a href="tsne.html">tsne</a></li><li><a href="umap.html">umap</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 18:15:24 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
