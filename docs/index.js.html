@@ -53,6 +53,7 @@ export { setCellLabellingDownload } from "./cell_labelling.js";
 import * as utils from "./utils/general.js";
 import * as serialize_utils from "./utils/serialize.js";
 import * as rutils from "./utils/reader.js";
+import * as vizutils from "./utils/viz_parent.js";
 
 const step_inputs = "inputs";
 const step_qc = "quality_control";
@@ -85,11 +86,8 @@ export function initialize({ numberOfThreads = 1, localFile = false } = {}) {
         numberOfThreads: numberOfThreads,
         localFile: localFile
     });
-
-    let t = tsne.initialize({ localFile: localFile });
-    let u = umap.initialize({ localFile: localFile });
-
-    return Promise.all([s, t, u]).then(x => null); 
+    vizutils.scranOptions.localFile = localFile;
+    return s.then(x => null); 
 }
 
 /**
@@ -100,15 +98,63 @@ export function initialize({ numberOfThreads = 1, localFile = false } = {}) {
  */
 export function terminate() {
     let s = scran.terminate();
-    let t = tsne.terminate();
-    let u = umap.terminate();
-    return Promise.all([s, t, u]).then(x => null);
+    let w = vizutils.killAllWorkers();
+    return Promise.all([s, w]).then(x => null);
+}
+
+/**
+ * Create a new analysis state in preparation for calling {@linkcode runAnalysis}.
+ * Multiple states can be created and used interchangeably within the same Javascript runtime.
+ *
+ * @return A promise that resolves to an object containing states for all analysis steps.
+ * This object can be used as input into {@linkcode runAnalysis}.
+ */
+export async function createAnalysis() {
+    let output = {};
+    output[step_inputs] = new inputs.State;
+    output[step_qc] = new qc.State(output[step_inputs]);
+    output[step_norm] = new normalization.State(output[step_qc]);
+    output[step_feat] = new variance.State(output[step_qc], output[step_norm]);
+    output[step_pca] = new pca.State(output[step_qc], output[step_norm], output[step_feat]);
+    output[step_neighbors] = new index.State(output[step_pca]);
+
+    output[step_tsne] = new tsne.State(output[step_neighbors]);
+    output[step_umap] = new umap.State(output[step_neighbors]);
+
+    output[step_kmeans] = new kmeans_cluster.State(output[step_pca]);
+    output[step_snn] = new snn_cluster.State(output[step_neighbors]);
+    output[step_choice] = new cluster_choice.State(output[step_snn], output[step_kmeans]);
+    output[step_markers] = new cluster_markers.State(output[step_qc], output[step_norm], output[step_choice]);
+    output[step_labels] = new label_cells.State(output[step_inputs], output[step_markers]);
+    output[step_custom] = new custom_markers.State(output[step_qc], output[step_norm]);
+
+    return Promise.all([output[step_tsne].ready(), output[step_umap].ready()]).then(val => output);
+}
+
+/**
+ * Free the contents of an analysis state.
+ * This releases memory on the **scran.js** Wasm heap and terminates any workers associated with this analysis.
+ *
+ * @param state An existing analysis state, produced by {@linkcode createAnalysis} or {@linkcode loadAnalysis}.
+ *
+ * @return A promise that resolves to `null` when all states are freed.
+ */
+export function freeAnalysis(state) {
+    let promises = [];
+    for (const [k, v] of Object.entries(state)) {
+        let p = v.free();
+        if (p !== null) {
+            promises.push(p); 
+        }
+    }
+    return Promise.all(promises).then(x => null);
 }
 
 /**
  * Run a basic single-cell RNA-seq analysis with the specified files and parameters.
  * This will cache the results from each step so that, if the parameters change, only the affected steps will be rerun.
  *
+ * @param {object} state - Object containing the analysis state, produced by {@linkcode createAnalysis} or {@linkcode loadAnalysis}.
  * @param {Array} matrices - Object where each (arbitrarily named) property corresponds to an input matrix. 
  * Each matrix is itself represented as an object with property `type` and additional properties referring to individual data files.
  * In the browser, each data file manifests as a `File` object; for Node.js, each data file should be represented as a string containing a file path.
@@ -126,122 +172,106 @@ export function terminate() {
  * If `null`, a no-op function is automatically created.
  * 
  * @return A promise that resolves to `null` when all asynchronous analysis steps are complete.
+ * The contents of `state` are modified by reference to reflect the latest state of the analysis with the supplied parameters.
  */
-export function runAnalysis(matrices, params, { finishFun = null } = {}) {
+export function runAnalysis(state, matrices, params, { finishFun = null } = {}) {
     if (finishFun === null) {
         finishFun = (name, results) => true;
+    }
+    let quickFun = step => {
+        if (state[step].changed) {
+            finishFun(step, state[step].results());
+        }
     }
 
     let promises = [];
 
-    inputs.compute(
+    state[step_inputs].compute(
         matrices, 
         params[step_inputs]["sample_factor"]
     );
-    if (inputs.changed) {
-        finishFun(step_inputs, inputs.results());
-    }
+    quickFun(step_inputs);
 
-    qc.compute(
+    state[step_qc].compute(
         params[step_qc]["use_mito_default"], 
         params[step_qc]["mito_prefix"], 
         params[step_qc]["nmads"]
     );
-    if (qc.changed) {
-        finishFun(step_qc, qc.results());
-    }
+    quickFun(step_qc);
  
-    normalization.compute();
-    if (normalization.changed) {
-        finishFun(step_norm, normalization.results());
-    }
+    state[step_norm].compute();
+    quickFun(step_norm);
 
-    variance.compute(
+    state[step_feat].compute(
         params[step_feat]["span"]
     );
-    if (variance.changed) {
-        finishFun(step_feat, variance.results());
-    }
+    quickFun(step_feat);
 
-    pca.compute(
+    state[step_pca].compute(
         params[step_pca]["num_hvgs"],
         params[step_pca]["num_pcs"],
         params[step_pca]["block_method"]
     );
-    if (pca.changed) {
-        finishFun(step_pca, pca.results());
-    }
+    quickFun(step_pca);
 
-    index.compute(
+    state[step_neighbors].compute(
         params[step_neighbors]["approximate"]
     );
-    if (index.changed) {
-        finishFun(step_neighbors, index.results());
-    }
+    quickFun(step_neighbors);
 
-    tsne.compute(
+    state[step_tsne].compute(
         params[step_tsne]["perplexity"],
         params[step_tsne]["iterations"], 
         params[step_tsne]["animate"]
     );
-    if (tsne.changed) {
-        promises.push(tsne.results().then(res => finishFun(step_tsne, res)));
+    if (state[step_tsne].changed) {
+        promises.push(state[step_tsne].results().then(res => finishFun(step_tsne, res)));
     }
 
-    umap.compute(
+    state[step_umap].compute(
         params[step_umap]["num_neighbors"], 
         params[step_umap]["num_epochs"], 
         params[step_umap]["min_dist"], 
         params[step_umap]["animate"]
     );
-    if (umap.changed) {
-        promises.push(umap.results().then(res => finishFun(step_umap, res)));
+    if (state[step_umap].changed) {
+        promises.push(state[step_umap].results().then(res => finishFun(step_umap, res)));
     }
 
     let method = params[step_choice]["method"];
 
-    kmeans_cluster.compute(
+    state[step_kmeans].compute(
         method == "kmeans", 
         params[step_kmeans]["k"]
     );
-    if (kmeans_cluster.changed) {
-        finishFun(step_kmeans, kmeans_cluster.results());
-    }
+    quickFun(step_kmeans);
 
-    snn_cluster.compute(
+    state[step_snn].compute(
         method == "snn_graph", 
         params[step_snn]["k"], 
         params[step_snn]["scheme"], 
         params[step_snn]["resolution"]
     );
-    if (snn_cluster.changed) {
-        finishFun(step_snn, snn_cluster.results());
-    }
+    quickFun(step_snn);
   
-    cluster_choice.compute(
+    state[step_choice].compute(
         method
     );
-    if (cluster_choice.changed) {
-        finishFun(step_choice, cluster_choice.results());
-    }
+    quickFun(step_choice);
 
-    cluster_markers.compute();
-    if (cluster_markers.changed) {
-        finishFun(step_markers, cluster_markers.results());
-    }
+    state[step_markers].compute();
+    quickFun(step_markers);
 
-    label_cells.compute(
+    state[step_labels].compute(
         params[step_labels]["human_references"],
         params[step_labels]["mouse_references"]
     );
-    if (label_cells.changed) {
-        promises.push(label_cells.results().then(res => finishFun(step_labels, res)));
+    if (state[step_labels].changed) {
+        promises.push(state[step_labels].results().then(res => finishFun(step_labels, res)));
     }
 
-    custom_markers.compute();
-    if (custom_markers.changed) {
-        finishFun(step_custom, custom_markers.results());
-    }
+    state[step_custom].compute();
+    quickFun(step_custom);
 
     return Promise.all(promises).then(x => null);
 }
@@ -250,6 +280,8 @@ export function runAnalysis(matrices, params, { finishFun = null } = {}) {
  * Save the current analysis state into a HDF5 file.
  * This HDF5 file can then be embedded into a `*.kana` file for distribution.
  *
+ * @param {object} state - Object containing the analysis state, produced by {@linkcode createAnalysis} or {@linkcode loadAnalysis}.
+ * If produced by {@linkcode createAnalysis}, it should have been run through {@linkcode runAnalysis} beforehand.
  * @param {string} path - Path to the output HDF5 file.
  * On browsers, this will lie inside the virtual file system of the **scran.js** module.
  * @param {object} [options] - Optional parameters.
@@ -265,7 +297,7 @@ export function runAnalysis(matrices, params, { finishFun = null } = {}) {
  * - `total`: an integer containing the total length of all ArrayBuffers in `collected`.
  *   This will only be present if `linkFun` is not supplied.
  */
-export async function saveAnalysis(path, { embedded = true } = {}) {
+export async function saveAnalysis(state, path, { embedded = true } = {}) {
     let saver = null;
     let saved = null;
 
@@ -277,40 +309,39 @@ export async function saveAnalysis(path, { embedded = true } = {}) {
 
     let handle = scran.createNewHDF5File(path);
 
-    await inputs.serialize(handle, saver);
+    await state[step_inputs].serialize(handle, saver);
 
-    qc.serialize(handle);
+    state[step_qc].serialize(handle);
 
-    normalization.serialize(handle);
+    state[step_norm].serialize(handle);
 
-    variance.serialize(handle);
+    state[step_feat].serialize(handle);
 
-    pca.serialize(handle);
+    state[step_pca].serialize(handle);
 
-    index.serialize(handle);
+    state[step_neighbors].serialize(handle);
 
-    await tsne.serialize(handle);
+    await state[step_tsne].serialize(handle);
 
-    await umap.serialize(handle);
+    await state[step_umap].serialize(handle);
 
-    kmeans_cluster.serialize(handle);
+    state[step_kmeans].serialize(handle);
 
-    snn_cluster.serialize(handle);
+    state[step_snn].serialize(handle);
 
-    cluster_choice.serialize(handle);
+    state[step_choice].serialize(handle);
 
-    cluster_markers.serialize(handle);
+    state[step_markers].serialize(handle);
 
-    await label_cells.serialize(handle);
+    await state[step_labels].serialize(handle);
 
-    custom_markers.serialize(handle);
+    state[step_custom].serialize(handle);
 
     return saved;
 }
 
 /**
- * Save the current analysis state into a HDF5 file.
- * This HDF5 file can then be embedded into a `*.kana` file for distribution.
+ * Load an analysis state from a HDF5 state file, usually excised from a `*.kana` file.
  *
  * @param {string} path - Path to the HDF5 file containing the analysis state.
  * On browsers, this should lie inside the virtual file system of the **scran.js** module.
@@ -325,7 +356,10 @@ export async function saveAnalysis(path, { embedded = true } = {}) {
  * This should accept two arguments - the name of the step and an object containing the results of that step.
  * If `null`, a no-op function is automatically created.
  *
- * @return An object containing the analysis parameters, similar to that created by {@linkcode analysisDefaults}.
+ * @return An object with the following properties:
+ * - `parameters`: an object containing the analysis parameters, similar to that created by {@linkcode analysisDefaults}.
+ * - `state`: an object containing the loaded analysis state.
+ *   This is conceptually equivalent to creating a state with {@linkcode createAnalysis} and running it through {@linkcode runAnalysis} with the associated `parameters`.
  */
 export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     if (finishFun === null) {
@@ -333,54 +367,119 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     }
 
     let response = {};
+    let state = {};
     let handle = new scran.H5File(path);
+    let quickFun = step => {
+        finishFun(step, state[step].results());
+    }
 
-    let permuter = await inputs.unserialize(handle, loadFun);
-    finishFun(step_inputs, inputs.results());
+    let permuter;
+    {
+        let out = await inputs.unserialize(handle, loadFun);
+        state[step_inputs] = out.state;
+        response[step_inputs] = out.parameters;
+        permuter = out.permuter;
+        quickFun(step_inputs);
+    }
 
-    response[step_qc] = qc.unserialize(handle);
-    finishFun(step_qc, qc.results());
+    {
+        let out = qc.unserialize(handle, state[step_inputs]);
+        state[step_qc] = out.state;
+        response[step_qc] = out.parameters;
+        quickFun(step_qc);
+    }
 
-    response[step_norm] = normalization.unserialize(handle);
-    finishFun(step_norm, normalization.results());
+    {
+        let out = normalization.unserialize(handle, state[step_qc]);
+        state[step_norm] = out.state;
+        response[step_norm] = out.parameters;
+        quickFun(step_norm);
+    }
 
-    response[step_feat] = variance.unserialize(handle, permuter);
-    finishFun(step_feat, variance.results());
+    {
+        let out = variance.unserialize(handle, permuter, state[step_qc], state[step_norm]);
+        state[step_feat] = out.state;
+        response[step_feat] = out.parameters;
+        quickFun(step_feat);
+    }
 
-    response[step_pca] = pca.unserialize(handle);
-    finishFun(step_pca, pca.results());
+    {
+        let out = pca.unserialize(handle, state[step_qc], state[step_norm], state[step_feat]);
+        state[step_pca] = out.state;
+        response[step_pca] = out.parameters;
+        quickFun(step_pca);
+    }
 
-    response[step_neighbors] = index.unserialize(handle);
-    finishFun(step_neighbors, index.results());
+    {
+        let out = index.unserialize(handle, state[step_pca]);
+        state[step_neighbors] = out.state;
+        response[step_neighbors] = out.parameters;
+        quickFun(step_neighbors);
+    }
 
     // Note that all awaits here are trivial, and just occur because results()
     // is async for general usage.  So we can chuck them in without really
     // worrying that they're blocking anything here.
-    response[step_tsne] = tsne.unserialize(handle);
-    finishFun(step_tsne, await tsne.results());
+    {
+        let out = tsne.unserialize(handle, state[step_neighbors]);
+        state[step_tsne] = out.state;
+        response[step_tsne] = out.parameters;
+        finishFun(step_tsne, await state[step_tsne].results());
+    }
 
-    response[step_umap] = umap.unserialize(handle);
-    finishFun(step_umap, await umap.results());
+    {
+        let out = umap.unserialize(handle, state[step_neighbors]);
+        state[step_umap] = out.state;
+        response[step_umap] = out.parameters;
+        finishFun(step_umap, await state[step_umap].results());
+    }
 
-    response[step_kmeans] = kmeans_cluster.unserialize(handle);
-    finishFun(step_kmeans, kmeans_cluster.results());
+    {
+        let out = kmeans_cluster.unserialize(handle, state[step_pca]);
+        state[step_kmeans] = out.state;
+        response[step_kmeans] = out.parameters;
+        quickFun(step_kmeans);
+    }
 
-    response[step_snn] = snn_cluster.unserialize(handle);
-    finishFun(step_snn, snn_cluster.results());
+    {
+        let out = snn_cluster.unserialize(handle, state[step_neighbors]);
+        state[step_snn] = out.state;
+        response[step_snn] = out.parameters;
+        quickFun(step_snn);
+    }
 
-    response[step_choice] = cluster_choice.unserialize(handle);
-    finishFun(step_choice, cluster_choice.results());
+    {
+        let out = cluster_choice.unserialize(handle, state[step_snn], state[step_kmeans]);
+        state[step_choice] = out.state;
+        response[step_choice] = out.parameters;
+        quickFun(step_choice);
+    }
 
-    response[step_markers] = cluster_markers.unserialize(handle, permuter);
-    finishFun(step_markers, cluster_markers.results());
+    {
+        let out = cluster_markers.unserialize(handle, permuter, state[step_qc], state[step_norm], state[step_choice]);
+        state[step_markers] = out.state;
+        response[step_markers] = out.parameters;
+        quickFun(step_markers);
+    }
 
-    response[step_labels] = label_cells.unserialize(handle);
-    finishFun(step_labels, await label_cells.results());
+    {
+        let out = label_cells.unserialize(handle, state[step_inputs], state[step_markers]);
+        state[step_labels] = out.state;
+        response[step_labels] = out.parameters;
+        finishFun(step_labels, await state[step_labels].results());
+    }
 
-    response[step_custom] = custom_markers.unserialize(handle, permuter);
-    finishFun(step_custom, custom_markers.results()); 
+    {
+        let out = custom_markers.unserialize(handle, permuter, state[step_qc], state[step_norm]);
+        state[step_custom] = out.state;
+        response[step_custom] = out.parameters;
+        quickFun(step_custom);
+    }
 
-    return response;
+    return {
+        state: state,
+        parameters: response
+    };
 }
 </code></pre>
         </article>
@@ -392,13 +491,13 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Tue Apr 05 2022 16:53:24 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 03:42:01 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
