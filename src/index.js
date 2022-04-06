@@ -147,11 +147,8 @@ export function freeAnalysis(state) {
  * The contents of `state` are modified by reference to reflect the latest state of the analysis with the supplied parameters.
  */
 export function runAnalysis(state, matrices, params, { finishFun = null } = {}) {
-    if (finishFun === null) {
-        finishFun = (name, results) => true;
-    }
     let quickFun = step => {
-        if (state[step].changed) {
+        if (state[step].changed && finishFun !== null) {
             finishFun(step, state[step].results());
         }
     }
@@ -196,7 +193,7 @@ export function runAnalysis(state, matrices, params, { finishFun = null } = {}) 
         params[step_tsne]["iterations"], 
         params[step_tsne]["animate"]
     );
-    if (state[step_tsne].changed) {
+    if (state[step_tsne].changed && finishFun !== null) {
         promises.push(state[step_tsne].results().then(res => finishFun(step_tsne, res)));
     }
 
@@ -206,7 +203,7 @@ export function runAnalysis(state, matrices, params, { finishFun = null } = {}) 
         params[step_umap]["min_dist"], 
         params[step_umap]["animate"]
     );
-    if (state[step_umap].changed) {
+    if (state[step_umap].changed && finishFun !== null) {
         promises.push(state[step_umap].results().then(res => finishFun(step_umap, res)));
     }
 
@@ -238,7 +235,7 @@ export function runAnalysis(state, matrices, params, { finishFun = null } = {}) 
         params[step_labels]["human_references"],
         params[step_labels]["mouse_references"]
     );
-    if (state[step_labels].changed) {
+    if (state[step_labels].changed && finishFun !== null) {
         promises.push(state[step_labels].results().then(res => finishFun(step_labels, res)));
     }
 
@@ -334,15 +331,13 @@ export async function saveAnalysis(state, path, { embedded = true } = {}) {
  *   This is conceptually equivalent to creating a state with {@linkcode createAnalysis} and running it through {@linkcode runAnalysis} with the associated `parameters`.
  */
 export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
-    if (finishFun === null) {
-        finishFun = (name, results) => true;
-    }
-
     let response = {};
     let state = {};
     let handle = new scran.H5File(path);
     let quickFun = step => {
-        finishFun(step, state[step].results());
+        if (finishFun !== null) {
+            finishFun(step, state[step].results());
+        }
     }
 
     let permuter;
@@ -396,14 +391,18 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
         let out = tsne.unserialize(handle, state[step_neighbors]);
         state[step_tsne] = out.state;
         response[step_tsne] = out.parameters;
-        finishFun(step_tsne, await state[step_tsne].results());
+        if (finishFun !== null) {
+            finishFun(step_tsne, await state[step_tsne].results());
+        }
     }
 
     {
         let out = umap.unserialize(handle, state[step_neighbors]);
         state[step_umap] = out.state;
         response[step_umap] = out.parameters;
-        finishFun(step_umap, await state[step_umap].results());
+        if (finishFun !== null) {
+            finishFun(step_umap, await state[step_umap].results());
+        }
     }
 
     {
@@ -438,7 +437,9 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
         let out = label_cells.unserialize(handle, state[step_inputs], state[step_markers]);
         state[step_labels] = out.state;
         response[step_labels] = out.parameters;
-        finishFun(step_labels, await state[step_labels].results());
+        if (finishFun !== null) {
+            finishFun(step_labels, await state[step_labels].results());
+        }
     }
 
     {
