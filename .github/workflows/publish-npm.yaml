@@ -1,0 +1,30 @@
+on:
+  workflow_run:
+    workflows: [Run tests]
+    types: [completed]
+    branches: [master]
+
+name: Publish to NPM 
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+    - name: Checkout the repo
+      uses: actions/checkout@v2
+
+    - name: Update node build 
+      run: bash build.sh main
+
+    - name: Update module build
+      run: bash build.sh module
+
+    - uses: actions/setup-node@v2
+      with:
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Publish to NPM
+      run: npm publish || true
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
