@@ -12,6 +12,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     };
 
     let state = await bakana.createAnalysis();
+    let params = utils.baseParams();
     let res = await bakana.runAnalysis(state, 
         { 
             default: {
@@ -21,7 +22,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
                 annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
             }
         },
-        utils.baseParams,
+        params,
         {
             finishFun: finished,
         }

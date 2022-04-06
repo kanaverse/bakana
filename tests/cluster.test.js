@@ -21,7 +21,7 @@ test("switching between clustering methods (SNN first)", async () => {
     };
 
     let state = await bakana.createAnalysis();
-    let paramcopy = bakana.analysisDefaults();
+    let paramcopy = utils.baseParams();
     await bakana.runAnalysis(state, files, paramcopy, { finishFun: finished });
 
     expect(contents.pca instanceof Object).toBe(true);
@@ -107,7 +107,7 @@ test("switching between clustering methods (k-means first)", async () => {
     };
 
     let state = await bakana.createAnalysis();
-    let paramcopy = bakana.analysisDefaults();
+    let paramcopy = utils.baseParams();
     paramcopy.choose_clustering = { method: "kmeans" };
 
     await bakana.runAnalysis(state, files, paramcopy, { finishFun: finished });

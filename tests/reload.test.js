@@ -15,7 +15,7 @@ test("reanalysis from a reloaded analysis works correctly", async () => {
         }
     }
 
-    let params = bakana.analysisDefaults();
+    let params = utils.baseParams();
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, files, params);
 

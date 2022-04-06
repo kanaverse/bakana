@@ -2,11 +2,23 @@ import * as path from "path";
 import * as fs from "fs";
 import * as bakana from "../src/index.js";
 
-export var baseParams = bakana.analysisDefaults();
-baseParams.cell_labelling = {
-    mouse_references: [ "ImmGen" ],
-    human_references: [ "BlueprintEncode" ]
-};
+export function baseParams() {
+    let output = bakana.analysisDefaults();
+
+    // Cut down on the work.
+    output.pca.num_pcs = 10;
+
+    // Avoid getting held up by pointless iterations.
+    output.tsne.iterations = 10;
+    output.umap.num_epochs = 10;
+
+    // Actually do something.
+    output.cell_labelling = {
+        mouse_references: [ "ImmGen" ],
+        human_references: [ "BlueprintEncode" ]
+    };
+    return output;
+}
 
 bakana.setCellLabellingDownload(url => {
     let fpath = path.basename(decodeURIComponent(url));

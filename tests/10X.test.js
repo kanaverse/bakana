@@ -12,6 +12,7 @@ test("runAnalysis works correctly (10X)", async () => {
     };
 
     let state = await bakana.createAnalysis();
+    let params = utils.baseParams();
     let res = await bakana.runAnalysis(
         state,
         {
@@ -20,7 +21,7 @@ test("runAnalysis works correctly (10X)", async () => {
                 h5: "files/datasets/pbmc4k-tenx.h5"
             }
         },
-        utils.baseParams,
+        params,
         {
             finishFun: finished,
         }

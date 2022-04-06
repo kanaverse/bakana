@@ -18,7 +18,7 @@ export function analysisDefaults() {
         },
         pca: {
             num_hvgs: 2000,
-            num_pcs: 10,
+            num_pcs: 20,
             block_method: "none"
         },
         neighbor_index: {
@@ -26,12 +26,12 @@ export function analysisDefaults() {
         },
         tsne: {
             perplexity: 30,
-            iterations: 10,
+            iterations: 500,
             animate: false
         },
         umap: {
             num_neighbors: 15,
-            num_epochs: 10,
+            num_epochs: 500,
             min_dist: 0.1,
             animate: false
         },

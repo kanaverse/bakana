@@ -12,6 +12,7 @@ test("runAnalysis works correctly (H5AD)", async () => {
     };
 
     let state = await bakana.createAnalysis();
+    let params = utils.baseParams();
     let res = await bakana.runAnalysis(
         state,
         { 
@@ -20,7 +21,7 @@ test("runAnalysis works correctly (H5AD)", async () => {
                 h5: "files/datasets/zeisel-brain.h5ad"
             }
         },
-        utils.baseParams,
+        params,
         {
             finishFun: finished,
         }

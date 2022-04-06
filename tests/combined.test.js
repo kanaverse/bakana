@@ -11,7 +11,7 @@ test("multi-matrix analyses work correctly", async () => {
         contents[step] = res;
     };
 
-    let paramcopy = bakana.analysisDefaults();
+    let paramcopy = utils.baseParams();
     let state = await bakana.createAnalysis();
     let res = await bakana.runAnalysis(
         state,
@@ -63,7 +63,7 @@ test("single-matrix multi-sample analyses work correctly", async () => {
         contents[step] = res;
     };
     
-    let paramcopy = bakana.analysisDefaults();
+    let paramcopy = utils.baseParams();
     paramcopy.inputs = {
         sample_factor: "3k"
     };
