@@ -9,6 +9,16 @@ The pipeline can be executed both in the browser and on Node.js.
 It supports in-memory caching of the analysis state for fast iterative re-analysis,
 as well as serialization of the state for storage and distribution to other machines.
 
+## Getting started
+
+Install the package from NPM using the usual method:
+
+```sh
+npm i bakana
+```
+
+See the [reference documentation](https://ltla.github.io/bakana/) for details on available functions.
+
 ## Running analyses
 
 We can perform an analysis with the following minimal commands:
@@ -118,7 +128,7 @@ Advanced users may prefer to store links to the data files rather than embedding
 This can be achieved using the `setCreateLink()` function to define a mechanism for creating application-specific links.
 For example, the **kana** application uses IndexedDB to cache each file for later use in the browser.
 
-# Loading analyses
+## Loading analyses
 
 It is reasonably straightforward to extract the various state and data files from a `*.kana` file.
 

@@ -21,7 +21,7 @@ jobs:
     - name: Run JSDoc
       run: |
         echo '{ "plugins": ["plugins/markdown"] }' > jsdoc.config.json
-        node_modules/jsdoc/jsdoc.js src/ README.md -d jsdocs/ -c jsdoc.config.json
+        node_modules/jsdoc/jsdoc.js src/ src/utils/ README.md -d jsdocs/ -c jsdoc.config.json
 
     - name: GH Pages Deployment
       uses: JamesIves/github-pages-deploy-action@4.1.3
