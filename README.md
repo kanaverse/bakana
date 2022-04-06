@@ -31,29 +31,29 @@ This will fill `state` with results that can be extracted for each step:
 
 ```js
 state.quality_control.results();
-## {
-##   data: {
-##     default: {
-##       sums: [Float64Array],
-##       detected: [Int32Array],
-##       proportion: [Float64Array]
-##     }
-##   },
-##   ...
-## }
+// {
+//   data: {
+//     default: {
+//       sums: [Float64Array],
+//       detected: [Int32Array],
+//       proportion: [Float64Array]
+//     }
+//   },
+//   ...
+// }
 
 state.pca.results():
-## {
-##   var_exp: Float64Array(20) [...]
-## }
+// {
+//   var_exp: Float64Array(20) [...]
+// }
 
 // Some results() are promises, see the relevant documentation.
 await state.tsne.results();
-## {
-##   x: [Float64Array],
-##   y: [Float64Array],
-##   iterations: 500
-## }
+// {
+//   x: [Float64Array],
+//   y: [Float64Array],
+//   iterations: 500
+// }
 ```
 
 Alternatively, we can supply a callback that processes results from each step as soon as it finishes.
@@ -71,14 +71,14 @@ await bakana.runAnalysis(state,
     params,
     { finishFun: finisher }
 );
-## inputs
-## quality_control
-## normalizaton
-## feature_selection
-## pca
-## neighbor_index
-## kmeans_cluster
-## ...
+// inputs
+// quality_control
+// normalizaton
+// feature_selection
+// pca
+// neighbor_index
+// kmeans_cluster
+// ...
 ```
 
 If the analysis is re-run with different parameters, **bakana** will only re-run the affected steps.
@@ -93,12 +93,12 @@ await bakana.runAnalysis(state,
     params,
     { finishFun: finisher }
 );
-## pca
-## neighbor_index
-## ...
+// pca
+// neighbor_index
+// ...
 ```
 
-## Saving and loading analyses
+## Saving analyses
 
 Given an analysis state, we can save the parameters and results to a HDF5 file.
 
@@ -114,7 +114,13 @@ By default, this assumes that we are embedding the data files into the `*.kana` 
 // TODO: add code here.
 ```
 
-It is also reasonably straightforward to extract the various state and data files from a `*.kana` file.
+Advanced users may prefer to store links to the data files rather than embedding them.
+This can be achieved using the `setCreateLink()` function to define a mechanism for creating application-specific links.
+For example, the **kana** application uses IndexedDB to cache each file for later use in the browser.
+
+# Loading analyses
+
+It is reasonably straightforward to extract the various state and data files from a `*.kana` file.
 
 ```js
 // TODO: add code here.
@@ -130,19 +136,31 @@ let new_state = reloaded.state;
 let new_params = reloaded.parameters;
 ```
 
-As with `runAnalysis()`, we can also supply a callback that runs on the results once they become available.
+These can be used to perform a new analysis, possibly after modifying some parameters.
+
+```js
+new_params.pca.num_hvgs = 3000;
+await bakana.runAnalysis(new_state, null, new_params);
+```
+
+We can also supply a callback that runs on the results of each step as soon as they are loaded.
 
 ```js
 let reloaded = await bakana.loadAnalysis("whee.h5", loader, { finishFun: finisher });
 ```
 
-Advanced users may prefer to store links to the data files rather than embedding them.
-This can be achieved using the `setCreateLink()` and `setResolveLink()` functions to define application-specific links.
-For example, the **kana** application uses IndexedDB to cache each file for later use in the browser.
+If links are present, it is assumed that the application will use `setResolveLink()` to specify a mechanism to resolve each link to a data file.
 
-## Terminating the session
+## Terminating analyses
 
-On Node.js, it is usually necessary to terminate all workers so that the runtime will properly exit.
+Once a particular analysis is finished, we should free the resources of its state.
+
+```js
+bakana.freeAnalysis(state);
+```
+
+If all analyses are complete, we can terminate the entire session.
+This is necessary on Node.js to allow the runtime to exit properly.
 
 ```js
 bakana.terminate();
