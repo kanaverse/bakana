@@ -45,9 +45,116 @@
     <section>
         <article><h1>Backend for kana</h1>
 <h2>Overview</h2>
-<p><strong>kanako</strong> provides the compute backend for the <a href="https://github.com/jkanche/kana"><strong>kana</strong></a> application.
-This can be used either in the browser or with Node.js.</p>
-<pre class="prettyprint source lang-sh"><code>node --experimental-vm-modules --experimental-wasm-threads --experimental-wasm-bulk-memory --experimental-wasm-bigint node_modules/jest/bin/jest.js 
+<p><strong>bakana</strong> provides the compute backend for the <a href="https://github.com/jkanche/kana"><strong>kana</strong></a> application.
+It provides a pipeline for a routine single-cell RNA-seq analysis, starting from the count matrix and finishing with the usual results (markers, clusters, t-SNE and so on).
+Datasets involving multiple samples in one or multiple matrices can also be analyzed with blocking and batch correction.
+The pipeline can be executed both in the browser and on Node.js.
+It supports in-memory caching of the analysis state for fast iterative re-analysis,
+as well as serialization of the state for storage and distribution to other machines.</p>
+<h2>Running analyses</h2>
+<p>We can perform an analysis with the following minimal commands:</p>
+<pre class="prettyprint source lang-js"><code>import * as bakana from &quot;bakana&quot;;
+await bakana.initialize({ numberOfThreads: 8 });
+
+let state = await bakana.createAnalysis();
+let params = bakana.analysisDefaults();
+
+await bakana.runAnalysis(state, 
+    // Specify files using paths (Node.js) or File objects (browser).
+    { my_data: { format: &quot;10X&quot;, h5: &quot;/some/file/path&quot; } },
+    params
+);
+</code></pre>
+<p>This will fill <code>state</code> with results that can be extracted for each step:</p>
+<pre class="prettyprint source lang-js"><code>state.quality_control.results();
+## {
+##   data: {
+##     default: {
+##       sums: [Float64Array],
+##       detected: [Int32Array],
+##       proportion: [Float64Array]
+##     }
+##   },
+##   ...
+## }
+
+state.pca.results():
+## {
+##   var_exp: Float64Array(20) [...]
+## }
+
+// Some results() are promises, see the relevant documentation.
+await state.tsne.results();
+## {
+##   x: [Float64Array],
+##   y: [Float64Array],
+##   iterations: 500
+## }
+</code></pre>
+<p>Alternatively, we can supply a callback that processes results from each step as soon as it finishes.
+This can be useful for, e.g., posting results to another system once they become available.</p>
+<pre class="prettyprint source lang-js"><code>function finisher(step, results) {
+    console.log(step);
+    // Do other stuff with 'results' here.
+}
+
+await bakana.runAnalysis(state, 
+    // Specify files using paths (Node.js) or File objects (browser).
+    { my_data: { format: &quot;10X&quot;, h5: &quot;/some/file/path&quot; } },
+    params,
+    { finishFun: finisher }
+);
+## inputs
+## quality_control
+## normalizaton
+## feature_selection
+## pca
+## neighbor_index
+## kmeans_cluster
+## ...
+</code></pre>
+<p>If the analysis is re-run with different parameters, <strong>bakana</strong> will only re-run the affected steps.
+This includes all steps downstream of any step with changed parameters.</p>
+<pre class="prettyprint source lang-js"><code>params.pca.num_pcs = 15;
+
+await bakana.runAnalysis(state, 
+    // Specify files using paths (Node.js) or File objects (browser).
+    { my_data: { format: &quot;10X&quot;, h5: &quot;/some/file/path&quot; } },
+    params,
+    { finishFun: finisher }
+);
+## pca
+## neighbor_index
+## ...
+</code></pre>
+<h2>Saving and loading analyses</h2>
+<p>Given an analysis state, we can save the parameters and results to a HDF5 file.</p>
+<pre class="prettyprint source lang-js"><code>let collected = await bakana.saveAnalysis(state, &quot;whee.h5&quot;);
+</code></pre>
+<p><code>saveAnalysis</code> will return a promise that resolves to an array of paths (Node.js) or <code>File</code> objects for the original data files.
+These can be used to assemble a <code>*.kana</code>-format file following the <a href="https://ltla.github.io/kanaval"><strong>kanaval</strong> specification</a>.
+By default, this assumes that we are embedding the data files into the <code>*.kana</code> file.</p>
+<pre class="prettyprint source lang-js"><code>// TODO: add code here.
+</code></pre>
+<p>It is also reasonably straightforward to extract the various state and data files from a <code>*.kana</code> file.</p>
+<pre class="prettyprint source lang-js"><code>// TODO: add code here.
+</code></pre>
+<p>Now, given an HDF5 state file, we can reload the analysis state into memory.
+This will also report the parameters used at each step.</p>
+<pre class="prettyprint source lang-js"><code>// TODO: implement a default handler for embedded loader.
+let reloaded = await bakana.loadAnalysis(&quot;whee.h5&quot;, loader);
+let new_state = reloaded.state;
+let new_params = reloaded.parameters;
+</code></pre>
+<p>As with <code>runAnalysis()</code>, we can also supply a callback that runs on the results once they become available.</p>
+<pre class="prettyprint source lang-js"><code>let reloaded = await bakana.loadAnalysis(&quot;whee.h5&quot;, loader, { finishFun: finisher });
+</code></pre>
+<p>Advanced users may prefer to store links to the data files rather than embedding them.
+This can be achieved using the <code>setCreateLink()</code> and <code>setResolveLink()</code> functions to define application-specific links.
+For example, the <strong>kana</strong> application uses IndexedDB to cache each file for later use in the browser.</p>
+<h2>Terminating the session</h2>
+<p>On Node.js, it is usually necessary to terminate all workers so that the runtime will properly exit.</p>
+<pre class="prettyprint source lang-js"><code>bakana.terminate();
 </code></pre>
 <h2>Adding custom readers</h2>
 <p>Developers can add new data readers to supplement the defaults in <code>src/readers</code>.
@@ -82,13 +189,13 @@ The expected structure of <code>args</code> is identical to that described for <
 <li>This should return a string specifying the format of the count matrix corresponding to this reader.
 The value of the string is defined by the reader's developer.</li>
 </ul>
-<p><strong><code>Reader.load()</code>:</strong></p>
+<p><strong><code>Reader.load()</code>:</strong> load the count matrix into memory.</p>
 <ul>
 <li>This should return an object containing <code>matrix</code>, a <code>ScranMatrix</code> object.
 The object may also contain <code>genes</code>, an object where each key is a gene annotation field name and each value is an array of per-gene information;
 and/or <code>annotations</code>, an object where each key is a cell annotation field name and each value is an array of per-cell information.</li>
 </ul>
-<p><strong><code>Reader.serialize(embeddedSaver)</code>:</strong></p>
+<p><strong><code>Reader.serialize(embeddedSaver)</code>:</strong> register the count matrix in the state file.</p>
 <ul>
 <li>This should return an array of objects where each object represents a data file used to create the count matrix.
 Each object should contain <code>type</code>, a string specifying the type of file; and <code>name</code>, the name of the file.</li>
@@ -101,7 +208,7 @@ This should be a unique string, typically containing a link to some external dat
 The interpretation of <code>id</code> is left to the reader, as long as it can be used to meaningfully recover the same file in <code>unserialize()</code> below.</li>
 <li>This method should be <code>async</code>.</li>
 </ul>
-<p><strong><code>unserialize(values, embeddedLoader)</code>:</strong></p>
+<p><strong><code>unserialize(values, embeddedLoader)</code>:</strong> load the count matrix from the state file.</p>
 <ul>
 <li><code>values</code> should be an array of objects where object represents a data file used to create the count matrix.
 Each object should contain <code>type</code> and <code>name</code>, as described in the <code>Reader.serialize()</code> method.</li>
@@ -114,7 +221,18 @@ This usually contains a link to some external database system as defined by <cod
 <li>This method should return an instance of the <code>Reader</code> class containing all information related to the count matrix represented by <code>values</code>.
 Presumably this is done using the file contents returned by <code>embeddedLoader</code> or the linked files from the <code>id</code> values.</li>
 <li>This method should be <code>async</code>.</li>
-</ul></article>
+</ul>
+<h2>Developer notes</h2>
+<p>Testing requires some combination of the options below,
+depending on the version of Node.js available.</p>
+<pre class="prettyprint source lang-sh"><code>node --experimental-vm-modules \
+    --experimental-wasm-threads \
+    --experimental-wasm-bulk-memory \
+    --experimental-wasm-bigint \
+    node_modules/jest/bin/jest.js \
+    --testTimeout=100000000 \
+    --runInBand
+</code></pre></article>
     </section>
 
 
@@ -131,7 +249,7 @@ Presumably this is done using the file contents returned by <code>embeddedLoader
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 03:42:01 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 04:41:01 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
