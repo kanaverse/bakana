@@ -182,101 +182,105 @@ export class State {
     }
 
     compute(human_references, mouse_references) {
-        this.changed = false;
+        if (!this.#inputs.changed &amp;&amp; 
+            !this.#markers.changed &amp;&amp;
+            compare_arrays(human_references, this.#parameters.human_references) &amp;&amp;
+            compare_arrays(mouse_references, this.#parameters.mouse_references)) 
+        {
+            this.changed = false;
+            return;
+        }
 
-        let rebuild = false;
         if (this.#inputs.changed || !("features" in this.#cache)) {
-            rebuild = true;
-            this.changed = true;
             let feat_out = choose_features(this.#inputs);
             this.#cache.features = feat_out.features;
             this.#cache.feature_details = feat_out.details;
         }
         let species = this.#cache.feature_details.species;
-            
+
         // Fetching all of the references. This is effectively a no-op
-        // if rebuild = false, so we do it to fill up 'valid'.
+        // if the inputs have not changed, so we do it to fill up 'valid'.
         let valid = {};
         if (species == "human") {
             for (const ref of human_references) {
-                valid[ref] = this.#build_reference(ref, "human", rebuild);
+                valid[ref] = this.#build_reference(ref, "human", this.#inputs.changed);
             }
         } else if (species == "mouse") {
             for (const ref of mouse_references) {
-                valid[ref] = this.#build_reference(ref, "mouse", rebuild);
+                valid[ref] = this.#build_reference(ref, "mouse", this.#inputs.changed);
             }
         }
 
-        if (!compare_arrays(human_references, this.#parameters.human_references) || !compare_arrays(mouse_references, this.#parameters.mouse_references)) {
-            this.#parameters.human_references = human_references;
-            this.#parameters.mouse_references = mouse_references;
-            this.changed = true;
-        }
+        // Creating a column-major array of mean vectors for each cluster.
+        let cluster_means = this.#cache.buffer;
+        let ngenes = this.#cache.features.length;
+        let ngroups = this.#markers.numberOfGroups(); 
 
-        if (this.changed) {
-            // Creating a column-major array of mean vectors.
-            let ngenes = this.#cache.features.length;
-            let ngroups = this.#markers.numberOfGroups(); 
-            let cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", this.#cache);
+        if (this.#markers.changed || typeof cluster_means === "undefined") {
+            cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", this.#cache);
+
             for (var g = 0; g &lt; ngroups; g++) {
                 let means = this.#markers.fetchGroupMeans(g, { copy: false }); // Warning: direct view in wasm space - be careful.
                 let cluster_array = cluster_means.array();
                 cluster_array.set(means, g * ngenes);
             }
+        }
 
-            // Running classifications on the cluster means. Note that compute() itself
-            // cannot be async, as we need to make sure 'changed' is set and available for
-            // downstream steps; hence the explicit then().
-            this.#cache.results = {};
-            for (const [key, val] of Object.entries(valid)) {
-                this.#cache.results[key] = val.then(ref => {
-                    let output = scran.labelCells(cluster_means, ref.built.raw, { numberOfFeatures: ngenes, numberOfCells: ngroups });
-                    let labels = [];
-                    for (const o of output) {
-                        labels.push(ref.loaded.labels[o]);
-                    }
-                    return labels;
-                });
-            }
-
-            // Performing additional integration, if necessary. We don't really 
-            // need this if there's only one reference.
-            let used_refs = Object.keys(valid);
-            if (used_refs.length > 1) {
-                if (rebuild || !compareArrays(used_refs, this.#cache.used)) {
-                    let used_vals = Object.values(valid);
-
-                    this.#cache.integrated = Promise.all(used_vals)
-                        .then(arr => {
-                            let loaded = arr.map(x => x.loaded.raw);
-                            let feats = arr.map(x => x.built.features);
-                            let built = arr.map(x => x.built.raw);
-                            return scran.integrateLabelledReferences(this.#cache.features, loaded, feats, built);
-                        }
-                    );
+        // Running classifications on the cluster means. Note that compute() itself
+        // cannot be async, as we need to make sure 'changed' is set and available for
+        // downstream steps; hence the explicit then().
+        this.#cache.results = {};
+        for (const [key, val] of Object.entries(valid)) {
+            this.#cache.results[key] = val.then(ref => {
+                let output = scran.labelCells(cluster_means, ref.built.raw, { numberOfFeatures: ngenes, numberOfCells: ngroups });
+                let labels = [];
+                for (const o of output) {
+                    labels.push(ref.loaded.labels[o]);
                 }
+                return labels;
+            });
+        }
 
-                this.#cache.integrated_results = this.#cache.integrated
-                    .then(async (integrated) => {
-                        let results = [];
-                        for (const key of used_refs) {
-                            results.push(await this.#cache.results[key]);
-                        }
+        // Performing additional integration, if necessary. We don't really 
+        // need this if there's only one reference.
+        let used_refs = Object.keys(valid);
+        if (used_refs.length > 1) {
+            if (this.#inputs.changed || !compare_arrays(used_refs, this.#cache.used) || !("integrated" in this.#cache)) {
+                let used_vals = Object.values(valid);
 
-                        let out = scran.integrateCellLabels(cluster_means, results, integrated, { numberOfFeatures: ngenes, numberOfCells: ngroups });
-                        let as_names = [];
-                        out.forEach(i => {
-                            as_names.push(used_refs[i]);
-                        });
-                        return as_names;
+                this.#cache.integrated = Promise.all(used_vals)
+                    .then(arr => {
+                        let loaded = arr.map(x => x.loaded.raw);
+                        let feats = arr.map(x => x.built.features);
+                        let built = arr.map(x => x.built.raw);
+                        return scran.integrateLabelledReferences(this.#cache.features, loaded, feats, built);
                     }
                 );
-            } else {
-                delete this.#cache.integrated_results;
             }
 
-            this.#cache.used = used_refs;
+            this.#cache.integrated_results = this.#cache.integrated
+                .then(async (integrated) => {
+                    let results = [];
+                    for (const key of used_refs) {
+                        results.push(await this.#cache.results[key]);
+                    }
+
+                    let out = scran.integrateCellLabels(cluster_means, results, integrated, { numberOfFeatures: ngenes, numberOfCells: ngroups });
+                    let as_names = [];
+                    out.forEach(i => {
+                        as_names.push(used_refs[i]);
+                    });
+                    return as_names;
+                }
+            );
+        } else {
+            delete this.#cache.integrated_results;
         }
+
+        this.#cache.used = used_refs;
+        this.#parameters.human_references = human_references;
+        this.#parameters.mouse_references = mouse_references;
+        this.changed = true;
 
         return;
     }
@@ -448,7 +452,7 @@ export function setCellLabellingDownload(fun) {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 04:41:01 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 07:16:54 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>

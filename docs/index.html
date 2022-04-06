@@ -67,29 +67,29 @@ await bakana.runAnalysis(state,
 </code></pre>
 <p>This will fill <code>state</code> with results that can be extracted for each step:</p>
 <pre class="prettyprint source lang-js"><code>state.quality_control.results();
-## {
-##   data: {
-##     default: {
-##       sums: [Float64Array],
-##       detected: [Int32Array],
-##       proportion: [Float64Array]
-##     }
-##   },
-##   ...
-## }
+// {
+//   data: {
+//     default: {
+//       sums: [Float64Array],
+//       detected: [Int32Array],
+//       proportion: [Float64Array]
+//     }
+//   },
+//   ...
+// }
 
 state.pca.results():
-## {
-##   var_exp: Float64Array(20) [...]
-## }
+// {
+//   var_exp: Float64Array(20) [...]
+// }
 
 // Some results() are promises, see the relevant documentation.
 await state.tsne.results();
-## {
-##   x: [Float64Array],
-##   y: [Float64Array],
-##   iterations: 500
-## }
+// {
+//   x: [Float64Array],
+//   y: [Float64Array],
+//   iterations: 500
+// }
 </code></pre>
 <p>Alternatively, we can supply a callback that processes results from each step as soon as it finishes.
 This can be useful for, e.g., posting results to another system once they become available.</p>
@@ -104,14 +104,14 @@ await bakana.runAnalysis(state,
     params,
     { finishFun: finisher }
 );
-## inputs
-## quality_control
-## normalizaton
-## feature_selection
-## pca
-## neighbor_index
-## kmeans_cluster
-## ...
+// inputs
+// quality_control
+// normalizaton
+// feature_selection
+// pca
+// neighbor_index
+// kmeans_cluster
+// ...
 </code></pre>
 <p>If the analysis is re-run with different parameters, <strong>bakana</strong> will only re-run the affected steps.
 This includes all steps downstream of any step with changed parameters.</p>
@@ -123,11 +123,11 @@ await bakana.runAnalysis(state,
     params,
     { finishFun: finisher }
 );
-## pca
-## neighbor_index
-## ...
+// pca
+// neighbor_index
+// ...
 </code></pre>
-<h2>Saving and loading analyses</h2>
+<h2>Saving analyses</h2>
 <p>Given an analysis state, we can save the parameters and results to a HDF5 file.</p>
 <pre class="prettyprint source lang-js"><code>let collected = await bakana.saveAnalysis(state, &quot;whee.h5&quot;);
 </code></pre>
@@ -136,7 +136,11 @@ These can be used to assemble a <code>*.kana</code>-format file following the <a
 By default, this assumes that we are embedding the data files into the <code>*.kana</code> file.</p>
 <pre class="prettyprint source lang-js"><code>// TODO: add code here.
 </code></pre>
-<p>It is also reasonably straightforward to extract the various state and data files from a <code>*.kana</code> file.</p>
+<p>Advanced users may prefer to store links to the data files rather than embedding them.
+This can be achieved using the <code>setCreateLink()</code> function to define a mechanism for creating application-specific links.
+For example, the <strong>kana</strong> application uses IndexedDB to cache each file for later use in the browser.</p>
+<h1>Loading analyses</h1>
+<p>It is reasonably straightforward to extract the various state and data files from a <code>*.kana</code> file.</p>
 <pre class="prettyprint source lang-js"><code>// TODO: add code here.
 </code></pre>
 <p>Now, given an HDF5 state file, we can reload the analysis state into memory.
@@ -146,14 +150,20 @@ let reloaded = await bakana.loadAnalysis(&quot;whee.h5&quot;, loader);
 let new_state = reloaded.state;
 let new_params = reloaded.parameters;
 </code></pre>
-<p>As with <code>runAnalysis()</code>, we can also supply a callback that runs on the results once they become available.</p>
+<p>These can be used to perform a new analysis, possibly after modifying some parameters.</p>
+<pre class="prettyprint source lang-js"><code>new_params.pca.num_hvgs = 3000;
+await bakana.runAnalysis(new_state, null, new_params);
+</code></pre>
+<p>We can also supply a callback that runs on the results of each step as soon as they are loaded.</p>
 <pre class="prettyprint source lang-js"><code>let reloaded = await bakana.loadAnalysis(&quot;whee.h5&quot;, loader, { finishFun: finisher });
 </code></pre>
-<p>Advanced users may prefer to store links to the data files rather than embedding them.
-This can be achieved using the <code>setCreateLink()</code> and <code>setResolveLink()</code> functions to define application-specific links.
-For example, the <strong>kana</strong> application uses IndexedDB to cache each file for later use in the browser.</p>
-<h2>Terminating the session</h2>
-<p>On Node.js, it is usually necessary to terminate all workers so that the runtime will properly exit.</p>
+<p>If links are present, it is assumed that the application will use <code>setResolveLink()</code> to specify a mechanism to resolve each link to a data file.</p>
+<h2>Terminating analyses</h2>
+<p>Once a particular analysis is finished, we should free the resources of its state.</p>
+<pre class="prettyprint source lang-js"><code>bakana.freeAnalysis(state);
+</code></pre>
+<p>If all analyses are complete, we can terminate the entire session.
+This is necessary on Node.js to allow the runtime to exit properly.</p>
 <pre class="prettyprint source lang-js"><code>bakana.terminate();
 </code></pre>
 <h2>Adding custom readers</h2>
@@ -249,7 +259,7 @@ depending on the version of Node.js available.</p>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 04:41:01 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 07:16:54 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
