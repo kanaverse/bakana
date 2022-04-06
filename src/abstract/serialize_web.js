@@ -4,7 +4,7 @@ import * as scran from "scran.js";
 /**
  * This contains a function to create and load a kana file with the browser.
  */
-export async function createKanaFileInternal(path, statePath, inputFiles) {
+export function createKanaFileInternal(statePath, inputFiles) {
     let embedded = (inputFiles === null):
     let state = scran.readFile(statePath);
 
@@ -33,7 +33,7 @@ export async function createKanaFileInternal(path, statePath, inputFiles) {
     return output;
 }
 
-export async function parseKanaFileInternal(input, statePath) {
+export function parseKanaFileInternal(input, statePath) {
     const reader = new FileReaderSync;
     let buffer = reader.readAsArrayBuffer(input);
     let arr = new Uint8Array(buffer);

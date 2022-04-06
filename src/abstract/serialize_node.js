@@ -5,7 +5,12 @@ import * as Path from "path";
 /**
  * This contains a function to create and load a kana file with Node.
  */
-export async function createKanaFileInternal(path, statePath, inputFiles) {
+export function createKanaFileInternal(statePath, inputFiles, { outputPath = null } = {}) {
+    if (outputPath === null) {
+        let dir = fs.mkdtempSync("kana-");
+        outputPath = Path.join(dir, "analysis.kana");
+    }
+
     let stream = fs.createWriteStream(path, { flags: 'a' });
 
     let embedded = (inputFiles === null):
@@ -23,15 +28,15 @@ export async function createKanaFileInternal(path, statePath, inputFiles) {
     }
 
     return new Promise((resolve, reject) => {
-        stream.on("finish", () => resolve(true));
+        stream.on("finish", () => resolve(outputPath));
         stream.on("error", (e) => reject(e));
         stream.end();
     });
 }
 
-export async function parseKanaFileInternal(input, statePath, { inputDir: null } = {}) {
-    if (inputDir === null) {
-        inputDir = fs.mkdtempSync("kana-");
+export function parseKanaFileInternal(input, statePath, { stageDir = null } = {}) {
+    if (stageDir === null) {
+        stageDir = fs.mkdtempSync("kana-");
     }
 
     let fd = fs.openSync(path);
@@ -51,7 +56,7 @@ export async function parseKanaFileInternal(input, statePath, { inputDir: null }
     if (parsed.embedded) {
         // Safest to just reopen the damn file and write it to the location.
         return (offset, size) => {
-            let opath = Path.join(inputDir, offset);
+            let opath = Path.join(stageDir, offset);
             if (fs.existsFileSync(opath)) {
                 let contents = new Uint8Array(size);
                 let handle = fs.openSync(path);

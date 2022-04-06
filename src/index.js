@@ -27,6 +27,8 @@ import * as serialize_utils from "./utils/serialize.js";
 import * as rutils from "./utils/reader.js";
 import * as vizutils from "./utils/viz_parent.js";
 
+import * as aserialize from "./abstract/serialize.js";
+
 const step_inputs = "inputs";
 const step_qc = "quality_control";
 const step_norm = "normalizaton";
@@ -459,4 +461,49 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
         state: state,
         parameters: response
     };
+}
+
+/**
+ * Create a `*.kana` file from the HDF5 state file and the various data files.
+ *
+ * @param {string} statePath - String containing a file path to a HDF5 state file.
+ * On browsers, this should exist inside the virtual file system of the **scran.js** module.
+ * This should be the same as the path used in {@linkcode saveAnalysis}.
+ * @param {Array} inputFiles - Array of files to be embedded into the `*.kana` file.
+ * On Node.js, this should be an array of file paths; on browsers, this should be an array of ArrayBuffers.
+ * Typically this is obtained as the resolved return value of {@linkcode saveAnalysis}.
+ *
+ * If `null`, it is assumed that files are linked instead of embedded.
+ * @param {object} [options] - Further options. 
+ * For Node.js, callers can specify `outputPath`, a string containing the output path for the newly created `*.kana` file.
+ *
+ * @return 
+ * For Node.js, a promise is returned that resolves to a path to a new `*.kana` file. 
+ * This is equal to `outputPath` if supplied, otherwise a path to a file in a temporary directory is returned.
+ *
+ * In browsers, an ArrayBuffer is returned containing the full contents of the new `*.kana` file.
+ */
+export function createKanaFile(statePath, inputFiles, options = {}) {
+    return aserialize.createKanaFileInternal(statePath, inputFiles, options);
+}
+
+/**
+ * Parse a `*.kana` file by extracting the HDF5 state file and returning a function to extract embeddded data files.
+ *
+ * @param {string|ArrayBuffer} input - The input `*.kana` file.
+ * For Node.js, this should be a string containing a path to the file.
+ * On browsers, this should be an ArrayBuffer containing the full file contents.
+ * @param {string} statePath - String containing a file path to save the HDF5 state file.
+ * On browsers, this will exist inside the virtual file system of the **scran.js** module.
+ * This will also be the path supplied to {@linkcode loadAnalysis} to load the state into memory.
+ * @param {object} [options] - Further options. 
+ * For Node.js, callers can specify `stageDir`, a string containing a path to a staging directory for the extracted data files.
+ *
+ * @return The HDF5 state file is written to `statePath`.
+ * If `input` contains embedded files, a function is returned that extracts each data file given its offset and size.
+ * (This should be used as `loadFun` in {@linkcode loadAnalysis}.)
+ * If `input` contains linked files, `null` is returned.
+ */
+export function parseKanaFile(input, inputFiles, options = {}) {
+    return aserialize.parseKanaFileInternal(statePath, inputFiles, options);
 }
