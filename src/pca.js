@@ -4,6 +4,27 @@ import * as qc_module from "./quality_control.js";
 import * as norm_module from "./normalization.js";
 import * as feat_module from "./feature_selection.js";
 
+/**
+ * This step performs a principal components analysis (PCA) to compact and denoise the data.
+ * The resulting PCs can be used as input to various per-cell analyses like clustering and dimensionality reduction.
+ * It wraps the `runPCA` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ *
+ * The parameters in {@linkcode runAnalysis} should be an object containing:
+ *
+ * - `num_pcs`: number of PCs to return.
+ * - `num_hvgs`: number of highly variable genes (see {@linkcode feature_selection}) to use in the PCA.
+ * - `block_method`: string specifying the blocking method to use when dealing with multiple samples.
+ *   This can be `"none"`, `"block"` or `"mnn"`.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an object containing:
+ *
+ * - `var_exp`: a `Float64Array` of length equal to `num_pcs`, containing the proportion of variance explained for each successive PC.
+ * 
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace pca
+ */
+
 export class State {
     #qc;
     #norm;

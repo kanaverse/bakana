@@ -2,6 +2,24 @@ import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as neighbor_module from "./neighbor_index.js";
 
+/**
+ * This step does SNN graph clustering based on the neighbor search index built by {@linkcode neighbor_index}.
+ * This wraps `clusterSNNGraph` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ *
+ * The parameters in {@linkcode runAnalysis} should be an object containing:
+ *
+ * - `k`: the number of nearest neighbors used to construct the graph.
+ * - `scheme`: string specifying the weighting scheme for graph construction.
+ * - `resolution`: number containing the resolution of the community detection.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an empty object.
+ * See the {@linkcode choose_clustering} step to actually obtain the cluster assignments.
+ * 
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace snn_graph_cluster
+ */
+
 export class State {
     #index;
     #parameters;

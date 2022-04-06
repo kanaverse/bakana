@@ -3,6 +3,32 @@ import * as utils from "./utils/general.js";
 import { mito } from "./mito.js";
 import * as inputs_module from "./inputs.js";
 
+/**
+ * This step applies quality control on the original count matrix.
+ * After removing low-quality cells, the filtered matrix is used for all downstream steps.
+ * This wraps `computePerCellQCMetrics` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ *
+ * The parameters in {@linkcode runAnalysis} should be an object containing:
+ *
+ * - `use_mito_default`: boolean indicating whether the internal mitochondrial gene lists should be used.
+ * - `mito_prefix`: string containing the prefix for mitochondrial genes, when `use_mito_default = false`.
+ * - `nmads`: number of MADs to use for automatically selecting the filter threshold for each metric.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an object containing:
+ *
+ * - `data`: an object containing one property for each sample.
+ *   Each property is itself an object containing `sums`, `detected` and `proportion`,
+ *   which are TypedArrays contaning the relevant QC metrics for all cells in that sample.
+ * - `thresholds`: an object containing one property for each sample.
+ *   Each property is itself an object containing `sums`, `detected` and `proportion`,
+ *   which are numbers containing the thresholds on the corresponding QC metrics for that sample.
+ * - `retained`: the number of cells remaining after QC filtering.
+ * 
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace quality_control
+ */
+
 export class State {
     #inputs;
     #cache;

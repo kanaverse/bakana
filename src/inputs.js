@@ -2,6 +2,42 @@ import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as iutils from "./utils/inputs.js";
 
+/**
+ * This step handles the loading of the input count matrices into memory.
+ * This wraps various matrix initialization functions in [**scran.js**](https://github.com/jkanche/scran.js),
+ * depending on the format of the supplied matrices.
+ *
+ * The parameters in {@linkcode runAnalysis} should be an object containing:
+ *
+ * - `sample_factor`: a string specifying the column of the cell annotations specifying the sample of origin for each cell.
+ *   This is only used if a single count matrix is supplied.
+ *   If `null`, all cells are assumed to originate from the same sample.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an object containing:
+ *
+ * - `dimensions`: an object containing `num_genes` and `num_cells`, the number of genes and cells respectively.
+ *   For multiple matrices, the number of cells is the total number across all matrices.
+ * - `genes`: an object containing the per-gene annotation.
+ *   Each property is an array of length equal to the number of genes, usually containing strings with gene identifiers or symbols.
+ *   Property names are arbitrary.
+ * - (optional) `annotations`: an array of strings containing the names of available cell annotation fields.
+ *
+ * If `annotations` is present, users can also call `fetchAnnotations(col)` on the state instance.
+ *
+ * - `col` should be a string containing the name of a cell annotation field.
+ * - The return value is either:
+ *   - An array of length equal to the number of cells in the original dataset.
+ *   - An object representing a factor.
+ *     This should contain `factor`, an array of strings containing the unique factor levels;
+ *     and `index`, an array of length equal to the number of cells, referencing entries in `factor`. 
+ * - Note that the return value refers to the cells prior to any QC filtering.
+ *   Actual use will require further subsetting based on the discard vector from {@linkcode quality_control}.
+ * 
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace inputs
+ */
+
 export class State {
     #parameters;
     #cache;

@@ -4,6 +4,30 @@ import * as rutils from "./utils/reader.js";
 import * as inputs_module from "./inputs.js";
 import * as markers_module from "./marker_detection.js";
 
+/**
+ * Cell labelling involves assigning cell type labels to clusters using the [**SingleR** algorithm](https://github.com/LTLA/CppSingleR),
+ * based on [pre-formatted reference expression profiles](https://github.com/clusterfork/singlepp-references).
+ * In theory, we could do this at the single-cell level, but we use clusters instead to expedite the computation and simplify interpretation.
+ * If multiple references are requested, we will use each for assignment before attempting to choose the best label for each cluster across references.
+ * This wraps `labelCells` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ *
+ * The parameters in {@linkcode runAnalysis} should be an object containing:
+ *
+ * - `mouse_references`: an array of strings specifying the names of the reference datasets for mouse datasets, e.g., `"ImmGen"`.
+ * - `mouse_references`: an array of strings specifying the names of the reference datasets for human datasets, e.g., `"BlueprintEncode"`.
+ *
+ * On calling the `results()` method for the relevant state instance, we obtain an object with the following properties:
+ *
+ * - `per_reference`: an object where keys are the reference names and the values are arrays of strings.
+ *   Each array is of length equal to the number of clusters and contains the cell type classification for each cluster.
+ * - `integrated`: an array of length equal to the number of clusters.
+ *   Each element is a string specifying the name of the reference with the best label for each cluster.
+ *
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace cell_labelling
+ */
+
 var downloadFun = async (url) => {
     let resp = await fetch(url);
     if (!resp.ok) {

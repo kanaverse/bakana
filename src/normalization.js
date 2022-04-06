@@ -2,6 +2,24 @@ import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as qc_module from "./quality_control.js";
 
+/**
+ * This step performs normalization and log-transformation on the QC-filtered matrix from {@linkcode quality_control}.
+ * It wraps the `logNormCounts` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ *
+ * The parameters in {@linkcode runAnalysis} should be an empty object.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an empty object.
+ * 
+ * The state instance has a **`fetchExpression(index)`** method:
+ *
+ * - `index` should be an integer specifying the row index to extract.
+ * - The return value is a Float64Array containing the log-normalized expression values for each cell.
+ *
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace normalization
+ */
+
 export class State {
     #qc;
     #parameters;

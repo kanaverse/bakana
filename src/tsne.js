@@ -3,6 +3,29 @@ import * as vizutils from "./utils/viz_parent.js";
 import * as utils from "./utils/general.js";
 import * as neighbor_module from "./neighbor_index.js";
 
+/**
+ * This creates a t-SNE embedding based on the neighbor index constructed at {@linkcode neighbor_index}.
+ * This wraps `runTSNE` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ * 
+ * The parameters in {@linkcode runAnalysis} should be an object containing:
+ *
+ * - `perplexity`: number specifying the perplexity for the probability calculations.
+ * - `iterations`: number of iterations to run the algorithm.
+ * - `animate`: boolean indicating whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
+ *
+ * Calling **`results()`** on the relevant state instance will return an object containing:
+ *
+ * - `x`: a Float64Array containing the x-coordinate for each cell.
+ * - `y`: a Float64Array containing the y-coordinate for each cell.
+ * - `iterations`: the number of iterations processed.
+ *
+ * Calling **`animate()`** on the relevant state instance will repeat the animation iterations.
+ * This returns a promise that resolves on successful completion of all iterations.
+ * It is assumed that {@linkcode setVisualizationAnimate} has been set appropriately.
+ *
+ * @namespace tsne
+ */
+
 export class State {
     #index;
     #parameters;

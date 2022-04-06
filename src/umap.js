@@ -3,6 +3,30 @@ import * as vizutils from "./utils/viz_parent.js";
 import * as utils from "./utils/general.js";
 import * as neighbor_module from "./neighbor_index.js";
 
+/**
+ * This creates a UMAP embedding based on the neighbor index constructed at {@linkcode neighbor_index}.
+ * This wraps `runUMAP` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ * 
+ * The parameters in {@linkcode runAnalysis} should be an object containing:
+ *
+ * - `num_neighbors`: number of neighbors to use to construct the simplicial sets.
+ * - `num_epochs`: number of epochs to run the algorithm.
+ * - `min_dist`: number specifying the minimum distance between points.
+ * - `animate`: boolean indicating whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
+ *
+ * Calling **`results()`** on the relevant state instance will return an object containing:
+ *
+ * - `x`: a Float64Array containing the x-coordinate for each cell.
+ * - `y`: a Float64Array containing the y-coordinate for each cell.
+ * - `iterations`: the number of iterations processed.
+ *
+ * Calling **`animate()`** on the relevant state instance will repeat the animation iterations.
+ * This returns a promise that resolves on successful completion of all iterations.
+ * It is assumed that {@linkcode setVisualizationAnimate} has been set appropriately.
+ *
+ * @namespace umap
+ */
+
 export class State {
     #index;
     #parameters;

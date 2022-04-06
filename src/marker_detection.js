@@ -5,6 +5,33 @@ import * as qc_module from "./quality_control.js";
 import * as norm_module from "./normalization.js";
 import * as choice_module from "./choose_clustering.js";
 
+/**
+ * This step performs marker detection for each cluster of cells by performing pairwise comparisons to each other cluster.
+ * This wraps the `scoreMarkers` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * The clustering is obtained from the {@linkcode choose_clustering} step.
+ *
+ * The parameters in {@linkcode runAnalysis} should be an empty object.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an empty object.
+ *
+ * The state instance for this step has a **`fetchGroupResults(rank_type, group)`** method.
+ * 
+ * - `group` should be an integer specifying the cluster of interest.
+ * - `rank_type` should be a string specifying the effect size to use for ranking markers.
+ *   This should follow the format of `<effect>-<summary>` where `<effect>` may be `lfc`, `cohen`, `auc` or `delta_detected`,
+ *   and `<summary>` may be `min`, `mean` or `min-rank`.
+ * - An object is returned containing the marker statistics for the selection, sorted by the specified effect and summary size from `rank_type`.
+ *   This contains:
+ *   - `means`: a `Float64Array` of length equal to the number of genes, containing the mean expression within the selection.
+ *   - `detected`: a `Float64Array` of length equal to the number of genes, containing the proportion of cells with detected expression inside the selection.
+ *   - `lfc`: a `Float64Array` of length equal to the number of genes, containing the log-fold changes for the comparison between cells inside and outside the selection.
+ *   - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
+ *
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace marker_detection
+ */
+
 export class State {
     #qc;
     #norm;

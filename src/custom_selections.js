@@ -4,6 +4,47 @@ import * as markers from "./utils/markers.js";
 import * as qc_module from "./quality_control.js";
 import * as norm_module from "./normalization.js";
 
+/**
+ * Applications can perform marker detection on custom selections of cells.
+ * This allows users to dynamically select cells on a UI and quickly obtain a list of distinguishing markers for that selection.
+ * This wraps the `scoreMarkers` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ *
+ * The parameters in {@linkcode runAnalysis} should be an empty object.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an empty object.
+ *
+ * The state instance for this step has an **`addSelection(id, selection)`** method.
+ * 
+ * - `id` should be a string containing a unique identifier for the new custom selection.
+ * - `selection` should be an array containing the indices of the cells in the selection.
+ *   Note that indices should refer to positions of cells in the QC-filtered matrix, not the original matrix.
+ * - The custom selection is added to the state and calculation of its markers is performed.
+ *   Nothing is returned.
+ *
+ * The state instance for this step has a **`fetchResults(id, rank_type)`** method.
+ * 
+ * - `id` should be a string containing an identifier for the desired selection.
+ * - `rank_type` should be a string specifying the effect size to use for ranking markers.
+ *   This should follow the format of `<effect>-<summary>` where `<effect>` may be `lfc`, `cohen`, `auc` or `delta_detected`,
+ *   and `<summary>` may be `min`, `mean` or `min-rank` (though the latter has no effect here, as only one pairwise comparison is involved).
+ * - An object is returned containing the marker statistics for the selection, sorted by the specified effect and summary size from `rank_type`.
+ *   This contains:
+ *   - `means`: a `Float64Array` of length equal to the number of genes, containing the mean expression within the selection.
+ *   - `detected`: a `Float64Array` of length equal to the number of genes, containing the proportion of cells with detected expression inside the selection.
+ *   - `lfc`: a `Float64Array` of length equal to the number of genes, containing the log-fold changes for the comparison between cells inside and outside the selection.
+ *   - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
+ *
+ * The state instance for this step has a **`removeSelection(id)`** method.
+ *
+ * - `id` should be a string containing an identifier for the desired selection.
+ * - The specified selection and its results are removed from the state.
+ *   Nothing is returned.
+ *
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace custom_selections 
+ */
+
 export class State {
     #qc;
     #norm;
@@ -55,6 +96,7 @@ export class State {
       
         this.#cache.results[id] = { "raw": res };
         this.#parameters.selections[id] = selection;
+        return;
     }
 
     removeSelection(id) {

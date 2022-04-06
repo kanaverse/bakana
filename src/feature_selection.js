@@ -2,7 +2,27 @@ import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as qc_module from "./quality_control.js";
 import * as norm_module from "./normalization.js";
-  
+
+/**
+ * Feature selection is performed by modelling the per-gene variance and finding highly variable genes.
+ * This wraps the `modelGeneVar` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ *
+ * The parameters in {@linkcode runAnalysis} should be an object containing:
+ *
+ * - `span`: a number between 0 and 1 specifying the span for the LOWESS smoother.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an object containing:
+ *
+ * - `means`: a `Float64Array` containing the mean log-expression for each gene.
+ * - `vars`: a `Float64Array` containing the variance in log-expression for each gene.
+ * - `fitted`: a `Float64Array` containing the fitted value of the mean-variance trend for each gene.
+ * - `resids`: a `Float64Array` containing the residuals from the mean-variance trend for each gene.
+ * 
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace feature_selection
+ */
+
 export class State {
     #qc;
     #norm;

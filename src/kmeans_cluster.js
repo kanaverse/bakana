@@ -2,6 +2,21 @@ import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as pca_module from "./pca.js";
 
+/**
+ * This step performs k-means clustering on the PCs, wrapping the `clusterKmeans` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ *
+ * The parameters in {@linkcode runAnalysis} should be an object containing:
+ *
+ * - `k`: the number of clusters to create.
+ *
+ * Calling the **`results()`** method for the relevant state instance will return an empty object.
+ * See the {@linkcode choose_clustering} step to actually obtain the cluster assignments.
+ * 
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace kmeans_cluster
+ */
+
 export class State {
     #pca;
     #parameters;

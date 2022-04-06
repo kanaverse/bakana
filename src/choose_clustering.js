@@ -3,6 +3,25 @@ import * as utils from "./utils/general.js";
 import * as snn_module from "./snn_graph_cluster.js";
 import * as kmeans_module from "./kmeans_cluster.js";
 
+/**
+ * This step chooses between the k-means and SNN graph clusterings.
+ * We added this step to preserve the cache for each clustering step - 
+ * specifically, each clustering does not need to be recomputed when a user changes their choice.
+ *
+ * The parameters in {@linkcode runAnalysis} should be an object containing:
+ *
+ * - `method`: either `"kmeans"` or `"snn_graph"`.
+ *
+ * On calling the `results()` method for the relevant state instance, we obtain an object with the following properties:
+ *
+ * - `clusters`: an `Int32Array` of length equal to the number of cells (after QC filtering),
+ *   containing the cluster assignment for each cell.
+ *
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ *
+ * @namespace choose_clustering
+ */
+
 export class State {
     #snn_cluster;
     #kmeans_cluster;
