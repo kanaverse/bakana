@@ -71,23 +71,26 @@ export class State {
     }
 
     compute(perplexity, iterations, animate) {
-        this.changed = false;
+        let same_neighbors = (!this.#index.changed && perplexity === this.#parameters.perplexity);
+        if (same_neighbors && iterations == this.#parameters.iterations) {
+            this.changed = false;
+            return;
+        }
 
         // In the reloaded state, we must send the neighbor
         // information, because it hasn't ever been sent before.
-
-        let reneighbor = (this.#index.changed || perplexity != this.#parameters.perplexity || this.#reloaded !== null);
-        if (reneighbor || iterations != this.#parameters.iterations) {
-            this.#core(perplexity, iterations, animate, reneighbor);
-
-            this.#parameters.perplexity = perplexity;
-            this.#parameters.iterations = iterations;
-            this.#parameters.animate = animate;
-
-            this.changed = true;
+        if (this.#reloaded !== null) {
+            same_neighbors = false;
             this.#reloaded = null;
         }
 
+        this.#core(perplexity, iterations, animate, !same_neighbors);
+
+        this.#parameters.perplexity = perplexity;
+        this.#parameters.iterations = iterations;
+        this.#parameters.animate = animate;
+
+        this.changed = true;
         return;
     }
 
@@ -95,7 +98,7 @@ export class State {
      ******** Results **********
      ***************************/
 
-    async #fetch_results(copy)  {
+    async #fetch_results(copy) {
         if (this.#reloaded !== null) {
             let output = {
                 x: this.#reloaded.x,

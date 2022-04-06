@@ -71,24 +71,27 @@ export class State {
     }
 
     compute(num_neighbors, num_epochs, min_dist, animate) {
-        this.changed = false;
+        let same_neighbors = (!this.#index.changed && this.#parameters.num_neighbors === num_neighbors);
+        if (same_neighbors && num_epochs === this.#parameters.num_epochs && min_dist === this.#parameters.min_dist) {
+            this.changed = false;
+            return;
+        }
 
         // In the reloaded state, we must send the neighbor
         // information, because it hasn't ever been sent before.
-
-        let reneighbor = (this.#index.changed || this.#parameters.num_neighbors != num_neighbors || this.#reloaded !== null);
-        if (reneighbor || num_epochs != this.#parameters.num_epochs || min_dist != this.#parameters.min_dist) {
-            this.#core(num_neighbors, num_epochs, min_dist, animate, reneighbor);
-
-            this.#parameters.num_neighbors = num_neighbors;
-            this.#parameters.num_epochs = num_epochs;
-            this.#parameters.min_dist = min_dist;
-            this.#parameters.animate = animate;
-
-            this.changed = true;
+        if (this.#reloaded !== null) {
+            same_neighbors = false;
             this.#reloaded = null;
         }
 
+        this.#core(num_neighbors, num_epochs, min_dist, animate, !same_neighbors);
+
+        this.#parameters.num_neighbors = num_neighbors;
+        this.#parameters.num_epochs = num_epochs;
+        this.#parameters.min_dist = min_dist;
+        this.#parameters.animate = animate;
+
+        this.changed = true;
         return;
     }
 
