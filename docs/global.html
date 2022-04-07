@@ -322,7 +322,7 @@ Multiple states can be created and used interchangeably within the same Javascri
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line84">line 84</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line86">line 86</a>
     </li></ul></dd>
     
 
@@ -353,6 +353,235 @@ Multiple states can be created and used interchangeably within the same Javascri
 <div class="param-desc">
     <p>A promise that resolves to an object containing states for all analysis steps.
 This object can be used as input into <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
+</div>
+
+
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="createKanaFile"><span class="type-signature"></span>createKanaFile<span class="signature">(statePath, inputFiles, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Create a <code>*.kana</code> file from the HDF5 state file and the various data files.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>statePath</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>String containing a file path to an existing HDF5 state file.
+This should be the same as the <code>path</code> used in <a href="global.html#saveAnalysis"><code>saveAnalysis</code></a>.
+On browsers, the path should exist inside the virtual file system of the <strong>scran.js</strong> module.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>inputFiles</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Array of files to be embedded into the <code>*.kana</code> file.
+On Node.js, this should be an array of file paths; on browsers, this should be an array of ArrayBuffers.
+Typically this is obtained as the resolved return value of <a href="global.html#saveAnalysis"><code>saveAnalysis</code></a>.</p>
+<p>If <code>null</code>, it is assumed that files are linked instead of embedded.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Further options.
+For Node.js, callers can specify <code>outputPath</code>, a string containing the output path for the newly created <code>*.kana</code> file.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line489">line 489</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>For Node.js, a promise is returned that resolves to a path to a new <code>*.kana</code> file.
+This is equal to <code>outputPath</code> if supplied, otherwise a path to a file in a temporary directory is returned.</p>
+<p>In browsers, an ArrayBuffer is returned containing the full contents of the new <code>*.kana</code> file.</p>
 </div>
 
 
@@ -466,7 +695,7 @@ This releases memory on the <strong>scran.js</strong> Wasm heap and terminates a
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line114">line 114</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line116">line 116</a>
     </li></ul></dd>
     
 
@@ -721,7 +950,7 @@ This only needs to be <code>true</code> for old Node versions that do not suppor
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line56">line 56</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line58">line 58</a>
     </li></ul></dd>
     
 
@@ -870,10 +1099,11 @@ On browsers, this should lie inside the virtual file system of the <strong>scran
             
 
             <td class="description last"><p>Function to load each embedded data file.
-This should accept two arguments - an offset to the start of the file in the embedded file buffer, and the size of the file.
-In the browser, the function should return an ArrayBuffer containing the contents of the file.
+This should accept two arguments - an offset to the start of the file in the embedded file buffer, and the size of the file.</p>
+<p>In the browser, the function should return an ArrayBuffer containing the contents of the file.
 For Node.js, the function should return a string containing a path to the file.
-Note that this function is only used if the state file at <code>path</code> contains information for embedded files;
+In both cases, the function may instead return a promise that resolves to the expected values.</p>
+<p>Note that this function is only used if the state file at <code>path</code> contains information for embedded files;
 otherwise, links are resolved using reader-specific functions (see <a href="global.html#setResolveLink"><code>setResolveLink</code></a> for the common use cases).</p></td>
         </tr>
 
@@ -1011,7 +1241,7 @@ If <code>null</code>, a no-op function is automatically created.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line339">line 339</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line344">line 344</a>
     </li></ul></dd>
     
 
@@ -1046,6 +1276,239 @@ If <code>null</code>, a no-op function is automatically created.</p></td>
 <li><code>state</code>: an object containing the loaded analysis state.
 This is conceptually equivalent to creating a state with <a href="global.html#createAnalysis"><code>createAnalysis</code></a> and running it through <a href="global.html#runAnalysis"><code>runAnalysis</code></a> with the associated <code>parameters</code>.</li>
 </ul>
+</div>
+
+
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="parseKanaFile"><span class="type-signature"></span>parseKanaFile<span class="signature">(input, statePath, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Parse a <code>*.kana</code> file by extracting the HDF5 state file and returning a function to extract embeddded data files.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>input</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">ArrayBuffer</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>The input <code>*.kana</code> file.
+For Node.js, this should be a string containing a path to the file.
+On browsers, this should be an ArrayBuffer containing the full file contents.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>statePath</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>String containing a file path to save the HDF5 state file.
+This will also be the path supplied to <a href="global.html#loadAnalysis"><code>loadAnalysis</code></a> to load the state into memory.
+On browsers, this will exist inside the virtual file system of the <strong>scran.js</strong> module.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Further options.
+For Node.js, callers can specify <code>stageDir</code>, a string containing a path to a staging directory for the extracted data files.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line513">line 513</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>The HDF5 state file is written to <code>statePath</code>.
+In the browser, if <code>input</code> contains embedded files, a function is returned that extracts each data file given its offset and size.
+(This should be used as <code>loadFun</code> in <a href="global.html#loadAnalysis"><code>loadAnalysis</code></a>.)
+If <code>input</code> contains linked files, <code>null</code> is returned.</p>
+<p>For Node.js, a promise is returned that evaluates to the aforementioned function or <code>null</code>.</p>
 </div>
 
 
@@ -1346,7 +1809,7 @@ If <code>null</code>, a no-op function is automatically created.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line155">line 155</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line157">line 157</a>
     </li></ul></dd>
     
 
@@ -1633,7 +2096,7 @@ If <code>false</code>, links to data files are stored instead, see <a href="glob
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line275">line 275</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line277">line 277</a>
     </li></ul></dd>
     
 
@@ -1663,7 +2126,7 @@ If <code>false</code>, links to data files are stored instead, see <a href="glob
         
 <div class="param-desc">
     <p>A HDF5 file is created at <code>path</code> containing the analysis parameters and results - see https://ltla.github.io/kanaval for more details on the structure.
-If <code>embedded = false</code>, <code>null</code> is returned.
+If <code>embedded = false</code>, a promise is returned that resolves to <code>null</code> when the saving is complete.
 Otherwise, an object is returned containing:</p>
 <ul>
 <li><code>collected</code>: an array of length equal to the number of data files.
@@ -2347,7 +2810,7 @@ This is typically necessary for a clean shutdown in Node.js applications.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line71">line 71</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line73">line 73</a>
     </li></ul></dd>
     
 
@@ -2566,13 +3029,13 @@ Each property is a string containing the name of the gene annotation field that 
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="cell_labelling.html">cell_labelling</a></li><li><a href="choose_clustering.html">choose_clustering</a></li><li><a href="custom_selections.html">custom_selections</a></li><li><a href="feature_selection.html">feature_selection</a></li><li><a href="inputs.html">inputs</a></li><li><a href="kmeans_cluster.html">kmeans_cluster</a></li><li><a href="marker_detection.html">marker_detection</a></li><li><a href="neighbor_index.html">neighbor_index</a></li><li><a href="normalization.html">normalization</a></li><li><a href="pca.html">pca</a></li><li><a href="quality_control.html">quality_control</a></li><li><a href="snn_graph_cluster.html">snn_graph_cluster</a></li><li><a href="tsne.html">tsne</a></li><li><a href="umap.html">umap</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="cell_labelling.html">cell_labelling</a></li><li><a href="choose_clustering.html">choose_clustering</a></li><li><a href="custom_selections.html">custom_selections</a></li><li><a href="feature_selection.html">feature_selection</a></li><li><a href="inputs.html">inputs</a></li><li><a href="kmeans_cluster.html">kmeans_cluster</a></li><li><a href="marker_detection.html">marker_detection</a></li><li><a href="neighbor_index.html">neighbor_index</a></li><li><a href="normalization.html">normalization</a></li><li><a href="pca.html">pca</a></li><li><a href="quality_control.html">quality_control</a></li><li><a href="snn_graph_cluster.html">snn_graph_cluster</a></li><li><a href="tsne.html">tsne</a></li><li><a href="umap.html">umap</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#createKanaFile">createKanaFile</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#parseKanaFile">parseKanaFile</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Apr 06 2022 18:15:24 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Thu Apr 07 2022 05:32:18 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
