@@ -38,3 +38,23 @@ test("fetching of various bits and pieces is done correctly", async () => {
 
     await bakana.freeAnalysis(state);
 })
+
+test("animation catcher works correctly", async () => {
+    let state = await bakana.createAnalysis();
+    let params = utils.baseParams();
+    await bakana.runAnalysis(state, files, params);
+
+    let collected = { tsne: [], umap: [] }
+    let fun = bakana.setVisualizationAnimate((type, x, y, iterations) => {
+        collected[type].push(iterations);
+    });
+
+    let p = [state.tsne.animate(), state.umap.animate()];
+    await Promise.all(p);
+
+    expect(collected.tsne.length).toBeGreaterThan(0);
+    expect(collected.umap.length).toBeGreaterThan(0);
+
+    await bakana.freeAnalysis(state);
+})
+

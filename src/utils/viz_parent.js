@@ -9,7 +9,8 @@ var animateFun = (x, y, i) => null;
  * The exact nature of this handling is arbitrary - developers may post the contents to another thread, save them to file, etc.
  *
  * @param {function} fun - Function to process each animation iteration.
- * This should accept three arguments, in the following order:
+ * This should accept four arguments, in the following order:
+ * - A string containing either `"tsne"` or `"umap"`.
  * - A `Float64Array` containing the x-coordinates for each cell.
  * - A `Float64Array` containing the y-coordinates for each cell.
  * - An integer specifying the iteration number.
@@ -82,7 +83,7 @@ export function createWorker(url, cache, scranOptions) {
     aworkers.registerCallback(worker, msg => {
         var type = msg.data.type;
         if (type.endsWith("_iter")) {
-            animateFun(msg.data.x, msg.data.y, msg.data.iteration);
+            animateFun(type.slice(0, -5), msg.data.x, msg.data.y, msg.data.iteration);
             return;
         }
   
