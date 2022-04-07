@@ -45,7 +45,7 @@ export async function createKanaFileInternal(statePath, inputFiles, { outputPath
     });
 }
 
-export function parseKanaFileInternal(input, statePath, { stageDir = null } = {}) {
+export async function parseKanaFileInternal(input, statePath, { stageDir = null } = {}) {
     if (stageDir === null) {
         stageDir = fs.mkdtempSync("kana-");
     }
@@ -53,29 +53,36 @@ export function parseKanaFileInternal(input, statePath, { stageDir = null } = {}
     let fd = fs.openSync(input);
     let prebuffer = new Uint8Array(24);
     fs.readSync(fd, prebuffer, 0, prebuffer.length, null);
-
-    // TODO: if I had more Node skills, we could stream it into the file rather 
-    // than loading it into memory before dumping it out again. Oh well.
-    let parsed = sutils.parsePreamble(prebuffer.buffer);
-    let state_len = parsed.state;
-    let statebuffer = new Uint8Array(state_len);
-    fs.readSync(fd, statebuffer, 0, state_len, null);
-    fs.writeFileSync(statePath, statebuffer);
-
     fs.closeSync(fd);
 
+    let parsed = sutils.parsePreamble(prebuffer.buffer);
+    let state_len = parsed.state;
+
+    // Piping it into the output file.
     let delta = parsed.offset + state_len;
+    let istream = fs.createReadStream(input, { start: parsed.offset, end: delta - 1 });
+    let ostream = fs.createWriteStream(statePath);
+    let piped = istream.pipe(ostream);
+
+    await new Promise((resolve, reject) => {
+        piped.on("unpipe", () => resolve(null));
+        piped.on("error", e => reject(e));
+    });
 
     if (parsed.embedded) {
         // Safest to just reopen the damn file and write it to the location.
         // However, if we already rewrote it, then we skip the process.
-        return (offset, size) => {
+        return async (offset, size) => {
             let opath = Path.join(stageDir, String(offset));
             if (!fs.existsSync(opath)) {
-                let contents = new Uint8Array(size);
-                let handle = fs.openSync(input, 'r');
-                fs.readSync(handle, contents, 0, size, delta + offset);
-                fs.writeFileSync(opath, contents);
+                let istream = fs.createReadStream(input, { start: delta + offset, end: delta + offset + size - 1});
+                let ostream = fs.createWriteStream(opath);
+                let piped = istream.pipe(ostream);
+                
+                await new Promise((resolve, reject) => {
+                    piped.on("unpipe", () => resolve(null));
+                    piped.on("error", e => reject(e));
+                });
             }
             return opath;
         };
