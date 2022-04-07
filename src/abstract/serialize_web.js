@@ -5,7 +5,7 @@ import * as scran from "scran.js";
  * This contains a function to create and load a kana file with the browser.
  */
 export function createKanaFileInternal(statePath, inputFiles) {
-    let embedded = (inputFiles === null):
+    let embedded = (inputFiles === null);
     let state = scran.readFile(statePath);
 
     let preamble = sutils.createPreamble(embedded, state.byteLength);
