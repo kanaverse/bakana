@@ -31,7 +31,7 @@ import * as aserialize from "./abstract/serialize.js";
 
 const step_inputs = "inputs";
 const step_qc = "quality_control";
-const step_norm = "normalizaton";
+const step_norm = "normalization";
 const step_feat = "feature_selection";
 const step_pca = "pca";
 const step_neighbors = "neighbor_index";

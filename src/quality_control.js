@@ -85,6 +85,18 @@ export class State {
         }
     }
 
+    fetchFilteredAnnotations(col) { 
+        let vec = this.#inputs.fetchAnnotations(col);
+        var discard = this.fetchDiscards().array();
+        let filterfun = (x, i) => !discard[i];
+        if (utils.isObject(vec) && "index" in vec) {
+            vec.index = vec.index.filter(filterfun);
+        } else {
+            vec = vec.filter(filterfun);
+        }
+        return vec;
+    }
+
     /***************************
      ******** Compute **********
      ***************************/

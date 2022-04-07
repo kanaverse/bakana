@@ -81,9 +81,19 @@ export class State {
             throw new Error(`${col} does not exist in the column annotations`);
         }
 
-        // i.e., is it already a factor?
-        if (utils.isObject(annots[col]) && "type" in annots[col]) {
-            return annots[col];
+        let current = annots[col];
+
+        // i.e., is it already a factor? In which case, we make a copy of its contents.
+        // This ensures we don't have any accidental writes or transfers. 
+        if (utils.isObject(current)) {
+            if (!("type" in current) || current.type != "factor") {
+                throw new Error("annotation column should have 'type: \"factor\"' if it is an object");
+            }
+            return { 
+                type: current.type,
+                index: current.index.slice(),
+                factor: current.factor.slice()
+            };
         }
 
         let uvals = {};
@@ -97,6 +107,7 @@ export class State {
         });
 
         return {
+            "type": "factor",
             "index": Object.keys(uvals),
             "factor": uTypedAray
         };
