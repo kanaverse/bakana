@@ -161,7 +161,7 @@ export class State {
             let phandle = ghandle.createGroup("parameters");
             let rhandle = phandle.createGroup("selections");
             for (const [key, val] of Object.entries(this.#parameters.selections)) {
-                rhandle.writeDataSet(String(key), "Uint8", null, val);
+                rhandle.writeDataSet(String(key), "Int32", null, val);
             }
         }
 
