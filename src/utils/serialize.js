@@ -60,7 +60,7 @@ export function createPreamble(embedded, stateSize) {
     combined_arr.set(version, offset); 
     offset += version.length;
 
-    let state_len = numberToBuffer(state.length);
+    let state_len = numberToBuffer(stateSize);
     combined_arr.set(state_len, offset); 
     offset += state_len.length;
 
