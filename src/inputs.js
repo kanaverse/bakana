@@ -231,6 +231,9 @@ export class State {
                 phandle.writeDataSet("sample_names", "String", null, names);
             } else {
                 phandle.writeDataSet("format", "String", [], formats[0]);
+                if (this.#parameters.sample_factor !== null) {
+                    phandle.writeDataSet("sample_factor", "String", [], this.#parameters.sample_factor);
+                }
             }
         }
 
@@ -302,7 +305,7 @@ function process_datasets(files, sample_factor) {
         let blocks = null;
         let block_levels = null;
 
-        if (sample_factor && sample_factor !== null) {
+        if (sample_factor !== null) {
             // Single matrix with a batch factor.
             try {
                 let anno_batch = current.annotations[sample_factor];
@@ -505,6 +508,8 @@ export async function unserialize(handle, embeddedLoader) {
         parameters.files["default"] = await namespace.unserialize(all_files, embeddedLoader);
         if ("sample_factor" in phandle.children) {
             parameters.sample_factor = phandle.open("sample_factor", { load: true }).values[0];
+        } else {
+            parameters.sample_factor = null;
         }
 
     } else {
