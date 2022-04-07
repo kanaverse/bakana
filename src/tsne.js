@@ -114,7 +114,7 @@ export class State {
         this.#parameters.animate = animate;
 
         this.changed = true;
-        return;
+        return this.#run;
     }
 
     /***************************

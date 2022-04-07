@@ -222,12 +222,14 @@ export class State {
             }
         }
 
+        let promises = [];
+
         // Running classifications on the cluster means. Note that compute() itself
         // cannot be async, as we need to make sure 'changed' is set and available for
         // downstream steps; hence the explicit then().
         this.#cache.results = {};
         for (const [key, val] of Object.entries(valid)) {
-            this.#cache.results[key] = val.then(ref => {
+            let p = val.then(ref => {
                 let output = scran.labelCells(cluster_means, ref.built.raw, { numberOfFeatures: ngenes, numberOfCells: ngroups });
                 let labels = [];
                 for (const o of output) {
@@ -235,6 +237,8 @@ export class State {
                 }
                 return labels;
             });
+            this.#cache.results[key] = p;
+            promises.push(p);
         }
 
         // Performing additional integration, if necessary. We don't really 
@@ -254,7 +258,7 @@ export class State {
                 );
             }
 
-            this.#cache.integrated_results = this.#cache.integrated
+            let p = this.#cache.integrated
                 .then(async (integrated) => {
                     let results = [];
                     for (const key of used_refs) {
@@ -269,6 +273,8 @@ export class State {
                     return as_names;
                 }
             );
+            this.#cache.integrated_results = p;
+            promises.push(p);
         } else {
             delete this.#cache.integrated_results;
         }
@@ -278,7 +284,7 @@ export class State {
         this.#parameters.mouse_references = mouse_references;
         this.changed = true;
 
-        return;
+        return Promise.all(promises).then(x => null);
     }
 
     /***************************

@@ -162,6 +162,12 @@ export function runAnalysis(state, matrices, params, { finishFun = null } = {}) 
     }
 
     let promises = [];
+    let asyncQuickFun = (step, p) => {
+        if (state[step].changed && finishFun !== null) {
+            p = state[step].results().then(res => finishFun(step, res));
+        }
+        promises.push(p);
+    }
 
     state[step_inputs].compute(
         matrices, 
@@ -196,23 +202,23 @@ export function runAnalysis(state, matrices, params, { finishFun = null } = {}) 
     );
     quickFun(step_neighbors);
 
-    state[step_tsne].compute(
-        params[step_tsne]["perplexity"],
-        params[step_tsne]["iterations"], 
-        params[step_tsne]["animate"]
-    );
-    if (state[step_tsne].changed && finishFun !== null) {
-        promises.push(state[step_tsne].results().then(res => finishFun(step_tsne, res)));
+    {
+        let p = state[step_tsne].compute(
+            params[step_tsne]["perplexity"],
+            params[step_tsne]["iterations"], 
+            params[step_tsne]["animate"]
+        );
+        asyncQuickFun(step_tsne, p);
     }
 
-    state[step_umap].compute(
-        params[step_umap]["num_neighbors"], 
-        params[step_umap]["num_epochs"], 
-        params[step_umap]["min_dist"], 
-        params[step_umap]["animate"]
-    );
-    if (state[step_umap].changed && finishFun !== null) {
-        promises.push(state[step_umap].results().then(res => finishFun(step_umap, res)));
+    {
+        let p = state[step_umap].compute(
+            params[step_umap]["num_neighbors"], 
+            params[step_umap]["num_epochs"], 
+            params[step_umap]["min_dist"], 
+            params[step_umap]["animate"]
+        );
+        asyncQuickFun(step_umap, p);
     }
 
     let method = params[step_choice]["method"];
@@ -239,12 +245,12 @@ export function runAnalysis(state, matrices, params, { finishFun = null } = {}) 
     state[step_markers].compute();
     quickFun(step_markers);
 
-    state[step_labels].compute(
-        params[step_labels]["human_references"],
-        params[step_labels]["mouse_references"]
-    );
-    if (state[step_labels].changed && finishFun !== null) {
-        promises.push(state[step_labels].results().then(res => finishFun(step_labels, res)));
+    {
+        let p = state[step_labels].compute(
+            params[step_labels]["human_references"],
+            params[step_labels]["mouse_references"]
+        );
+        asyncQuickFun(step_labels, p);
     }
 
     state[step_custom].compute();
