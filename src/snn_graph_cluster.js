@@ -10,6 +10,7 @@ import * as neighbor_module from "./neighbor_index.js";
  *
  * - `k`: the number of nearest neighbors used to construct the graph.
  * - `scheme`: string specifying the weighting scheme for graph construction.
+ *   This can be one of `"rank"`, `"number"` or `"jaccard"`.
  * - `resolution`: number containing the resolution of the community detection.
  *
  * Calling the **`results()`** method for the relevant state instance will return an empty object.
@@ -142,7 +143,7 @@ export class State {
         {
             let phandle = ghandle.createGroup("parameters");
             phandle.writeDataSet("k", "Int32", [], this.#parameters.k);
-            phandle.writeDataSet("scheme", "String", [], ["rank", "number", "jaccard"][this.#parameters.scheme]); // TODO: parameters.scheme should just directly be the string.
+            phandle.writeDataSet("scheme", "String", [], this.#parameters.scheme);
             phandle.writeDataSet("resolution", "Float64", [], this.#parameters.resolution);
         }
 
@@ -185,7 +186,6 @@ export function unserialize(handle, index) {
         let phandle = ghandle.open("parameters");
         parameters.k = phandle.open("k", { load: true }).values[0];
         parameters.scheme = phandle.open("scheme", { load: true }).values[0];
-        parameters.scheme = { "rank": 0, "number": 1, "jaccard": 2 }[parameters.scheme];
         parameters.resolution = phandle.open("resolution", { load: true }).values[0];
     }
 

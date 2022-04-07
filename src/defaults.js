@@ -40,7 +40,7 @@ export function analysisDefaults() {
         },
         snn_graph_cluster: {
             k: 10,
-            scheme: 0,
+            scheme: "rank",
             resolution: 1
         },
         choose_clustering: {
