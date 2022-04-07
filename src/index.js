@@ -266,7 +266,7 @@ export function runAnalysis(state, matrices, params, { finishFun = null } = {}) 
  * If `false`, links to data files are stored instead, see {@linkcode setCreateLink}.
  * 
  * @return A HDF5 file is created at `path` containing the analysis parameters and results - see https://ltla.github.io/kanaval for more details on the structure.
- * If `embedded = false`, `null` is returned.
+ * If `embedded = false`, a promise is returned that resolves to `null` when the saving is complete.
  * Otherwise, an object is returned containing:
  * - `collected`: an array of length equal to the number of data files.
  *   If `linkFun: null`, each element is an ArrayBuffer containing the file contents, which can be used to assemble an embedded `*.kana` file.
@@ -504,6 +504,6 @@ export function createKanaFile(statePath, inputFiles, options = {}) {
  * (This should be used as `loadFun` in {@linkcode loadAnalysis}.)
  * If `input` contains linked files, `null` is returned.
  */
-export function parseKanaFile(input, inputFiles, options = {}) {
-    return aserialize.parseKanaFileInternal(statePath, inputFiles, options);
+export function parseKanaFile(input, statePath, options = {}) {
+    return aserialize.parseKanaFileInternal(input, statePath, options);
 }

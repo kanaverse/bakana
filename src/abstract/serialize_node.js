@@ -5,32 +5,43 @@ import * as Path from "path";
 /**
  * This contains a function to create and load a kana file with Node.
  */
-export function createKanaFileInternal(statePath, inputFiles, { outputPath = null } = {}) {
+export async function createKanaFileInternal(statePath, inputFiles, { outputPath = null } = {}) {
     if (outputPath === null) {
         let dir = fs.mkdtempSync("kana-");
         outputPath = Path.join(dir, "analysis.kana");
     }
 
-    let stream = fs.createWriteStream(path, { flags: 'a' });
+    let stream = fs.createWriteStream(outputPath, { flags: 'w' });
 
-    let embedded = (inputFiles === null):
+    let embedded = (inputFiles !== null);
     let preamble = sutils.createPreamble(embedded, fs.statSync(statePath).size);
     stream.write(Buffer.from(preamble));
 
     let stateStream = fs.createReadStream(statePath);
-    stateStream.pipe(stream);
+    let piped = stateStream.pipe(stream, { end: false });
+
+    await new Promise((resolve, reject) => {
+        piped.on("unpipe", () => resolve(true));
+        piped.on("error", e => reject(e));
+    });
 
     if (embedded) {
         for (const ipath of inputFiles) {
             let istream = fs.createReadStream(ipath);
-            istream.pipe(stream);
+            let piped = istream.pipe(stream, { end: false });
+
+            await new Promise((resolve, reject) => {
+                piped.on("unpipe", () => resolve(true));
+                piped.on("error", e => reject(e));
+            });
         }
     }
+
+    stream.end();
 
     return new Promise((resolve, reject) => {
         stream.on("finish", () => resolve(outputPath));
         stream.on("error", (e) => reject(e));
-        stream.end();
     });
 }
 
@@ -39,7 +50,7 @@ export function parseKanaFileInternal(input, statePath, { stageDir = null } = {}
         stageDir = fs.mkdtempSync("kana-");
     }
 
-    let fd = fs.openSync(path);
+    let fd = fs.openSync(input);
     let prebuffer = new Uint8Array(24);
     fs.readSync(fd, prebuffer, 0, prebuffer.length, null);
 
@@ -51,16 +62,19 @@ export function parseKanaFileInternal(input, statePath, { stageDir = null } = {}
     fs.readSync(fd, statebuffer, 0, state_len, null);
     fs.writeFileSync(statePath, statebuffer);
 
-    fs.closeSync();
+    fs.closeSync(fd);
+
+    let delta = parsed.offset + state_len;
 
     if (parsed.embedded) {
         // Safest to just reopen the damn file and write it to the location.
+        // However, if we already rewrote it, then we skip the process.
         return (offset, size) => {
-            let opath = Path.join(stageDir, offset);
-            if (fs.existsFileSync(opath)) {
+            let opath = Path.join(stageDir, String(offset));
+            if (!fs.existsSync(opath)) {
                 let contents = new Uint8Array(size);
-                let handle = fs.openSync(path);
-                fs.readSync(handle, contents, 0, size, offset);
+                let handle = fs.openSync(input, 'r');
+                fs.readSync(handle, contents, 0, size, delta + offset);
                 fs.writeFileSync(opath, contents);
             }
             return opath;
