@@ -3,9 +3,7 @@ import * as scran from "scran.js";
 export const summaries2int = { "min": 0, "mean": 1, "min_rank": 4 };
 export const int2summaries = { 0: "min", 1: "mean", 4: "min_rank" };
 
-export function serializeGroupStats(handle, obj, group, { no_summaries = false } = {}) {
-    let ihandle = handle.createGroup(String(group));
-
+export function serializeGroupStats(ihandle, obj, group, { no_summaries = false } = {}) {
     for (const x of [ "means", "detected" ]) {
         let y= obj[x](group, { copy: "view" });
         ihandle.writeDataSet(x, "Float64", null, y);
@@ -60,7 +58,7 @@ export function unserializeGroupStats(handle, permuter, { no_summaries = false }
  * This is used both for cluster-specific markers as well as the
  * DE genes that are computed for a custom selection vs the rest.
  */
-export function fetchGroupResults(results, rank_type, group) {
+export function fetchGroupResults(results, group, rank_type) {
     if (!rank_type || rank_type === undefined) {
         rank_type = "cohen-min-rank";
     }

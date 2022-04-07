@@ -14,9 +14,13 @@ import * as choice_module from "./choose_clustering.js";
  *
  * Calling the **`results()`** method for the relevant state instance will return an empty object.
  *
+ * The state instance for this step has a **`numberOfGroups()`** method.
+ * This returns the number of clusters for which markers were computed.
+ *
  * The state instance for this step has a **`fetchGroupResults(rank_type, group)`** method.
  * 
  * - `group` should be an integer specifying the cluster of interest.
+ *   This should be less than the value returned by `numberOfGroups()`. 
  * - `rank_type` should be a string specifying the effect size to use for ranking markers.
  *   This should follow the format of `<effect>-<summary>` where `<effect>` may be `lfc`, `cohen`, `auc` or `delta_detected`,
  *   and `<summary>` may be `min`, `mean` or `min-rank`.
@@ -68,8 +72,8 @@ export class State {
      ******** Getters **********
      ***************************/
 
-    fetchGroupResults(rank_type, group) {
-        return markers.fetchGroupResults(this.#cache.raw, rank_type, group); 
+    fetchGroupResults(group, rank_type) {
+        return markers.fetchGroupResults(this.#cache.raw, group, rank_type); 
     }
 
     numberOfGroups() {
@@ -125,7 +129,8 @@ export class State {
 
             var num = this.#cache.raw.numberOfGroups();
             for (var i = 0; i < num; i++) {
-                markers.serializeGroupStats(rhandle, this.#cache.raw, i);
+                let ihandle = rhandle.createGroup(String(i));
+                markers.serializeGroupStats(ihandle, this.#cache.raw, i);
             }
         }
     }

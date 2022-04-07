@@ -25,8 +25,7 @@ import * as norm_module from "./normalization.js";
  * 
  * - `id` should be a string containing an identifier for the desired selection.
  * - `rank_type` should be a string specifying the effect size to use for ranking markers.
- *   This should follow the format of `<effect>-<summary>` where `<effect>` may be `lfc`, `cohen`, `auc` or `delta_detected`,
- *   and `<summary>` may be `min`, `mean` or `min-rank` (though the latter has no effect here, as only one pairwise comparison is involved).
+ *   This should be one of `lfc`, `cohen`, `auc` or `delta_detected`.
  * - An object is returned containing the marker statistics for the selection, sorted by the specified effect and summary size from `rank_type`.
  *   This contains:
  *   - `means`: a `Float64Array` of length equal to the number of genes, containing the mean expression within the selection.
@@ -70,7 +69,7 @@ export class State {
     free() {
         utils.freeCache(this.#cache.buffer);
         for (const [k, v] of Object.entries(this.#cache.results)) {
-            v.free();
+            v.raw.free();
         }
     }
 
@@ -102,7 +101,7 @@ export class State {
     removeSelection(id) {
         utils.freeCache(this.#cache.results[id].raw);
         delete this.#cache.results[id];
-        delete parameters.selections[id];
+        delete this.#parameters.selections[id];
         return;
     }
 
@@ -112,7 +111,7 @@ export class State {
 
     fetchResults(id, rank_type) {
         var current = this.#cache.results[id].raw;
-        return markers.fetchGroupResults(current, rank_type, 1); 
+        return markers.fetchGroupResults(current, 1, rank_type + "-mean"); 
     }
 
     /***************************
@@ -170,7 +169,8 @@ export class State {
             let chandle = ghandle.createGroup("results");
             let rhandle = chandle.createGroup("markers");
             for (const [key, val] of Object.entries(this.#cache.results)) {
-                markers.serializeGroupStats(rhandle, val, 1, { no_summaries: true });
+                let ihandle = rhandle.createGroup(key);
+                markers.serializeGroupStats(ihandle, val.raw, 1, { no_summaries: true });
             }
         }
     }
@@ -197,19 +197,19 @@ class CustomMarkersMimic {
     }
 
     lfc(group, { summary, copy }) {
-        return effect_grabber("lfc", group, summary, copy);
+        return this.effect_grabber("lfc", group, summary, copy);
     }
 
     deltaDetected(group, { summary, copy }) {
-        return effect_grabber("delta_detected", group, summary, copy);
+        return this.effect_grabber("delta_detected", group, summary, copy);
     }
 
     cohen(group, { summary, copy }) {
-        return effect_grabber("cohen", group, summary, copy);
+        return this.effect_grabber("cohen", group, summary, copy);
     }
 
     auc(group, { summary, copy }) {
-        return effect_grabber("auc", group, summary, copy);
+        return this.effect_grabber("auc", group, summary, copy);
     }
 
     stat_grabber(key, group, copy) {
@@ -218,11 +218,11 @@ class CustomMarkersMimic {
     }
 
     means(group, { copy }) {
-        return stat_grabber("means", group, copy);
+        return this.stat_grabber("means", group, copy);
     }
 
     detected(group, { copy }) {
-        return stat_grabber("detected", group, copy);
+        return this.stat_grabber("detected", group, copy);
     }
 
     free() {}
@@ -248,7 +248,7 @@ export function unserialize(handle, permuter, qc, norm) {
 
         for (const sel of Object.keys(rhandle.children)) {
             let current = markers.unserializeGroupStats(rhandle.open(sel), permuter, { no_summaries: true });
-            cache.results[sel] = new CustomMarkersMimic(current);
+            cache.results[sel] = { raw: new CustomMarkersMimic({ 1 : current }) };
         }
     }
 
