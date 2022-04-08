@@ -1,23 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    
     <meta charset="utf-8">
-    <title>JSDoc: Home</title>
-
-    <script src="scripts/prettify/prettify.js"> </script>
-    <script src="scripts/prettify/lang-css.js"> </script>
+    <title>Home - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
     <!--[if lt IE 9]>
       <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
-    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
-    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-
 <body>
 
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    <input type="text" id="nav-search" placeholder="Search" />
+    
+    <h2><a href="index.html">Home</a></h2><h2><a href="https://github.com/LTLA/bakana.js" target="_blank" class="menu-item" id="repository" >Github repo</a></h2><h3>Classes</h3><ul><li><a href="CellLabellingState.html">CellLabellingState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="CellLabellingState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="CellLabellingState.html#summary">summary</a></li></ul></li><li><a href="ChooseClusteringState.html">ChooseClusteringState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="ChooseClusteringState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="ChooseClusteringState.html#summary">summary</a></li></ul></li><li><a href="CustomSelectionsState.html">CustomSelectionsState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="CustomSelectionsState.html#addSelection">addSelection</a></li><li data-type='method' style='display: none;'><a href="CustomSelectionsState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="CustomSelectionsState.html#fetchResults">fetchResults</a></li><li data-type='method' style='display: none;'><a href="CustomSelectionsState.html#removeSelection">removeSelection</a></li><li data-type='method' style='display: none;'><a href="CustomSelectionsState.html#summary">summary</a></li></ul></li><li><a href="FeatureSelectionState.html">FeatureSelectionState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="FeatureSelectionState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="FeatureSelectionState.html#summary">summary</a></li></ul></li><li><a href="InputsState.html">InputsState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="InputsState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="InputsState.html#fetchAnnotations">fetchAnnotations</a></li><li data-type='method' style='display: none;'><a href="InputsState.html#summary">summary</a></li></ul></li><li><a href="KmeansClusterState.html">KmeansClusterState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="KmeansClusterState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="KmeansClusterState.html#summary">summary</a></li></ul></li><li><a href="MarkerDetectionState.html">MarkerDetectionState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="MarkerDetectionState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="MarkerDetectionState.html#fetchGroupResults">fetchGroupResults</a></li><li data-type='method' style='display: none;'><a href="MarkerDetectionState.html#numberOfGroups">numberOfGroups</a></li><li data-type='method' style='display: none;'><a href="MarkerDetectionState.html#summary">summary</a></li></ul></li><li><a href="NeighborIndexState.html">NeighborIndexState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="NeighborIndexState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="NeighborIndexState.html#summary">summary</a></li></ul></li><li><a href="NormalizationState.html">NormalizationState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="NormalizationState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="NormalizationState.html#fetchExpression">fetchExpression</a></li><li data-type='method' style='display: none;'><a href="NormalizationState.html#summary">summary</a></li></ul></li><li><a href="PcaState.html">PcaState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PcaState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="PcaState.html#summary">summary</a></li></ul></li><li><a href="QualityControlState.html">QualityControlState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="QualityControlState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="QualityControlState.html#fetchFilteredAnnotations">fetchFilteredAnnotations</a></li><li data-type='method' style='display: none;'><a href="QualityControlState.html#fetchFilteredBlock">fetchFilteredBlock</a></li><li data-type='method' style='display: none;'><a href="QualityControlState.html#summary">summary</a></li></ul></li><li><a href="SnnGraphClusterState.html">SnnGraphClusterState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="SnnGraphClusterState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="SnnGraphClusterState.html#summary">summary</a></li></ul></li><li><a href="TsneState.html">TsneState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="TsneState.html#animate">animate</a></li><li data-type='method' style='display: none;'><a href="TsneState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="TsneState.html#summary">summary</a></li></ul></li><li><a href="UmapState.html">UmapState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="UmapState.html#animate">animate</a></li><li data-type='method' style='display: none;'><a href="UmapState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="UmapState.html#summary">summary</a></li></ul></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#createKanaFile">createKanaFile</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#parseKanaFile">parseKanaFile</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+</nav>
+
 <div id="main">
-
-    <h1 class="page-title">Home</h1>
+    
 
     
 
@@ -26,8 +42,9 @@
     
 
 
-    <h3> </h3>
-
+    <section class="package">
+        <h3> </h3>		
+    </section>
 
 
 
@@ -41,8 +58,7 @@
 
 
 
-
-    <section>
+    <section class="readme usertext">
         <article><h1>Backend for kana</h1>
 <h2>Overview</h2>
 <p><strong>bakana</strong> provides the compute backend for the <a href="https://github.com/jkanche/kana"><strong>kana</strong></a> application.
@@ -255,19 +271,25 @@ depending on the version of Node.js available.</p>
 
 
 
+    
+    
 </div>
-
-<nav>
-    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="cell_labelling.html">cell_labelling</a></li><li><a href="choose_clustering.html">choose_clustering</a></li><li><a href="custom_selections.html">custom_selections</a></li><li><a href="feature_selection.html">feature_selection</a></li><li><a href="inputs.html">inputs</a></li><li><a href="kmeans_cluster.html">kmeans_cluster</a></li><li><a href="marker_detection.html">marker_detection</a></li><li><a href="neighbor_index.html">neighbor_index</a></li><li><a href="normalization.html">normalization</a></li><li><a href="pca.html">pca</a></li><li><a href="quality_control.html">quality_control</a></li><li><a href="snn_graph_cluster.html">snn_graph_cluster</a></li><li><a href="tsne.html">tsne</a></li><li><a href="umap.html">umap</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#createKanaFile">createKanaFile</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#parseKanaFile">parseKanaFile</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
-</nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Thu Apr 07 2022 21:03:24 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.10</a> on Fri Apr 08 2022 00:12:07 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
-<script> prettyPrint(); </script>
-<script src="scripts/linenumber.js"> </script>
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+<script src="scripts/search.js" defer></script>
+
+
+<script src="scripts/collapse.js" defer></script>
+
+
 </body>
 </html>

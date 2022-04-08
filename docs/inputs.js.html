@@ -1,23 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    
     <meta charset="utf-8">
-    <title>JSDoc: Source: inputs.js</title>
-
-    <script src="scripts/prettify/prettify.js"> </script>
-    <script src="scripts/prettify/lang-css.js"> </script>
+    <title>inputs.js - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
     <!--[if lt IE 9]>
       <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
-    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
-    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-
 <body>
 
-<div id="main">
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
 
-    <h1 class="page-title">Source: inputs.js</h1>
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    <input type="text" id="nav-search" placeholder="Search" />
+    
+    <h2><a href="index.html">Home</a></h2><h2><a href="https://github.com/LTLA/bakana.js" target="_blank" class="menu-item" id="repository" >Github repo</a></h2><h3>Classes</h3><ul><li><a href="CellLabellingState.html">CellLabellingState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="CellLabellingState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="CellLabellingState.html#summary">summary</a></li></ul></li><li><a href="ChooseClusteringState.html">ChooseClusteringState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="ChooseClusteringState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="ChooseClusteringState.html#summary">summary</a></li></ul></li><li><a href="CustomSelectionsState.html">CustomSelectionsState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="CustomSelectionsState.html#addSelection">addSelection</a></li><li data-type='method' style='display: none;'><a href="CustomSelectionsState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="CustomSelectionsState.html#fetchResults">fetchResults</a></li><li data-type='method' style='display: none;'><a href="CustomSelectionsState.html#removeSelection">removeSelection</a></li><li data-type='method' style='display: none;'><a href="CustomSelectionsState.html#summary">summary</a></li></ul></li><li><a href="FeatureSelectionState.html">FeatureSelectionState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="FeatureSelectionState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="FeatureSelectionState.html#summary">summary</a></li></ul></li><li><a href="InputsState.html">InputsState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="InputsState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="InputsState.html#fetchAnnotations">fetchAnnotations</a></li><li data-type='method' style='display: none;'><a href="InputsState.html#summary">summary</a></li></ul></li><li><a href="KmeansClusterState.html">KmeansClusterState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="KmeansClusterState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="KmeansClusterState.html#summary">summary</a></li></ul></li><li><a href="MarkerDetectionState.html">MarkerDetectionState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="MarkerDetectionState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="MarkerDetectionState.html#fetchGroupResults">fetchGroupResults</a></li><li data-type='method' style='display: none;'><a href="MarkerDetectionState.html#numberOfGroups">numberOfGroups</a></li><li data-type='method' style='display: none;'><a href="MarkerDetectionState.html#summary">summary</a></li></ul></li><li><a href="NeighborIndexState.html">NeighborIndexState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="NeighborIndexState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="NeighborIndexState.html#summary">summary</a></li></ul></li><li><a href="NormalizationState.html">NormalizationState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="NormalizationState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="NormalizationState.html#fetchExpression">fetchExpression</a></li><li data-type='method' style='display: none;'><a href="NormalizationState.html#summary">summary</a></li></ul></li><li><a href="PcaState.html">PcaState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PcaState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="PcaState.html#summary">summary</a></li></ul></li><li><a href="QualityControlState.html">QualityControlState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="QualityControlState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="QualityControlState.html#fetchFilteredAnnotations">fetchFilteredAnnotations</a></li><li data-type='method' style='display: none;'><a href="QualityControlState.html#fetchFilteredBlock">fetchFilteredBlock</a></li><li data-type='method' style='display: none;'><a href="QualityControlState.html#summary">summary</a></li></ul></li><li><a href="SnnGraphClusterState.html">SnnGraphClusterState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="SnnGraphClusterState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="SnnGraphClusterState.html#summary">summary</a></li></ul></li><li><a href="TsneState.html">TsneState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="TsneState.html#animate">animate</a></li><li data-type='method' style='display: none;'><a href="TsneState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="TsneState.html#summary">summary</a></li></ul></li><li><a href="UmapState.html">UmapState</a><ul class='methods'><li data-type='method' style='display: none;'><a href="UmapState.html#animate">animate</a></li><li data-type='method' style='display: none;'><a href="UmapState.html#compute">compute</a></li><li data-type='method' style='display: none;'><a href="UmapState.html#summary">summary</a></li></ul></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#createKanaFile">createKanaFile</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#parseKanaFile">parseKanaFile</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">inputs.js</h1>
+    
 
     
 
@@ -35,38 +53,10 @@ import * as iutils from "./utils/inputs.js";
  * This wraps various matrix initialization functions in [**scran.js**](https://github.com/jkanche/scran.js),
  * depending on the format of the supplied matrices.
  *
- * The parameters in {@linkcode runAnalysis} should be an object containing:
- *
- * - `sample_factor`: a string specifying the column of the cell annotations specifying the sample of origin for each cell.
- *   This is only used if a single count matrix is supplied.
- *   If `null`, all cells are assumed to originate from the same sample.
- *
- * Calling the **`results()`** method for the relevant state instance will return an object containing:
- *
- * - `dimensions`: an object containing `num_genes` and `num_cells`, the number of genes and cells respectively.
- *   For multiple matrices, the number of cells is the total number across all matrices.
- * - `genes`: an object containing the per-gene annotation.
- *   Each property is an array of length equal to the number of genes, usually containing strings with gene identifiers or symbols.
- *   Property names are arbitrary.
- * - (optional) `annotations`: an array of strings containing the names of available cell annotation fields.
- *
- * If `annotations` is present, users can also call `fetchAnnotations(col)` on the state instance.
- *
- * - `col` should be a string containing the name of a cell annotation field.
- * - The return value is either:
- *   - An array of length equal to the number of cells in the original dataset.
- *   - An object representing a factor.
- *     This should contain `factor`, an array of strings containing the unique factor levels;
- *     and `index`, an array of length equal to the number of cells, referencing entries in `factor`. 
- * - Note that the return value refers to the cells prior to any QC filtering.
- *   Actual use will require further subsetting based on the discard vector from {@linkcode quality_control}.
- * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
- *
- * @namespace inputs
+ * @hideconstructor
  */
-
-export class State {
+export class InputsState {
     #parameters;
     #cache;
     #abbreviated;
@@ -101,6 +91,19 @@ export class State {
         return this.#cache.gene_types;
     }
 
+    /**
+     * Fetch an annotation for all cells in the dataset.
+     * This considers all cells in the dataset before QC filtering - 
+     * see {@linkcode QualityControlState#fetchFilteredAnnotations QualityControlState.fetchFilteredAnnotations} for an alternative.
+     *
+     * @param {string} col - Name of the annotation field of interest.
+     *
+     * @return An array of length equal to the number of cells, containing the annotation for each cell.
+     *
+     * Alternatively, an object representing a factor.
+     * This should contain `factor`, an array of strings containing the unique factor levels;
+     * and `index`, an array of length equal to the number of cells, referencing entries in `factor`. 
+     */
     fetchAnnotations(col) {
         let annots = this.#cache.annotations;
         let size = this.#cache.matrix.numberOfColumns();
@@ -153,15 +156,30 @@ export class State {
      ******** Compute **********
      ***************************/
 
-    compute(files, sample_factor) {
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * `matrices` is taken from the argument of the same name in {@linkcode runAnalysis},
+     * while `sample_factor` is taken from the property of the same name in the `inputs` property of the `parameters`.
+     *
+     * @param {object} matrices - An object containing data for one or more count matrices.
+     * Each property corresponds to a single matrix and should contain a `format` string property along with any number of File objects (browser) or file paths (Node.js).
+     * See the description of the argument of the same name in {@linkcode runAnalysis}.
+     * @param {?string} sample_factor - Name of the column of the cell annotations specifying the sample of origin for each cell.
+     * This is only used if a single count matrix is supplied.
+     *
+     * If `null`, all cells are assumed to originate from the same sample.
+     *
+     * @return The object is updated with the new results.
+     */
+    compute(matrices, sample_factor) {
         // Don't bother proceeding with any of the below
         // if we're operating from a reloaded state.
-        if (files === null) {
+        if (matrices === null) {
             this.changed = false;
             return;
         }
 
-        let entries = Object.entries(files);
+        let entries = Object.entries(matrices);
         let tmp_abbreviated = {};
         for (const [key, val] of entries) {
             let namespace = iutils.chooseReader(val.format);
@@ -173,18 +191,18 @@ export class State {
             return;
         }
 
-        let new_files = {};
+        let new_matrices = {};
         for (const [key, val] of entries) {
             let namespace = iutils.chooseReader(val.format);
-            new_files[key] = new namespace.Reader(val);
+            new_matrices[key] = new namespace.Reader(val);
         }
 
         utils.freeCache(this.#cache.matrix);
         utils.freeCache(this.#cache.block_ids);
-        this.#cache = process_and_cache(new_files, sample_factor);
+        this.#cache = process_and_cache(new_matrices, sample_factor);
 
         this.#abbreviated = tmp_abbreviated;
-        this.#parameters.files = new_files;
+        this.#parameters.matrices = new_matrices;
         this.#parameters.sample_factor = sample_factor;
 
         this.changed = true;
@@ -196,7 +214,19 @@ export class State {
      ******** Results **********
      ***************************/
 
-    results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return An object containing:
+     *
+     * - `dimensions`: an object containing `num_genes` and `num_cells`, the number of genes and cells respectively.
+     *   For multiple matrices, the number of cells is the total number across all matrices.
+     * - `genes`: an object containing the per-gene annotation.
+     *   Each property is an array of length equal to the number of genes, usually containing strings with gene identifiers or symbols.
+     *   Property names are arbitrary.
+     * - (optional) `annotations`: an array of strings containing the names of available cell annotation fields.
+     */
+    summary() {
         var output = {
             "dimensions": {
                 "num_genes": this.#cache.matrix.numberOfRows(),
@@ -227,7 +257,7 @@ export class State {
             let fihandle = phandle.createGroup("files");
             let sofar = 0;
 
-            for (const [key, val] of Object.entries(this.#parameters.files)) {
+            for (const [key, val] of Object.entries(this.#parameters.matrices)) {
                 formats.push(val.format());
                 names.push(key);
 
@@ -299,11 +329,11 @@ function dummy_genes(numberOfRows) {
     return { "id": genes };
 }
 
-function process_datasets(files, sample_factor) {
+function process_datasets(matrices, sample_factor) {
     // Loading all of the individual matrices.
     let datasets = {};
     try {
-        for (const [key, val] of Object.entries(files)) {
+        for (const [key, val] of Object.entries(matrices)) {
             let current = val.load();
 
             if (!("genes" in current)) {
@@ -478,8 +508,8 @@ function process_datasets(files, sample_factor) {
     }
 }
 
-function process_and_cache(new_files, sample_factor) {
-    let cache = process_datasets(new_files, sample_factor);
+function process_and_cache(new_matrices, sample_factor) {
+    let cache = process_datasets(new_matrices, sample_factor);
 
     var gene_info_type = {};
     var gene_info = cache.genes;
@@ -526,14 +556,14 @@ export async function unserialize(handle, embeddedLoader) {
     }
 
     // Extracting the format and organizing the files.
-    let parameters = { files: {}, sample_factor: null };
+    let parameters = { matrices: {}, sample_factor: null };
     let fohandle = phandle.open("format", { load: true });
     let solofile = (fohandle.shape.length == 0);
 
     if (solofile) {
         let format = fohandle.values[0];
         let namespace = iutils.chooseReader(format);
-        parameters.files["default"] = await namespace.unserialize(all_files, embeddedLoader);
+        parameters.matrices["default"] = await namespace.unserialize(all_files, embeddedLoader);
         if ("sample_factor" in phandle.children) {
             parameters.sample_factor = phandle.open("sample_factor", { load: true }).values[0];
         } else {
@@ -551,12 +581,12 @@ export async function unserialize(handle, embeddedLoader) {
             sofar += sample_groups[i];
             let curfiles = all_files.slice(start, sofar);
             let namespace = iutils.chooseReader(formats[i]);
-            parameters.files[sample_names[i]] = await namespace.unserialize(curfiles, embeddedLoader);
+            parameters.matrices[sample_names[i]] = await namespace.unserialize(curfiles, embeddedLoader);
         }
     }
 
     // Loading matrix data.
-    let cache = process_and_cache(parameters.files, parameters.sample_factor);
+    let cache = process_and_cache(parameters.matrices, parameters.sample_factor);
 
     // We need to do something if the permutation is not the same.
     let rhandle = ghandle.open("results");
@@ -622,7 +652,7 @@ export async function unserialize(handle, embeddedLoader) {
     }
 
     return { 
-        state: new State(parameters, cache),
+        state: new InputsState(parameters, cache),
         parameters: { sample_factor: parameters.sample_factor }, // only returning the sample factor - we don't pass the files back. 
         permuter: permuter
     }
@@ -634,19 +664,25 @@ export async function unserialize(handle, embeddedLoader) {
 
 
 
+    
+    
 </div>
-
-<nav>
-    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="cell_labelling.html">cell_labelling</a></li><li><a href="choose_clustering.html">choose_clustering</a></li><li><a href="custom_selections.html">custom_selections</a></li><li><a href="feature_selection.html">feature_selection</a></li><li><a href="inputs.html">inputs</a></li><li><a href="kmeans_cluster.html">kmeans_cluster</a></li><li><a href="marker_detection.html">marker_detection</a></li><li><a href="neighbor_index.html">neighbor_index</a></li><li><a href="normalization.html">normalization</a></li><li><a href="pca.html">pca</a></li><li><a href="quality_control.html">quality_control</a></li><li><a href="snn_graph_cluster.html">snn_graph_cluster</a></li><li><a href="tsne.html">tsne</a></li><li><a href="umap.html">umap</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#createKanaFile">createKanaFile</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#parseKanaFile">parseKanaFile</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
-</nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Thu Apr 07 2022 21:03:24 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.10</a> on Fri Apr 08 2022 00:12:07 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
-<script> prettyPrint(); </script>
-<script src="scripts/linenumber.js"> </script>
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+<script src="scripts/search.js" defer></script>
+
+
+<script src="scripts/collapse.js" defer></script>
+
+
 </body>
 </html>
