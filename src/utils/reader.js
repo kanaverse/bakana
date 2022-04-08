@@ -54,8 +54,13 @@ var cache = {
  * By default, this only affects files for the MatrixMarket, H5AD and 10X formats, and is only used when linking is requested.
  *
  * @param {function} fun - Function that returns a linking idenfier to a data file.
- * The function should accept an ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
- * and return a string containing some unique identifier to the file.
+ * The function should accept the following arguments:
+ *
+ * - A string specifying the type of the file, e.g., `"mtx"`, `"h5"`.
+ * - A string containing the name of the file.
+ * - An ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
+ *
+ * The function is expected to return a string containing some unique identifier to the file.
  * This is most typically used to register the file with some user-specified database system for later retrieval.
  *
  * @return `fun` is set as the global link creator for this step. 
@@ -99,7 +104,7 @@ export async function standardSerialize(details, type, embeddedSaver) {
         if (fun === null) {
             throw new Error("link-creating function has not been set by 'setCreateLink'");
         }
-        output.id = await fun(serialized);
+        output.id = await fun(type, details.name, serialized);
     }
 
     return output;
