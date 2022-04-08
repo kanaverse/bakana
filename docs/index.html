@@ -68,12 +68,12 @@ The pipeline can be executed both in the browser and on Node.js.
 It supports in-memory caching of the analysis state for fast iterative re-analysis,
 as well as serialization of the state for storage and distribution to other machines.</p>
 <h2>Getting started</h2>
-<p>Install the package from NPM using the usual method:</p>
-<pre class="prettyprint source lang-sh"><code>npm i bakana
+<p>Install the package from <a href="https://npmjs.com/package/bakana">NPM</a> using the usual method:</p>
+<pre class="prettyprint source lang-sh"><code>npm install bakana
 </code></pre>
 <p>See the <a href="https://ltla.github.io/bakana/">reference documentation</a> for details on available functions.</p>
 <h2>Running analyses</h2>
-<p>We can perform an analysis with the following minimal commands:</p>
+<p>We perform an analysis with the following commands:</p>
 <pre class="prettyprint source lang-js"><code>import * as bakana from &quot;bakana&quot;;
 await bakana.initialize({ numberOfThreads: 8 });
 
@@ -86,8 +86,9 @@ await bakana.runAnalysis(state,
     params
 );
 </code></pre>
-<p>This will fill <code>state</code> with results that can be extracted for each step:</p>
-<pre class="prettyprint source lang-js"><code>state.quality_control.results();
+<p>Each step is represented by a <code>*State</code> class instance as a property of <code>state</code>, containing the analysis results.
+We can extract summaries for diagnostics or display on a UI:</p>
+<pre class="prettyprint source lang-js"><code>state.quality_control.summary();
 // {
 //   data: {
 //     default: {
@@ -99,21 +100,21 @@ await bakana.runAnalysis(state,
 //   ...
 // }
 
-state.pca.results():
+state.pca.summary():
 // {
 //   var_exp: Float64Array(20) [...]
 // }
 
-// Some results() are promises, see the relevant documentation.
-await state.tsne.results();
+// Some summary() are promises, see the relevant documentation.
+await state.tsne.summary();
 // {
 //   x: [Float64Array],
 //   y: [Float64Array],
 //   iterations: 500
 // }
 </code></pre>
-<p>Alternatively, we can supply a callback that processes results from each step as soon as it finishes.
-This can be useful for, e.g., posting results to another system once they become available.</p>
+<p>Alternatively, we can supply a callback that processes summaries from each step as soon as it finishes.
+This can be useful for, e.g., posting diagnostics to another system once they become available.</p>
 <pre class="prettyprint source lang-js"><code>function finisher(step, results) {
     console.log(step);
     // Do other stuff with 'results' here.
@@ -155,19 +156,21 @@ await bakana.runAnalysis(state,
 <p><code>saveAnalysis</code> will return a promise that resolves to an array of paths (Node.js) or <code>File</code> objects for the original data files.
 These can be used to assemble a <code>*.kana</code>-format file following the <a href="https://ltla.github.io/kanaval"><strong>kanaval</strong> specification</a>.
 By default, this assumes that we are embedding the data files into the <code>*.kana</code> file.</p>
-<pre class="prettyprint source lang-js"><code>// TODO: add code here.
+<pre class="prettyprint source lang-js"><code>let res = await bakana.createKanaFile(&quot;whee.h5&quot;, collected.collected);
 </code></pre>
 <p>Advanced users may prefer to store links to the data files rather than embedding them.
 This can be achieved using the <code>setCreateLink()</code> function to define a mechanism for creating application-specific links.
 For example, the <strong>kana</strong> application uses IndexedDB to cache each file for later use in the browser.</p>
-<h2>Loading analyses</h2>
-<p>It is reasonably straightforward to extract the various state and data files from a <code>*.kana</code> file.</p>
-<pre class="prettyprint source lang-js"><code>// TODO: add code here.
+<pre class="prettyprint source lang-js"><code>bakana.setCreateLink(save_to_some_db);
+bakana.setResolveLink(load_from_some_db);
 </code></pre>
-<p>Now, given an HDF5 state file, we can reload the analysis state into memory.
+<h2>Loading analyses</h2>
+<p>Given a <code>*.kana</code> file, it is straightforward to extract the various state and data files.</p>
+<pre class="prettyprint source lang-js"><code>let loader = await bakana.parseKanaFile(&quot;something.kana&quot;, &quot;foo.h5&quot;);
+</code></pre>
+<p>Once the <code>*.kana</code> file is parsed, we can reload the analysis state into memory.
 This will also report the parameters used at each step.</p>
-<pre class="prettyprint source lang-js"><code>// TODO: implement a default handler for embedded loader.
-let reloaded = await bakana.loadAnalysis(&quot;whee.h5&quot;, loader);
+<pre class="prettyprint source lang-js"><code>let reloaded = await bakana.loadAnalysis(&quot;foo.h5&quot;, loader);
 let new_state = reloaded.state;
 let new_params = reloaded.parameters;
 </code></pre>
@@ -175,7 +178,7 @@ let new_params = reloaded.parameters;
 <pre class="prettyprint source lang-js"><code>new_params.pca.num_hvgs = 3000;
 await bakana.runAnalysis(new_state, null, new_params);
 </code></pre>
-<p>We can also supply a callback that runs on the results of each step as soon as they are loaded.</p>
+<p>Again, we can supply a callback that runs on the results of each step as soon as they are loaded.</p>
 <pre class="prettyprint source lang-js"><code>let reloaded = await bakana.loadAnalysis(&quot;whee.h5&quot;, loader, { finishFun: finisher });
 </code></pre>
 <p>If links are present, it is assumed that the application will use <code>setResolveLink()</code> to specify a mechanism to resolve each link to a data file.</p>
@@ -229,7 +232,8 @@ and/or <code>annotations</code>, an object where each key is a cell annotation f
 <p><strong><code>Reader.serialize(embeddedSaver)</code>:</strong> register the count matrix in the state file.</p>
 <ul>
 <li>This should return an array of objects where each object represents a data file used to create the count matrix.
-Each object should contain <code>type</code>, a string specifying the type of file; and <code>name</code>, the name of the file.</li>
+Each object should contain <code>type</code>, a string specifying the type of file; and <code>name</code>, the name of the file.
+Alternatively, this method may return a promise that resolves to this array.</li>
 <li>If <code>embeddedSaver</code> is a function, it should be called on each file, in the same order as they occur in the returned array.
 <code>embeddedSaver</code> will accept two arguments - a file and its size - and will return a Promise that resolves to an object containing <code>offset</code> and <code>size</code>.
 (Here, a &quot;file&quot; is defined as an <code>ArrayBuffer</code> containing the contents of the file in the browser, or a path to a file in Node.js.)
@@ -237,7 +241,6 @@ The reported <code>offset</code> and <code>size</code> should then be included i
 <li>If <code>embeddedSaver = null</code>, each object in the returned array should instead contain <code>id</code>.
 This should be a unique string, typically containing a link to some external database system that holds the corresponding file.
 The interpretation of <code>id</code> is left to the reader, as long as it can be used to meaningfully recover the same file in <code>unserialize()</code> below.</li>
-<li>This method should be <code>async</code>.</li>
 </ul>
 <p><strong><code>unserialize(values, embeddedLoader)</code>:</strong> load the count matrix from the state file.</p>
 <ul>
@@ -250,9 +253,11 @@ Each object should contain <code>type</code> and <code>name</code>, as described
 <li>If <code>embeddedLoader = null</code>, each object in <code>values</code> will additionally contain an <code>id</code> string.
 This usually contains a link to some external database system as defined by <code>Reader.serialize()</code>.</li>
 <li>This method should return an instance of the <code>Reader</code> class containing all information related to the count matrix represented by <code>values</code>.
-Presumably this is done using the file contents returned by <code>embeddedLoader</code> or the linked files from the <code>id</code> values.</li>
-<li>This method should be <code>async</code>.</li>
+Presumably this is done using the file contents returned by <code>embeddedLoader</code> or the linked files from the <code>id</code> values.
+Alternatively, this method may return a promise that resolves to a <code>Reader</code> instance.</li>
 </ul>
+<p>Applications can then register custom readers by assigning to the <code>bakana.availableReaders</code> object.
+The property name should be the name of the reader format (the same as that returned by <code>Reader.format()</code>) and the value should be the ES6 module object implementing the reader.</p>
 <h2>Developer notes</h2>
 <p>Testing requires some combination of the options below,
 depending on the version of Node.js available.</p>
@@ -278,7 +283,7 @@ depending on the version of Node.js available.</p>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.10</a> on Fri Apr 08 2022 00:31:38 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.10</a> on Fri Apr 08 2022 05:10:05 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
