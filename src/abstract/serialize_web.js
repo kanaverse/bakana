@@ -36,17 +36,13 @@ export function createKanaFileInternal(statePath, inputFiles) {
 }
 
 export function parseKanaFileInternal(input, statePath) {
-    const reader = new FileReaderSync;
-    let buffer = reader.readAsArrayBuffer(input);
-    let arr = new Uint8Array(buffer);
-
-    let parsed = sutils.parsePreamble(buffer);
+    let parsed = sutils.parsePreamble(input);
     let delta = parsed.offset + parsed.state;
-    let statebuffer = buffer.slice(parsed.offset, delta);
-    scran.writeFile(statePath, statebuffer);
+    let statebuffer = input.slice(parsed.offset, delta);
+    scran.writeFile(statePath, new Uint8Array(statebuffer));
 
     if (parsed.embedded) {
-        return (offset, size) => buffer.slice(delta + offset, delta + offset + size);
+        return (offset, size) => input.slice(delta + offset, delta + offset + size);
     } else {
         return null;
     }
