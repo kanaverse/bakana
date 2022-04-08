@@ -290,7 +290,7 @@ function process_datasets(matrices, sample_factor) {
         for (const [key, val] of Object.entries(matrices)) {
             let current = val.load();
 
-            if (!("genes" in current)) {
+            if (current.genes === null) {
                 current.genes = dummy_genes(current.matrix.numberOfRows());
             } 
             if (current.matrix.isPermuted()) {
