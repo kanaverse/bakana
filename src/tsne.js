@@ -2,6 +2,7 @@ import * as scran from "scran.js";
 import * as vizutils from "./utils/viz_parent.js";
 import * as utils from "./utils/general.js";
 import * as neighbor_module from "./neighbor_index.js";
+import * as aworkers from "./abstract/worker_parent.js";
 
 /**
  * This creates a t-SNE embedding based on the neighbor index constructed by {@linkplain NeighborIndexState}.
@@ -33,7 +34,8 @@ export class TsneState {
         this.#reloaded = reloaded;
         this.changed = false;
 
-        let { worker, worker_id, ready } = vizutils.createWorker(new URL("./tsne.worker.js", import.meta.url), this.#cache, vizutils.scranOptions);
+        let worker = aworkers.createTsneWorker();
+        let { worker_id, ready } = vizutils.initializeWorker(worker, this.#cache, vizutils.scranOptions);
         this.#worker = worker;
         this.#worker_id = worker_id;
         this.#ready = ready;
