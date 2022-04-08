@@ -155,7 +155,7 @@ export function freeAnalysis(state) {
  * @return A promise that resolves to `null` when all asynchronous analysis steps are complete.
  * The contents of `state` are modified by reference to reflect the latest state of the analysis with the supplied parameters.
  */
-export function runAnalysis(state, matrices, params, { finishFun = null } = {}) {
+export async function runAnalysis(state, matrices, params, { finishFun = null } = {}) {
     let quickFun = step => {
         if (state[step].changed && finishFun !== null) {
             finishFun(step, state[step].summary());
@@ -170,7 +170,7 @@ export function runAnalysis(state, matrices, params, { finishFun = null } = {}) 
         promises.push(p);
     }
 
-    state[step_inputs].compute(
+    await state[step_inputs].compute(
         matrices, 
         params[step_inputs]["sample_factor"]
     );
@@ -257,7 +257,8 @@ export function runAnalysis(state, matrices, params, { finishFun = null } = {}) 
     state[step_custom].compute();
     quickFun(step_custom);
 
-    return Promise.all(promises).then(x => null);
+    await Promise.all(promises);
+    return null;
 }
 
 /**

@@ -13,7 +13,7 @@ import * as f from "./abstract/file.js";
  * @param {object} matrices - An object where each property is itself an object representing a single input matrix.
  * See the argument of the same name in {@linkcode runAnalysis} for more details.
  *
- * @return An object containing preflight check information:
+ * @return A promise that resolves to an object containing preflight check information:
  * - `annotations`: an object where each property corresponds to an input matrix in `matrices`.
  *   Each element is an array containing the names of the cell annotation fields in the corresponding matrix;
  *   or `null`, if that matrix does not contain any annotations.
@@ -23,27 +23,33 @@ import * as f from "./abstract/file.js";
  * - `best_gene_fields`: an object where each property corresponds to an input matrix in `matrices`.
  *   Each property is a string containing the name of the gene annotation field that was chosen for the intersection in the corresponding matrix.
  */
-export function validateAnnotations(matrices) {
+export async function validateAnnotations(matrices) {
+    let mkeys = Object.keys(matrices);
+    let multi = mkeys.length > 1;
+
+    let promises = [];
+    for (const key of mkeys) {
+        let val = matrices[key];
+        let namespace = iutils.chooseReader(val.format);
+        promises.push(namespace.preflight(val));
+    }
+    let collected = await Promise.all(promises);
+
     let genes = {};
     let annotations = {};
-    let entries = Object.entries(matrices);
-
-    for (const [key, val] of entries) {
-        let namespace = iutils.chooseReader(val.format);
-        let stuff = namespace.preflight(val);
-
+    for (const [i, key] of Object.entries(mkeys)) {
+        let stuff = collected[i];
         if (stuff.genes !== null) {
             genes[key] = stuff.genes;
-        } else if (entries.length > 1) {
+        } else if (multi) {
             throw new Error("cannot find gene annotations for matrix '" + key + "'");
         }
-
         annotations[key] = stuff.annotations;
     }
 
     let output = { annotations: annotations };
 
-    if (entries.length > 1) {
+    if (multi) {
         let results = iutils.commonFeatureTypes(genes);
         if (results.best_type === null) {
             throw new Error("cannot find common feature types across all matrices");

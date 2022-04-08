@@ -124,8 +124,9 @@ export class InputsState {
      * If `null`, all cells are assumed to originate from the same sample.
      *
      * @return The object is updated with the new results.
+     * A promise is returned that resolves to `null` once input loading is complete - this should be resolved before any downstream steps are run.
      */
-    compute(matrices, sample_factor) {
+    async compute(matrices, sample_factor) {
         // Don't bother proceeding with any of the below
         // if we're operating from a reloaded state.
         if (matrices === null) {
@@ -153,7 +154,7 @@ export class InputsState {
 
         utils.freeCache(this.#cache.matrix);
         utils.freeCache(this.#cache.block_ids);
-        this.#cache = process_and_cache(new_matrices, sample_factor);
+        this.#cache = await process_and_cache(new_matrices, sample_factor);
 
         this.#abbreviated = tmp_abbreviated;
         this.#parameters.matrices = new_matrices;
@@ -161,7 +162,7 @@ export class InputsState {
 
         this.changed = true;
 
-        return;
+        return null;
     }
 
     /***************************
@@ -283,12 +284,14 @@ function dummy_genes(numberOfRows) {
     return { "id": genes };
 }
 
-function process_datasets(matrices, sample_factor) {
-    // Loading all of the individual matrices.
+async function process_datasets(matrices, sample_factor) {
+    // Loading all of the individual matrices. 
     let datasets = {};
     try {
         for (const [key, val] of Object.entries(matrices)) {
-            let current = val.load();
+            // Too much hassle to convert this into a Promise.all(), because we
+            // need to make sure it gets freed properly on failure.
+            let current = await val.load();
 
             if (current.genes === null) {
                 current.genes = dummy_genes(current.matrix.numberOfRows());
@@ -462,8 +465,8 @@ function process_datasets(matrices, sample_factor) {
     }
 }
 
-function process_and_cache(new_matrices, sample_factor) {
-    let cache = process_datasets(new_matrices, sample_factor);
+async function process_and_cache(new_matrices, sample_factor) {
+    let cache = await process_datasets(new_matrices, sample_factor);
 
     var gene_info_type = {};
     var gene_info = cache.genes;
@@ -540,7 +543,7 @@ export async function unserialize(handle, embeddedLoader) {
     }
 
     // Loading matrix data.
-    let cache = process_and_cache(parameters.matrices, parameters.sample_factor);
+    let cache = await process_and_cache(parameters.matrices, parameters.sample_factor);
 
     // We need to do something if the permutation is not the same.
     let rhandle = ghandle.open("results");
