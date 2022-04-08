@@ -1,5 +1,7 @@
 import * as sutils from "../utils/serialize.js";
 import * as scran from "scran.js";
+import * as v0 from "../legacy/from_v0.js";
+import * as pako from "pako";
 
 /**
  * This contains a function to create and load a kana file with the browser.
@@ -39,7 +41,14 @@ export function parseKanaFileInternal(input, statePath) {
     let parsed = sutils.parsePreamble(input);
     let delta = parsed.offset + parsed.state;
     let statebuffer = input.slice(parsed.offset, delta);
-    scran.writeFile(statePath, new Uint8Array(statebuffer));
+
+    if (parsed.version < 1000000) {
+        var contents = pako.ungzip(new Uint8Array(statebuffer), { "to": "string" });
+        let state = JSON.parse(contents);
+        v0.convertFromVersion0(state, statePath);
+    } else {
+        scran.writeFile(statePath, new Uint8Array(statebuffer));
+    }
 
     if (parsed.embedded) {
         return (offset, size) => input.slice(delta + offset, delta + offset + size);
