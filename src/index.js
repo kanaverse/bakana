@@ -519,3 +519,22 @@ export function createKanaFile(statePath, inputFiles, options = {}) {
 export function parseKanaFile(input, statePath, options = {}) {
     return aserialize.parseKanaFileInternal(input, statePath, options);
 }
+
+/**
+ * Remove a HDF5 file from **scran.js**'s virtual filesystem, typically after reading/writing in {@linkcode saveAnalysis} or {@linkcode loadAnalysis}.
+ * If the file does not exist, this is a no-op.
+ * This is only meaningful for use in the browser.
+ *
+ * @param {string} path Path to a file in the virtual filesystem.
+ *
+ * @return The specified file is removed.
+ */
+export function removeHDF5File(path) {
+    // This avoids the need for web applications to import scran just to do this.
+    // In fact, it doesn't even work sometimes, it seems Webpack creates a different
+    // scran module from the one used by bakana.
+    if (scran.fileExists(path)) {
+        scran.readFile(path);
+    }
+    return;
+}
