@@ -48,6 +48,6 @@ export function removeH5(path) {
 
 export function realizeH5(loaded) {  
     const tmppath = "temp_" + String(Number(new Date())) + ".h5";
-    scran.writeFile(tmppath, new Uint8Array(loaded.buffer));
+    scran.writeFile(tmppath, new Uint8Array(loaded.buffer()));
     return tmppath;
 }
