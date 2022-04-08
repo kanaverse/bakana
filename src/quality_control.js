@@ -200,7 +200,6 @@ export class QualityControlState {
      ***************************/
 
     #format_metrics({ copy = true } = {}) {
-        copy = (copy ? true : "view");
         return {
             sums: this.#cache.metrics.sums({ copy: copy }),
             detected: this.#cache.metrics.detected({ copy: copy }),
@@ -209,7 +208,6 @@ export class QualityControlState {
     }
 
     #format_thresholds({ copy = true } = {}) {
-        copy = (copy ? true : "view");
         return {
             sums: this.#cache.filters.thresholdsSums({ copy: copy }),
             detected: this.#cache.filters.thresholdsDetected({ copy: copy }),
@@ -231,15 +229,13 @@ export class QualityControlState {
      * - `retained`: the number of cells remaining after QC filtering.
      */
     summary() {
-        // This function should not do any Wasm allocations, so copy: false is safe.
-
         var data = {};
         var blocks = this.#inputs.fetchBlockLevels();
         if (blocks === null) {
             blocks = [ "default" ];
             data["default"] = this.#format_metrics();
         } else {
-            let metrics = this.#format_metrics({ copy: false });
+            let metrics = this.#format_metrics({ copy: "view" });
             let bids = this.#inputs.fetchBlock();
             let barray = bids.array();
 
@@ -252,12 +248,13 @@ export class QualityControlState {
             }
         }
 
+        // This function should not do any Wasm allocations, so copy: false is safe.
         var thresholds = {};
         let listed = this.#format_thresholds({ copy: false });
         for (var b = 0; b < blocks.length; b++) {
             let current = {};
             for (const [key, val] of Object.entries(listed)) {
-                current[key] = val.array()[b];
+                current[key] = val[b];
             }
             thresholds[blocks[b]] = current;
         }
@@ -321,7 +318,7 @@ export class QualityControlState {
 
             {
                 let mhandle = rhandle.createGroup("metrics");
-                let data = this.#format_metrics({ copy: false });
+                let data = this.#format_metrics({ copy: "view" });
                 mhandle.writeDataSet("sums", "Float64", null, data.sums)
                 mhandle.writeDataSet("detected", "Int32", null, data.detected);
                 mhandle.writeDataSet("proportion", "Float64", null, data.proportion);
@@ -329,7 +326,7 @@ export class QualityControlState {
 
             {
                 let thandle = rhandle.createGroup("thresholds");
-                let thresholds = this.#format_thresholds({ copy: false });
+                let thresholds = this.#format_thresholds({ copy: "hdf5" }); 
                 for (const x of [ "sums", "detected", "proportion" ]) {
                     let current = thresholds[x];
                     thandle.writeDataSet(x, "Float64", null, current);

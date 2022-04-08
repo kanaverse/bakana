@@ -85,7 +85,6 @@ export class FeatureSelectionState {
      ***************************/
 
     #format_results({ copy = true } = {}) {
-        copy = (copy ? true : "view");
         return {
             "means": this.#cache.results.means({ copy: copy }),
             "vars": this.#cache.results.variances({ copy: copy }),
@@ -121,7 +120,7 @@ export class FeatureSelectionState {
         }
 
         {
-            let res = this.#format_results({ copy: false });
+            let res = this.#format_results({ copy: "hdf5" }); 
             let rhandle = ghandle.createGroup("results"); 
             for (const [k, v] of Object.entries(res)) {
                 rhandle.writeDataSet(k, "Float64", null, v);

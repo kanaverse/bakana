@@ -5,7 +5,7 @@ export const int2summaries = { 0: "min", 1: "mean", 4: "min_rank" };
 
 export function serializeGroupStats(ihandle, obj, group, { no_summaries = false } = {}) {
     for (const x of [ "means", "detected" ]) {
-        let y= obj[x](group, { copy: "view" });
+        let y= obj[x](group, { copy: "hdf5" });
         ihandle.writeDataSet(x, "Float64", null, y);
     }
 
@@ -15,7 +15,7 @@ export function serializeGroupStats(ihandle, obj, group, { no_summaries = false 
             i0 = "deltaDetected";
         }
 
-        let extractor = (index) => obj[i0](group, { summary: index, copy: "view" });
+        let extractor = (index) => obj[i0](group, { summary: index, copy: "hdf5" });
         if (no_summaries) {
             let y = extractor(summaries2int["mean"]);
             ihandle.writeDataSet(i, "Float64", null, y);
