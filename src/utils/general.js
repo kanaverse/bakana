@@ -3,7 +3,7 @@ import * as wa from "wasmarrays.js";
 
 export function mimicGetter(value, copy) {
     if (value instanceof wa.WasmArray) {
-        if (copy == "view") {
+        if (copy == "view" || copy == "hdf5") {
             return value.view();
         } else if (copy) {
             return value.slice();
@@ -13,10 +13,12 @@ export function mimicGetter(value, copy) {
     } else {
         if (copy === true) {
             return value.slice();
-        } else {
-            // Includes copy = "view"; we just provide a no-copy and assume
-            // that, if the caller actually wanted a WasmArray, they would
+        } else if (copy == "view") {
+            // If the caller actually wanted a WasmArray, they would
             // have generated a WasmArray during the unserialization.
+            throw new Error("'copy: \"view\"' not supported for mimics");
+        } else {
+            // Includes copy = "hdf5", where a TypedArray or WasmArray can be used.
             return value;
         }
     }
