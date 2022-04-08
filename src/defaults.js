@@ -2,6 +2,19 @@
  * Generate an object containing all of the default analysis parameters.
  *
  * @return An object where each property corresponds to an analysis step and contains the default parameters for that step.
+ * See the documentation for each step's `compute` method for more details:
+ * 
+ * - {@linkcode InputsState#compute inputs}
+ * - {@linkcode QualityControlState#compute quality_control}
+ * - {@linkcode FeatureSelectionState#compute feature_selection}
+ * - {@linkcode PcaState#compute pca}
+ * - {@linkcode NeighborIndexState#compute neighbor_index}
+ * - {@linkcode TsneState#compute tsne}
+ * - {@linkcode UmapState#compute umap}
+ * - {@linkcode KmeansClusterState#compute kmeans_cluster}
+ * - {@linkcode SnnGraphClusterState#compute snn_graph_cluster}
+ * - {@linkcode ChooseClusteringState#compute choose_clustering}
+ * - {@linkcode CellLabellingState#compute cell_labelling}
  */
 export function analysisDefaults() {
     return {

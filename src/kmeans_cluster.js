@@ -51,7 +51,9 @@ export class KmeansClusterState {
     /** 
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * Each argument is taken from the property of the same name in the `kmeans_cluster` property of the `parameters` of {@linkcode runAnalysis}.
+     * The exception is `run_me`, which is computed internally and does not correspond to any parameter in `kmeans_cluster`.
      *
+     * @param {boolean} run_me - Whether or not to run this step, depending on the clustering method chosen by the user (see {@linkplain ChooseClusteringState}).
      * @param {number} k - Number of clusters to create.
      *
      * @return The object is updated with the new results.
