@@ -9,23 +9,10 @@ import * as feat_module from "./feature_selection.js";
  * The resulting PCs can be used as input to various per-cell analyses like clustering and dimensionality reduction.
  * It wraps the `runPCA` function from [**scran.js**](https://github.com/jkanche/scran.js).
  *
- * The parameters in {@linkcode runAnalysis} should be an object containing:
- *
- * - `num_pcs`: number of PCs to return.
- * - `num_hvgs`: number of highly variable genes (see {@linkcode feature_selection}) to use in the PCA.
- * - `block_method`: string specifying the blocking method to use when dealing with multiple samples.
- *   This can be `"none"`, `"block"` or `"mnn"`.
- *
- * Calling the **`results()`** method for the relevant state instance will return an object containing:
- *
- * - `var_exp`: a `Float64Array` of length equal to `num_pcs`, containing the proportion of variance explained for each successive PC.
- * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
- *
- * @namespace pca
+ * @hideconstructor
  */
-
-export class State {
+export class PcaState {
     #qc;
     #norm;
     #feat;
@@ -33,17 +20,17 @@ export class State {
     #parameters;
 
     constructor(qc, norm, feat, parameters = null, cache = null) {
-        if (!(qc instanceof qc_module.State)) {
+        if (!(qc instanceof qc_module.QualityControlState)) {
             throw new Error("'qc' should be a State object from './quality_control.js'");
         }
         this.#qc = qc;
 
-        if (!(norm instanceof norm_module.State)) {
+        if (!(norm instanceof norm_module.NormalizationState)) {
             throw new Error("'norm' should be a State object from './normalization.js'");
         }
         this.#norm = norm;
 
-        if (!(feat instanceof feat_module.State)) {
+        if (!(feat instanceof feat_module.FeatureSelectionState)) {
             throw new Error("'feat' should be a State object from './feature_selection.js'");
         }
         this.#feat = feat;
@@ -81,6 +68,17 @@ export class State {
      ******** Compute **********
      ***************************/
 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `pca` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @param {number} num_pcs - Number of PCs to return.
+     * @param {number} num_hvgs - Number of highly variable genes (see {@linkplain FeatureSelectionState}) to use in the PCA.
+     * @param {string} block_method - Blocking method to use when dealing with multiple samples.
+     * This can be `"none"`, `"block"` or `"mnn"`.
+     *
+     * @return The object is updated with the new results.
+     */
     compute(num_hvgs, num_pcs, block_method) {
         this.changed = false;
         
@@ -124,7 +122,14 @@ export class State {
      ******** Results **********
      ***************************/
 
-    results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return An object containing:
+     *
+     * - `var_exp`: a `Float64Array` of length equal to `num_pcs`, containing the proportion of variance explained for each successive PC.
+     */
+    summary() {
         var pca_output = this.#cache.pcs;
         var var_exp = pca_output.varianceExplained();
         var total_var = pca_output.totalVariance();
@@ -151,7 +156,7 @@ export class State {
         {
             let rhandle = ghandle.createGroup("results");
 
-            let ve = this.results().var_exp;
+            let ve = this.summary().var_exp;
             rhandle.writeDataSet("var_exp", "Float64", null, ve);
 
             let pcs = this.fetchPCs({ original: true });
@@ -244,7 +249,7 @@ export function unserialize(handle, qc, norm, feat) {
     }
 
     return {
-        state: new State(qc, norm, feat, parameters, cache),
+        state: new PcaState(qc, norm, feat, parameters, cache),
         parameters: { ...parameters }
     };
 }

@@ -3,4 +3,6 @@ node_modules
 *.swp
 TEST_*
 raw.js
-jsdoc*
+main/
+module/
+docs/built

@@ -4,29 +4,13 @@ import * as utils from "./utils/general.js";
 import * as neighbor_module from "./neighbor_index.js";
 
 /**
- * This creates a t-SNE embedding based on the neighbor index constructed at {@linkcode neighbor_index}.
+ * This creates a t-SNE embedding based on the neighbor index constructed by {@linkplain NeighborIndexState}.
  * This wraps `runTSNE` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
  * 
- * The parameters in {@linkcode runAnalysis} should be an object containing:
- *
- * - `perplexity`: number specifying the perplexity for the probability calculations.
- * - `iterations`: number of iterations to run the algorithm.
- * - `animate`: boolean indicating whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
- *
- * Calling **`results()`** on the relevant state instance will return an object containing:
- *
- * - `x`: a Float64Array containing the x-coordinate for each cell.
- * - `y`: a Float64Array containing the y-coordinate for each cell.
- * - `iterations`: the number of iterations processed.
- *
- * Calling **`animate()`** on the relevant state instance will repeat the animation iterations.
- * This returns a promise that resolves on successful completion of all iterations.
- * It is assumed that {@linkcode setVisualizationAnimate} has been set appropriately.
- *
- * @namespace tsne
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ * @hideconstructor
  */
-
-export class State {
+export class TsneState {
     #index;
     #parameters;
     #cache;
@@ -39,7 +23,7 @@ export class State {
     #run;
 
     constructor(index, parameters = null, reloaded = null) {
-        if (!(index instanceof neighbor_module.State)) {
+        if (!(index instanceof neighbor_module.NeighborIndexState)) {
             throw new Error("'index' should be a State object from './neighbor_index.js'");
         }
         this.#index = index;
@@ -93,6 +77,17 @@ export class State {
         return;
     }
 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `tsne` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @param {number} perplexity - Number specifying the perplexity for the probability calculations.
+     * @param {number} iterations - Number of iterations to run the algorithm.
+     * @param {boolean} animate - Whether o process animation iterations, see {@linkcode setVisualizationAnimate} for details.
+     *
+     * @return A promise that resolves when the t-SNE calculations are complete.
+     * The state is also updated with new results.
+     */
     compute(perplexity, iterations, animate) {
         let same_neighbors = (!this.#index.changed && perplexity === this.#parameters.perplexity);
         if (same_neighbors && iterations == this.#parameters.iterations) {
@@ -143,7 +138,16 @@ export class State {
         }
     }
 
-    results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return A promise that resolves to an object containing:
+     *
+     * - `x`: a Float64Array containing the x-coordinate for each cell.
+     * - `y`: a Float64Array containing the y-coordinate for each cell.
+     * - `iterations`: the number of iterations processed.
+     */
+    summary() {
         return this.#fetch_results(true);
     }
 
@@ -175,6 +179,12 @@ export class State {
      ******* Animators *********
      ***************************/
 
+    /**
+     * Repeat the animation iterations.
+     * It is assumed that {@linkcode setVisualizationAnimate} has been set appropriately to process each iteration.
+     *
+     * @return A promise that resolves on successful completion of all iterations.
+     */
     animate() {
         if (this.#reloaded !== null) {
             this.#reloaded = null;
@@ -223,7 +233,7 @@ export function unserialize(handle, index) {
     }
 
     return {
-        state: new State(index, parameters, reloaded),
+        state: new TsneState(index, parameters, reloaded),
         parameters: { ...parameters }
     };
 }

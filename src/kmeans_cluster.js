@@ -5,25 +5,16 @@ import * as pca_module from "./pca.js";
 /**
  * This step performs k-means clustering on the PCs, wrapping the `clusterKmeans` function from [**scran.js**](https://github.com/jkanche/scran.js).
  *
- * The parameters in {@linkcode runAnalysis} should be an object containing:
- *
- * - `k`: the number of clusters to create.
- *
- * Calling the **`results()`** method for the relevant state instance will return an empty object.
- * See the {@linkcode choose_clustering} step to actually obtain the cluster assignments.
- * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
- *
- * @namespace kmeans_cluster
+ * @hideconstructor
  */
-
-export class State {
+export class KmeansClusterState {
     #pca;
     #parameters;
     #cache;
 
     constructor(pca, parameters = null, cache = null) {
-        if (!(pca instanceof pca_module.State)) {
+        if (!(pca instanceof pca_module.PcaState)) {
             throw new Error("'pca' should be a State object from './pca.js'");
         }
         this.#pca = pca;
@@ -57,6 +48,16 @@ export class State {
         return "raw" in this.#cache;
     }
 
+    /** 
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `kmeans_cluster` property of the `parameters` of {@linkcode runAnalysis}.
+     * The exception is `run_me`, which is computed internally and does not correspond to any parameter in `kmeans_cluster`.
+     *
+     * @param {boolean} run_me - Whether or not to run this step, depending on the clustering method chosen by the user (see {@linkplain ChooseClusteringState}).
+     * @param {number} k - Number of clusters to create.
+     *
+     * @return The object is updated with the new results.
+     */
     compute(run_me, k) {
         this.changed = false;
 
@@ -81,9 +82,12 @@ export class State {
      ******** Results **********
      ***************************/
 
-    results() {
-        // Cluster IDs will be passed to main thread in 
-        // choose_clustering, so no need to do it here.
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return An empty object, see {@linkplain ChooseClusteringState} for the actual cluster assignments.
+     */
+    summary() {
         return {};
     }
 
@@ -155,7 +159,7 @@ export function unserialize(handle, pca) {
     }
 
     return {
-        state: new State(pca, parameters, cache),
+        state: new KmeansClusterState(pca, parameters, cache),
         parameters: { ...parameters }
     };
 }

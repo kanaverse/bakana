@@ -8,34 +8,16 @@ import * as inputs_module from "./inputs.js";
  * After removing low-quality cells, the filtered matrix is used for all downstream steps.
  * This wraps `computePerCellQCMetrics` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
  *
- * The parameters in {@linkcode runAnalysis} should be an object containing:
- *
- * - `use_mito_default`: boolean indicating whether the internal mitochondrial gene lists should be used.
- * - `mito_prefix`: string containing the prefix for mitochondrial genes, when `use_mito_default = false`.
- * - `nmads`: number of MADs to use for automatically selecting the filter threshold for each metric.
- *
- * Calling the **`results()`** method for the relevant state instance will return an object containing:
- *
- * - `data`: an object containing one property for each sample.
- *   Each property is itself an object containing `sums`, `detected` and `proportion`,
- *   which are TypedArrays contaning the relevant QC metrics for all cells in that sample.
- * - `thresholds`: an object containing one property for each sample.
- *   Each property is itself an object containing `sums`, `detected` and `proportion`,
- *   which are numbers containing the thresholds on the corresponding QC metrics for that sample.
- * - `retained`: the number of cells remaining after QC filtering.
- * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
- *
- * @namespace quality_control
+ * @hideconstructor
  */
-
-export class State {
+export class QualityControlState {
     #inputs;
     #cache;
     #parameters;
 
     constructor(inputs, parameters = null, cache = null) {
-        if (!(inputs instanceof inputs_module.State)) {
+        if (!(inputs instanceof inputs_module.InputsState)) {
             throw new Error("'inputs' should be a State object from './inputs.js'");
         }
         this.#inputs = inputs;
@@ -74,6 +56,13 @@ export class State {
         return this.#cache.matrix;
     }
 
+    /**
+     * Fetch the filtered vector of block assignments.
+     *
+     * @return An Int32WasmArray of length equal to the number of cells after filtering, containing the block assignment for each cell.
+     *
+     * Alternatively `null` if no blocks are present in the dataset.
+     */
     fetchFilteredBlock() {
         if (!("blocked" in this.#cache)) {
             this.#apply_filters();
@@ -85,6 +74,16 @@ export class State {
         }
     }
 
+    /**
+     * Fetch an annotation for the cells remaining after QC filtering.
+     *
+     * @param {string} col - Name of the annotation field of interest.
+     *
+     * @return An array of length equal to the number of cells left after filtering, containing the annotation for each (remaining) cell.
+     *
+     * Alternatively a factor object containing an `index` Int32Array of length equal to the number of filtered cells, 
+     * see {@linkcode InputState#fetchAnnotations InputState.fetchAnnotations} for details.
+     */
     fetchFilteredAnnotations(col) { 
         let vec = this.#inputs.fetchAnnotations(col);
         var discard = this.fetchDiscards().array();
@@ -129,6 +128,16 @@ export class State {
         return;
     }
 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `quality_control` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @param {boolean} use_mito_default - Whether the internal mitochondrial gene lists should be used.
+     * @param {string} mito_prefix - Prefix of the identifiers for mitochondrial genes, when `use_mito_default = false`.
+     * @param {number} nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
+     *
+     * @return The object is updated with the new results.
+     */
     compute(use_mito_default, mito_prefix, nmads) {
         this.changed = false;
 
@@ -208,7 +217,20 @@ export class State {
         }
     }
 
-    results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return An object containing:
+     *
+     * - `data`: an object containing one property for each sample.
+     *   Each property is itself an object containing `sums`, `detected` and `proportion`,
+     *   which are TypedArrays containing the relevant QC metrics for all cells in that sample.
+     * - `thresholds`: an object containing one property for each sample.
+     *   Each property is itself an object containing `sums`, `detected` and `proportion`,
+     *   which are numbers containing the thresholds on the corresponding QC metrics for that sample.
+     * - `retained`: the number of cells remaining after QC filtering.
+     */
+    summary() {
         // This function should not do any Wasm allocations, so copy: false is safe.
 
         var data = {};
@@ -400,7 +422,7 @@ export function unserialize(handle, inputs) {
     }
 
     return {
-        state: new State(inputs, parameters, cache),
+        state: new QualityControlState(inputs, parameters, cache),
         parameters: { ...parameters }
     };
 }

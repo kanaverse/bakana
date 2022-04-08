@@ -3,30 +3,19 @@ import * as utils from "./utils/general.js";
 import * as qc_module from "./quality_control.js";
 
 /**
- * This step performs normalization and log-transformation on the QC-filtered matrix from {@linkcode quality_control}.
+ * This step performs normalization and log-transformation on the QC-filtered matrix from the {@linkplain QualityControlState}.
  * It wraps the `logNormCounts` function from [**scran.js**](https://github.com/jkanche/scran.js).
  *
- * The parameters in {@linkcode runAnalysis} should be an empty object.
- *
- * Calling the **`results()`** method for the relevant state instance will return an empty object.
- * 
- * The state instance has a **`fetchExpression(index)`** method:
- *
- * - `index` should be an integer specifying the row index to extract.
- * - The return value is a Float64Array containing the log-normalized expression values for each cell.
- *
  * Methods not documented here are not part of the stable API and should not be used by applications.
- *
- * @namespace normalization
+ * @hideconstructor
  */
-
-export class State {
+export class NormalizationState {
     #qc;
     #parameters;
     #cache;
 
     constructor(qc, parameters = null, cache = null) {
-        if (!(qc instanceof qc_module.State)) {
+        if (!(qc instanceof qc_module.QualityControlState)) {
             throw new Error("'qc' should be a State object from './quality_control.js'");
         }
         this.#qc = qc;
@@ -51,6 +40,11 @@ export class State {
         return this.#cache.matrix;
     }
 
+    /**
+     * Extract normalized expression values.
+     * @param {number} index - An integer specifying the row index to extract.
+     * @return A Float64Array of length equal to the number of (QC-filtered) cells, containing the log-normalized expression values for each cell.
+     */
     fetchExpression(index) {
         var mat = this.fetchNormalizedMatrix();
         var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache); // re-using the buffer.
@@ -90,6 +84,11 @@ export class State {
         return;
     }
 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     *
+     * @return The object is updated with new results.
+     */
     compute() {
         this.changed = false;
         if (this.#qc.changed) {
@@ -106,7 +105,13 @@ export class State {
      ******** Results **********
      ***************************/
 
-    results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return An empty object.
+     * This is just provided for consistency with the other classes.
+     */
+    summary() {
         return {};
     }
 
@@ -128,7 +133,7 @@ export class State {
 
 export function unserialize(handle, qc) {
     return {
-        state: new State(qc),
+        state: new NormalizationState(qc),
         parameters: {}
     }
 }

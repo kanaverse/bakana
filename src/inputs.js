@@ -7,38 +7,10 @@ import * as iutils from "./utils/inputs.js";
  * This wraps various matrix initialization functions in [**scran.js**](https://github.com/jkanche/scran.js),
  * depending on the format of the supplied matrices.
  *
- * The parameters in {@linkcode runAnalysis} should be an object containing:
- *
- * - `sample_factor`: a string specifying the column of the cell annotations specifying the sample of origin for each cell.
- *   This is only used if a single count matrix is supplied.
- *   If `null`, all cells are assumed to originate from the same sample.
- *
- * Calling the **`results()`** method for the relevant state instance will return an object containing:
- *
- * - `dimensions`: an object containing `num_genes` and `num_cells`, the number of genes and cells respectively.
- *   For multiple matrices, the number of cells is the total number across all matrices.
- * - `genes`: an object containing the per-gene annotation.
- *   Each property is an array of length equal to the number of genes, usually containing strings with gene identifiers or symbols.
- *   Property names are arbitrary.
- * - (optional) `annotations`: an array of strings containing the names of available cell annotation fields.
- *
- * If `annotations` is present, users can also call `fetchAnnotations(col)` on the state instance.
- *
- * - `col` should be a string containing the name of a cell annotation field.
- * - The return value is either:
- *   - An array of length equal to the number of cells in the original dataset.
- *   - An object representing a factor.
- *     This should contain `factor`, an array of strings containing the unique factor levels;
- *     and `index`, an array of length equal to the number of cells, referencing entries in `factor`. 
- * - Note that the return value refers to the cells prior to any QC filtering.
- *   Actual use will require further subsetting based on the discard vector from {@linkcode quality_control}.
- * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
- *
- * @namespace inputs
+ * @hideconstructor
  */
-
-export class State {
+export class InputsState {
     #parameters;
     #cache;
     #abbreviated;
@@ -73,6 +45,19 @@ export class State {
         return this.#cache.gene_types;
     }
 
+    /**
+     * Fetch an annotation for all cells in the dataset.
+     * This considers all cells in the dataset before QC filtering - 
+     * see {@linkcode QualityControlState#fetchFilteredAnnotations QualityControlState.fetchFilteredAnnotations} for an alternative.
+     *
+     * @param {string} col - Name of the annotation field of interest.
+     *
+     * @return An array of length equal to the number of cells, containing the annotation for each cell.
+     *
+     * Alternatively, an object representing a factor.
+     * This should contain `factor`, an array of strings containing the unique factor levels;
+     * and `index`, an array of length equal to the number of cells, referencing entries in `factor`. 
+     */
     fetchAnnotations(col) {
         let annots = this.#cache.annotations;
         let size = this.#cache.matrix.numberOfColumns();
@@ -125,15 +110,30 @@ export class State {
      ******** Compute **********
      ***************************/
 
-    compute(files, sample_factor) {
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * `matrices` is taken from the argument of the same name in {@linkcode runAnalysis},
+     * while `sample_factor` is taken from the property of the same name in the `inputs` property of the `parameters`.
+     *
+     * @param {object} matrices - An object containing data for one or more count matrices.
+     * Each property corresponds to a single matrix and should contain a `format` string property along with any number of File objects (browser) or file paths (Node.js).
+     * See the description of the argument of the same name in {@linkcode runAnalysis}.
+     * @param {?string} sample_factor - Name of the column of the cell annotations specifying the sample of origin for each cell.
+     * This is only used if a single count matrix is supplied.
+     *
+     * If `null`, all cells are assumed to originate from the same sample.
+     *
+     * @return The object is updated with the new results.
+     */
+    compute(matrices, sample_factor) {
         // Don't bother proceeding with any of the below
         // if we're operating from a reloaded state.
-        if (files === null) {
+        if (matrices === null) {
             this.changed = false;
             return;
         }
 
-        let entries = Object.entries(files);
+        let entries = Object.entries(matrices);
         let tmp_abbreviated = {};
         for (const [key, val] of entries) {
             let namespace = iutils.chooseReader(val.format);
@@ -145,18 +145,18 @@ export class State {
             return;
         }
 
-        let new_files = {};
+        let new_matrices = {};
         for (const [key, val] of entries) {
             let namespace = iutils.chooseReader(val.format);
-            new_files[key] = new namespace.Reader(val);
+            new_matrices[key] = new namespace.Reader(val);
         }
 
         utils.freeCache(this.#cache.matrix);
         utils.freeCache(this.#cache.block_ids);
-        this.#cache = process_and_cache(new_files, sample_factor);
+        this.#cache = process_and_cache(new_matrices, sample_factor);
 
         this.#abbreviated = tmp_abbreviated;
-        this.#parameters.files = new_files;
+        this.#parameters.matrices = new_matrices;
         this.#parameters.sample_factor = sample_factor;
 
         this.changed = true;
@@ -168,7 +168,19 @@ export class State {
      ******** Results **********
      ***************************/
 
-    results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return An object containing:
+     *
+     * - `dimensions`: an object containing `num_genes` and `num_cells`, the number of genes and cells respectively.
+     *   For multiple matrices, the number of cells is the total number across all matrices.
+     * - `genes`: an object containing the per-gene annotation.
+     *   Each property is an array of length equal to the number of genes, usually containing strings with gene identifiers or symbols.
+     *   Property names are arbitrary.
+     * - (optional) `annotations`: an array of strings containing the names of available cell annotation fields.
+     */
+    summary() {
         var output = {
             "dimensions": {
                 "num_genes": this.#cache.matrix.numberOfRows(),
@@ -199,7 +211,7 @@ export class State {
             let fihandle = phandle.createGroup("files");
             let sofar = 0;
 
-            for (const [key, val] of Object.entries(this.#parameters.files)) {
+            for (const [key, val] of Object.entries(this.#parameters.matrices)) {
                 formats.push(val.format());
                 names.push(key);
 
@@ -231,6 +243,9 @@ export class State {
                 phandle.writeDataSet("sample_names", "String", null, names);
             } else {
                 phandle.writeDataSet("format", "String", [], formats[0]);
+                if (this.#parameters.sample_factor !== null) {
+                    phandle.writeDataSet("sample_factor", "String", [], this.#parameters.sample_factor);
+                }
             }
         }
 
@@ -268,11 +283,11 @@ function dummy_genes(numberOfRows) {
     return { "id": genes };
 }
 
-function process_datasets(files, sample_factor) {
+function process_datasets(matrices, sample_factor) {
     // Loading all of the individual matrices.
     let datasets = {};
     try {
-        for (const [key, val] of Object.entries(files)) {
+        for (const [key, val] of Object.entries(matrices)) {
             let current = val.load();
 
             if (!("genes" in current)) {
@@ -302,7 +317,7 @@ function process_datasets(files, sample_factor) {
         let blocks = null;
         let block_levels = null;
 
-        if (sample_factor && sample_factor !== null) {
+        if (sample_factor !== null) {
             // Single matrix with a batch factor.
             try {
                 let anno_batch = current.annotations[sample_factor];
@@ -447,8 +462,8 @@ function process_datasets(files, sample_factor) {
     }
 }
 
-function process_and_cache(new_files, sample_factor) {
-    let cache = process_datasets(new_files, sample_factor);
+function process_and_cache(new_matrices, sample_factor) {
+    let cache = process_datasets(new_matrices, sample_factor);
 
     var gene_info_type = {};
     var gene_info = cache.genes;
@@ -495,16 +510,18 @@ export async function unserialize(handle, embeddedLoader) {
     }
 
     // Extracting the format and organizing the files.
-    let parameters = { files: {}, sample_factor: null };
+    let parameters = { matrices: {}, sample_factor: null };
     let fohandle = phandle.open("format", { load: true });
     let solofile = (fohandle.shape.length == 0);
 
     if (solofile) {
         let format = fohandle.values[0];
         let namespace = iutils.chooseReader(format);
-        parameters.files["default"] = await namespace.unserialize(all_files, embeddedLoader);
+        parameters.matrices["default"] = await namespace.unserialize(all_files, embeddedLoader);
         if ("sample_factor" in phandle.children) {
             parameters.sample_factor = phandle.open("sample_factor", { load: true }).values[0];
+        } else {
+            parameters.sample_factor = null;
         }
 
     } else {
@@ -518,12 +535,12 @@ export async function unserialize(handle, embeddedLoader) {
             sofar += sample_groups[i];
             let curfiles = all_files.slice(start, sofar);
             let namespace = iutils.chooseReader(formats[i]);
-            parameters.files[sample_names[i]] = await namespace.unserialize(curfiles, embeddedLoader);
+            parameters.matrices[sample_names[i]] = await namespace.unserialize(curfiles, embeddedLoader);
         }
     }
 
     // Loading matrix data.
-    let cache = process_and_cache(parameters.files, parameters.sample_factor);
+    let cache = process_and_cache(parameters.matrices, parameters.sample_factor);
 
     // We need to do something if the permutation is not the same.
     let rhandle = ghandle.open("results");
@@ -589,7 +606,7 @@ export async function unserialize(handle, embeddedLoader) {
     }
 
     return { 
-        state: new State(parameters, cache),
+        state: new InputsState(parameters, cache),
         parameters: { sample_factor: parameters.sample_factor }, // only returning the sample factor - we don't pass the files back. 
         permuter: permuter
     }

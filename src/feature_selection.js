@@ -7,35 +7,22 @@ import * as norm_module from "./normalization.js";
  * Feature selection is performed by modelling the per-gene variance and finding highly variable genes.
  * This wraps the `modelGeneVar` function from [**scran.js**](https://github.com/jkanche/scran.js).
  *
- * The parameters in {@linkcode runAnalysis} should be an object containing:
- *
- * - `span`: a number between 0 and 1 specifying the span for the LOWESS smoother.
- *
- * Calling the **`results()`** method for the relevant state instance will return an object containing:
- *
- * - `means`: a `Float64Array` containing the mean log-expression for each gene.
- * - `vars`: a `Float64Array` containing the variance in log-expression for each gene.
- * - `fitted`: a `Float64Array` containing the fitted value of the mean-variance trend for each gene.
- * - `resids`: a `Float64Array` containing the residuals from the mean-variance trend for each gene.
- * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
- *
- * @namespace feature_selection
+ * @hideconstructor
  */
-
-export class State {
+export class FeatureSelectionState {
     #qc;
     #norm;
     #cache;
     #parameters;
 
     constructor(qc, norm, parameters = null, cache = null) {
-        if (!(qc instanceof qc_module.State)) {
+        if (!(qc instanceof qc_module.QualityControlState)) {
             throw new Error("'qc' should be a State object from './quality_control.js'");
         }
         this.#qc = qc;
 
-        if (!(norm instanceof norm_module.State)) {
+        if (!(norm instanceof norm_module.NormalizationState)) {
             throw new Error("'norm' should be a State object from './normalization.js'");
         }
         this.#norm = norm;
@@ -64,7 +51,15 @@ export class State {
     /***************************
      ******** Compute **********
      ***************************/
-
+ 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `feature_selection` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @param {number} span - Value between 0 and 1 specifying the span for the LOWESS smoother.
+     *
+     * @return The object is updated with the new results.
+     */
     compute(span) {
         this.changed = false;
         
@@ -99,7 +94,17 @@ export class State {
         };
     }
 
-    results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return An object containing:
+     *
+     * - `means`: a Float64Array containing the mean log-expression for each gene.
+     * - `vars`: a Float64Array containing the variance in log-expression for each gene.
+     * - `fitted`: a Float64Array containing the fitted value of the mean-variance trend for each gene.
+     * - `resids`: a Float64Array containing the residuals from the mean-variance trend for each gene.
+     */
+    summary() {
         return this.#format_results();
     }
 
@@ -187,7 +192,7 @@ export function unserialize(handle, permuter, qc, norm) {
     cache.sorted_residuals.sort();
 
     return { 
-        state: new State(qc, norm, parameters, cache),
+        state: new FeatureSelectionState(qc, norm, parameters, cache),
         parameters: { ...parameters }
     };
 }

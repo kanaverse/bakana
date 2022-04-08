@@ -50,6 +50,7 @@ test("multi-matrix analyses work correctly", async () => {
     );
 
     let new_params = reloaded.parameters;
+    expect(new_params.inputs.sample_factor).toBeNull();
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
 
@@ -89,7 +90,7 @@ test("single-matrix multi-sample analyses work correctly", async () => {
     expect("4k" in contents.quality_control.thresholds).toBe(true);
 
     // Saving and loading.
-    const path = "TEST_state_multi-matrix.h5";
+    const path = "TEST_state_multi-sample.h5";
     let collected = await bakana.saveAnalysis(state, path);
     expect(collected.collected.length).toBe(3);
     expect(typeof(collected.collected[0])).toBe("string");
@@ -101,6 +102,7 @@ test("single-matrix multi-sample analyses work correctly", async () => {
     );
 
     let new_params = reloaded.parameters;
+    expect(new_params.inputs.sample_factor).toBe("3k");
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
 

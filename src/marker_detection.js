@@ -10,33 +10,10 @@ import * as choice_module from "./choose_clustering.js";
  * This wraps the `scoreMarkers` function from [**scran.js**](https://github.com/jkanche/scran.js).
  * The clustering is obtained from the {@linkcode choose_clustering} step.
  *
- * The parameters in {@linkcode runAnalysis} should be an empty object.
- *
- * Calling the **`results()`** method for the relevant state instance will return an empty object.
- *
- * The state instance for this step has a **`numberOfGroups()`** method.
- * This returns the number of clusters for which markers were computed.
- *
- * The state instance for this step has a **`fetchGroupResults(rank_type, group)`** method.
- * 
- * - `group` should be an integer specifying the cluster of interest.
- *   This should be less than the value returned by `numberOfGroups()`. 
- * - `rank_type` should be a string specifying the effect size to use for ranking markers.
- *   This should follow the format of `<effect>-<summary>` where `<effect>` may be `lfc`, `cohen`, `auc` or `delta_detected`,
- *   and `<summary>` may be `min`, `mean` or `min-rank`.
- * - An object is returned containing the marker statistics for the selection, sorted by the specified effect and summary size from `rank_type`.
- *   This contains:
- *   - `means`: a `Float64Array` of length equal to the number of genes, containing the mean expression within the selection.
- *   - `detected`: a `Float64Array` of length equal to the number of genes, containing the proportion of cells with detected expression inside the selection.
- *   - `lfc`: a `Float64Array` of length equal to the number of genes, containing the log-fold changes for the comparison between cells inside and outside the selection.
- *   - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
- *
  * Methods not documented here are not part of the stable API and should not be used by applications.
- *
- * @namespace marker_detection
+ * @hideconstructor
  */
-
-export class State {
+export class MarkerDetectionState {
     #qc;
     #norm;
     #choice;
@@ -44,17 +21,17 @@ export class State {
     #cache;
 
     constructor(qc, norm, choice, parameters = null, cache = null) {
-        if (!(qc instanceof qc_module.State)) {
+        if (!(qc instanceof qc_module.QualityControlState)) {
             throw new Error("'qc' should be a State object from './quality_control.js'");
         }
         this.#qc = qc;
 
-        if (!(norm instanceof norm_module.State)) {
+        if (!(norm instanceof norm_module.NormalizationState)) {
             throw new Error("'norm' should be a State object from './normalization.js'");
         }
         this.#norm = norm;
 
-        if (!(choice instanceof choice_module.State)) {
+        if (!(choice instanceof choice_module.ChooseClusteringState)) {
             throw new Error("'choice' should be a State object from './choose_clustering.js'");
         }
         this.#choice = choice;
@@ -72,10 +49,29 @@ export class State {
      ******** Getters **********
      ***************************/
 
+    /**
+     * Fetch the marker statistics for a given cluster.
+     *
+     * @param {number} group - An integer specifying the cluster of interest.
+     * This should be less than the value returned by {@linkcode MarkerDetectionState#numberOfGroups numberOfGroups}.
+     * @param {string} rank_type - Summarized effect size to use for ranking markers.
+     * This should follow the format of `<effect>-<summary>` where `<effect>` may be `lfc`, `cohen`, `auc` or `delta_detected`,
+     * and `<summary>` may be `min`, `mean` or `min-rank`.
+     *
+     * @return An object containing the marker statistics for the selection, sorted by the specified effect and summary size from `rank_type`.
+     * This contains:
+     *   - `means`: a `Float64Array` of length equal to the number of genes, containing the mean expression within the selection.
+     *   - `detected`: a `Float64Array` of length equal to the number of genes, containing the proportion of cells with detected expression inside the selection.
+     *   - `lfc`: a `Float64Array` of length equal to the number of genes, containing the log-fold changes for the comparison between cells inside and outside the selection.
+     *   - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
+     */
     fetchGroupResults(group, rank_type) {
         return markers.fetchGroupResults(this.#cache.raw, group, rank_type); 
     }
 
+    /** 
+     * @return The number of clusters for which markers were computed.
+     */
     numberOfGroups() {
         return this.#cache.raw.numberOfGroups();
     }
@@ -88,6 +84,11 @@ export class State {
      ******** Compute **********
      ***************************/
 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     *
+     * @return The state is updated with new results.
+     */
     compute() {
         this.changed = false;
 
@@ -111,7 +112,13 @@ export class State {
      ******** Results **********
      ***************************/
 
-    results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return An empty object.
+     * This is returned for consistency with the other steps.
+     */
+    summary() {
         return {};
     }
 
@@ -205,7 +212,7 @@ export function unserialize(handle, permuter, qc, norm, choice) {
     }
 
     return {
-        state: new State(qc, norm, choice, parameters, cache),
+        state: new MarkerDetectionState(qc, norm, choice, parameters, cache),
         parameters: { ...parameters }
     };
 }
