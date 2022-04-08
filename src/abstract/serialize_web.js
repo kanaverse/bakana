@@ -10,7 +10,7 @@ export function createKanaFileInternal(statePath, inputFiles) {
 
     let preamble = sutils.createPreamble(embedded, state.byteLength);
 
-    let total = preamble.length + state.byteLength;
+    let total = preamble.byteLength + state.byteLength;
     for (const ibuf of inputFiles) {
         total += ibuf.byteLength;
     }
