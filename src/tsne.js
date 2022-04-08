@@ -85,8 +85,8 @@ export class TsneState {
      * @param {number} iterations - Number of iterations to run the algorithm.
      * @param {boolean} animate - Whether o process animation iterations, see {@linkcode setVisualizationAnimate} for details.
      *
-     * @return A promise that resolves when the t-SNE calculations are complete.
-     * The state is also updated with new results.
+     * @return t-SNE coordinates are computed in parallel on a separate worker thread.
+     * A promise is returned that resolves when those calculations are complete.
      */
     compute(perplexity, iterations, animate) {
         let same_neighbors = (!this.#index.changed && perplexity === this.#parameters.perplexity);

@@ -86,8 +86,8 @@ export class UmapState {
      * @param {number} min_dist - Number specifying the minimum distance between points.
      * @param {boolean} animate - Whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
      *
-     * @return A promise that resolves when the UMAP calculations are complete.
-     * The state is also updated with new results.
+     * @return UMAP coordinates are computed in parallel on a separate worker thread.
+     * A promise that resolves when the calculations are complete.
      */
     compute(num_neighbors, num_epochs, min_dist, animate) {
         let same_neighbors = (!this.#index.changed && this.#parameters.num_neighbors === num_neighbors);

@@ -202,6 +202,7 @@ A new reader should be implemented as an ES6 module with the required exports be
 - This should return an object containing the `genes` and `annotations` properties.
   `genes` should be an object where each key is a gene annotation field name and each value is an array of per-gene information, usually strings containing Ensembl identifiers or symbols.
   `annotations` should be an array of strings containing the names of the per-cell annotation fields.
+- Alternatively, this method may return a promise that resolves to such an object.
 
 **`Reader(args)`:** the `Reader` class, where each instance contains all information about a single count matrix.
 - This constructor should accept an object `args` containing information about a single count matrix in the reader's desired format.
@@ -216,6 +217,7 @@ A new reader should be implemented as an ES6 module with the required exports be
 - This should return an object containing `matrix`, a `ScranMatrix` object.
   The object may also contain `genes`, an object where each key is a gene annotation field name and each value is an array of per-gene information;
   and/or `annotations`, an object where each key is a cell annotation field name and each value is an array of per-cell information.
+- Alternatively, this method may return a promise that resolves to such an object.
 
 **`Reader.serialize(embeddedSaver)`:** register the count matrix in the state file. 
 - This should return an array of objects where each object represents a data file used to create the count matrix.
