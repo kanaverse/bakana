@@ -262,27 +262,6 @@ export class QualityControlState {
             thresholds[blocks[b]] = current;
         }
 
-        var ranges = {};
-        for (var b = 0; b < blocks.length; b++) {
-            let curranges = {};
-            let curdata = data[blocks[b]];
-
-            for (const [key, val] of Object.entries(curdata)) {
-                var max = -Infinity, min = Infinity;
-                val.forEach(function (x) {
-                    if (max < x) {
-                        max = x;
-                    }
-                    if (min > x) {
-                        min = x;
-                    }
-                });
-                curranges[key] = [min, max];
-            }
-
-            ranges[blocks[b]] = curranges;
-        }
-
         let remaining = 0;
         if ("matrix" in this.#cache) {
             remaining = this.#cache.matrix.numberOfColumns();
@@ -296,7 +275,6 @@ export class QualityControlState {
 
         return { 
             "data": data, 
-            "ranges": ranges,
             "thresholds": thresholds,
             "retained": remaining
         };
