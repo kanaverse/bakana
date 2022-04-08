@@ -257,7 +257,7 @@ export class QualityControlState {
         for (var b = 0; b < blocks.length; b++) {
             let current = {};
             for (const [key, val] of Object.entries(listed)) {
-                current[key] = val[b];
+                current[key] = val.array()[b];
             }
             thresholds[blocks[b]] = current;
         }

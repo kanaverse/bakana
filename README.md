@@ -11,17 +11,17 @@ as well as serialization of the state for storage and distribution to other mach
 
 ## Getting started
 
-Install the package from NPM using the usual method:
+Install the package from [NPM](https://npmjs.com/package/bakana) using the usual method:
 
 ```sh
-npm i bakana
+npm install bakana
 ```
 
 See the [reference documentation](https://ltla.github.io/bakana/) for details on available functions.
 
 ## Running analyses
 
-We can perform an analysis with the following minimal commands:
+We perform an analysis with the following commands:
 
 ```js
 import * as bakana from "bakana";
@@ -37,10 +37,11 @@ await bakana.runAnalysis(state,
 );
 ```
 
-This will fill `state` with results that can be extracted for each step:
+Each step is represented by a `*State` class instance as a property of `state`, containing the analysis results.
+We can extract summaries for diagnostics or display on a UI:
 
 ```js
-state.quality_control.results();
+state.quality_control.summary();
 // {
 //   data: {
 //     default: {
@@ -52,13 +53,13 @@ state.quality_control.results();
 //   ...
 // }
 
-state.pca.results():
+state.pca.summary():
 // {
 //   var_exp: Float64Array(20) [...]
 // }
 
-// Some results() are promises, see the relevant documentation.
-await state.tsne.results();
+// Some summary() are promises, see the relevant documentation.
+await state.tsne.summary();
 // {
 //   x: [Float64Array],
 //   y: [Float64Array],
@@ -66,8 +67,8 @@ await state.tsne.results();
 // }
 ```
 
-Alternatively, we can supply a callback that processes results from each step as soon as it finishes.
-This can be useful for, e.g., posting results to another system once they become available.
+Alternatively, we can supply a callback that processes summaries from each step as soon as it finishes.
+This can be useful for, e.g., posting diagnostics to another system once they become available.
 
 ```js
 function finisher(step, results) {
@@ -121,27 +122,31 @@ These can be used to assemble a `*.kana`-format file following the [**kanaval** 
 By default, this assumes that we are embedding the data files into the `*.kana` file.
 
 ```js
-// TODO: add code here.
+let res = await bakana.createKanaFile("whee.h5", collected.collected);
 ```
 
 Advanced users may prefer to store links to the data files rather than embedding them.
 This can be achieved using the `setCreateLink()` function to define a mechanism for creating application-specific links.
 For example, the **kana** application uses IndexedDB to cache each file for later use in the browser.
 
-## Loading analyses
-
-It is reasonably straightforward to extract the various state and data files from a `*.kana` file.
-
 ```js
-// TODO: add code here.
+bakana.setCreateLink(save_to_some_db);
+bakana.setResolveLink(load_from_some_db);
 ```
 
-Now, given an HDF5 state file, we can reload the analysis state into memory.
+## Loading analyses
+
+Given a `*.kana` file, it is straightforward to extract the various state and data files.
+
+```js
+let loader = await bakana.parseKanaFile("something.kana", "foo.h5");
+```
+
+Once the `*.kana` file is parsed, we can reload the analysis state into memory.
 This will also report the parameters used at each step.
 
 ```js
-// TODO: implement a default handler for embedded loader.
-let reloaded = await bakana.loadAnalysis("whee.h5", loader);
+let reloaded = await bakana.loadAnalysis("foo.h5", loader);
 let new_state = reloaded.state;
 let new_params = reloaded.parameters;
 ```
@@ -153,7 +158,7 @@ new_params.pca.num_hvgs = 3000;
 await bakana.runAnalysis(new_state, null, new_params);
 ```
 
-We can also supply a callback that runs on the results of each step as soon as they are loaded.
+Again, we can supply a callback that runs on the results of each step as soon as they are loaded.
 
 ```js
 let reloaded = await bakana.loadAnalysis("whee.h5", loader, { finishFun: finisher });
@@ -215,6 +220,7 @@ A new reader should be implemented as an ES6 module with the required exports be
 **`Reader.serialize(embeddedSaver)`:** register the count matrix in the state file. 
 - This should return an array of objects where each object represents a data file used to create the count matrix.
   Each object should contain `type`, a string specifying the type of file; and `name`, the name of the file.
+  Alternatively, this method may return a promise that resolves to this array.
 - If `embeddedSaver` is a function, it should be called on each file, in the same order as they occur in the returned array.
   `embeddedSaver` will accept two arguments - a file and its size - and will return a Promise that resolves to an object containing `offset` and `size`.
   (Here, a "file" is defined as an `ArrayBuffer` containing the contents of the file in the browser, or a path to a file in Node.js.)
@@ -222,7 +228,6 @@ A new reader should be implemented as an ES6 module with the required exports be
 - If `embeddedSaver = null`, each object in the returned array should instead contain `id`.
   This should be a unique string, typically containing a link to some external database system that holds the corresponding file.
   The interpretation of `id` is left to the reader, as long as it can be used to meaningfully recover the same file in `unserialize()` below.
-- This method should be `async`.
 
 **`unserialize(values, embeddedLoader)`:** load the count matrix from the state file.
 - `values` should be an array of objects where object represents a data file used to create the count matrix.
@@ -235,7 +240,10 @@ A new reader should be implemented as an ES6 module with the required exports be
   This usually contains a link to some external database system as defined by `Reader.serialize()`.
 - This method should return an instance of the `Reader` class containing all information related to the count matrix represented by `values`.
   Presumably this is done using the file contents returned by `embeddedLoader` or the linked files from the `id` values.
-- This method should be `async`.
+  Alternatively, this method may return a promise that resolves to a `Reader` instance.
+
+Applications can then register custom readers by assigning to the `bakana.availableReaders` object.
+The property name should be the name of the reader format (the same as that returned by `Reader.format()`) and the value should be the ES6 module object implementing the reader.
 
 ## Developer notes
 
