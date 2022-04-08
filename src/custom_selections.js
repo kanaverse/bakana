@@ -9,54 +9,22 @@ import * as norm_module from "./normalization.js";
  * This allows users to dynamically select cells on a UI and quickly obtain a list of distinguishing markers for that selection.
  * This wraps the `scoreMarkers` function from [**scran.js**](https://github.com/jkanche/scran.js).
  *
- * The parameters in {@linkcode runAnalysis} should be an empty object.
- *
- * Calling the **`results()`** method for the relevant state instance will return an empty object.
- *
- * The state instance for this step has an **`addSelection(id, selection)`** method.
- * 
- * - `id` should be a string containing a unique identifier for the new custom selection.
- * - `selection` should be an array containing the indices of the cells in the selection.
- *   Note that indices should refer to positions of cells in the QC-filtered matrix, not the original matrix.
- * - The custom selection is added to the state and calculation of its markers is performed.
- *   Nothing is returned.
- *
- * The state instance for this step has a **`fetchResults(id, rank_type)`** method.
- * 
- * - `id` should be a string containing an identifier for the desired selection.
- * - `rank_type` should be a string specifying the effect size to use for ranking markers.
- *   This should be one of `lfc`, `cohen`, `auc` or `delta_detected`.
- * - An object is returned containing the marker statistics for the selection, sorted by the specified effect and summary size from `rank_type`.
- *   This contains:
- *   - `means`: a `Float64Array` of length equal to the number of genes, containing the mean expression within the selection.
- *   - `detected`: a `Float64Array` of length equal to the number of genes, containing the proportion of cells with detected expression inside the selection.
- *   - `lfc`: a `Float64Array` of length equal to the number of genes, containing the log-fold changes for the comparison between cells inside and outside the selection.
- *   - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
- *
- * The state instance for this step has a **`removeSelection(id)`** method.
- *
- * - `id` should be a string containing an identifier for the desired selection.
- * - The specified selection and its results are removed from the state.
- *   Nothing is returned.
- *
  * Methods not documented here are not part of the stable API and should not be used by applications.
- *
- * @namespace custom_selections 
+ * @hideconstructor
  */
-
-export class State {
+export class CustomSelectionsState {
     #qc;
     #norm;
     #cache;
     #parameters;
 
     constructor(qc, norm, parameters = null, cache = null) {
-        if (!(qc instanceof qc_module.State)) {
+        if (!(qc instanceof qc_module.QualityControlState)) {
             throw new Error("'qc' should be a State object from './quality_control.js'");
         }
         this.#qc = qc;
 
-        if (!(norm instanceof norm_module.State)) {
+        if (!(norm instanceof norm_module.NormalizationState)) {
             throw new Error("'norm' should be a State object from './normalization.js'");
         }
         this.#norm = norm;
@@ -77,6 +45,16 @@ export class State {
      ******** Setters **********
      ***************************/
 
+    /**
+     * Add a custom selection and compute its markers.
+     *
+     * @param {string} id A unique identifier for the new custom selection.
+     * @param {Array|TypedArray} selection The indices of the cells in the selection.
+     * Indices should refer to positions of cells in the QC-filtered matrix, not the original matrix.
+     *
+     * @return The custom selection is added to the state and calculation of its markers is performed.
+     * Nothing is returned.
+     */
     addSelection(id, selection) {
         var mat = this.#norm.fetchNormalizedMatrix();
 
@@ -98,6 +76,14 @@ export class State {
         return;
     }
 
+    /**
+     * Remove a custom selection and its results from the state.
+     *
+     * @param {string} id - An identifier for the selection to be removed.
+     *
+     * @return The specified selection and its results are removed from the state.
+     * Nothing is returned.
+     */
     removeSelection(id) {
         utils.freeCache(this.#cache.results[id].raw);
         delete this.#cache.results[id];
@@ -109,6 +95,20 @@ export class State {
      ******** Getters **********
      ***************************/
 
+    /**
+     * Fetch the marker results for a custom selection.
+     * 
+     * @param {string} id - An identifier for the desired selection.
+     * @param {string} rank_type - Effect size to use for ranking markers.
+     * This should be one of `lfc`, `cohen`, `auc` or `delta_detected`.
+     *
+     * @return An object containing the marker statistics for the selection, sorted by the specified effect and summary size from `rank_type`.
+     * This contains:
+     * - `means`: a `Float64Array` of length equal to the number of genes, containing the mean expression within the selection.
+     * - `detected`: a `Float64Array` of length equal to the number of genes, containing the proportion of cells with detected expression inside the selection.
+     * - `lfc`: a `Float64Array` of length equal to the number of genes, containing the log-fold changes for the comparison between cells inside and outside the selection.
+     * - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
+     */
     fetchResults(id, rank_type) {
         var current = this.#cache.results[id].raw;
         return markers.fetchGroupResults(current, 1, rank_type + "-mean"); 
@@ -118,6 +118,11 @@ export class State {
      ******** Compute **********
      ***************************/
 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     *
+     * @return The state is updated by removing stale selections if the QC filter was altered.
+     */
     compute() {
         this.changed = false;
 
@@ -146,7 +151,13 @@ export class State {
      ******** Results **********
      **************************/
 
-    results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return An empty object.
+     * This is returned for consistency with the other steps.
+     */
+    summary() {
         return {};
     }
 
@@ -259,7 +270,7 @@ export function unserialize(handle, permuter, qc, norm) {
     }
 
     return {
-        state: new State(qc, norm, parameters, cache),
+        state: new CustomSelectionsState(qc, norm, parameters, cache),
         parameters: output
     };
 }

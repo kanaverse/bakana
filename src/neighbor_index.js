@@ -3,27 +3,19 @@ import * as utils from "./utils/general.js";
 import * as pca_module from "./pca.js";
 
 /**
- * This step assembles the neighbor search indices from the PCs (see {@linkcode pca}) in preparation for nearest neighbor searches in downstream steps.
+ * This step assembles the neighbor search indices from the PCs (see {@linkplain PcaState}) in preparation for nearest neighbor searches in downstream steps.
  * It wraps the `buildNeighborSearchIndex` function from [**scran.js**](https://github.com/jkanche/scran.js).
  *
- * The parameters in {@linkcode runAnalysis} should be an object containing:
- *
- * - `approximate`: boolean indicating whether to create an approximate search index.
- *
- * Calling the **`results()`** method for the relevant state instance will return an empty object.
- * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
- *
- * @namespace neighbor_index
+ * @hideconstructor
  */
-
-export class State {
+export class NeighborIndexState {
     #pca;
     #parameters;
     #cache;
 
     constructor(pca, parameters = null, cache = null) {
-        if (!(pca instanceof pca_module.State)) {
+        if (!(pca instanceof pca_module.PcaState)) {
             throw new Error("'pca' should be a State object from './pca.js'");
         }
         this.#pca = pca;
@@ -58,6 +50,15 @@ export class State {
         return;
     }
 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `neighbor_index` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @param {boolean} approximate - Whether to create an approximate search index.
+     * If `false`, an exact index is used.
+     *
+     * @return The object is updated with the new results.
+     */
     compute(approximate) {
         this.changed = false;
 
@@ -75,7 +76,13 @@ export class State {
      ******** Results **********
      ***************************/
 
-    results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return An empty object.
+     * This is just provided for consistency with the other classes.
+     */
+    summary() {
         return {};
     }
 
@@ -114,7 +121,7 @@ export function unserialize(handle, pca) {
     let cache = {};
 
     return { 
-        state: new State(pca, parameters, cache),
+        state: new NeighborIndexState(pca, parameters, cache),
         parameters: {...parameters }
     };
 }

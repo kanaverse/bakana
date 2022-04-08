@@ -19,7 +19,7 @@ test("saving to and loading from a kana file works correctly", async () => {
     let params = utils.baseParams();
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, files, params);
-    let ref_pca = state.pca.results();
+    let ref_pca = state.pca.summary();
 
     // Saving to a kana file.
     const path = "TEST_kana_state.h5";
@@ -43,5 +43,5 @@ test("saving to and loading from a kana file works correctly", async () => {
     let reloaded = await bakana.loadAnalysis(round_trip, loader);
 
     // Checking that we got something that was reasonable.
-    expect(reloaded.state.pca.results()).toEqual(ref_pca);
+    expect(reloaded.state.pca.summary()).toEqual(ref_pca);
 })

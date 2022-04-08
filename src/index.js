@@ -85,22 +85,22 @@ export function terminate() {
  */
 export async function createAnalysis() {
     let output = {};
-    output[step_inputs] = new inputs.State;
-    output[step_qc] = new qc.State(output[step_inputs]);
-    output[step_norm] = new normalization.State(output[step_qc]);
-    output[step_feat] = new variance.State(output[step_qc], output[step_norm]);
-    output[step_pca] = new pca.State(output[step_qc], output[step_norm], output[step_feat]);
-    output[step_neighbors] = new index.State(output[step_pca]);
+    output[step_inputs] = new inputs.InputsState;
+    output[step_qc] = new qc.QualityControlState(output[step_inputs]);
+    output[step_norm] = new normalization.NormalizationState(output[step_qc]);
+    output[step_feat] = new variance.FeatureSelectionState(output[step_qc], output[step_norm]);
+    output[step_pca] = new pca.PcaState(output[step_qc], output[step_norm], output[step_feat]);
+    output[step_neighbors] = new index.NeighborIndexState(output[step_pca]);
 
-    output[step_tsne] = new tsne.State(output[step_neighbors]);
-    output[step_umap] = new umap.State(output[step_neighbors]);
+    output[step_tsne] = new tsne.TsneState(output[step_neighbors]);
+    output[step_umap] = new umap.UmapState(output[step_neighbors]);
 
-    output[step_kmeans] = new kmeans_cluster.State(output[step_pca]);
-    output[step_snn] = new snn_cluster.State(output[step_neighbors]);
-    output[step_choice] = new cluster_choice.State(output[step_snn], output[step_kmeans]);
-    output[step_markers] = new cluster_markers.State(output[step_qc], output[step_norm], output[step_choice]);
-    output[step_labels] = new label_cells.State(output[step_inputs], output[step_markers]);
-    output[step_custom] = new custom_markers.State(output[step_qc], output[step_norm]);
+    output[step_kmeans] = new kmeans_cluster.KmeansClusterState(output[step_pca]);
+    output[step_snn] = new snn_cluster.SnnGraphClusterState(output[step_neighbors]);
+    output[step_choice] = new cluster_choice.ChooseClusteringState(output[step_snn], output[step_kmeans]);
+    output[step_markers] = new cluster_markers.MarkerDetectionState(output[step_qc], output[step_norm], output[step_choice]);
+    output[step_labels] = new label_cells.CellLabellingState(output[step_inputs], output[step_markers]);
+    output[step_custom] = new custom_markers.CustomSelectionsState(output[step_qc], output[step_norm]);
 
     return Promise.all([output[step_tsne].ready(), output[step_umap].ready()]).then(val => output);
 }
@@ -157,14 +157,14 @@ export function freeAnalysis(state) {
 export function runAnalysis(state, matrices, params, { finishFun = null } = {}) {
     let quickFun = step => {
         if (state[step].changed && finishFun !== null) {
-            finishFun(step, state[step].results());
+            finishFun(step, state[step].summary());
         }
     }
 
     let promises = [];
     let asyncQuickFun = (step, p) => {
         if (state[step].changed && finishFun !== null) {
-            p = state[step].results().then(res => finishFun(step, res));
+            p = state[step].summary().then(res => finishFun(step, res));
         }
         promises.push(p);
     }
@@ -353,7 +353,7 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     let handle = new scran.H5File(path);
     let quickFun = step => {
         if (finishFun !== null) {
-            finishFun(step, state[step].results());
+            finishFun(step, state[step].summary());
         }
     }
 
@@ -401,7 +401,7 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
         quickFun(step_neighbors);
     }
 
-    // Note that all awaits here are trivial, and just occur because results()
+    // Note that all awaits here are trivial, and just occur because summary()
     // is async for general usage.  So we can chuck them in without really
     // worrying that they're blocking anything here.
     {
@@ -409,7 +409,7 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
         state[step_tsne] = out.state;
         response[step_tsne] = out.parameters;
         if (finishFun !== null) {
-            finishFun(step_tsne, await state[step_tsne].results());
+            finishFun(step_tsne, await state[step_tsne].summary());
         }
     }
 
@@ -418,7 +418,7 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
         state[step_umap] = out.state;
         response[step_umap] = out.parameters;
         if (finishFun !== null) {
-            finishFun(step_umap, await state[step_umap].results());
+            finishFun(step_umap, await state[step_umap].summary());
         }
     }
 
@@ -455,7 +455,7 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
         state[step_labels] = out.state;
         response[step_labels] = out.parameters;
         if (finishFun !== null) {
-            finishFun(step_labels, await state[step_labels].results());
+            finishFun(step_labels, await state[step_labels].summary());
         }
     }
 

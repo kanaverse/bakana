@@ -8,33 +8,22 @@ import * as kmeans_module from "./kmeans_cluster.js";
  * We added this step to preserve the cache for each clustering step - 
  * specifically, each clustering does not need to be recomputed when a user changes their choice.
  *
- * The parameters in {@linkcode runAnalysis} should be an object containing:
- *
- * - `method`: either `"kmeans"` or `"snn_graph"`.
- *
- * On calling the `results()` method for the relevant state instance, we obtain an object with the following properties:
- *
- * - `clusters`: an `Int32Array` of length equal to the number of cells (after QC filtering),
- *   containing the cluster assignment for each cell.
- *
  * Methods not documented here are not part of the stable API and should not be used by applications.
- *
- * @namespace choose_clustering
+ * @hideconstructor
  */
-
-export class State {
+export class ChooseClusteringState {
     #snn_cluster;
     #kmeans_cluster;
     #parameters;
     #cache;
 
     constructor(snn, kmeans, parameters = null, cache = null) {
-        if (!(snn instanceof snn_module.State)) {
+        if (!(snn instanceof snn_module.SnnGraphClusterState)) {
             throw new Error("'snn' should be a State object from './snn_graph_cluster.js'");
         }
         this.#snn_cluster = snn;
 
-        if (!(kmeans instanceof kmeans_module.State)) {
+        if (!(kmeans instanceof kmeans_module.KmeansClusterState)) {
             throw new Error("'kmeans' should be a State object from './kmeans_cluster.js'");
         }
         this.#kmeans_cluster = kmeans;
@@ -62,6 +51,14 @@ export class State {
      ******** Compute **********
      ***************************/
 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `choose_clustering` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @param {string} method - Either `"kmeans"` or `"snn_graph"`.
+     *
+     * @return The object is updated with the new results.
+     */
     compute(method) {
         this.changed = true;
         
@@ -85,7 +82,15 @@ export class State {
      ******** Results **********
      ***************************/
 
-    results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return An object containing:
+     *
+     * - `clusters`: an Int32Array of length equal to the number of cells (after QC filtering),
+     * containing the cluster assignment for each cell.
+     */
+    summary() {
         var clusters = this.fetchClustersAsWasmArray();
         return { "clusters": clusters.slice() };
     }
@@ -126,7 +131,7 @@ export function unserialize(handle, snn, kmeans) {
     let cache = {};
 
     return {
-        state: new State(snn, kmeans, parameters, cache),
+        state: new ChooseClusteringState(snn, kmeans, parameters, cache),
         parameters: { ...parameters }
     };
 }

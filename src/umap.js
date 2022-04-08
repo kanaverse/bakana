@@ -4,30 +4,13 @@ import * as utils from "./utils/general.js";
 import * as neighbor_module from "./neighbor_index.js";
 
 /**
- * This creates a UMAP embedding based on the neighbor index constructed at {@linkcode neighbor_index}.
+ * This creates a UMAP embedding based on the neighbor index constructed at {@linkplain NeighborIndexState}.
  * This wraps `runUMAP` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
  * 
- * The parameters in {@linkcode runAnalysis} should be an object containing:
- *
- * - `num_neighbors`: number of neighbors to use to construct the simplicial sets.
- * - `num_epochs`: number of epochs to run the algorithm.
- * - `min_dist`: number specifying the minimum distance between points.
- * - `animate`: boolean indicating whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
- *
- * Calling **`results()`** on the relevant state instance will return an object containing:
- *
- * - `x`: a Float64Array containing the x-coordinate for each cell.
- * - `y`: a Float64Array containing the y-coordinate for each cell.
- * - `iterations`: the number of iterations processed.
- *
- * Calling **`animate()`** on the relevant state instance will repeat the animation iterations.
- * This returns a promise that resolves on successful completion of all iterations.
- * It is assumed that {@linkcode setVisualizationAnimate} has been set appropriately.
- *
- * @namespace umap
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ * @hideconstructor
  */
-
-export class State {
+export class UmapState {
     #index;
     #parameters;
     #cache;
@@ -40,7 +23,7 @@ export class State {
     #run;
 
     constructor(index, parameters = null, reloaded = null) {
-        if (!(index instanceof neighbor_module.State)) {
+        if (!(index instanceof neighbor_module.NeighborIndexState)) {
             throw new Error("'index' should be a State object from './neighbor_index.js'");
         }
         this.#index = index;
@@ -94,6 +77,18 @@ export class State {
         return;
     }
 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `umap` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @param {number} num_neighbors - Number of neighbors to use to construct the simplicial sets.
+     * @param {number} num_epochs - Number of epochs to run the algorithm.
+     * @param {number} min_dist - Number specifying the minimum distance between points.
+     * @param {boolean} animate - Whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
+     *
+     * @return A promise that resolves when the UMAP calculations are complete.
+     * The state is also updated with new results.
+     */
     compute(num_neighbors, num_epochs, min_dist, animate) {
         let same_neighbors = (!this.#index.changed && this.#parameters.num_neighbors === num_neighbors);
         if (same_neighbors && num_epochs === this.#parameters.num_epochs && min_dist === this.#parameters.min_dist) {
@@ -145,7 +140,16 @@ export class State {
         }
     }
 
-    results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return A promise that resolves to an object containing:
+     *
+     * - `x`: a Float64Array containing the x-coordinate for each cell.
+     * - `y`: a Float64Array containing the y-coordinate for each cell.
+     * - `iterations`: the number of iterations processed.
+     */
+    summary() {
         return this.#fetch_results(true);
     }
 
@@ -178,6 +182,12 @@ export class State {
      ******** Getters **********
      ***************************/
 
+    /**
+     * Repeat the animation iterations.
+     * It is assumed that {@linkcode setVisualizationAnimate} has been set appropriately to process each iteration.
+     *
+     * @return A promise that resolves on successful completion of all iterations.
+     */
     animate() {
         if (this.#reloaded !== null) {
             this.#reloaded = null;
@@ -227,7 +237,7 @@ export function unserialize(handle, index) {
     }
 
     return {
-        state: new State(index, parameters, reloaded),
+        state: new UmapState(index, parameters, reloaded),
         parameters: { ...parameters }
     };
 }

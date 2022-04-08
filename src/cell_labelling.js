@@ -4,30 +4,6 @@ import * as rutils from "./utils/reader.js";
 import * as inputs_module from "./inputs.js";
 import * as markers_module from "./marker_detection.js";
 
-/**
- * Cell labelling involves assigning cell type labels to clusters using the [**SingleR** algorithm](https://github.com/LTLA/CppSingleR),
- * based on [pre-formatted reference expression profiles](https://github.com/clusterfork/singlepp-references).
- * In theory, we could do this at the single-cell level, but we use clusters instead to expedite the computation and simplify interpretation.
- * If multiple references are requested, we will use each for assignment before attempting to choose the best label for each cluster across references.
- * This wraps `labelCells` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
- *
- * The parameters in {@linkcode runAnalysis} should be an object containing:
- *
- * - `mouse_references`: an array of strings specifying the names of the reference datasets for mouse datasets, e.g., `"ImmGen"`.
- * - `mouse_references`: an array of strings specifying the names of the reference datasets for human datasets, e.g., `"BlueprintEncode"`.
- *
- * On calling the `results()` method for the relevant state instance, we obtain an object with the following properties:
- *
- * - `per_reference`: an object where keys are the reference names and the values are arrays of strings.
- *   Each array is of length equal to the number of clusters and contains the cell type classification for each cluster.
- * - `integrated`: an array of length equal to the number of clusters.
- *   Each element is a string specifying the name of the reference with the best label for each cluster.
- *
- * Methods not documented here are not part of the stable API and should not be used by applications.
- *
- * @namespace cell_labelling
- */
-
 var downloadFun = async (url) => {
     let resp = await fetch(url);
     if (!resp.ok) {
@@ -45,7 +21,18 @@ const mm_base = "https://github.com/clusterfork/singlepp-references/releases/dow
 const hs_loaded = {};
 const mm_loaded = {};
 
-export class State {
+/**
+ * Cell labelling involves assigning cell type labels to clusters using the [**SingleR** algorithm](https://github.com/LTLA/CppSingleR),
+ * based on [pre-formatted reference expression profiles](https://github.com/clusterfork/singlepp-references).
+ * This wraps `labelCells` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ *
+ * In theory, we could do this at the single-cell level, but we use clusters instead to expedite the computation and simplify interpretation.
+ * If multiple references are requested, we will use each for assignment before attempting to choose the best label for each cluster across references.
+ *
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ * @hideconstructor
+ */
+export class CellLabellingState {
     #inputs;
     #markers;
     #parameters;
@@ -55,12 +42,12 @@ export class State {
     #mm_built;
 
     constructor(inputs, markers, parameters = null, cache = null) {
-        if (!(inputs instanceof inputs_module.State)) {
+        if (!(inputs instanceof inputs_module.InputsState)) {
             throw new Error("'inputs' should be a State object from './inputs.js'");
         }
         this.#inputs = inputs;
 
-        if (!(markers instanceof markers_module.State)) {
+        if (!(markers instanceof markers_module.MarkerDetectionState)) {
             throw new Error("'markers' should be a State object from './marker_detection.js'");
         }
         this.#markers = markers;
@@ -177,6 +164,15 @@ export class State {
         };
     }
 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `cell_labelling` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @param {Array} mouse_references - Array of strings specifying the names of the reference datasets for mouse datasets, e.g., `"ImmGen"`.
+     * @param {Array} human_references - Array of strings specifying the names of the reference datasets for human datasets, e.g., `"BlueprintEncode"`.
+     *
+     * @return The object is updated with the new results.
+     */
     compute(human_references, mouse_references) {
         if (!this.#inputs.changed && 
             !this.#markers.changed &&
@@ -291,7 +287,17 @@ export class State {
      ******** Results **********
      ***************************/
 
-    async results() {
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return A promise that resolves to an object containing:
+     *
+     * - `per_reference`: an object where keys are the reference names and the values are arrays of strings.
+     *   Each array is of length equal to the number of clusters and contains the cell type classification for each cluster.
+     * - `integrated`: an array of length equal to the number of clusters.
+     *   Each element is a string specifying the name of the reference with the best label for each cluster.
+     */
+    async summary() {
         // No real need to clone these, they're string arrays
         // so they can't be transferred anyway.
         let perref = {};
@@ -322,7 +328,7 @@ export class State {
 
         {
             let rhandle = ghandle.createGroup("results");
-            let res = await this.results();
+            let res = await this.summary();
 
             let perhandle = rhandle.createGroup("per_reference");
             for (const [key, val] of Object.entries(res.per_reference)) {
@@ -415,7 +421,7 @@ export function unserialize(handle, inputs, markers) {
     }
 
     return {
-        state: new State(inputs, markers, parameters, cache),
+        state: new CellLabellingState(inputs, markers, parameters, cache),
         parameters: { ...parameters }
     };
 }
