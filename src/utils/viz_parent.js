@@ -24,7 +24,7 @@ export function setVisualizationAnimate(fun) {
     return previous;
 }
 
-export var scranOptions = {};
+export var scranOptions = { numberOfThreads: 1 };
 
 export function computeNeighbors(index, k) {
     var nn_index = index.fetchIndex();
