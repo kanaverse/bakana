@@ -3,13 +3,14 @@ import * as fs from "fs";
 import * as Path from "path";
 import * as v0 from "../legacy/from_v0.js";
 import * as pako from "pako";
+import * as os from "os";
 
 /**
  * This contains a function to create and load a kana file with Node.
  */
 export async function createKanaFileInternal(statePath, inputFiles, { outputPath = null } = {}) {
     if (outputPath === null) {
-        let dir = fs.mkdtempSync("kana-");
+        let dir = fs.mkdtempSync(Path.join(os.tmpdir(), "kana-"));
         outputPath = Path.join(dir, "analysis.kana");
     }
 
@@ -49,7 +50,7 @@ export async function createKanaFileInternal(statePath, inputFiles, { outputPath
 
 export async function parseKanaFileInternal(input, statePath, { stageDir = null } = {}) {
     if (stageDir === null) {
-        stageDir = fs.mkdtempSync("kana-");
+        stageDir = fs.mkdtempSync(Path.join(os.tmpdir(), "kana-"));
     }
 
     let fd = fs.openSync(input);
