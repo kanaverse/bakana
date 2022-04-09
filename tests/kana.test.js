@@ -53,7 +53,7 @@ test("saving to and loading from a kana file works with links", async () => {
     let ref_pca = state.pca.summary();
 
     // Links just re-use the file path for our Node tests, which is unique enough!
-    let old_create = bakana.setCreateLink(x => x);
+    let old_create = bakana.setCreateLink((type, name, path) => path);
     let old_resolve = bakana.setResolveLink(x => x)
 
     // Saving to a kana file.

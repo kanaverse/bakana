@@ -24,7 +24,7 @@ export function setVisualizationAnimate(fun) {
     return previous;
 }
 
-export var scranOptions = {};
+export var scranOptions = { numberOfThreads: 1 };
 
 export function computeNeighbors(index, k) {
     var nn_index = index.fetchIndex();
@@ -75,8 +75,7 @@ export function sendTask(worker, payload, cache, transferrable = []) {
 
 const worker_registry = [];
 
-export function createWorker(url, cache, scranOptions) { 
-    let worker = aworkers.createWorker(url);
+export function initializeWorker(worker, cache, scranOptions) { 
     let n = worker_registry.length;
     worker_registry.push(worker);
 
@@ -98,7 +97,6 @@ export function createWorker(url, cache, scranOptions) {
     });
 
     return {
-        "worker": worker,
         "worker_id": n,
         "ready": sendTask(worker, { "cmd": "INIT", scranOptions: scranOptions }, cache)
     };

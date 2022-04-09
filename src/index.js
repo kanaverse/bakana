@@ -27,6 +27,7 @@ import * as serialize_utils from "./utils/serialize.js";
 import * as rutils from "./utils/reader.js";
 import * as vizutils from "./utils/viz_parent.js";
 
+import * as afile from "./abstract/file.js";
 import * as aserialize from "./abstract/serialize.js";
 
 const step_inputs = "inputs";
@@ -519,4 +520,32 @@ export function createKanaFile(statePath, inputFiles, options = {}) {
  */
 export function parseKanaFile(input, statePath, options = {}) {
     return aserialize.parseKanaFileInternal(input, statePath, options);
+}
+
+/**
+ * Remove a HDF5 file at the specified path, typically corresponding to the value of `statePath` in {@linkcode saveAnalysis} or {@linkcode loadAnalysis}.
+ * Such files are typically temporary intermediates that are generated from or used to generate a `*.kana` file.
+ *
+ * @param {string} path Path to a HDF5 file.
+ * On browsers, this path will exist inside the **scran.js** virtual filesystem.
+ *
+ * @return The specified file is removed.
+ * If the file does not exist, this function is a no-op.
+ */
+export function removeHDF5File(path) {
+    afile.removeH5(path);
+    return;
+}
+
+/**
+ * Call a **scran.js** function.
+ * This allows client applications to operate in the same **scran.js** memory space as **bakana** functions,
+ * which is not guaranteed if applications import **scran.js** on their own (e.g., due to name mangling with Webpack).
+ *
+ * @param {function} fun - A function that accepts the **scran.js** module object and presumably calls some of its functions.
+ *
+ * @return The return value of `fun`.
+ */
+export function callScran(fun) {
+    return fun(scran);
 }

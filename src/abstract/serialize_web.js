@@ -1,18 +1,22 @@
 import * as sutils from "../utils/serialize.js";
 import * as scran from "scran.js";
+import * as v0 from "../legacy/from_v0.js";
+import * as pako from "pako";
 
 /**
  * This contains a function to create and load a kana file with the browser.
  */
 export function createKanaFileInternal(statePath, inputFiles) {
-    let embedded = (inputFiles === null):
+    let embedded = (inputFiles !== null);
     let state = scran.readFile(statePath);
 
     let preamble = sutils.createPreamble(embedded, state.byteLength);
 
-    let total = preamble.length + state.byteLength;
-    for (const ibuf of inputFiles) {
-        total += ibuf.byteLength;
+    let total = preamble.byteLength + state.byteLength;
+    if (embedded) {
+        for (const ibuf of inputFiles) {
+            total += ibuf.byteLength;
+        }
     }
 
     let output = new ArrayBuffer(total);
@@ -34,17 +38,20 @@ export function createKanaFileInternal(statePath, inputFiles) {
 }
 
 export function parseKanaFileInternal(input, statePath) {
-    const reader = new FileReaderSync;
-    let buffer = reader.readAsArrayBuffer(input);
-    let arr = new Uint8Array(buffer);
-
-    let parsed = sutils.parsePreamble(buffer);
+    let parsed = sutils.parsePreamble(input);
     let delta = parsed.offset + parsed.state;
-    let statebuffer = buffer.slice(parsed.offset, delta);
-    scran.writeFile(statePath, statebuffer);
+    let statebuffer = input.slice(parsed.offset, delta);
+
+    if (parsed.version < 1000000) {
+        var contents = pako.ungzip(new Uint8Array(statebuffer), { "to": "string" });
+        let state = JSON.parse(contents);
+        v0.convertFromVersion0(state, statePath);
+    } else {
+        scran.writeFile(statePath, new Uint8Array(statebuffer));
+    }
 
     if (parsed.embedded) {
-        return (offset, size) => buffer.slice(delta + offset, delta + offset + size);
+        return (offset, size) => input.slice(delta + offset, delta + offset + size);
     } else {
         return null;
     }
