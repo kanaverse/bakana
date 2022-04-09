@@ -158,7 +158,7 @@ export class CustomSelectionsState {
      * This is returned for consistency with the other steps.
      */
     summary() {
-        return {};
+        return this.#parameters;
     }
 
     /*************************
