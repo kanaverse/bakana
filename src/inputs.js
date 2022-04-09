@@ -293,7 +293,7 @@ async function process_datasets(matrices, sample_factor) {
             // need to make sure it gets freed properly on failure.
             let current = await val.load();
 
-            if (!("genes" in current)) {
+            if (current.genes === null) {
                 current.genes = dummy_genes(current.matrix.numberOfRows());
             } 
             if (current.matrix.isPermuted()) {

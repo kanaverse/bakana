@@ -111,8 +111,18 @@ export class Reader {
             }
         } else {
             this.#mtx = args.mtx;
-            this.#genes = args.genes;
-            this.#annotations = args.annotations;
+
+            if ("genes" in args) {
+                this.#genes = args.genes;
+            } else {
+                this.#genes = null;
+            }
+
+            if ("annotations" in args) {
+                this.#annotations = args.annotations;
+            } else {
+                this.#annotations = null;
+            }
         }
     }
 

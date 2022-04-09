@@ -29,6 +29,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     );
 
     expect(contents.quality_control instanceof Object).toBe(true);
+    expect(contents.quality_control.thresholds.default.proportion).toBeGreaterThan(0);
     expect(contents.pca instanceof Object).toBe(true);
     expect(contents.feature_selection instanceof Object).toBe(true);
     expect(contents.cell_labelling instanceof Object).toBe(true);
@@ -38,6 +39,49 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     const path = "TEST_state_MatrixMarket.h5";
     let collected = await bakana.saveAnalysis(state, path);
     expect(collected.collected.length).toBe(3);
+    expect(typeof(collected.collected[0])).toBe("string");
+
+    let offsets = utils.mockOffsets(collected.collected);
+    let reloaded = await bakana.loadAnalysis(
+        path, 
+        (offset, size) => offsets[offset]
+    );
+
+    let new_params = reloaded.parameters;
+    expect(new_params.quality_control instanceof Object).toBe(true);
+    expect(new_params.pca instanceof Object).toBe(true);
+
+    // Release me!
+    await bakana.freeAnalysis(state);
+})
+
+test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async () => {
+    let contents = {};
+    let finished = (step, res) => {
+        contents[step] = res;
+    };
+
+    let state = await bakana.createAnalysis();
+    let params = utils.baseParams();
+    let res = await bakana.runAnalysis(state, 
+        { 
+            default: {
+                format: "MatrixMarket",
+                mtx: "files/datasets/pbmc3k-matrix.mtx.gz"
+            }
+        },
+        params,
+        {
+            finishFun: finished,
+        }
+    );
+
+    expect(contents.quality_control.thresholds.default.proportion).toBe(0);
+
+    // Saving and loading.
+    const path = "TEST_state_MatrixMarket.h5";
+    let collected = await bakana.saveAnalysis(state, path);
+    expect(collected.collected.length).toBe(1);
     expect(typeof(collected.collected[0])).toBe("string");
 
     let offsets = utils.mockOffsets(collected.collected);
