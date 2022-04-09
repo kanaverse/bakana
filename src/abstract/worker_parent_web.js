@@ -24,5 +24,6 @@ export function sendMessage(worker, message, transfer) {
 }
 
 export function terminateWorker(worker) {
-    return worker.terminate();
+    worker.terminate();
+    return;
 }

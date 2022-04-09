@@ -45,6 +45,6 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     let reres = reloaded.state.custom_selections.fetchResults("evens", "cohen");
     expect(reres.ordering).toEqual(res.ordering);
 
-    bakana.freeAnalysis(state);
-    bakana.freeAnalysis(reloaded.state);
+    await bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(reloaded.state);
 })

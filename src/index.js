@@ -118,7 +118,7 @@ export function freeAnalysis(state) {
     let promises = [];
     for (const [k, v] of Object.entries(state)) {
         let p = v.free();
-        if (p !== null) {
+        if (p) { // not null, not undefined.
             promises.push(p); 
         }
     }

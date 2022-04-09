@@ -89,7 +89,7 @@ test("switching between clustering methods (SNN first)", async () => {
     }
 
     // Freeing all states.
-    bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(state);
 });
 
 test("switching between clustering methods (k-means first)", async () => {
@@ -171,5 +171,5 @@ test("switching between clustering methods (k-means first)", async () => {
     }
 
     // Freeing all states.
-    bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(state);
 });

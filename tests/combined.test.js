@@ -55,7 +55,7 @@ test("multi-matrix analyses work correctly", async () => {
     expect(new_params.pca instanceof Object).toBe(true);
 
     // Freeing.
-    bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(state);
 })
 
 test("single-matrix multi-sample analyses work correctly", async () => {
@@ -107,5 +107,5 @@ test("single-matrix multi-sample analyses work correctly", async () => {
     expect(new_params.pca instanceof Object).toBe(true);
 
     // Freeing.
-    bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(state);
 })

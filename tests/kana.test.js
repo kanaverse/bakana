@@ -24,7 +24,7 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
     // Saving to a kana file.
     const path = "TEST_kana_state.h5";
     let collected = await bakana.saveAnalysis(state, path);
-    bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(state);
 
     const kpath = "TEST_state.kana";
     let res = await bakana.createKanaFile(path, collected.collected, { outputPath: kpath });
@@ -59,7 +59,7 @@ test("saving to and loading from a kana file works with links", async () => {
     // Saving to a kana file.
     const path = "TEST_kana_state2.h5";
     await bakana.saveAnalysis(state, path, { embedded: false });
-    bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(state);
 
     const kpath = "TEST_state2.kana";
     let res = await bakana.createKanaFile(path, null, { outputPath: kpath });

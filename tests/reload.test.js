@@ -22,7 +22,7 @@ test("reanalysis from a reloaded analysis works correctly", async () => {
     // Saving and reloading.
     const path = "TEST_state_reloaded.h5";
     let collected = await bakana.saveAnalysis(state, path);
-    bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(state);
 
     let offsets = utils.mockOffsets(collected.collected);
     let reloaded = await bakana.loadAnalysis(
@@ -41,7 +41,7 @@ test("reanalysis from a reloaded analysis works correctly", async () => {
     await bakana.runAnalysis(new_state, null, new_params, { finishFun: finished });
     expect(Object.entries(contents).length).toBe(0);
 
-    bakana.freeAnalysis(new_state);
+    await bakana.freeAnalysis(new_state);
 
     // Re-analyzing with a change.
     let reloaded2 = await bakana.loadAnalysis(
@@ -58,5 +58,5 @@ test("reanalysis from a reloaded analysis works correctly", async () => {
     expect(contents.inputs).toBeUndefined();
     expect(contents.quality_control instanceof Object).toBe(true);
 
-    bakana.freeAnalysis(new_state2);
+    await bakana.freeAnalysis(new_state2);
 })

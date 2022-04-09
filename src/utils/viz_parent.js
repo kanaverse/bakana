@@ -112,7 +112,10 @@ export function killAllWorkers() {
     let p = [];
     for (const x of worker_registry) {
         if (x !== null) {
-            p.push(aworkers.terminateWorker(x));
+            let p_ = aworkers.terminateWorker(x);
+            if (p_) { // not null, not undefined.
+                p.push(p_);
+            }
         }
     }
     return Promise.all(p).then(x => null);

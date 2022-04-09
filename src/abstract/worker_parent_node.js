@@ -20,6 +20,5 @@ export function sendMessage(worker, message, transfer) {
 }
 
 export function terminateWorker(worker) {
-    worker.terminate();
-    return new Promise(resolve => resolve(true));
+    return worker.terminate();
 }
