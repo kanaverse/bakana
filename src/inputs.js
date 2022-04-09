@@ -55,7 +55,7 @@ export class InputsState {
      * @return An array of length equal to the number of cells, containing the annotation for each cell.
      *
      * Alternatively, an object representing a factor.
-     * This should contain `factor`, an array of strings containing the unique factor levels;
+     * This should contain `levels`, an array of strings containing the unique factor levels;
      * and `index`, an array of length equal to the number of cells, referencing entries in `factor`. 
      */
     fetchAnnotations(col) {
@@ -77,24 +77,25 @@ export class InputsState {
             return { 
                 type: current.type,
                 index: current.index.slice(),
-                factor: current.factor.slice()
+                levels: current.levels.slice()
             };
         }
 
-        let uvals = {};
-        let uTypedAray = new Uint8Array(size);
+        let uniq_vals = [];
+        let uniq_map = {};
+        let indices = new Int32Array(size);
         annots[col].map((x, i) => {
-            if (!(x in uvals)) {
-                uvals[x] = Object.keys(uvals).length;
+            if (!(x in uniq_map)) {
+                uniq_map[x] = uniq_vals.length;
+                uniq_vals.push(x);
             }
-
-            uTypedAray[i] = uvals[x];
+            indices[i] = uniq_map[x];
         });
 
         return {
             "type": "factor",
-            "index": Object.keys(uvals),
-            "factor": uTypedAray
+            "index": indices,
+            "levels": uniq_vals
         };
     }
 

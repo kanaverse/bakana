@@ -35,6 +35,33 @@ test("fetching of various bits and pieces is done correctly", async () => {
     expect(cell_anno.index.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
     let filtered_anno = state.quality_control.fetchFilteredAnnotations("level1class");
     expect(filtered_anno.index.length).toBe(nfiltered);
+    expect(filtered_anno.levels.length).toBeLessThan(20);
+
+    await bakana.freeAnalysis(state);
+})
+
+test("manual factorization is done correctly", async () => {
+    let state = await bakana.createAnalysis();
+    let params = utils.baseParams();
+    await bakana.runAnalysis(state, { 
+        default: {
+            format: "MatrixMarket",
+            mtx: "files/datasets/pbmc-combined-matrix.mtx.gz",
+            genes: "files/datasets/pbmc-combined-features.tsv.gz",
+            annotations: "files/datasets/pbmc-combined-barcodes.tsv.gz"
+        }
+    }, params);
+
+    // '3k' is a column loaded from the Matrix Market reader and converted into 
+    // factor form by the fetchAnnotations function. Here we check that the manual
+    // factorization process was performed correctly.
+    let cell_anno = state.inputs.fetchAnnotations("3k");
+    expect(cell_anno.index.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
+
+    let filtered_anno = state.quality_control.fetchFilteredAnnotations("3k");
+    let nfiltered = state.quality_control.fetchFilteredMatrix().numberOfColumns();
+    expect(filtered_anno.index.length).toBe(nfiltered);
+    expect(filtered_anno.levels.length).toBe(2);
 
     await bakana.freeAnalysis(state);
 })

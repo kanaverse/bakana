@@ -67,7 +67,7 @@ function extract_annotations(handle, { namesOnly = false } = {}) {
                         annotations[key] = {
                             "type": "factor",
                             "index": old,
-                            "factor": cats
+                            "levels": cats
                         }
                     }
                 }
