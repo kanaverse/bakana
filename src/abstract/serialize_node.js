@@ -1,6 +1,8 @@
 import * as sutils from "../utils/serialize.js";
 import * as fs from "fs";
 import * as Path from "path";
+import * as v0 from "../legacy/from_v0.js";
+import * as pako from "pako";
 
 /**
  * This contains a function to create and load a kana file with Node.
@@ -57,17 +59,29 @@ export async function parseKanaFileInternal(input, statePath, { stageDir = null 
 
     let parsed = sutils.parsePreamble(prebuffer.buffer);
     let state_len = parsed.state;
-
-    // Piping it into the output file.
     let delta = parsed.offset + state_len;
-    let istream = fs.createReadStream(input, { start: parsed.offset, end: delta - 1 });
-    let ostream = fs.createWriteStream(statePath);
-    let piped = istream.pipe(ostream);
 
-    await new Promise((resolve, reject) => {
-        piped.on("unpipe", () => resolve(null));
-        piped.on("error", e => reject(e));
-    });
+    if (parsed.version < 1000000) {
+        let fd = fs.openSync(input);
+        let statebuffer = new Uint8Array(state_len);
+        fs.readSync(fd, statebuffer, 0, state_len, parsed.offset);
+        fs.closeSync(fd);
+
+        var contents = pako.ungzip(new Uint8Array(statebuffer), { "to": "string" });
+        let state = JSON.parse(contents);
+        v0.convertFromVersion0(state, statePath);
+
+    } else {
+        // Piping it into the output file.
+        let istream = fs.createReadStream(input, { start: parsed.offset, end: delta - 1 });
+        let ostream = fs.createWriteStream(statePath);
+        let piped = istream.pipe(ostream);
+
+        await new Promise((resolve, reject) => {
+            piped.on("unpipe", () => resolve(null));
+            piped.on("error", e => reject(e));
+        });
+    }
 
     if (parsed.embedded) {
         // Safest to just reopen the damn file and write it to the location.

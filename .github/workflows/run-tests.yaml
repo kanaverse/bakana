@@ -23,11 +23,17 @@ jobs:
         path: '**/files/datasets'
         key: datasets-${{ hashFiles('**/files/download-datasets.sh') }}
 
-    - name: Restore the dataset files 
+    - name: Restore the reference files 
       uses: actions/cache@v2
       with:
         path: '**/files/references'
         key: references-${{ hashFiles('**/files/download-references.sh') }}
+
+    - name: Restore the legacy files 
+      uses: actions/cache@v2
+      with:
+        path: '**/files/legacy'
+        key: references-${{ hashFiles('**/files/download-legacy.sh') }}
 
     - name: Install packages
       run: npm i --include-dev
@@ -37,6 +43,9 @@ jobs:
 
     - name: Download references
       run: cd files && bash download-references.sh
+
+    - name: Download legacy 
+      run: cd files && bash download-legacy.sh
 
     - name: Run tests
       run: node --experimental-vm-modules --experimental-wasm-threads node_modules/jest/bin/jest.js --testTimeout=1000000 --runInBand
