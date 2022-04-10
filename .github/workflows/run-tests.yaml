@@ -3,7 +3,7 @@ on: [push]
 name: Run tests
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -48,4 +48,4 @@ jobs:
       run: cd files && bash download-legacy.sh
 
     - name: Run tests
-      run: node --experimental-vm-modules --experimental-wasm-threads node_modules/jest/bin/jest.js --testTimeout=1000000 --runInBand
+      run: npm run test
