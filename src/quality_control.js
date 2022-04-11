@@ -79,16 +79,10 @@ export class QualityControlState {
      *
      * @param {string} col - Name of the annotation field of interest.
      *
-     * @return An object representing the annotations of each (remaining) cell either in a `factor` or an `array` (defined in `type`).
-     * 
-     * For factors,
-     * This should contain `levels`, an array of strings containing the unique factor levels;
-     * and `index`, an array of length equal to the number of cells, referencing entries in `factor`. 
-     * 
-     * For arrays,
-     * This should contain `values` an array of values for the annotation.
-     * 
-     * see {@linkcode InputState#fetchAnnotations InputState.fetchAnnotations} for details.
+     * @return An object similar to that returned by {@linkcode InputsState#fetchAnnotations InputsState.fetchAnnotations},
+     * after filtering the vectors to only contain information for the remaining cells.
+     * - For `type: "factor"`, the array in `index` will be filtered.
+     * - For `type: "array"`, the array in `values` will be filtered.
      */
     fetchFilteredAnnotations(col) { 
         let vec = this.#inputs.fetchAnnotations(col);

@@ -52,15 +52,17 @@ export class InputsState {
      *
      * @param {string} col - Name of the annotation field of interest.
      *
-     * @return An object representing the annotations of each cell either in a `factor` or an `array` (defined in `type`).
+     * @return An object containing the requested annotations.
+     * This will contain:
+     * - `type`: string specifying the the type of annotations.
+     *   This can be either `"factor"` or `"array"`.
      *
-     * For factors,
-     * This should contain `levels`, an array of strings containing the unique factor levels;
-     * and `index`, an array of length equal to the number of cells, referencing entries in `factor`. 
+     * For `type: "factor"`, the object will additionally contain:
+     * - `levels`: an array of strings containing the unique factor levels.
+     * - `index`: an Int32Array of length equal to the number of cells, referencing entries in `levels`.
      * 
-     * For arrays,
-     * This should contain `values` an array of values for the annotation.
-     * 
+     * For `type: "array"`, the object will additionally contain:
+     * - `values`: a TypedArray of values of length equal to the number of cells.
      */
     fetchAnnotations(col) {
         let annots = this.#cache.annotations;
