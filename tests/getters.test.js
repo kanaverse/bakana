@@ -30,12 +30,18 @@ test("fetching of various bits and pieces is done correctly", async () => {
     let nfiltered = state.quality_control.fetchFilteredMatrix().numberOfColumns();
     expect(exprs.length).toBe(nfiltered);
 
-    // Annotations, with and without filtering.
+    // Factor annotations, with and without filtering.
     let cell_anno = state.inputs.fetchAnnotations("level1class");
     expect(cell_anno.index.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
     let filtered_anno = state.quality_control.fetchFilteredAnnotations("level1class");
     expect(filtered_anno.index.length).toBe(nfiltered);
     expect(filtered_anno.levels.length).toBeLessThan(20);
+
+    // Non-factor annotations, with and without filtering.
+    let sex_anno = state.inputs.fetchAnnotations("sex");
+    expect(sex_anno.values.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
+    let filtered_sex = state.quality_control.fetchFilteredAnnotations("sex");
+    expect(filtered_sex.values.length).toBe(nfiltered);
 
     await bakana.freeAnalysis(state);
 })

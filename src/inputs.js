@@ -52,11 +52,17 @@ export class InputsState {
      *
      * @param {string} col - Name of the annotation field of interest.
      *
-     * @return An array of length equal to the number of cells, containing the annotation for each cell.
+     * @return An object containing the requested annotations.
+     * This will contain:
+     * - `type`: string specifying the the type of annotations.
+     *   This can be either `"factor"` or `"array"`.
      *
-     * Alternatively, an object representing a factor.
-     * This should contain `levels`, an array of strings containing the unique factor levels;
-     * and `index`, an array of length equal to the number of cells, referencing entries in `factor`. 
+     * For `type: "factor"`, the object will additionally contain:
+     * - `levels`: an array of strings containing the unique factor levels.
+     * - `index`: an Int32Array of length equal to the number of cells, referencing entries in `levels`.
+     * 
+     * For `type: "array"`, the object will additionally contain:
+     * - `values`: a TypedArray of values of length equal to the number of cells.
      */
     fetchAnnotations(col) {
         let annots = this.#cache.annotations;
@@ -70,7 +76,12 @@ export class InputsState {
 
         // i.e., is it already a factor? In which case, we make a copy of its contents.
         // This ensures we don't have any accidental writes or transfers. 
-        if (utils.isObject(current)) {
+        if (ArrayBuffer.isView(current)) {
+            return {
+                "type": "array",
+                "values": current.slice()
+            };
+        } else if (utils.isObject(current)) {
             if (!("type" in current) || current.type != "factor") {
                 throw new Error("annotation column should have 'type: \"factor\"' if it is an object");
             }
