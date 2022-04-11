@@ -73,7 +73,7 @@ export class InputsState {
         if (ArrayBuffer.isView(current)) {
             return {
                 "type": "array",
-                "values": current.index.slice()
+                "values": current.slice()
             };
         } else if(utils.isObject(current)) {
             if (!("type" in current) || current.type != "factor") {
