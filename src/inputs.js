@@ -70,7 +70,12 @@ export class InputsState {
 
         // i.e., is it already a factor? In which case, we make a copy of its contents.
         // This ensures we don't have any accidental writes or transfers. 
-        if (utils.isObject(current)) {
+        if (ArrayBuffer.isView(current)) {
+            return {
+                "type": "array",
+                "values": current.index.slice()
+            };
+        } else if(utils.isObject(current)) {
             if (!("type" in current) || current.type != "factor") {
                 throw new Error("annotation column should have 'type: \"factor\"' if it is an object");
             }
