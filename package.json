@@ -1,6 +1,6 @@
 {
   "name": "bakana",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Backend for kana's single-cell analyses. This supports single or multiple samples, execution in Node.js or the browser, in-memory caching of results for iterative analyses, and serialization to/from file for redistribution.",
   "type": "module",
   "main": "main/index.js",
@@ -9,18 +9,20 @@
     "test": "node --experimental-vm-modules --experimental-wasm-threads node_modules/jest/bin/jest.js --testTimeout=1000000 --runInBand",
     "jsdoc": "npx jsdoc src src/utils README.md -d docs/built -c docs/jsdoc.config.json"
   },
-  "repository": {
-    "type": "git",
-    "url": "github.com/LTLA/bakana"
-  },
+  "repository": "github:LTLA/bakana",
+  "bugs": "https://github.com/LTLA/bakana/issues",
   "keywords": [
     "single-cell"
   ],
-  "author": "Aaron Lun",
+  "author": {
+    "name": "Aaron Lun",
+    "email": "infinite.monkeys.with.keyboards@gmail.com",
+    "url": "https://github.com/LTLA"
+  },
   "license": "MIT",
   "dependencies": {
     "pako": "^2.0.4",
-    "scran.js": "0.0.20"
+    "scran.js": "0.0.21"
   },
   "devDependencies": {
     "docdash": "^1.2.0",
