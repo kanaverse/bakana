@@ -180,7 +180,7 @@ export class CellLabellingState {
             compare_arrays(mouse_references, this.#parameters.mouse_references)) 
         {
             this.changed = false;
-            return;
+            return new Promise(resolve => resolve(null));
         }
 
         if (this.#inputs.changed || !("features" in this.#cache)) {

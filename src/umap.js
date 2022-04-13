@@ -95,7 +95,7 @@ export class UmapState {
         let same_neighbors = (!this.#index.changed && this.#parameters.num_neighbors === num_neighbors);
         if (same_neighbors && num_epochs === this.#parameters.num_epochs && min_dist === this.#parameters.min_dist) {
             this.changed = false;
-            return;
+            return new Promise(resolve => resolve(null));
         }
 
         // In the reloaded state, we must send the neighbor
@@ -120,7 +120,7 @@ export class UmapState {
      ******** Results **********
      ***************************/
 
-    async #fetch_results(copy)  {
+    async #fetch_results(copy) {
         if (this.#reloaded !== null) {
             let output = {
                 x: this.#reloaded.x,

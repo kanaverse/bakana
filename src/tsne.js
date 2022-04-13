@@ -94,7 +94,7 @@ export class TsneState {
         let same_neighbors = (!this.#index.changed && perplexity === this.#parameters.perplexity);
         if (same_neighbors && iterations == this.#parameters.iterations) {
             this.changed = false;
-            return;
+            return new Promise(resolve => resolve(null));
         }
 
         // In the reloaded state, we must send the neighbor
