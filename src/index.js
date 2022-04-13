@@ -148,114 +148,145 @@ export function freeAnalysis(state) {
  * @param {object} params - An object containing parameters for all steps.
  * See {@linkcode analysisDefaults} for more details.
  * @param {object} [options] - Optional parameters.
+ * @param {function} [options.startFun] - Function that is called when each step is started.
+ * This should accept a single argument - the name of the step.
+ * If `null`, nothing is executed.
  * @param {function} [options.finishFun] - Function that is called on successful execution of each step.
  * This should accept two arguments - the name of the step and an object containing the results of that step.
- * If `null`, a no-op function is automatically created.
+ * (The latter will be undefined if the step uses a previously cached result.)
+ * If `null`, nothing is executed.
  * 
  * @return A promise that resolves to `null` when all asynchronous analysis steps are complete.
  * The contents of `state` are modified by reference to reflect the latest state of the analysis with the supplied parameters.
  */
-export async function runAnalysis(state, matrices, params, { finishFun = null } = {}) {
-    let quickFun = step => {
-        if (state[step].changed && finishFun !== null) {
-            finishFun(step, state[step].summary());
+export async function runAnalysis(state, matrices, params, { startFun = null, finishFun = null } = {}) {
+    let quickStart = step => {
+        if (startFun !== null) {
+            startFun(step);
+        }
+    }
+
+    let quickFinish = step => {
+        if (finishFun !== null) {
+            if (state[step].changed) {
+                finishFun(step, state[step].summary());
+            } else {
+                finishFun(step);
+            }
         }
     }
 
     let promises = [];
-    let asyncQuickFun = (step, p) => {
-        if (state[step].changed && finishFun !== null) {
-            p = state[step].summary().then(res => finishFun(step, res));
+    let asyncQuickFinish = (step, p) => {
+        if (finishFun !== null) {
+            if (state[step].changed) {
+                p = state[step].summary().then(res => finishFun(step, res));
+            } else {
+                p = p.then(out => finishFun(step));
+            }
         }
         promises.push(p);
     }
 
+    quickStart(step_inputs);
     await state[step_inputs].compute(
         matrices, 
         params[step_inputs]["sample_factor"]
     );
-    quickFun(step_inputs);
+    quickFinish(step_inputs);
 
+    quickStart(step_qc);
     state[step_qc].compute(
         params[step_qc]["use_mito_default"], 
         params[step_qc]["mito_prefix"], 
         params[step_qc]["nmads"]
     );
-    quickFun(step_qc);
- 
-    state[step_norm].compute();
-    quickFun(step_norm);
+    quickFinish(step_qc);
 
+    quickStart(step_norm);
+    state[step_norm].compute();
+    quickFinish(step_norm);
+
+    quickStart(step_feat);
     state[step_feat].compute(
         params[step_feat]["span"]
     );
-    quickFun(step_feat);
+    quickFinish(step_feat);
 
+    quickStart(step_pca);
     state[step_pca].compute(
         params[step_pca]["num_hvgs"],
         params[step_pca]["num_pcs"],
         params[step_pca]["block_method"]
     );
-    quickFun(step_pca);
+    quickFinish(step_pca);
 
+    quickStart(step_neighbors);
     state[step_neighbors].compute(
         params[step_neighbors]["approximate"]
     );
-    quickFun(step_neighbors);
+    quickFinish(step_neighbors);
 
     {
+        quickStart(step_tsne);
         let p = state[step_tsne].compute(
             params[step_tsne]["perplexity"],
             params[step_tsne]["iterations"], 
             params[step_tsne]["animate"]
         );
-        asyncQuickFun(step_tsne, p);
+        asyncQuickFinish(step_tsne, p);
     }
 
     {
+        quickStart(step_umap);
         let p = state[step_umap].compute(
             params[step_umap]["num_neighbors"], 
             params[step_umap]["num_epochs"], 
             params[step_umap]["min_dist"], 
             params[step_umap]["animate"]
         );
-        asyncQuickFun(step_umap, p);
+        asyncQuickFinish(step_umap, p);
     }
 
     let method = params[step_choice]["method"];
 
+    quickStart(step_kmeans);
     state[step_kmeans].compute(
         method == "kmeans", 
         params[step_kmeans]["k"]
     );
-    quickFun(step_kmeans);
+    quickFinish(step_kmeans);
 
+    quickStart(step_snn);
     state[step_snn].compute(
         method == "snn_graph", 
         params[step_snn]["k"], 
         params[step_snn]["scheme"], 
         params[step_snn]["resolution"]
     );
-    quickFun(step_snn);
-  
+    quickFinish(step_snn);
+
+    quickStart(step_choice);
     state[step_choice].compute(
         method
     );
-    quickFun(step_choice);
+    quickFinish(step_choice);
 
+    quickStart(step_markers);
     state[step_markers].compute();
-    quickFun(step_markers);
+    quickFinish(step_markers);
 
     {
+        quickStart(step_labels);
         let p = state[step_labels].compute(
             params[step_labels]["human_references"],
             params[step_labels]["mouse_references"]
         );
-        asyncQuickFun(step_labels, p);
+        asyncQuickFinish(step_labels, p);
     }
 
     state[step_custom].compute();
-    quickFun(step_custom);
+    quickFinish(step_custom);
 
     await Promise.all(promises);
     return null;
