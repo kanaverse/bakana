@@ -15,7 +15,7 @@
         "scripts": [],
         "menu":{
             "Github repo": {
-                "href":"https://github.com/LTLA/bakana.js",
+                "href":"https://github.com/LTLA/bakana",
                 "target":"_blank",
                 "class":"menu-item",
                 "id":"repository"
