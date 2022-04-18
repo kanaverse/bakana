@@ -6,6 +6,11 @@ beforeAll(async () => await bakana.initialize({ localFile: true }));
 afterAll(async () => await bakana.terminate());
 
 test("runAnalysis works correctly (10X)", async () => {
+    let attempts = new Set();
+    let started = step => {
+        attempts.add(step);
+    };
+
     let contents = {};
     let finished = (step, res) => {
         contents[step] = res;
@@ -23,10 +28,13 @@ test("runAnalysis works correctly (10X)", async () => {
         },
         params,
         {
-            finishFun: finished,
+            startFun: started,
+            finishFun: finished
         }
     );
 
+    expect(attempts.has("quality_control")).toBe(true);
+    expect(attempts.has("pca")).toBe(true);
     expect(contents.quality_control instanceof Object).toBe(true);
     expect(contents.pca instanceof Object).toBe(true);
     expect(contents.feature_selection instanceof Object).toBe(true);
