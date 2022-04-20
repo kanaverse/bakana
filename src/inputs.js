@@ -336,6 +336,13 @@ async function process_datasets(matrices, sample_factor) {
             // Single matrix with a batch factor.
             try {
                 let anno_batch = current.annotations[sample_factor];
+
+                let anno_levels = null;
+                if (utils.isObject(anno_batch)) {
+                    anno_levels = anno_batch.levels;
+                    anno_batch = anno_batch.index;
+                }
+
                 let ncols = current.matrix.numberOfColumns();
                 if (anno_batch.length != ncols) {
                     throw new Error("length of sample factor '" + sample_factor + "' should be equal to the number of cells"); 
@@ -353,6 +360,11 @@ async function process_datasets(matrices, sample_factor) {
                     }
                     block_arr[i] = uvals[x];
                 });
+
+                if (anno_levels !== null) {
+                    block_levels = Array.from(block_levels).map(i => anno_levels[i]);
+                }
+
             } catch (e) {
                 utils.freeCache(blocks);
                 utils.freeCache(current.matrix);
