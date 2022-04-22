@@ -176,12 +176,18 @@ export class PcaState {
 
 function choose_hvgs(num_hvgs, feat, cache) {
     var sorted_resids = feat.fetchSortedResiduals();
-    var threshold_at = sorted_resids[sorted_resids.length - num_hvgs];
     var sub = utils.allocateCachedArray(sorted_resids.length, "Uint8Array", cache, "hvg_buffer");
-    var unsorted_resids = feat.fetchResiduals({ unsafe: true });
-    sub.array().forEach((element, index, array) => {
-        array[index] = unsorted_resids[index] >= threshold_at;
-    });
+
+    if (num_hvgs < sorted_resids.length) {
+        var threshold_at = sorted_resids[sorted_resids.length - num_hvgs];
+        var unsorted_resids = feat.fetchResiduals({ unsafe: true });
+        sub.array().forEach((element, index, array) => {
+            array[index] = unsorted_resids[index] >= threshold_at;
+        });
+    } else {
+        sub.fill(1);
+    }
+
     return sub;
 }
 
