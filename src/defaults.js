@@ -22,6 +22,7 @@ export function analysisDefaults() {
             sample_factor: null
         },
         quality_control: {
+            method: "auto",
             use_mito_default: true,
             mito_prefix: "mt-",
             nmads: 3

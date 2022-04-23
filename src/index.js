@@ -197,6 +197,7 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
 
     quickStart(step_qc);
     state[step_qc].compute(
+        params[step_qc]["method"], 
         params[step_qc]["use_mito_default"], 
         params[step_qc]["mito_prefix"], 
         params[step_qc]["nmads"]

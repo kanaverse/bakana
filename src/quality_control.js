@@ -50,10 +50,14 @@ export class QualityControlState {
     }
 
     fetchFilteredMatrix() {
-        if (!("matrix" in this.#cache)) {
-            this.#apply_filters();
+        if (this.#parameters.method == "none") {
+            return this.#inputs.fetchCountMatrix();
+        } else {
+            if (!("matrix" in this.#cache)) {
+                this.#apply_filters();
+            }
+            return this.#cache.matrix;
         }
-        return this.#cache.matrix;
     }
 
     /**
@@ -64,13 +68,17 @@ export class QualityControlState {
      * Alternatively `null` if no blocks are present in the dataset.
      */
     fetchFilteredBlock() {
-        if (!("blocked" in this.#cache)) {
-            this.#apply_filters();
-        }
-        if (this.#cache.blocked) {
-            return this.#cache.block_buffer;
+        if (this.#parameters.method == "none") {
+            return this.#inputs.fetchBlock();
         } else {
-            return null;
+            if (!("blocked" in this.#cache)) {
+                this.#apply_filters();
+            }
+            if (this.#cache.blocked) {
+                return this.#cache.block_buffer;
+            } else {
+                return null;
+            }
         }
     }
 
@@ -86,12 +94,14 @@ export class QualityControlState {
      */
     fetchFilteredAnnotations(col) { 
         let vec = this.#inputs.fetchAnnotations(col);
-        var discard = this.fetchDiscards().array();
-        let filterfun = (x, i) => !discard[i];
-        if (vec.type === "factor") {
-            vec.index = vec.index.filter(filterfun);
-        } else {
-            vec.values = vec.values.filter(filterfun);
+        if (this.#parameters.method != "none") {
+            var discard = this.fetchDiscards().array();
+            let filterfun = (x, i) => !discard[i];
+            if (vec.type === "factor") {
+                vec.index = vec.index.filter(filterfun);
+            } else {
+                vec.values = vec.values.filter(filterfun);
+            }
         }
         return vec;
     }
@@ -132,13 +142,15 @@ export class QualityControlState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * Each argument is taken from the property of the same name in the `quality_control` property of the `parameters` of {@linkcode runAnalysis}.
      *
+     * @param {string} method - Method to use to identity and remove low-quality cells.
+     * This can be `"none"` or `"auto"`.
      * @param {boolean} use_mito_default - Whether the internal mitochondrial gene lists should be used.
      * @param {string} mito_prefix - Prefix of the identifiers for mitochondrial genes, when `use_mito_default = false`.
      * @param {number} nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
      *
      * @return The object is updated with the new results.
      */
-    compute(use_mito_default, mito_prefix, nmads) {
+    compute(method, use_mito_default, mito_prefix, nmads) {
         this.changed = false;
 
         if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix) {
@@ -178,18 +190,30 @@ export class QualityControlState {
             this.changed = true;
         }
 
-        if (this.changed || nmads !== this.#parameters.nmads) {
+        if (this.changed || nmads !== this.#parameters.nmads || method !== this.#parameters.method) {
             let block = this.#inputs.fetchBlock();
             utils.freeCache(this.#cache.filters);
             this.#cache.filters = scran.computePerCellQCFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
 
+            // Cleaning out everything if we actually don't want any filtering.
+            // TODO: move this into computePerCellQCFilters to support custom thresholds.
+            if (method == "none") {
+                this.#cache.filters.thresholdsSums({ copy: false }).fill(0);
+                this.#cache.filters.thresholdsDetected({ copy: false }).fill(0);
+                this.#cache.filters.thresholdsSubsetProportions(0, { copy: false }).fill(1);
+                this.#cache.filters.discardSums({ copy: false }).fill(0);
+                this.#cache.filters.discardDetected({ copy: false }).fill(0);
+                this.#cache.filters.discardSubsetProportions(0, { copy: false }).fill(0);
+                this.#cache.filters.discardOverall({ copy: false }).fill(0);
+            }
+
             this.#parameters.nmads = nmads;
+            this.#parameters.method = method;
             this.changed = true;
         }
 
         if (this.changed) {
             this.#apply_filters();
-            this.changed = true; // left in for consistency.
         }
 
         return;
@@ -286,6 +310,7 @@ export class QualityControlState {
 
         {
             let phandle = ghandle.createGroup("parameters"); 
+            phandle.writeDataSet("method", "String", [], this.#parameters.method);
             phandle.writeDataSet("use_mito_default", "Uint8", [], Number(this.#parameters.use_mito_default));
             phandle.writeDataSet("mito_prefix", "String", [], this.#parameters.mito_prefix);
             phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
@@ -364,6 +389,12 @@ export function unserialize(handle, inputs) {
             use_mito_default: phandle.open("use_mito_default", { load: true }).values[0] > 0,
             mito_prefix: phandle.open("mito_prefix", { load: true }).values[0],
             nmads: phandle.open("nmads", { load: true }).values[0]
+        }
+
+        if ("method" in phandle.children) {
+            parameters.method = phandle.open("method", { load: true }).values[0];
+        } else {
+            parameters.method = "auto";
         }
     }
 
