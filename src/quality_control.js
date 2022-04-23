@@ -94,7 +94,7 @@ export class QualityControlState {
      */
     fetchFilteredAnnotations(col) { 
         let vec = this.#inputs.fetchAnnotations(col);
-        if (!this.#parameters.filter) {
+        if (this.#parameters.filter) {
             var discard = this.fetchDiscards().array();
             let filterfun = (x, i) => !discard[i];
             if (vec.type === "factor") {
