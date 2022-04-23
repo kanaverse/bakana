@@ -50,7 +50,7 @@ export class QualityControlState {
     }
 
     fetchFilteredMatrix() {
-        if (this.#parameters.method == "none") {
+        if (!this.#parameters.filter) {
             return this.#inputs.fetchCountMatrix();
         } else {
             if (!("matrix" in this.#cache)) {
@@ -68,7 +68,7 @@ export class QualityControlState {
      * Alternatively `null` if no blocks are present in the dataset.
      */
     fetchFilteredBlock() {
-        if (this.#parameters.method == "none") {
+        if (!this.#parameters.filter) {
             return this.#inputs.fetchBlock();
         } else {
             if (!("blocked" in this.#cache)) {
@@ -94,7 +94,7 @@ export class QualityControlState {
      */
     fetchFilteredAnnotations(col) { 
         let vec = this.#inputs.fetchAnnotations(col);
-        if (this.#parameters.method != "none") {
+        if (!this.#parameters.filter) {
             var discard = this.fetchDiscards().array();
             let filterfun = (x, i) => !discard[i];
             if (vec.type === "factor") {
@@ -142,15 +142,14 @@ export class QualityControlState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * Each argument is taken from the property of the same name in the `quality_control` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {string} method - Method to use to identity and remove low-quality cells.
-     * This can be `"none"` or `"auto"`.
      * @param {boolean} use_mito_default - Whether the internal mitochondrial gene lists should be used.
      * @param {string} mito_prefix - Prefix of the identifiers for mitochondrial genes, when `use_mito_default = false`.
      * @param {number} nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
+     * @param {boolean} filter - Whether to actually remove low-quality cells.
      *
      * @return The object is updated with the new results.
      */
-    compute(method, use_mito_default, mito_prefix, nmads) {
+    compute(use_mito_default, mito_prefix, nmads, filter) {
         this.changed = false;
 
         if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix) {
@@ -190,14 +189,14 @@ export class QualityControlState {
             this.changed = true;
         }
 
-        if (this.changed || nmads !== this.#parameters.nmads || method !== this.#parameters.method) {
+        if (this.changed || nmads !== this.#parameters.nmads || filter !== this.#parameters.filter) {
             let block = this.#inputs.fetchBlock();
             utils.freeCache(this.#cache.filters);
             this.#cache.filters = scran.computePerCellQCFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
 
-            // Cleaning out everything if we actually don't want any filtering.
+            // Resetting the thresholds if we actually don't want any filtering.
             // TODO: move this into computePerCellQCFilters to support custom thresholds.
-            if (method == "none") {
+            if (!filter) {
                 this.#cache.filters.thresholdsSums({ copy: false }).fill(0);
                 this.#cache.filters.thresholdsDetected({ copy: false }).fill(0);
                 this.#cache.filters.thresholdsSubsetProportions(0, { copy: false }).fill(1);
@@ -208,7 +207,7 @@ export class QualityControlState {
             }
 
             this.#parameters.nmads = nmads;
-            this.#parameters.method = method;
+            this.#parameters.filter = filter;
             this.changed = true;
         }
 
@@ -310,10 +309,10 @@ export class QualityControlState {
 
         {
             let phandle = ghandle.createGroup("parameters"); 
-            phandle.writeDataSet("method", "String", [], this.#parameters.method);
             phandle.writeDataSet("use_mito_default", "Uint8", [], Number(this.#parameters.use_mito_default));
             phandle.writeDataSet("mito_prefix", "String", [], this.#parameters.mito_prefix);
             phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
+            phandle.writeDataSet("filter", "Uint8", [], this.#parameters.filter);
         }
 
         {
@@ -391,10 +390,10 @@ export function unserialize(handle, inputs) {
             nmads: phandle.open("nmads", { load: true }).values[0]
         }
 
-        if ("method" in phandle.children) {
-            parameters.method = phandle.open("method", { load: true }).values[0];
+        if ("filter" in phandle.children) {
+            parameters.filter = phandle.open("filter", { load: true }).values[0] > 0;
         } else {
-            parameters.method = "auto";
+            parameters.filter = true;
         }
     }
 

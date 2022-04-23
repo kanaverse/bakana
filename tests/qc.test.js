@@ -8,7 +8,7 @@ afterAll(async () => await bakana.terminate());
 test("runAnalysis works correctly when QC method is 'none'", async () => {
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
-    params.quality_control.method = "none";
+    params.quality_control.filter = false;
 
     let res = await bakana.runAnalysis(state, 
         { 
@@ -27,7 +27,13 @@ test("runAnalysis works correctly when QC method is 'none'", async () => {
     let lost = 0;
     disc.forEach(x => lost += x);
     expect(lost).toBe(0);
-    
+
+    // Check that the getters work.
+    let anno = state.quality_control.fetchFilteredAnnotations("AAACATACAACCAC-1");
+    expect(anno.index.length).toBe(disc.length);
+
+    expect(state.quality_control.fetchFilteredBlock()).toBeNull();
+
     // Saving and loading.
     const path = "TEST_state_no_qc.h5";
     let collected = await bakana.saveAnalysis(state, path);
@@ -41,7 +47,7 @@ test("runAnalysis works correctly when QC method is 'none'", async () => {
     );
 
     let new_params = reloaded.parameters;
-    expect(new_params.quality_control.method).toBe("none");
+    expect(new_params.quality_control.filter).toBe(false);
 
     // Release me!
     await bakana.freeAnalysis(state);
