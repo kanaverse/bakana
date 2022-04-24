@@ -197,13 +197,17 @@ export class QualityControlState {
             // Resetting the thresholds if we actually don't want any filtering.
             // TODO: move this into computePerCellQCFilters to support custom thresholds.
             if (!filter) {
-                this.#cache.filters.thresholdsSums({ copy: false }).fill(0);
+                this.#cache.filters.thresholdsSums({ copy: false }).fill(1);
                 this.#cache.filters.thresholdsDetected({ copy: false }).fill(0);
                 this.#cache.filters.thresholdsSubsetProportions(0, { copy: false }).fill(1);
                 this.#cache.filters.discardSums({ copy: false }).fill(0);
                 this.#cache.filters.discardDetected({ copy: false }).fill(0);
                 this.#cache.filters.discardSubsetProportions(0, { copy: false }).fill(0);
-                this.#cache.filters.discardOverall({ copy: false }).fill(0);
+
+                // Though we are forced to remove zero-count cells, otherwise normalization will fail.
+                let sums = this.fetchSums({ unsafe: true });
+                let disc = this.#cache.filters.discardOverall({ copy: false });
+                sums.forEach((x, i) => disc[i] = (x == 0));
             }
 
             this.#parameters.nmads = nmads;
