@@ -45,7 +45,13 @@ export class SubsetCellsState {
 
      #raw_compute(indices) {
         var mat = this.#qc.fetchFilteredMatrix();
-        this.#cache.matrix = scran.subsetColumns(mat, indices);
+
+        if (!indices || (Array.isArray(indices) && indices.length == 0)) {
+            this.#cache.matrix = mat;
+        } else {
+            this.#cache.matrix = scran.subsetColumns(mat, indices);
+        }
+
         return;
     }
 
