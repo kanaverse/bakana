@@ -1,6 +1,6 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import * as qc_module from "./quality_control.js";
+import * as subset_module from "./subset_matrix.js";
 
 /**
  * This step performs normalization and log-transformation on the QC-filtered matrix from the {@linkplain QualityControlState}.
@@ -10,15 +10,15 @@ import * as qc_module from "./quality_control.js";
  * @hideconstructor
  */
 export class NormalizationState {
-    #qc;
+    #subset;
     #parameters;
     #cache;
 
-    constructor(qc, parameters = null, cache = null) {
-        if (!(qc instanceof qc_module.QualityControlState)) {
-            throw new Error("'qc' should be a State object from './quality_control.js'");
+    constructor(subset, parameters = null, cache = null) {
+        if (!(subset) instanceof subset_module.SubsetCellsState) {
+            throw new Error("'subset' should be a State object from './subset_matrix.js'");
         }
-        this.#qc = qc;
+        this.#subset = subset;
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
@@ -43,7 +43,7 @@ export class NormalizationState {
     /**
      * Extract normalized expression values.
      * @param {number} index - An integer specifying the row index to extract.
-     * @return A Float64Array of length equal to the number of (QC-filtered) cells, containing the log-normalized expression values for each cell.
+     * @return A Float64Array of length equal to the number of (subset-filtered) cells, containing the log-normalized expression values for each cell.
      */
     fetchExpression(index) {
         var mat = this.fetchNormalizedMatrix();
@@ -57,17 +57,19 @@ export class NormalizationState {
      ***************************/
 
     #raw_compute() {
-        var mat = this.#qc.fetchFilteredMatrix();
+        var mat = this.#subset.fetchSubsetMatrix();
         var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache);
 
         var discards = this.#qc.fetchDiscards();
         var sums = this.#qc.fetchSums({ unsafe: true }); // Better not have any more allocations in between now and filling of size_factors!
 
+        const indices = this.#subset.fetchIndices();
+
         // Reusing the totals computed earlier.
         var size_factors = buffer.array();
         var j = 0;
         discards.array().forEach((x, i) => {
-            if (!x) {
+            if (!x && (indices.indexOf(i) != -1)) {
                 size_factors[j] = sums[i];
                 j++;
             }
@@ -79,8 +81,19 @@ export class NormalizationState {
 
         var block = this.#qc.fetchFilteredBlock();
 
+        // subset blocks to indices from subset
+        let subset_blocks;
+        if (indices.length == 0) {
+            subset_blocks = block;
+        } else {
+            subset_blocks = scran.createInt32WasmArray(mat.numberOfColumns());
+            indices.forEach((x,i) => {
+                subset_blocks[i] = block[x];
+            })
+        }
+
         utils.freeCache(this.#cache.matrix);
-        this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: block });
+        this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: subset_blocks });
         return;
     }
 

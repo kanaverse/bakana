@@ -38,6 +38,10 @@ export class SubsetCellsState {
         return this.#cache.matrix;
     }
 
+    fetchIndices() {
+        return this.#parameters.indices ? this.#parameters.indices : [];
+    }
+
 
     /***************************
      ******** Compute **********
