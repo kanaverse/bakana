@@ -1,5 +1,6 @@
 import * as pako from "pako";
 import * as afile from "../abstract/file.js";
+import * as scran from "scran.js";
 
 export function extractHDF5Strings(handle, name) {
     if (!(name in handle.children)) {
@@ -134,4 +135,89 @@ export function formatFile(file, sizeOnly) {
         output.content = new afile.LoadedFile(file);
     }
     return output;
+}
+
+export function subsetToGenes(output) {
+    // Checking if 'type' is available, and if so, subsetting the
+    // matrix to only "Gene Expression". This is a stop-gap solution
+    // for dealing with non-gene features in 10X Genomics outputs.
+    if (output.genes === null || !("type" in output.genes)) {
+        return;
+    }
+
+    let keep = [];
+    let sub = new Uint8Array(output.genes.type.length);
+    let others = {};
+
+    output.genes.type.forEach((x, i) => {
+        let is_gene = x.match(/gene expression/i);
+        sub[i] = is_gene; 
+
+        if (is_gene) {
+            keep.push(i);
+        } else {
+            if (!(x in others)) {
+                others[x] = [];
+            }
+            others[x].push(i);
+        }
+    });
+
+    // If nothing matches to 'Gene expression', then clearly it wasn't
+    // very reasonable to subset on it, so we'll just give up.
+    if (keep.length == 0) {
+        return;
+    }
+
+    let subsetted;
+    try {
+        subsetted = scran.subsetRows(output.matrix, keep);
+
+        // Does anything match 'Antibody capture'? Let's treat this a bit
+        // differently by throwing in some normalization.
+        let adt_key = null;
+        for (const k of Object.keys(others)) {
+            if (k.match(/antibody capture/i)) {
+                adt_key = k;
+            }
+        }
+
+        if (adt_key !== null) {
+            if (output.annotations === null) {
+                output.annotations = {};
+            }
+
+            let partial, norm, pcs, clust, sf, norm2;
+            try {
+                // Computing some decent size factors for the ADT subset. 
+                partial = scran.subsetRows(output.matrix, others[adt_key]);
+                norm = scran.logNormCounts(partial);
+                pcs = scran.runPCA(norm, { numberOfPCs: Math.min(norm.numberOfRows() - 1, 25) });
+                clust = scran.clusterKmeans(pcs, 20);
+                sf = scran.groupedSizeFactors(partial, clust);
+                norm2 = scran.logNormCounts(partial, { sizeFactors: sf });
+
+                // And then storing them in the annotations.
+                for (const [i, j] of Object.entries(others[adt_key])) {
+                    output.annotations[adt_key + ": " + output.genes.id[j]] = norm2.row(i);
+                }
+            } finally {
+                utils.freeCache(partial);
+                utils.freeCache(norm);
+                utils.freeCache(pcs);
+                utils.freeCache(clust);
+                utils.freeCache(sf);
+                utils.freeCache(norm2);
+            }
+        }
+        
+    } catch (e) {
+        utils.freeCache(subsetted);
+        throw e;
+    } finally {
+        utils.freeCache(output.matrix); // releasing it as we will be replacing it with 'subsetted'.
+    }
+
+    output.matrix = subsetted;
+    return;
 }
