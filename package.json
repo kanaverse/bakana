@@ -22,7 +22,7 @@
   "license": "MIT",
   "dependencies": {
     "pako": "^2.0.4",
-    "scran.js": "0.0.21"
+    "scran.js": "0.1.0"
   },
   "devDependencies": {
     "docdash": "^1.2.0",
