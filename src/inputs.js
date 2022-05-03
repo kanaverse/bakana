@@ -273,11 +273,7 @@ export class InputsState {
                 rhandle.writeDataSet("num_samples", "Int32", [], this.#cache.block_levels.length); 
             }
 
-            if (multifile) {
-                rhandle.writeDataSet("indices", "Int32", null, this.#cache.indices);
-            } else {
-                rhandle.writeDataSet("permutation", "Int32", null, this.#cache.matrix.permutation({ copy: "view" }));
-            }
+            rhandle.writeDataSet("indices", "Int32", null, this.#cache.matrix.identities());
         }
 
         return;
@@ -424,11 +420,6 @@ async function process_datasets(matrices, sample_factor) {
             let merged = scran.cbindWithNames(mats, gnames);
             output.matrix = merged.matrix;
 
-            // Storing the identities of the genes in terms of the
-            // original row indices of the first matrix.
-            let firstperm = mats[0].permutation({ restore: false });
-            output.indices = merged.indices.map(i => firstperm[i]);
-
             // Extracting gene information from the first object. We won't make
             // any attempt at merging and deduplication across objects.
             let included = new Set(merged.indices);
@@ -572,64 +563,45 @@ export async function unserialize(handle, embeddedLoader) {
     // We need to do something if the permutation is not the same.
     let rhandle = ghandle.open("results");
     let permuter;
+
+    let perm = null;
     if (solofile) {
-        let perm = null;
         if ("permutation" in rhandle.children) {
+            // v1.0-v1.1
             let dhandle = rhandle.open("permutation", { load: true });
+            let ids = new Int32Array(dhandle.values.length);
+            dhandle.values.forEach((x, i) => { ids[x] = i; });
+            perm = scran.updatePermutation(cache.matrix, ids);
+        } else if ("identities" in rhandle.children) {
+            // v1.2+
+            let dhandle = rhandle.open("identities", { load: true });
             perm = scran.updatePermutation(cache.matrix, dhandle.values);
         } else {
             // Otherwise, we're dealing with v0 states. We'll just
             // assume it was the same, I guess. Should be fine as we didn't change
             // the permutation code in v0.
         }
-
-        if (perm !== null) {
-            // Adding a permuter function for all per-gene vectors.
-            permuter = (x) => {
-                let temp = x.slice();
-                x.forEach((y, i) => {
-                    temp[i] = x[perm[i]];
-                });
-                x.set(temp);
-                return;
-            };
-        } else {
-            permuter = (x) => { };
-        }
     } else {
-        let old_indices = rhandle.open("indices", { load: true }).values;
-        let new_indices = cache.indices;
-        if (old_indices.length != new_indices.length) {
-            throw new Error("old and new indices must have the same length for results to be interpretable");
-        }
-
-        let same = true;
-        for (var i = 0; i < old_indices.length; i++) {
-            if (old_indices[i] != new_indices[i]) {
-                same = false
-                break
-            }
-        }
-
-        if (same) {
-            permuter = (x) => {};
+        let old_ids;
+        if ("indices" in rhandle.children) {
+            // v1.1
+            old_ids = rhandle.open("indices", { load: true }).values;
         } else {
-            let remap = {};
-            old_indices.forEach((x, i) => {
-                remap[x] = i;
-            });
-            let perm = new_indices.map(o => {
-                if (!(o in remap) || remap[o] === null) {
-                    throw new Error("old and new indices should contain the same row identities");
-                }
-                let pos = remap[o];
-                remap[o] = null;
-                return pos;
-            });
-            permuter = (x) => {
-                return x.map((y, i) => x[perm[i]]);
-            };
+            // v1.2+
+            old_ids = rhandle.open("identities", { load: true }).values;
         }
+        perm = scran.updatePermutation(cache.matrix, old_ids);
+    }
+
+    if (perm === null) {
+        permuter = (x) => {}
+    } else {
+        permuter = (x) => {
+            let copy = x.slice();
+            x.forEach((y, i) => {
+                x[i] = copy[perm[i]];
+            });
+        };
     }
 
     return { 
