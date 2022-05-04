@@ -59,8 +59,20 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
 
+    // Checking that the permutation is unchanged on reload.
+    let old_ids = state.inputs.summary()["genes"]["id"];
+    let new_ids = reloaded.state.inputs.summary()["genes"]["id"];
+    expect(old_ids.length).toBeGreaterThan(0);
+    expect(old_ids).toEqual(new_ids);
+
+    let old_res = state.feature_selection.summary();
+    let new_res = reloaded.state.feature_selection.summary();
+    expect("means" in old_res).toBe(true);
+    expect(old_res["means"]).toEqual(new_res["means"]);
+
     // Release me!
     await bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(reloaded.state);
 })
 
 test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async () => {
@@ -104,4 +116,5 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
 
     // Release me!
     await bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(reloaded.state);
 })

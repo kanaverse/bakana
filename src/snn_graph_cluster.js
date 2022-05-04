@@ -191,7 +191,12 @@ export function unserialize(handle, index) {
     {
         let phandle = ghandle.open("parameters");
         parameters.k = phandle.open("k", { load: true }).values[0];
+
         parameters.scheme = phandle.open("scheme", { load: true }).values[0];
+        if (typeof parameters.scheme !== "string") { // because I stuffed up and tried to save a string as an int in v1.0, oops.
+            parameters.scheme = "rank";
+        }
+
         parameters.resolution = phandle.open("resolution", { load: true }).values[0];
     }
 
