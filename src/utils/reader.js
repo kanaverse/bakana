@@ -1,6 +1,7 @@
 import * as pako from "pako";
 import * as afile from "../abstract/file.js";
 import * as scran from "scran.js";
+import * as utils from "./general.js";
 
 export function extractHDF5Strings(handle, name) {
     if (!(name in handle.children)) {
