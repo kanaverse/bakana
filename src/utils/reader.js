@@ -46,6 +46,27 @@ export function readDSVFromBuffer(content, fname, delim = "\t") {
     return lines;
 }
 
+export function reorganizeGenes(loaded) {
+    if (loaded.genes === null) {
+        let genes = [];
+        if (loaded.matrix.isReorganized()) {
+            let ids = loaded.matrix.identities();
+            for (const i of ids) {
+                genes.push(`Gene ${i + 1}`);
+            }
+        } else {
+            for (let i = 0; i < loaded.matrix.numberOfRows(); i++) {
+                genes.push(`Gene ${i + 1}`);
+            }
+        }
+        loaded.genes = { "id": genes };
+    } else {
+        if (loaded.matrix.isReorganized()) {
+            scran.matchFeatureAnnotationToRowIdentities(loaded.matrix, loaded.genes);
+        }
+    }
+}
+
 var cache = {
     file2link: null, 
     link2file: null

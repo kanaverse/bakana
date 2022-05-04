@@ -155,6 +155,8 @@ export class Reader {
                 output.annotations = null;
             }
 
+            rutils.reorganizeGenes(output);
+
             // Stop-gap solution to remove non-gene entries.
             rutils.subsetToGenes(output);
 

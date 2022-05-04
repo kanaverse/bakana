@@ -72,10 +72,10 @@ export class Reader {
             let handle = new scran.H5File(tmppath);
             output.genes = extract_features(handle);
             output.annotations = null;
+            rutils.reorganizeGenes(output);
 
-            // Stop-gap solution to remove non-gene entries.
+            // Stop-gap solution to remove non-gene entries, e.g., ADTs.
             rutils.subsetToGenes(output);
-
         } catch (e) {
             utils.freeCache(output.matrix);
             throw e;
