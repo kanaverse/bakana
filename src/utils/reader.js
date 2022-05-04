@@ -168,10 +168,11 @@ export function subsetToGenes(output) {
     }
 
     let keep = [];
-    let sub = new Uint8Array(output.genes.type.length);
+    let feat_types = output.genes.type;
+    let sub = new Uint8Array(feat_types.length);
     let others = {};
 
-    output.genes.type.forEach((x, i) => {
+    feat_types.forEach((x, i) => {
         let is_gene = x.match(/gene expression/i);
         sub[i] = is_gene; 
 
@@ -191,55 +192,56 @@ export function subsetToGenes(output) {
         return;
     }
 
+    // Does anything match 'Antibody capture'? We'll treat this a bit
+    // differently by throwing in some custom normalization.
+    let adt_key = null;
+    for (const k of Object.keys(others)) {
+        if (k.match(/antibody capture/i)) {
+            adt_key = k;
+        }
+    }
+
+    if (adt_key !== null) {
+        if (output.annotations === null) {
+            output.annotations = {};
+        }
+
+        let partial, norm, pcs, clust, sf, norm2;
+        try {
+            // Computing some decent size factors for the ADT subset. 
+            partial = scran.subsetRows(output.matrix, others[adt_key]);
+            norm = scran.logNormCounts(partial);
+            pcs = scran.runPCA(norm, { numberOfPCs: Math.min(norm.numberOfRows() - 1, 25) });
+            clust = scran.clusterKmeans(pcs, 20);
+            sf = scran.groupedSizeFactors(partial, clust.clusters({ copy: "view" }));
+            norm2 = scran.logNormCounts(partial, { sizeFactors: sf });
+
+            // And then storing them in the annotations.
+            for (const [i, j] of Object.entries(others[adt_key])) {
+                output.annotations[adt_key + ": " + output.genes.id[j]] = norm2.row(i);
+            }
+        } finally {
+            utils.freeCache(partial);
+            utils.freeCache(norm);
+            utils.freeCache(pcs);
+            utils.freeCache(clust);
+            utils.freeCache(sf);
+            utils.freeCache(norm2);
+        }
+    }
+
+    // Stripping out everything that's not in the gene expression pile.
     let subsetted;
     try {
         subsetted = scran.subsetRows(output.matrix, keep);
-
-        // Does anything match 'Antibody capture'? Let's treat this a bit
-        // differently by throwing in some normalization.
-        let adt_key = null;
-        for (const k of Object.keys(others)) {
-            if (k.match(/antibody capture/i)) {
-                adt_key = k;
-            }
-        }
-
-        if (adt_key !== null) {
-            if (output.annotations === null) {
-                output.annotations = {};
-            }
-
-            let partial, norm, pcs, clust, sf, norm2;
-            try {
-                // Computing some decent size factors for the ADT subset. 
-                partial = scran.subsetRows(output.matrix, others[adt_key]);
-                norm = scran.logNormCounts(partial);
-                pcs = scran.runPCA(norm, { numberOfPCs: Math.min(norm.numberOfRows() - 1, 25) });
-                clust = scran.clusterKmeans(pcs, 20);
-                sf = scran.groupedSizeFactors(partial, clust);
-                norm2 = scran.logNormCounts(partial, { sizeFactors: sf });
-
-                // And then storing them in the annotations.
-                for (const [i, j] of Object.entries(others[adt_key])) {
-                    output.annotations[adt_key + ": " + output.genes.id[j]] = norm2.row(i);
-                }
-            } finally {
-                utils.freeCache(partial);
-                utils.freeCache(norm);
-                utils.freeCache(pcs);
-                utils.freeCache(clust);
-                utils.freeCache(sf);
-                utils.freeCache(norm2);
-            }
-        }
-        
+        utils.freeCache(output.matrix); // releasing it as it'll be replaced with 'subsetted'.
+        output.matrix = subsetted;
     } catch (e) {
         utils.freeCache(subsetted);
         throw e;
-    } finally {
-        utils.freeCache(output.matrix); // releasing it as we will be replacing it with 'subsetted'.
     }
 
-    output.matrix = subsetted;
+    scran.matchFeatureAnnotationToRowIdentities(keep, output.genes);
+
     return;
 }

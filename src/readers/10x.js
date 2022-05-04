@@ -24,9 +24,15 @@ function extract_features(handle) {
         let ids = rutils.extractHDF5Strings(fhandle, "id");
         if (ids !== null) {
             genes = { id: ids };
+
             let names = rutils.extractHDF5Strings(fhandle, "name");
             if (names !== null) {
                 genes.name = names;
+            }
+
+            let types = rutils.extractHDF5Strings(fhandle, "feature_type");
+            if (types !== null) {
+                genes.type = types;
             }
         }
     }
