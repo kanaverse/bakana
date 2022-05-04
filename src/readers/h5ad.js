@@ -120,6 +120,7 @@ export class Reader {
             let handle = new scran.H5File(tmppath);
             output.genes = extract_features(handle); 
             output.annotations = extract_annotations(handle);
+            rutils.reorganizeGenes(output);
         } catch (e) {
             utils.freeCache(output.matrix);
             throw e;

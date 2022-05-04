@@ -146,6 +146,9 @@ export class Reader {
             } else {
                 output.annotations = null;
             }
+
+            rutils.reorganizeGenes(output);
+
         } catch (e) {
             utils.freeCache(output.matrix);
             throw e;

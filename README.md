@@ -217,6 +217,8 @@ A new reader should be implemented as an ES6 module with the required exports be
 - This should return an object containing `matrix`, a `ScranMatrix` object.
   The object may also contain `genes`, an object where each key is a gene annotation field name and each value is an array of per-gene information;
   and/or `annotations`, an object where each key is a cell annotation field name and each value is an array of per-cell information.
+- Each array in `genes` should be parallel to the rows of `matrix`.
+  If the rows of `matrix` were reorganized in any way (e.g., subsetting or permutation), the same reorganization should be applied to each array in `genes`.
 - Alternatively, this method may return a promise that resolves to such an object.
 
 **`Reader.serialize(embeddedSaver)`:** register the count matrix in the state file. 

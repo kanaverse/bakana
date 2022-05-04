@@ -284,14 +284,6 @@ export class InputsState {
  ******* Internals ********
  **************************/
 
-function dummy_genes(numberOfRows) {
-    let genes = []
-    for (let i = 0; i < numberOfRows; i++) {
-        genes.push(`Gene ${i + 1}`);
-    }
-    return { "id": genes };
-}
-
 async function process_datasets(matrices, sample_factor) {
     // Loading all of the individual matrices. 
     let datasets = {};
@@ -299,16 +291,7 @@ async function process_datasets(matrices, sample_factor) {
         for (const [key, val] of Object.entries(matrices)) {
             // Too much hassle to convert this into a Promise.all(), because we
             // need to make sure it gets freed properly on failure.
-            let current = await val.load();
-
-            if (current.genes === null) {
-                current.genes = dummy_genes(current.matrix.numberOfRows());
-            } 
-            if (current.matrix.isPermuted()) {
-                scran.permuteFeatures(current.matrix, current.genes);
-            }
-
-            datasets[key] = current;
+            datasets[key] = await val.load();
         }
     } catch (e) {
         // If any one fails, we free the rest.
@@ -571,11 +554,11 @@ export async function unserialize(handle, embeddedLoader) {
             let dhandle = rhandle.open("permutation", { load: true });
             let ids = new Int32Array(dhandle.values.length);
             dhandle.values.forEach((x, i) => { ids[x] = i; });
-            perm = scran.updatePermutation(cache.matrix, ids);
+            perm = scran.updateRowIdentities(cache.matrix, ids);
         } else if ("identities" in rhandle.children) {
             // v1.2+
             let dhandle = rhandle.open("identities", { load: true });
-            perm = scran.updatePermutation(cache.matrix, dhandle.values);
+            perm = scran.updateRowIdentities(cache.matrix, dhandle.values);
         } else {
             // Otherwise, we're dealing with v0 states. We'll just
             // assume it was the same, I guess. Should be fine as we didn't change
@@ -590,7 +573,7 @@ export async function unserialize(handle, embeddedLoader) {
             // v1.2+
             old_ids = rhandle.open("identities", { load: true }).values;
         }
-        perm = scran.updatePermutation(cache.matrix, old_ids);
+        perm = scran.updateRowIdentities(cache.matrix, old_ids);
     }
 
     if (perm === null) {
