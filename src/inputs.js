@@ -68,7 +68,7 @@ export class InputsState {
         let annots = this.#cache.annotations;
         let size = this.#cache.matrix.numberOfColumns();
 
-        if (!(col in annots)) {
+        if (annots === null || !(col in annots)) {
             throw new Error(`${col} does not exist in the column annotations`);
         }
 

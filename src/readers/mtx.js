@@ -20,7 +20,7 @@ export function abbreviate(args) {
     return formatted;
 }
 
-function extract_features(gene_file, { numberOfRows = null } = {}) {
+function extract_features(gene_file, { numberOfRows = null, includeFeatureType = false } = {}) {
     const content = new Uint8Array(gene_file.content.buffer());
     let parsed = rutils.readDSVFromBuffer(content, gene_file);
     if (numberOfRows !== null && parsed.length !== numberOfRows) {
@@ -33,7 +33,15 @@ function extract_features(gene_file, { numberOfRows = null } = {}) {
         symb.push(x[1]);
     });
 
-    return { "id": ids, "symbol": symb };
+    let output = { "id": ids, "symbol": symb };
+
+    if (includeFeatureType && parsed[0].length >= 3) {
+        let types = [];
+        parsed.forEach(x => { types.push(x[2]); });
+        output.type = types;
+    }
+
+    return output;
 }
 
 function extract_annotations(annotation_file, { numberOfColumns = null, namesOnly = false } = {}) {
@@ -136,7 +144,7 @@ export class Reader {
             output.matrix = scran.initializeSparseMatrixFromMatrixMarketBuffer(contents, { "compressed": is_compressed });
 
             if (this.#genes !== null) {
-                output.genes = extract_features(this.#genes, { numberOfRows: output.matrix.numberOfRows() });
+                output.genes = extract_features(this.#genes, { numberOfRows: output.matrix.numberOfRows(), includeFeatureType: true });
             } else {
                 output.genes = null;
             }
@@ -148,6 +156,9 @@ export class Reader {
             }
 
             rutils.reorganizeGenes(output);
+
+            // Stop-gap solution to remove non-gene entries.
+            rutils.subsetToGenes(output);
 
         } catch (e) {
             utils.freeCache(output.matrix);
