@@ -58,7 +58,7 @@ export function convertDSVNumbers(columns) {
         let as_num = new Float64Array(val.length);
         let must_string = false;
 
-        for (const [x, i] of Object.entries(val)) {
+        for (const [i, x] of Object.entries(val)) {
             // See discussion at https://stackoverflow.com/questions/175739/how-can-i-check-if-a-string-is-a-valid-number.
             let opt1 = Number(x);
             let opt2 = parseFloat(x);
