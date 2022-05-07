@@ -2,6 +2,7 @@ import * as pako from "pako";
 import * as afile from "../abstract/file.js";
 import * as scran from "scran.js";
 import * as utils from "./general.js";
+import ppp from "papaparse";
 
 export function extractHDF5Strings(handle, name) {
     if (!(name in handle.children)) {
@@ -42,6 +43,13 @@ export function readDSVFromBuffer(content, fname, { delim = "\t", firstOnly = fa
     var ext = fname.name.split('.').pop();
     let decoded = unpackText(content, ext);
     let res = ppp.parse(decoded, { delimiter: delim, preview: (firstOnly ? 1 : 0) });
+
+    // Handle terminating newlines.
+    let last = res.data[res.data.length - 1];
+    if (last.length === 1 && last[0] === "") {
+        res.data.pop();
+    }
+
     return res.data;
 }
 
