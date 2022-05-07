@@ -20,30 +20,55 @@ export function extractHDF5Strings(handle, name) {
     return content.load();
 }
 
-export function readTextLines(buffer, compression = "gz") {
+function unpackText(buffer, compression) {
     let txt = buffer;
     if (compression == "gz") {
         txt = pako.ungzip(buffer);
     }
-
     const dec = new TextDecoder();
-    let decoded = dec.decode(txt);
+    return dec.decode(txt);
+}
 
+export function readTextLines(buffer, compression = "gz") {
+    let decoded = unpackText(buffer, compression);
     let lines = decoded.split("\n");
     if (lines.length > 0 && lines[lines.length - 1] == "") { // ignoring the trailing newline.
         lines.pop();
     }
-
     return lines;    
 }
 
-export function readDSVFromBuffer(content, fname, delim = "\t") {
+export function readDSVFromBuffer(content, fname, { delim = "\t", firstOnly = false } = {}) {
     var ext = fname.name.split('.').pop();
-    let lines = readTextLines(content, ext);
-    lines.forEach((x, i) => {
-        lines[i] = x.split(delim);
-    });
-    return lines;
+    let decoded = unpackText(content, ext);
+    let res = ppp.parse(decoded, { delimiter: delim, preview: (firstOnly ? 1 : 0) });
+    return res.data;
+}
+
+export function convertDSVNumbers(columns) {
+    for (const [key, val] of Object.entries(columns)) {
+        let as_num = new Float64Array(val.length);
+        let must_string = false;
+
+        for (const [x, i] of Object.entries(val)) {
+            // See discussion at https://stackoverflow.com/questions/175739/how-can-i-check-if-a-string-is-a-valid-number.
+            let opt1 = Number(x);
+            let opt2 = parseFloat(x);
+            if (!isNaN(opt1) && !isNaN(opt2)) {
+                as_num[i] = opt1;
+            } else if (x === "" || x === "NA") {
+                as_num[i] = NaN;
+            } else {
+                // No excuses, this is a string, not a missing value.
+                must_string = true;
+                break;
+            }
+        }
+
+        if (!must_string) {
+            columns[key] = as_num;
+        }
+    }
 }
 
 export function reorganizeGenes(loaded) {

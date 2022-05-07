@@ -46,7 +46,7 @@ function extract_features(gene_file, { numberOfRows = null, includeFeatureType =
 
 function extract_annotations(annotation_file, { numberOfColumns = null, namesOnly = false } = {}) {
     const content = new Uint8Array(annotation_file.content.buffer());
-    let parsed = rutils.readDSVFromBuffer(content, annotation_file);
+    let parsed = rutils.readDSVFromBuffer(content, annotation_file, { firstOnly: namesOnly });
 
     // Check if a header is present or not
     let headerFlag = true;
@@ -74,6 +74,8 @@ function extract_annotations(annotation_file, { numberOfColumns = null, namesOnl
     headers.forEach((x, i) => {
         annotations[x] = parsed.map(y => y[i]);
     });
+    rutils.convertDSVNumbers(annotations);
+
     return annotations;
 }
 
