@@ -22,7 +22,8 @@ export function abbreviate(args) {
 
 function extract_features(gene_file, { numberOfRows = null, includeFeatureType = false } = {}) {
     const content = new Uint8Array(gene_file.content.buffer());
-    let parsed = rutils.readDSVFromBuffer(content, gene_file);
+    var is_gz = gene_file.name.endsWith(".gz");
+    let parsed = rutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
     if (numberOfRows !== null && parsed.length !== numberOfRows) {
         throw new Error("number of matrix rows is not equal to the number of genes in '" + gene_file.name + "'");
     }
@@ -46,7 +47,8 @@ function extract_features(gene_file, { numberOfRows = null, includeFeatureType =
 
 function extract_annotations(annotation_file, { numberOfColumns = null, namesOnly = false } = {}) {
     const content = new Uint8Array(annotation_file.content.buffer());
-    let parsed = rutils.readDSVFromBuffer(content, annotation_file, { firstOnly: namesOnly });
+    var is_gz = annotation_file.name.endsWith(".gz");
+    let parsed = rutils.readTable(content, { compression: (is_gz ? "gz" : "none"), firstOnly: namesOnly });
 
     // Check if a header is present or not
     let headerFlag = true;
@@ -74,7 +76,12 @@ function extract_annotations(annotation_file, { numberOfColumns = null, namesOnl
     headers.forEach((x, i) => {
         annotations[x] = parsed.map(y => y[i]);
     });
-    rutils.convertDSVNumbers(annotations);
+    for (const [k, v] of Object.entries(annotations)) {
+        let conv = rutils.promoteToNumber(v);
+        if (conv !== null) {
+            annotations[k] = conv;
+        }
+    }
 
     return annotations;
 }
