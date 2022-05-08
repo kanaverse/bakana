@@ -19,7 +19,7 @@ export { analysisDefaults } from "./defaults.js";
 export { validateAnnotations } from "./preflight.js";
 export { availableReaders } from "./utils/inputs.js";
 export { setVisualizationAnimate } from "./utils/viz_parent.js";
-export { setCreateLink, setResolveLink } from "./utils/reader.js";
+export { setCreateLink, setResolveLink, unpackText, readLines, readTable, promoteToNumber } from "./utils/reader.js";
 export { setCellLabellingDownload } from "./cell_labelling.js";
 
 import * as utils from "./utils/general.js";
