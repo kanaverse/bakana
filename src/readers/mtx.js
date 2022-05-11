@@ -165,12 +165,15 @@ export class Reader {
             }
 
             rutils.reorganizeGenes(output);
-
-            // Stop-gap solution to remove non-gene entries.
-            rutils.subsetToGenes(output);
+            rutils.splitByFeatureType(output);
 
         } catch (e) {
             utils.freeCache(output.matrix);
+            if (output.alternatives) {
+                for (const [k, v] of Object.entries(output.alternatives)) {
+                    utils.freeCache(v.matrix);
+                }
+            }
             throw e;
         }
 

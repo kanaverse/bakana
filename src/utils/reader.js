@@ -236,7 +236,7 @@ export function formatFile(file, sizeOnly) {
     return output;
 }
 
-export function subsetToGenes(output) {
+export function splitByFeatureType(output) {
     // Checking if 'type' is available, and if so, subsetting the
     // matrix to only "Gene Expression". This is a stop-gap solution
     // for dealing with non-gene features in 10X Genomics outputs.
@@ -246,13 +246,10 @@ export function subsetToGenes(output) {
 
     let keep = [];
     let feat_types = output.genes.type;
-    let sub = new Uint8Array(feat_types.length);
     let others = {};
 
     feat_types.forEach((x, i) => {
         let is_gene = x.match(/gene expression/i);
-        sub[i] = is_gene; 
-
         if (is_gene) {
             keep.push(i);
         } else {
@@ -269,56 +266,36 @@ export function subsetToGenes(output) {
         return;
     }
 
-    // Does anything match 'Antibody capture'? We'll treat this a bit
-    // differently by throwing in some custom normalization.
-    let adt_key = null;
-    for (const k of Object.keys(others)) {
-        if (k.match(/antibody capture/i)) {
-            adt_key = k;
-        }
-    }
-
-    if (adt_key !== null) {
-        if (output.annotations === null) {
-            output.annotations = {};
-        }
-
-        let partial, norm, pcs, clust, sf, norm2;
-        try {
-            // Computing some decent size factors for the ADT subset. 
-            partial = scran.subsetRows(output.matrix, others[adt_key]);
-            norm = scran.logNormCounts(partial);
-            pcs = scran.runPCA(norm, { numberOfPCs: Math.min(norm.numberOfRows() - 1, 25) });
-            clust = scran.clusterKmeans(pcs, 20);
-            sf = scran.groupedSizeFactors(partial, clust.clusters({ copy: "view" }));
-            norm2 = scran.logNormCounts(partial, { sizeFactors: sf });
-
-            // And then storing them in the annotations.
-            for (const [i, j] of Object.entries(others[adt_key])) {
-                output.annotations[adt_key + ": " + output.genes.id[j]] = norm2.row(i);
-            }
-        } finally {
-            utils.freeCache(partial);
-            utils.freeCache(norm);
-            utils.freeCache(pcs);
-            utils.freeCache(clust);
-            utils.freeCache(sf);
-            utils.freeCache(norm2);
-        }
-    }
-
-    // Stripping out everything that's not in the gene expression pile.
     let subsetted;
+    let sliced = {}
     try {
+        for (const [k, v] of Object.entries(others)) {
+            // Setting it up here first, so that we free the matrix in the catch properly.
+            sliced[k] = {};
+            let current = sliced[k];
+
+            current.matrix = scran.subsetRows(output.matrix, v);
+            current.genes = {};
+            for (const [k2, v2] of Object.entries(output.genes)) {
+                current.genes[k2] = scran.matchVectorToRowIdentities(current.matrix, v2);
+            }
+        }
+        output.alternatives = sliced;
+
+        // Stripping out everything that's not in the gene expression pile.
         subsetted = scran.subsetRows(output.matrix, keep);
         utils.freeCache(output.matrix); // releasing it as it'll be replaced with 'subsetted'.
         output.matrix = subsetted;
+
+        scran.matchFeatureAnnotationToRowIdentities(keep, output.genes);
+
     } catch (e) {
+        for (const [k, v] of Object.entries(sliced)) {
+            utils.freeCache(v.matrix);
+        }
         utils.freeCache(subsetted);
         throw e;
     }
-
-    scran.matchFeatureAnnotationToRowIdentities(keep, output.genes);
 
     return;
 }

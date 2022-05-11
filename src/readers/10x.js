@@ -79,11 +79,14 @@ export class Reader {
             output.genes = extract_features(handle);
             output.annotations = null;
             rutils.reorganizeGenes(output);
-
-            // Stop-gap solution to remove non-gene entries, e.g., ADTs.
-            rutils.subsetToGenes(output);
+            rutils.splitByFeatureType(output);
         } catch (e) {
             utils.freeCache(output.matrix);
+            if (output.alternatives) {
+                for (const [k, v] of Object.entries(output.alternatives)) {
+                    utils.freeCache(v.matrix);
+                }
+            }
             throw e;
         } finally {
             afile.removeH5(tmppath);
