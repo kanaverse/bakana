@@ -171,7 +171,7 @@ export class QualityControlState {
             }
 
             utils.freeCache(this.#cache.metrics);
-            this.#cache.metrics = scran.computePerCellQCMetrics(mat, subsets);
+            this.#cache.metrics = scran.computePerCellQCMetrics(mat, [subsets]);
 
             this.#parameters.use_mito_default = use_mito_default;
             this.#parameters.mito_prefix = mito_prefix;

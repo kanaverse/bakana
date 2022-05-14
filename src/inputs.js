@@ -26,6 +26,14 @@ export class InputsState {
     free() {
         utils.freeCache(this.#cache.matrix);
         utils.freeCache(this.#cache.block_ids);
+
+        let alt = this.#cache.alternatives;
+        if (alt) {
+            for (const v of Object.values(alt)) {
+                utils.freeCache(v.matrix);
+            }
+        }
+
         return;
     }
 
@@ -45,6 +53,18 @@ export class InputsState {
         return this.#cache.gene_types;
     }
 
+    hasAdt() {
+        return this.#cache.adt_key !== null;
+    }
+
+    fetchAdtCountMatrix() {
+        return this.#cache.alternatives[this.#cache.adt_key].matrix;
+    }
+
+    fetchAdtGenes() {
+        return this.#cache.alternatives[this.#cache.adt_key].genes;
+    }
+  
     /**
      * Fetch an annotation for all cells in the dataset.
      * This considers all cells in the dataset before QC filtering - 
@@ -164,8 +184,7 @@ export class InputsState {
             new_matrices[key] = new namespace.Reader(val);
         }
 
-        utils.freeCache(this.#cache.matrix);
-        utils.freeCache(this.#cache.block_ids);
+        this.free();
         this.#cache = await process_and_cache(new_matrices, sample_factor);
 
         this.#abbreviated = tmp_abbreviated;
@@ -472,6 +491,16 @@ async function process_and_cache(new_matrices, sample_factor) {
         gene_info_type[key] = scran.guessFeatures(val);
     }
     cache.gene_types = gene_info_type;
+
+    cache.adt_key = null;
+    if ("alternatives" in cache) {
+        for (const k of Object.keys(cache.alternatives)) {
+            if (k.match(/antibody/i) || k.match(/adt/i)) {
+                cache.adt_key = k;
+                break;
+            }
+        }
+    }
 
     return cache;
 }

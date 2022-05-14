@@ -24,6 +24,8 @@ export class AdtQualityControlState {
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
         this.changed = false;
+
+        this.#parameters.__use_main_matrix__ = false;
     }
 
     free() {
@@ -45,6 +47,11 @@ export class AdtQualityControlState {
      ******** Compute **********
      ***************************/
 
+    useMainMatrix() {
+        this.#parameters.__use_main_matrix__ = true;
+        return;
+    }
+
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * Each argument is taken from the property of the same name in the `quality_control` property of the `parameters` of {@linkcode runAnalysis}.
@@ -59,31 +66,43 @@ export class AdtQualityControlState {
         this.changed = false;
 
         if (this.#inputs.changed || igg_prefix !== this.#parameters.igg_prefix) {
-            var mat = this.#inputs.fetchCountMatrix(); // TODO: switch to ADT counts.
-
-            // Finding the prefix.
-            var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
-            subsets.fill(0);
-
-            var gene_info = this.#inputs.fetchGenes();
-            var sub_arr = subsets.array();
-            var lower_igg = igg_prefix.toLowerCase();
-            for (const [key, val] of Object.entries(gene_info)) {
-                val.forEach((x, i) => { sub_arr[i] = x.toLowerCase().startsWith(lower_igg); });
-            }
-
-            // Computing the metrics.
             utils.freeCache(this.#cache.metrics);
-            this.#cache.metrics = scran.computePerCellAdtQcMetrics(mat, subsets);
+
+            if (this.#inputs.hasAdt() || this.#parameters.__use_main_matrix__) {
+                var mat = (this.#parameters.__use_main_matrix__ ? this.#inputs.fetchCountMatrix() : this.#inputs.fetchAdtCountMatrix());
+                var gene_info = (this.#parameters.__use_main_matrix__ ? this.#inputs.fetchGenes() : this.#inputs.fetchAdtGenes());
+
+                // Finding the prefix.
+                var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
+                subsets.fill(0);
+                var sub_arr = subsets.array();
+                var lower_igg = igg_prefix.toLowerCase();
+                for (const [key, val] of Object.entries(gene_info)) {
+                    val.forEach((x, i) => { 
+                        if (x.toLowerCase().startsWith(lower_igg)) {
+                            sub_arr[i] = 1;                        
+                        }
+                    });
+                }
+
+                this.#cache.metrics = scran.computePerCellAdtQcMetrics(mat, [subsets]);
+            } else {
+                delete this.#cache.metrics;
+            }
 
             this.#parameters.igg_prefix = igg_prefix;
             this.changed = true;
         }
 
         if (this.changed || nmads !== this.#parameters.nmads || min_detected_drop !== this.#parameters.min_detected_drop) {
-            let block = this.#inputs.fetchBlock();
             utils.freeCache(this.#cache.filters);
-            this.#cache.filters = scran.computePerCellAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, minDetectedDrop: min_detected_drop, block: block });
+
+            if ("metrics" in this.#cache) {
+                let block = this.#inputs.fetchBlock();
+                this.#cache.filters = scran.computePerCellAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, minDetectedDrop: min_detected_drop, block: block });
+            } else {
+                delete this.#cache.filters;
+            }
 
             this.#parameters.nmads = nmads;
             this.#parameters.min_detected_drop = min_detected_drop;
@@ -112,6 +131,10 @@ export class AdtQualityControlState {
         }
     }
 
+    #valid() {
+        return "metrics" in this.#cache;
+    }
+
     /**
      * Obtain a summary of the state, typically for display on a UI like **kana**.
      *
@@ -126,30 +149,32 @@ export class AdtQualityControlState {
      * - `retained`: the number of cells remaining after QC filtering.
      */
     summary() {
-        var data;
-        var blocks = this.#inputs.fetchBlockLevels();
-        if (blocks === null) {
-            blocks = [ "default" ];
-            data = { default: this.#format_metrics() };
-        } else {
-            let metrics = this.#format_metrics({ copy: "view" });
-            let bids = this.#inputs.fetchBlock();
-            data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
+        var output = null;
+
+        if (this.#valid()) {
+            output = {};
+
+            var blocks = this.#inputs.fetchBlockLevels();
+            if (blocks === null) {
+                blocks = [ "default" ];
+                output.data = { default: this.#format_metrics() };
+            } else {
+                let metrics = this.#format_metrics({ copy: "view" });
+                let bids = this.#inputs.fetchBlock();
+                output.data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
+            }
+
+            let listed = this.#format_thresholds({ copy: "view" });
+            output.thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
+
+            // We don't use sums for filtering but we do report it in the metrics,
+            // so we just add some NaNs to the thresholds for consistency.
+            for (const [k, v] of Object.entries(output.thresholds)) {
+                v.sums = NaN;
+            }
         }
 
-        let listed = this.#format_thresholds({ copy: "view" });
-        let thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
-
-        // We don't use sums for filtering but we do report it in the metrics,
-        // so we just add some NaNs to the thresholds for consistency.
-        for (const [k, v] of Object.entries(thresholds)) {
-            v.sums = NaN;
-        }
-
-        return { 
-            "data": data, 
-            "thresholds": thresholds
-        };
+        return output;
     }
 
     /*************************
@@ -157,7 +182,7 @@ export class AdtQualityControlState {
      *************************/
 
     serialize(handle) {
-        let ghandle = handle.createGroup("quality_control");
+        let ghandle = handle.createGroup("adt-quality_control");
 
         {
             let phandle = ghandle.createGroup("parameters"); 
@@ -169,25 +194,27 @@ export class AdtQualityControlState {
         {
             let rhandle = ghandle.createGroup("results"); 
 
-            {
-                let mhandle = rhandle.createGroup("metrics");
-                let data = this.#format_metrics({ copy: "view" });
-                mhandle.writeDataSet("sums", "Float64", null, data.sums)
-                mhandle.writeDataSet("detected", "Int32", null, data.detected);
-                mhandle.writeDataSet("igg_total", "Float64", null, data.igg_total);
-            }
-
-            {
-                let thandle = rhandle.createGroup("thresholds");
-                let thresholds = this.#format_thresholds({ copy: "hdf5" }); 
-                for (const x of [ "detected", "igg_total" ]) {
-                    let current = thresholds[x];
-                    thandle.writeDataSet(x, "Float64", null, current);
+            if (this.#valid()) {
+                {
+                    let mhandle = rhandle.createGroup("metrics");
+                    let data = this.#format_metrics({ copy: "view" });
+                    mhandle.writeDataSet("sums", "Float64", null, data.sums)
+                    mhandle.writeDataSet("detected", "Int32", null, data.detected);
+                    mhandle.writeDataSet("igg_total", "Float64", null, data.igg_total);
                 }
-            }
 
-            let disc = this.fetchDiscards();
-            rhandle.writeDataSet("discards", "Uint8", null, disc);
+                {
+                    let thandle = rhandle.createGroup("thresholds");
+                    let thresholds = this.#format_thresholds({ copy: "hdf5" }); 
+                    for (const x of [ "detected", "igg_total" ]) {
+                        let current = thresholds[x];
+                        thandle.writeDataSet(x, "Float64", null, current);
+                    }
+                }
+
+                let disc = this.fetchDiscards();
+                rhandle.writeDataSet("discards", "Uint8", null, disc);
+            }
         }
     }
 }
@@ -241,23 +268,25 @@ export function unserialize(handle, inputs) {
     {
         let rhandle = ghandle.open("results");
 
-        let mhandle = rhandle.open("metrics");
-        let detected = mhandle.open("detected", { load: true }).values;
-        cache.metrics = scran.emptyPerCellAdtQcMetricsResults(detected.length, 1);
-        cache.metrics.detected({ copy: false }).set(detected);
-        let igg_total = mhandle.open("igg_total", { load: true }).values;
-        cache.metrics.subsetTotals(0, { copy: false }).set(igg_total);
+        if ("metrics" in rhandle.children) {
+            let mhandle = rhandle.open("metrics");
+            let detected = mhandle.open("detected", { load: true }).values;
+            cache.metrics = scran.emptyPerCellAdtQcMetricsResults(detected.length, 1);
+            cache.metrics.detected({ copy: false }).set(detected);
+            let igg_total = mhandle.open("igg_total", { load: true }).values;
+            cache.metrics.subsetTotals(0, { copy: false }).set(igg_total);
 
-        let thandle = rhandle.open("thresholds");
-        let thresholds_detected = thandle.open("detected", { load: true }).values;
-        let thresholds_igg_total = thandle.open("igg_total", { load: true }).values;
+            let thandle = rhandle.open("thresholds");
+            let thresholds_detected = thandle.open("detected", { load: true }).values;
+            let thresholds_igg_total = thandle.open("igg_total", { load: true }).values;
 
-        let discards = rhandle.open("discards", { load: true }).values; 
-        cache.filters = new QCFiltersMimic(
-            thresholds_detected,
-            thresholds_igg_total,
-            discards
-        );
+            let discards = rhandle.open("discards", { load: true }).values; 
+            cache.filters = new QCFiltersMimic(
+                thresholds_detected,
+                thresholds_igg_total,
+                discards
+            );
+        }
     }
 
     return {

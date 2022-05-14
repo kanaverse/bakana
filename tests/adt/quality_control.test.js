@@ -23,14 +23,30 @@ test("quality control works as expected for ADTs", async () => {
     // Checking that that the metrics are sensibly computed.
     let positive_total = 0;
     summ.data.default.igg_total.forEach(x => { positive_total += (x > 0); });
-//    expect(positive_total).toBeGreaterThan(0); // TODO: unlock this once input ADT handling is enabled.
+    expect(positive_total).toBeGreaterThan(0);
 
     // Checking that the thresholds are sensible.
-    expect(summ.thresholds.single.detected).toBeGreaterThan(0);
-    expect(summ.thresholds.single.igg_total).toBeGreaterThan(0);
+    expect(summ.thresholds.default.detected).toBeGreaterThan(0);
+    expect(summ.thresholds.default.igg_total).toBeGreaterThan(0);
 
     istate.free();
     qcstate.free();
+})
+
+test("quality control skips in the absence of ADTs", async () => {
+    let istate = new inputs.InputsState;
+    await istate.compute({
+        default: {
+            format: "10X",
+            h5: "files/datasets/pbmc4k-tenx.h5"
+        }
+    }, null);
+
+    let qcstate = new qc.AdtQualityControlState(istate);
+    qcstate.compute("IgG", 3, 0.1);
+
+    let summ = qcstate.summary();
+    expect(summ).toBeNull();
 })
 
 test("quality control works as expected for ADTs with blocking", async () => {
@@ -44,7 +60,9 @@ test("quality control works as expected for ADTs with blocking", async () => {
         }
     }, "3k");
 
+    // Let's pretend the main count matrix is the ADT matrix.
     let qcstate = new qc.AdtQualityControlState(istate);
+    qcstate.useMainMatrix();
     qcstate.compute("IgG", 3, 0.1);
     let summ = qcstate.summary();
 
