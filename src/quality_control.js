@@ -229,35 +229,19 @@ export class QualityControlState {
      * - `retained`: the number of cells remaining after QC filtering.
      */
     summary() {
-        var data = {};
+        var data;
         var blocks = this.#inputs.fetchBlockLevels();
         if (blocks === null) {
             blocks = [ "default" ];
-            data["default"] = this.#format_metrics();
+            data = { default: this.#format_metrics() };
         } else {
             let metrics = this.#format_metrics({ copy: "view" });
             let bids = this.#inputs.fetchBlock();
-            let barray = bids.array();
-
-            for (var b = 0; b < blocks.length; b++) {
-                let current = {};
-                for (const [key, val] of Object.entries(metrics)) {
-                    current[key] = val.array().filter((x, i) => barray[i] == b);
-                }
-                data[blocks[b]] = current;
-            }
+            data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
         }
 
-        // This function should not do any Wasm allocations, so copy: false is safe.
-        var thresholds = {};
-        let listed = this.#format_thresholds({ copy: false });
-        for (var b = 0; b < blocks.length; b++) {
-            let current = {};
-            for (const [key, val] of Object.entries(listed)) {
-                current[key] = val[b];
-            }
-            thresholds[blocks[b]] = current;
-        }
+        let listed = this.#format_thresholds({ copy: "view" });
+        let thresholds = splitThresholdsByBlock(listed, blocks);
 
         let remaining = 0;
         if ("matrix" in this.#cache) {
