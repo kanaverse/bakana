@@ -1,5 +1,6 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
+import * as qcutils from "./utils/quality_control.js";
 import { mito } from "./mito.js";
 import * as inputs_module from "./inputs.js";
 
@@ -241,7 +242,7 @@ export class QualityControlState {
         }
 
         let listed = this.#format_thresholds({ copy: "view" });
-        let thresholds = splitThresholdsByBlock(listed, blocks);
+        let thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
 
         let remaining = 0;
         if ("matrix" in this.#cache) {
