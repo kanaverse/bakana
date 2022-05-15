@@ -1,6 +1,6 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
-import * as qc_module from "./quality_control.js";
+import * as filter_module from "./cell_filtering.js";
 import * as norm_module from "./normalization.js";
 import * as feat_module from "./feature_selection.js";
 
@@ -13,17 +13,17 @@ import * as feat_module from "./feature_selection.js";
  * @hideconstructor
  */
 export class PcaState {
-    #qc;
+    #filter;
     #norm;
     #feat;
     #cache;
     #parameters;
 
-    constructor(qc, norm, feat, parameters = null, cache = null) {
-        if (!(qc instanceof qc_module.QualityControlState)) {
-            throw new Error("'qc' should be a State object from './quality_control.js'");
+    constructor(filter, norm, feat, parameters = null, cache = null) {
+        if (!(filter instanceof filter_module.CellFilteringState)) {
+            throw new Error("'filter' should be a State object from './cell_filtering.js'");
         }
-        this.#qc = qc;
+        this.#filter = filter;
 
         if (!(norm instanceof norm_module.NormalizationState)) {
             throw new Error("'norm' should be a State object from './normalization.js'");
@@ -91,7 +91,7 @@ export class PcaState {
         if (this.changed || this.#norm.changed || num_pcs !== this.#parameters.num_pcs || block_method !== this.#parameters.block_method) { 
             let sub = this.#cache.hvg_buffer;
 
-            let block = this.#qc.fetchFilteredBlock();
+            let block = this.#filter.fetchFilteredBlock();
             let block_type = "block";
             if (block_method == "none") {
                 block = null;
@@ -219,7 +219,7 @@ class PCAMimic {
     }
 }
 
-export function unserialize(handle, qc, norm, feat) {
+export function unserialize(handle, filter, norm, feat) {
     let ghandle = handle.open("pca");
 
     let parameters = {};
@@ -255,7 +255,7 @@ export function unserialize(handle, qc, norm, feat) {
     }
 
     return {
-        state: new PcaState(qc, norm, feat, parameters, cache),
+        state: new PcaState(filter, norm, feat, parameters, cache),
         parameters: { ...parameters }
     };
 }

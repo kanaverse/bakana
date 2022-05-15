@@ -1,7 +1,7 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as markers from "./utils/markers.js";
-import * as qc_module from "./quality_control.js";
+import * as filter_module from "./cell_filtering.js";
 import * as norm_module from "./normalization.js";
 
 /**
@@ -13,16 +13,16 @@ import * as norm_module from "./normalization.js";
  * @hideconstructor
  */
 export class CustomSelectionsState {
-    #qc;
+    #filter;
     #norm;
     #cache;
     #parameters;
 
-    constructor(qc, norm, parameters = null, cache = null) {
-        if (!(qc instanceof qc_module.QualityControlState)) {
-            throw new Error("'qc' should be a State object from './quality_control.js'");
+    constructor(filter, norm, parameters = null, cache = null) {
+        if (!(filter instanceof filter_module.CellFilteringState)) {
+            throw new Error("'filter' should be a State object from './cell_filtering.js'");
         }
-        this.#qc = qc;
+        this.#filter = filter;
 
         if (!(norm instanceof norm_module.NormalizationState)) {
             throw new Error("'norm' should be a State object from './normalization.js'");
@@ -129,7 +129,7 @@ export class CustomSelectionsState {
         /* If the QC filter was re-run, all of the selections are invalidated as
          * the identity of the indices may have changed.
          */
-        if (this.#qc.changed) {
+        if (this.#filter.changed) {
             for (const [key, val] of Object.entries(this.#cache.results)) {
                 utils.freeCache(val.raw);                    
             }
@@ -239,7 +239,7 @@ class CustomMarkersMimic {
     free() {}
 }
 
-export function unserialize(handle, permuter, qc, norm) {
+export function unserialize(handle, permuter, filter, norm) {
     let ghandle = handle.open("custom_selections");
 
     let parameters = { selections: {} };
@@ -270,7 +270,7 @@ export function unserialize(handle, permuter, qc, norm) {
     }
 
     return {
-        state: new CustomSelectionsState(qc, norm, parameters, cache),
+        state: new CustomSelectionsState(filter, norm, parameters, cache),
         parameters: output
     };
 }

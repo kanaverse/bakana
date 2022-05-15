@@ -335,9 +335,6 @@ function bind_single_dataset(dkeys, datasets, geneInfo, chosen) {
 }
 
 function bind_datasets(dkeys, matrices, geneInfo) {
-    let blocks;
-    let output = {};
-
     // Checking which feature types are available across all datasets.
     let available = null;
     for (const k of dkeys) {
@@ -349,23 +346,21 @@ function bind_datasets(dkeys, matrices, geneInfo) {
         }
     }
 
+    let blocks;
+    let output = { 
+        matrix: new rutils.MultiMatrix, 
+        genes: {} 
+    };
     try {
-        let store = {};
-        let genes = {};
         try {
             for (const a of available) {
                 let current = bind_single_dataset(dkeys, datasets, geneInfo, a);
-                store[a] = current.matrix;
-                genes[a] = current.genes;
+                output.matrix.add(a, current.matrix);
+                output.genes[a] = current.genes;
             }
         } catch (e) {
-            for (const a of Object.values(store)) {
-                a.free();
-            }
             throw e;
         }
-        output.matrix = new MultiMatrix(store);
-        output.genes = genes;
 
         let total = output.matrix.numberOfColumns();
         blocks = scran.createInt32WasmArray(total);
@@ -516,7 +511,7 @@ async function process_and_cache(new_matrices, sample_factor) {
     let cache = await process_datasets(new_matrices, sample_factor);
 
     var gene_info_type = {};
-    var gene_info = cache.genes.default;
+    var gene_info = cache.genes["RNA"];
     for (const [key, val] of Object.entries(gene_info)) {
         gene_info_type[key] = scran.guessFeatures(val);
     }

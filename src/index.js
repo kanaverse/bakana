@@ -2,6 +2,7 @@ import * as scran from "scran.js";
 import * as inputs from "./inputs.js";
 import * as preflight from "./preflight.js";
 import * as qc from "./quality_control.js";
+import * as filters from "./cell_filtering.js";
 import * as normalization from "./normalization.js";
 import * as variance from "./feature_selection.js";
 import * as pca from "./pca.js";
@@ -32,6 +33,7 @@ import * as aserialize from "./abstract/serialize.js";
 
 const step_inputs = "inputs";
 const step_qc = "quality_control";
+const step_filter = "cell_filtering";
 const step_norm = "normalization";
 const step_feat = "feature_selection";
 const step_pca = "pca";
@@ -88,9 +90,10 @@ export async function createAnalysis() {
     let output = {};
     output[step_inputs] = new inputs.InputsState;
     output[step_qc] = new qc.QualityControlState(output[step_inputs]);
-    output[step_norm] = new normalization.NormalizationState(output[step_qc]);
-    output[step_feat] = new variance.FeatureSelectionState(output[step_qc], output[step_norm]);
-    output[step_pca] = new pca.PcaState(output[step_qc], output[step_norm], output[step_feat]);
+    output[step_filter] = new filters.CellFilteringState(output[step_inputs], [output[step_qc]]);
+    output[step_norm] = new normalization.NormalizationState(output[step_qc], output[step_filter]);
+    output[step_feat] = new variance.FeatureSelectionState(output[step_filter], output[step_norm]);
+    output[step_pca] = new pca.PcaState(output[step_filter], output[step_norm], output[step_feat]);
     output[step_neighbors] = new index.NeighborIndexState(output[step_pca]);
 
     output[step_tsne] = new tsne.TsneState(output[step_neighbors]);
@@ -99,9 +102,9 @@ export async function createAnalysis() {
     output[step_kmeans] = new kmeans_cluster.KmeansClusterState(output[step_pca]);
     output[step_snn] = new snn_cluster.SnnGraphClusterState(output[step_neighbors]);
     output[step_choice] = new cluster_choice.ChooseClusteringState(output[step_snn], output[step_kmeans]);
-    output[step_markers] = new cluster_markers.MarkerDetectionState(output[step_qc], output[step_norm], output[step_choice]);
+    output[step_markers] = new cluster_markers.MarkerDetectionState(output[step_filter], output[step_norm], output[step_choice]);
     output[step_labels] = new label_cells.CellLabellingState(output[step_inputs], output[step_markers]);
-    output[step_custom] = new custom_markers.CustomSelectionsState(output[step_qc], output[step_norm]);
+    output[step_custom] = new custom_markers.CustomSelectionsState(output[step_filter], output[step_norm]);
 
     return Promise.all([output[step_tsne].ready(), output[step_umap].ready()]).then(val => output);
 }
@@ -202,6 +205,10 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
         params[step_qc]["nmads"]
     );
     quickFinish(step_qc);
+
+    quickStart(step_filter);
+    state[step_filter].compute();
+    quickFinish(step_filter);
 
     quickStart(step_norm);
     state[step_norm].compute();

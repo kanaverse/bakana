@@ -1,7 +1,7 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
 import * as markers from "./utils/markers.js";
-import * as qc_module from "./quality_control.js";
+import * as filter_module from "./cell_filtering.js";
 import * as norm_module from "./normalization.js";
 import * as choice_module from "./choose_clustering.js";
 
@@ -14,17 +14,17 @@ import * as choice_module from "./choose_clustering.js";
  * @hideconstructor
  */
 export class MarkerDetectionState {
-    #qc;
+    #filter;
     #norm;
     #choice;
     #parameters;
     #cache;
 
-    constructor(qc, norm, choice, parameters = null, cache = null) {
-        if (!(qc instanceof qc_module.QualityControlState)) {
-            throw new Error("'qc' should be a State object from './quality_control.js'");
+    constructor(filter, norm, choice, parameters = null, cache = null) {
+        if (!(filter instanceof filter_module.CellFilteringState)) {
+            throw new Error("'filter' should be a State object from './cell_filtering.js'");
         }
-        this.#qc = qc;
+        this.#filter = filter;
 
         if (!(norm instanceof norm_module.NormalizationState)) {
             throw new Error("'norm' should be a State object from './normalization.js'");
@@ -95,7 +95,7 @@ export class MarkerDetectionState {
         if (this.#norm.changed || this.#choice.changed) {
             var mat = this.#norm.fetchNormalizedMatrix();
             var clusters = this.#choice.fetchClustersAsWasmArray();
-            var block = this.#qc.fetchFilteredBlock();
+            var block = this.#filter.fetchFilteredBlock();
             
             utils.freeCache(this.#cache.raw);
             this.#cache.raw = scran.scoreMarkers(mat, clusters, { block: block });
@@ -194,7 +194,7 @@ class ScoreMarkersMimic {
     free() {}
 }
 
-export function unserialize(handle, permuter, qc, norm, choice) {
+export function unserialize(handle, permuter, filter, norm, choice) {
     let ghandle = handle.open("marker_detection");
 
     // No parameters to unserialize.
@@ -212,7 +212,7 @@ export function unserialize(handle, permuter, qc, norm, choice) {
     }
 
     return {
-        state: new MarkerDetectionState(qc, norm, choice, parameters, cache),
+        state: new MarkerDetectionState(filter, norm, choice, parameters, cache),
         parameters: { ...parameters }
     };
 }

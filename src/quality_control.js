@@ -50,84 +50,9 @@ export class QualityControlState {
         return this.#cache.filters.discardOverall({ copy: "view" });
     }
 
-    fetchFilteredMatrix() {
-        if (!("matrix" in this.#cache)) {
-            this.#apply_filters();
-        }
-        return this.#cache.matrix;
-    }
-
-    /**
-     * Fetch the filtered vector of block assignments.
-     *
-     * @return An Int32WasmArray of length equal to the number of cells after filtering, containing the block assignment for each cell.
-     *
-     * Alternatively `null` if no blocks are present in the dataset.
-     */
-    fetchFilteredBlock() {
-        if (!("blocked" in this.#cache)) {
-            this.#apply_filters();
-        }
-        if (this.#cache.blocked) {
-            return this.#cache.block_buffer;
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * Fetch an annotation for the cells remaining after QC filtering.
-     *
-     * @param {string} col - Name of the annotation field of interest.
-     *
-     * @return An object similar to that returned by {@linkcode InputsState#fetchAnnotations InputsState.fetchAnnotations},
-     * after filtering the vectors to only contain information for the remaining cells.
-     * - For `type: "factor"`, the array in `index` will be filtered.
-     * - For `type: "array"`, the array in `values` will be filtered.
-     */
-    fetchFilteredAnnotations(col) { 
-        let vec = this.#inputs.fetchAnnotations(col);
-        var discard = this.fetchDiscards().array();
-        let filterfun = (x, i) => !discard[i];
-        if (vec.type === "factor") {
-            vec.index = vec.index.filter(filterfun);
-        } else {
-            vec.values = vec.values.filter(filterfun);
-        }
-        return vec;
-    }
-
     /***************************
      ******** Compute **********
      ***************************/
-
-    #apply_filters() {
-        var mat = this.#inputs.fetchCountMatrix();
-        var disc = this.fetchDiscards();
-
-        utils.freeCache(this.#cache.matrix);
-        this.#cache.matrix = scran.filterCells(mat, disc);
-
-        let block = this.#inputs.fetchBlock();
-        this.#cache.blocked = (block !== null);
-
-        if (this.#cache.blocked) {
-            let bcache = utils.allocateCachedArray(this.#cache.matrix.numberOfColumns(), "Int32Array", this.#cache, "block_buffer");
-
-            let bcache_arr = bcache.array();
-            let block_arr = block.array();
-            let disc_arr = disc.array();
-            let j = 0;
-            for (let i = 0; i < block_arr.length; i++) {
-                if (disc_arr[i] == 0) {
-                    bcache_arr[j] = block_arr[i];
-                    j++;
-                }
-            }
-        }
-
-        return;
-    }
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
@@ -188,11 +113,6 @@ export class QualityControlState {
             this.changed = true;
         }
 
-        if (this.changed) {
-            this.#apply_filters();
-            this.changed = true; // left in for consistency.
-        }
-
         return;
     }
 
@@ -244,21 +164,9 @@ export class QualityControlState {
         let listed = this.#format_thresholds({ copy: "view" });
         let thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
 
-        let remaining = 0;
-        if ("matrix" in this.#cache) {
-            remaining = this.#cache.matrix.numberOfColumns();
-        } else {
-            this.fetchDiscards().array().forEach(x => {
-                if (x == 0) {
-                    remaining++;
-                }
-            });
-        }
-
         return { 
             "data": data, 
-            "thresholds": thresholds,
-            "retained": remaining
+            "thresholds": thresholds
         };
     }
 

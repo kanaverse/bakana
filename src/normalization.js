@@ -1,6 +1,7 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
 import * as qc_module from "./quality_control.js";
+import * as filter_module from "./cell_filtering.js";
 
 /**
  * This step performs normalization and log-transformation on the QC-filtered matrix from the {@linkplain QualityControlState}.
@@ -10,15 +11,21 @@ import * as qc_module from "./quality_control.js";
  * @hideconstructor
  */
 export class NormalizationState {
-    #qc;
+    #qc
+    #filter;
     #parameters;
     #cache;
 
-    constructor(qc, parameters = null, cache = null) {
+    constructor(qc, filter, parameters = null, cache = null) {
         if (!(qc instanceof qc_module.QualityControlState)) {
-            throw new Error("'qc' should be a State object from './quality_control.js'");
+            throw new Error("'filt' should be a State object from './quality_control.js'");
         }
         this.#qc = qc;
+
+        if (!(filter instanceof filter_module.CellFilteringState)) {
+            throw new Error("'filt' should be a State object from './cell_filtering.js'");
+        }
+        this.#filter = filter;
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
@@ -57,16 +64,16 @@ export class NormalizationState {
      ***************************/
 
     #raw_compute() {
-        var mat = this.#qc.fetchFilteredMatrix();
+        var mat = this.#filter.fetchFilteredMatrix({ type: "RNA" });
         var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache);
 
-        var discards = this.#qc.fetchDiscards();
+        var discards = this.#filter.fetchDiscards();
         var sums = this.#qc.fetchSums({ unsafe: true }); // Better not have any more allocations in between now and filling of size_factors!
 
         // Reusing the totals computed earlier.
         var size_factors = buffer.array();
         var j = 0;
-        discards.array().forEach((x, i) => {
+        discards.forEach((x, i) => {
             if (!x) {
                 size_factors[j] = sums[i];
                 j++;
@@ -77,7 +84,7 @@ export class NormalizationState {
             throw "normalization and filtering are not in sync";
         }
 
-        var block = this.#qc.fetchFilteredBlock();
+        var block = this.#filter.fetchFilteredBlock();
 
         utils.freeCache(this.#cache.matrix);
         this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: block });
@@ -91,7 +98,7 @@ export class NormalizationState {
      */
     compute() {
         this.changed = false;
-        if (this.#qc.changed) {
+        if (this.#qc.changed || this.#filter.changed) {
             this.changed = true;
         } 
 
