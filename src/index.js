@@ -2,8 +2,10 @@ import * as scran from "scran.js";
 import * as inputs from "./inputs.js";
 import * as preflight from "./preflight.js";
 import * as qc from "./quality_control.js";
+import * as qcadt from "./adt/quality_control.js";
 import * as filters from "./cell_filtering.js";
 import * as normalization from "./normalization.js";
+import * as adtnorm from "./adt/normalization.js";
 import * as variance from "./feature_selection.js";
 import * as pca from "./pca.js";
 import * as index from "./neighbor_index.js";
@@ -33,8 +35,10 @@ import * as aserialize from "./abstract/serialize.js";
 
 const step_inputs = "inputs";
 const step_qc = "quality_control";
+const step_qc_adt = "adt_quality_control";
 const step_filter = "cell_filtering";
 const step_norm = "normalization";
+const step_norm_adt = "adt_normalization";
 const step_feat = "feature_selection";
 const step_pca = "pca";
 const step_neighbors = "neighbor_index";
@@ -89,9 +93,14 @@ export function terminate() {
 export async function createAnalysis() {
     let output = {};
     output[step_inputs] = new inputs.InputsState;
+
     output[step_qc] = new qc.QualityControlState(output[step_inputs]);
+    output[step_qc_adt] = new qcadt.AdtQualityControlState(output[step_inputs]);
     output[step_filter] = new filters.CellFilteringState(output[step_inputs], [output[step_qc]]);
+
     output[step_norm] = new normalization.NormalizationState(output[step_qc], output[step_filter]);
+    output[step_norm_adt] = new adtnorm.AdtNormalizationState(output[step_qc_adt], output[step_filter]);
+
     output[step_feat] = new variance.FeatureSelectionState(output[step_filter], output[step_norm]);
     output[step_pca] = new pca.PcaState(output[step_filter], output[step_norm], output[step_feat]);
     output[step_neighbors] = new index.NeighborIndexState(output[step_pca]);

@@ -1,6 +1,8 @@
 import * as scran from "scran.js"; 
 import * as utils from "../utils/general.js";
+import * as nutils from "../utils/normalization.js";
 import * as qc_module from "./quality_control.js";
+import * as filter_module from "../cell_filtering.js";
 
 /**
  * This step performs normalization and log-transformation on the QC-filtered ADT matrix from the {@linkplain AdtQualityControlState}.
@@ -11,23 +13,32 @@ import * as qc_module from "./quality_control.js";
  */
 export class AdtNormalizationState {
     #qc;
+    #filter;
     #parameters;
     #cache;
 
-    constructor(qc, parameters = null, cache = null) {
+    constructor(qc, filter, parameters = null, cache = null) {
         if (!(qc instanceof qc_module.AdtQualityControlState)) {
-            throw new Error("'qc' should be a State object from './quality_control.js'");
+            throw new Error("'qc' should be a AdtQualityControlState object");
         }
         this.#qc = qc;
+
+        if (!(filter instanceof filter_module.CellFilteringState)) {
+            throw new Error("'filter' should be a CellFilteringState object");
+        }
+        this.#filter = filter;
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
         this.changed = false;
+
+        this.#parameters.target_matrix = "ADT";
     }
 
     free() {
         utils.freeCache(this.#cache.matrix);
         utils.freeCache(this.#cache.exp_buffer);
+        utils.freeCache(this.#cache.total_buffer);
         utils.freeCache(this.#cache.sf_buffer);
     }
 
@@ -58,9 +69,15 @@ export class AdtNormalizationState {
      ******** Compute **********
      ***************************/
 
+    useRNAMatrix() {
+        // For testing only!
+        this.#parameters.target_matrix = "RNA";
+        return;
+    }
+
     #raw_compute() {
-        var mat = this.#qc.fetchFilteredMatrix();
-        var block = this.#qc.fetchFilteredBlock();
+        var mat = this.#filter.fetchFilteredMatrix({ type: this.#parameters.target_matrix });
+        var block = this.#filter.fetchFilteredBlock();
 
         var buffer = this.#cache.sf_buffer;
         if (buffer.length != mat.numberOfColumns()) {
@@ -80,22 +97,14 @@ export class AdtNormalizationState {
     compute() {
         this.changed = false;
 
-        if (this.#qc.changed) {
-            var mat = this.#qc.fetchFilteredMatrix();
-            var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "sf_buffer");
+        if (this.#qc.changed || this.#filter.changed) {
+            var mat = this.#filter.fetchFilteredMatrix({ type: this.#parameters.target_matrix });
+            var total_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "total_buffer");
+            nutils.subsetSums(this.#qc, this.#filter, total_buffer.array());
 
-            let norm, pcs, clust;
-            try {
-                // Quick and dirty clustering to compute some size factors.
-                norm = scran.logNormCounts(mat);
-                pcs = scran.runPCA(norm, { numberOfPCs: Math.min(norm.numberOfRows() - 1, 25) });
-                clust = scran.clusterKmeans(pcs, 20);
-                scran.groupedSizeFactors(partial, clust.clusters({ copy: "view" }), { buffer: buffer });
-            } finally {
-                utils.freeCache(norm);
-                utils.freeCache(pcs);
-                utils.freeCache(clust);
-            }
+            var block = this.#filter.fetchFilteredBlock();
+            var sf_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "sf_buffer");
+            scran.quickAdtSizeFactors(mat, { totals: total_buffer, block: block, buffer: sf_buffer });
 
             this.changed = true;
         } 
@@ -125,10 +134,8 @@ export class AdtNormalizationState {
      *************************/
 
     serialize(handle) {
-        let ghandle = handle.createGroup("normalization-adt");
-
+        let ghandle = handle.createGroup("adt-normalization");
         ghandle.createGroup("parameters"); // Token effort.
-
         let rhandle = ghandle.createGroup("results"); 
         rhande.writeDataSet("size_factors", "Float64", null, this.#cache.sf_buffer);
     }
@@ -139,7 +146,7 @@ export class AdtNormalizationState {
  **************************/
 
 export function unserialize(handle, qc) {
-    let ghandle = handle.open("normalization-adt");
+    let ghandle = handle.open("adt-normalization");
     let rhandle = ghandle.open("results");
     let sf = rhandle.open("size_factors", { load: true }).values;
 

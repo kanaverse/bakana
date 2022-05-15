@@ -112,7 +112,6 @@ export class CellFilteringState {
             let sub = scran.filterCells(src, disc_buffer);
             this.#cache.matrix.add(a, sub);
         }
-        console.log("YAY");
 
         // Also subsetting the blocking factor, if any.
         let block = this.#inputs.fetchBlock();

@@ -25,7 +25,7 @@ export class AdtQualityControlState {
         this.#cache = (cache === null ? {} : cache);
         this.changed = false;
 
-        this.#parameters.__use_main_matrix__ = false;
+        this.#parameters.target_matrix = "ADT";
     }
 
     free() {
@@ -39,6 +39,12 @@ export class AdtQualityControlState {
      ******** Getters **********
      ***************************/
 
+    fetchSums({ unsafe = false } = {}) {
+        // Unsafe, because we're returning a raw view into the Wasm heap,
+        // which might be invalidated upon further allocations.
+        return this.#cache.metrics.sums({ copy: !unsafe });
+    }
+
     fetchDiscards() {
         return this.#cache.filters.discardOverall({ copy: "view" });
     }
@@ -47,8 +53,9 @@ export class AdtQualityControlState {
      ******** Compute **********
      ***************************/
 
-    useMainMatrix() {
-        this.#parameters.__use_main_matrix__ = true;
+    useRNAMatrix() {
+        // For testing only!
+        this.#parameters.target_matrix = "RNA";
         return;
     }
 
@@ -69,8 +76,8 @@ export class AdtQualityControlState {
             utils.freeCache(this.#cache.metrics);
 
             if (this.#inputs.hasAdt() || this.#parameters.__use_main_matrix__) {
-                var mat = (this.#parameters.__use_main_matrix__ ? this.#inputs.fetchCountMatrix() : this.#inputs.fetchAdtCountMatrix());
-                var gene_info = (this.#parameters.__use_main_matrix__ ? this.#inputs.fetchGenes() : this.#inputs.fetchAdtGenes());
+                var mat = this.#inputs.fetchCountMatrix({ type: this.#parameters.target_matrix });
+                var gene_info = this.#inputs.fetchGenes({ type: this.#parameters.target_matrix });
 
                 // Finding the prefix.
                 var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");

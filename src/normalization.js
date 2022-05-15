@@ -1,5 +1,6 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
+import * as nutils from "./utils/normalization.js";
 import * as qc_module from "./quality_control.js";
 import * as filter_module from "./cell_filtering.js";
 
@@ -66,26 +67,9 @@ export class NormalizationState {
     #raw_compute() {
         var mat = this.#filter.fetchFilteredMatrix({ type: "RNA" });
         var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache);
-
-        var discards = this.#filter.fetchDiscards();
-        var sums = this.#qc.fetchSums({ unsafe: true }); // Better not have any more allocations in between now and filling of size_factors!
-
-        // Reusing the totals computed earlier.
-        var size_factors = buffer.array();
-        var j = 0;
-        discards.forEach((x, i) => {
-            if (!x) {
-                size_factors[j] = sums[i];
-                j++;
-            }
-        });
-
-        if (j != mat.numberOfColumns()) {
-            throw "normalization and filtering are not in sync";
-        }
+        nutils.subsetSums(this.#qc, this.#filter, buffer.array());
 
         var block = this.#filter.fetchFilteredBlock();
-
         utils.freeCache(this.#cache.matrix);
         this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: block });
         return;
