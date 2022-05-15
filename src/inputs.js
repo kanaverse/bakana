@@ -1,6 +1,7 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as iutils from "./utils/inputs.js";
+import * as rutils from "./utils/reader.js";
 
 /**
  * This step handles the loading of the input count matrices into memory.
@@ -24,17 +25,8 @@ export class InputsState {
     }
 
     free() {
-        utils.freeCache(this.#cache.matrix);
         utils.freeCache(this.#cache.block_ids);
-
-        let alt = this.#cache.alternatives;
-        if (alt) {
-            for (const v of Object.values(alt)) {
-                utils.freeCache(v.matrix);
-            }
-        }
-
-        return;
+        rutils.freeMatrixAndAlternatives(this.#cache);
     }
 
     /***************************
@@ -303,6 +295,147 @@ export class InputsState {
  ******* Internals ********
  **************************/
 
+function bind_datasets_base(dkeys, datasets) {
+    let output = {};
+
+    try {
+        // Identify the gene columns to use
+        let genes = {};
+        for (const k of dkeys) {
+            genes[k] = datasets[k].genes;
+            if (genes[k] === null) {
+                throw new Error("no gene annotations found in matrix '" + k + "'");
+            }
+        }
+
+        let result = iutils.commonFeatureTypes(genes);
+        if (result.best_type === null) {
+            throw new Error("no common feature types available across all matrices");
+        }
+        let best_fields = result.best_fields;
+
+        let gnames = [];
+        let mats = [];
+        let total = 0;
+        for (const k of dkeys) {
+            let current = datasets[k];
+            gnames.push(current.genes[best_fields[k]]);
+            mats.push(current.matrix);
+            total += current.matrix.numberOfColumns();
+        }
+
+        let merged = scran.cbindWithNames(mats, gnames);
+        output.matrix = merged.matrix;
+
+        // Extracting gene information from the first object. We won't make
+        // any attempt at merging and deduplication across objects.
+        let included = new Set(merged.indices);
+        output.genes = {};
+        let first_genes = datasets[dkeys[0]].genes;
+        for (const [key, val] of Object.entries(first_genes)) {
+            output.genes[key] = val.filter((x, i) => included.has(i));
+        }
+
+    } catch (e) {
+        utils.freeCache(output.matrix);
+        throw e;
+    }
+
+    return output;
+}
+
+function bind_datasets(dkeys, datasets) {
+    let blocks;
+    let output;
+
+    try {
+        output = bind_datasets_base(dkeys, datasets);
+
+        let total = output.matrix.numberOfColumns();
+        blocks = scran.createInt32WasmArray(total);
+        let barr = blocks.array();
+        let nice_barr = new Array(total);
+        let sofar = 0;
+        for (var i = 0; i < dkeys.length; i++) {
+            let old = sofar;
+            let current = datasets[dkeys[i]];
+            sofar += current.matrix.numberOfColumns();
+            barr.fill(i, old, sofar);
+            nice_barr.fill(dkeys[i], old, sofar);
+        }
+        output.block_ids = blocks;
+        output.block_levels = dkeys;
+
+        // Get all annotations keys across datasets; we then concatenate
+        // columns with the same name, or we just fill them with missings.
+        let ckeys = new Set();
+        for (const d of dkeys) {
+            let current = datasets[d];
+            if (current.annotations !== null) {
+                for (const a of Object.keys(current.annotations)) {
+                    ckeys.add(a);
+                }
+            }
+        }
+        let anno_keys = [...ckeys];
+
+        let combined_annotations = {};
+        for (const i of anno_keys) {
+            let current_combined = [];
+            for (const d of dkeys) {
+                let current = datasets[d];
+                let x;
+                if (current.annotations && current.annotations[i]) {
+                    x = current.annotations[i];
+                    if (!(x instanceof Array)) {
+                        x = Array.from(x);
+                    }
+                } else {
+                    x = new Array(current.matrix.numberOfColumns());
+                }
+                current_combined = current_combined.concat(x);
+            }
+            combined_annotations[i] = current_combined;
+        }
+
+        output.annotations = combined_annotations;
+        output.annotations["__batch__"] = nice_barr;
+
+        // Organizing the alternatives.
+        let alternatives = {};
+        let valid = {};
+        for (const x of dkeys) {
+            let current = datasets[x];
+            for (const [k, v] of Object.entries(current)) {
+                if (!(k in alternatives)) {
+                    alternatives[k] = {};
+                    valid[k] = 0;
+                }
+                alternatives[k][x] = v;
+                valid[k]++;
+            }
+        }
+
+        output.alternatives = {};
+        for (const [k, v] of Object.entries(valid)) {
+            if (v == dkeys.length) {
+                try {
+                    output.alternatives[k] = bind_datasets_base(v);
+                } catch (e) {
+                    // no fault failure; we just skip those that we can't merge.
+                }
+            }
+        }
+
+    } catch (e) {
+        utils.freeCache(blocks);
+        rutils.freeMatrixAndAlternatives(output);
+        throw e;
+    } 
+
+    return output;
+}
+
 async function process_datasets(matrices, sample_factor) {
     // Loading all of the individual matrices. 
     let datasets = {};
@@ -365,7 +498,7 @@ async function process_datasets(matrices, sample_factor) {
 
             } catch (e) {
                 utils.freeCache(blocks);
-                utils.freeCache(current.matrix);
+                rutils.freeMatrixAndAlternatives(current);
                 throw e;
             }
         }
@@ -375,109 +508,16 @@ async function process_datasets(matrices, sample_factor) {
         return current;
 
     } else {
-        // Multiple matrices, each of which represents a batch.
-        let output = {}
-        let blocks;
-
+        let output;
         try {
-            // Identify the gene columns to use
-            let genes = {};
-            for (const k of dkeys) {
-                genes[k] = datasets[k].genes;
-                if (genes[k] === null) {
-                    throw new Error("no gene annotations found in matrix '" + k + "'");
-                }
-            }
-
-            let result = iutils.commonFeatureTypes(genes);
-            if (result.best_type === null) {
-                throw new Error("no common feature types available across all matrices");
-            }
-            let best_fields = result.best_fields;
-
-            let gnames = [];
-            let mats = [];
-            let total = 0;
-            for (const k of dkeys) {
-                let current = datasets[k];
-                gnames.push(current.genes[best_fields[k]]);
-                mats.push(current.matrix);
-                total += current.matrix.numberOfColumns();
-            }
-
-            blocks = scran.createInt32WasmArray(total);
-            let barr = blocks.array();
-            let nice_barr = new Array(total);
-            let sofar = 0;
-            for (var i = 0; i < dkeys.length; i++) {
-                let old = sofar;
-                let current = datasets[dkeys[i]];
-                sofar += current.matrix.numberOfColumns();
-                barr.fill(i, old, sofar);
-                nice_barr.fill(dkeys[i], old, sofar);
-            }
-            output.block_ids = blocks;
-            output.block_levels = dkeys;
-
-            let merged = scran.cbindWithNames(mats, gnames);
-            output.matrix = merged.matrix;
-
-            // Extracting gene information from the first object. We won't make
-            // any attempt at merging and deduplication across objects.
-            let included = new Set(merged.indices);
-            output.genes = {};
-            let first_genes = datasets[dkeys[0]].genes;
-            for (const [key, val] of Object.entries(first_genes)) {
-                output.genes[key] = val.filter((x, i) => included.has(i));
-            }
-
-            // Get all annotations keys across datasets; we then concatenate
-            // columns with the same name, or we just fill them with missings.
-            let ckeys = new Set();
-            for (const d of dkeys) {
-                let current = datasets[d];
-                if (current.annotations !== null) {
-                    for (const a of Object.keys(current.annotations)) {
-                        ckeys.add(a);
-                    }
-                }
-            }
-            let anno_keys = [...ckeys];
-
-            let combined_annotations = {};
-            for (const i of anno_keys) {
-                let current_combined = [];
-                for (const d of dkeys) {
-                    let current = datasets[d];
-                    let x;
-                    if (current.annotations && current.annotations[i]) {
-                        x = current.annotations[i];
-                        if (!(x instanceof Array)) {
-                            x = Array.from(x);
-                        }
-                    } else {
-                        x = new Array(current.matrix.numberOfColumns());
-                    }
-                    current_combined = current_combined.concat(x);
-                }
-                combined_annotations[i] = current_combined;
-            }
-
-            output.annotations = combined_annotations;
-            output.annotations["__batch__"] = nice_barr;
-
-        } catch (e) {
-            utils.freeCache(blocks);
-            throw e;
-
+            output = bind_datasets(dkeys, datasets);
         } finally {
-            // Once the merged dataset is created, the individual dataset
-            // matrices are no longer useful, so we need to delete them anyway.
-            for (const v of Object.values(datasets)) {
-                utils.freeCache(v.matrix);
+            // No need to hold references to the individual matrices
+            // once the full matrix is loaded.
+            for (const [k, v] of Object.entries(datasets)) {
+                rutils.freeMatrixAndAlternatives(v);
             }
         }
-
         return output;
     }
 }

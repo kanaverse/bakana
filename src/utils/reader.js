@@ -299,3 +299,12 @@ export function splitByFeatureType(output) {
 
     return;
 }
+
+export function freeMatrixAndAlternatives(x) {
+    utils.freeCache(x.matrix);
+    if ("alternatives" in x) {
+        for (const v of Object.values(x.alternatives)) {
+            utils.freeCache(v.matrix);
+        }
+    }
+}
