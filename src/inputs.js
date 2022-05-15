@@ -26,37 +26,29 @@ export class InputsState {
 
     free() {
         utils.freeCache(this.#cache.block_ids);
-        rutils.freeMatrixAndAlternatives(this.#cache);
+        utils.freeCache(this.#cache.matrix);
     }
 
     /***************************
      ******** Getters **********
      ***************************/
 
-    fetchCountMatrix() {
-        return this.#cache.matrix;
+    listAvailableTypes() {
+        return this.#cache.matrix.available();
     }
 
-    fetchGenes() {
-        return this.#cache.genes;
+    fetchCountMatrix({ type = "RNA" } = {}) {
+        return this.#cache.matrix.get(type);
+    }
+
+    fetchGenes({ type = "RNA" } = {}) {
+        return this.#cache.genes[type];
     }
 
     fetchGeneTypes() {
         return this.#cache.gene_types;
     }
 
-    hasAdt() {
-        return this.#cache.adt_key !== null;
-    }
-
-    fetchAdtCountMatrix() {
-        return this.#cache.alternatives[this.#cache.adt_key].matrix;
-    }
-
-    fetchAdtGenes() {
-        return this.#cache.alternatives[this.#cache.adt_key].genes;
-    }
-  
     /**
      * Fetch an annotation for all cells in the dataset.
      * This considers all cells in the dataset before QC filtering - 
@@ -295,11 +287,11 @@ export class InputsState {
  ******* Internals ********
  **************************/
 
-function bind_datasets_base(dkeys, datasets) {
+function bind_single_dataset(dkeys, datasets, geneInfo, chosen) {
     let output = {};
 
     try {
-        // Identify the gene columns to use
+        // Identify the gene columns to use.
         let genes = {};
         for (const k of dkeys) {
             genes[k] = datasets[k].genes;
@@ -316,12 +308,10 @@ function bind_datasets_base(dkeys, datasets) {
 
         let gnames = [];
         let mats = [];
-        let total = 0;
         for (const k of dkeys) {
             let current = datasets[k];
             gnames.push(current.genes[best_fields[k]]);
             mats.push(current.matrix);
-            total += current.matrix.numberOfColumns();
         }
 
         let merged = scran.cbindWithNames(mats, gnames);
@@ -344,12 +334,38 @@ function bind_datasets_base(dkeys, datasets) {
     return output;
 }
 
-function bind_datasets(dkeys, datasets) {
+function bind_datasets(dkeys, matrices, geneInfo) {
     let blocks;
-    let output;
+    let output = {};
+
+    // Checking which feature types are available across all datasets.
+    let available = null;
+    for (const k of dkeys) {
+        if (available === null) {
+            available = datasets[k].available();
+        } else {
+            let present = new Set(datasets[k].available());
+            available = available.filter(x => present.has(x));
+        }
+    }
 
     try {
-        output = bind_datasets_base(dkeys, datasets);
+        let store = {};
+        let genes = {};
+        try {
+            for (const a of available) {
+                let current = bind_single_dataset(dkeys, datasets, geneInfo, a);
+                store[a] = current.matrix;
+                genes[a] = current.genes;
+            }
+        } catch (e) {
+            for (const a of Object.values(store)) {
+                a.free();
+            }
+            throw e;
+        }
+        output.matrix = new MultiMatrix(store);
+        output.genes = genes;
 
         let total = output.matrix.numberOfColumns();
         blocks = scran.createInt32WasmArray(total);
@@ -401,35 +417,9 @@ function bind_datasets(dkeys, datasets) {
         output.annotations = combined_annotations;
         output.annotations["__batch__"] = nice_barr;
 
-        // Organizing the alternatives.
-        let alternatives = {};
-        let valid = {};
-        for (const x of dkeys) {
-            let current = datasets[x];
-            for (const [k, v] of Object.entries(current)) {
-                if (!(k in alternatives)) {
-                    alternatives[k] = {};
-                    valid[k] = 0;
-                }
-                alternatives[k][x] = v;
-                valid[k]++;
-            }
-        }
-
-        output.alternatives = {};
-        for (const [k, v] of Object.entries(valid)) {
-            if (v == dkeys.length) {
-                try {
-                    output.alternatives[k] = bind_datasets_base(v);
-                } catch (e) {
-                    // no fault failure; we just skip those that we can't merge.
-                }
-            }
-        }
-
     } catch (e) {
         utils.freeCache(blocks);
-        rutils.freeMatrixAndAlternatives(output);
+        utils.freeCache(output.matrix);
         throw e;
     } 
 
@@ -515,7 +505,7 @@ async function process_datasets(matrices, sample_factor) {
             // No need to hold references to the individual matrices
             // once the full matrix is loaded.
             for (const [k, v] of Object.entries(datasets)) {
-                rutils.freeMatrixAndAlternatives(v);
+                utils.free(v);
             }
         }
         return output;
@@ -526,7 +516,7 @@ async function process_and_cache(new_matrices, sample_factor) {
     let cache = await process_datasets(new_matrices, sample_factor);
 
     var gene_info_type = {};
-    var gene_info = cache.genes;
+    var gene_info = cache.genes.default;
     for (const [key, val] of Object.entries(gene_info)) {
         gene_info_type[key] = scran.guessFeatures(val);
     }

@@ -123,25 +123,104 @@ export function promoteToNumber(x) {
     return as_num;
 }
 
-export function reorganizeGenes(loaded) {
-    if (loaded.genes === null) {
+export class MultiMatrix {
+    #store;
+    #nrows;
+    #ncols;
+
+    constructor({ store = {} } = {}) {
+        this.#store = store;
+        this.#ncols = null;
+        this.#nrows = 0;
+
+        let keys = Object.keys(store);
+        if (keys.length) {
+            // We ignore numberOfColumns here, as everyone should have the same number of cells.
+            for (var k = 0; k < keys.length; k++) {
+                let current = store[keys[k]];
+                if (k == 0) {
+                    this.#ncols = current.numberOfColumns();
+                } else if (current.numberOfColumns() != this.#ncols) {
+                    throw new Error("all matrices should have the same number of columns");
+                }
+            }
+            keys.forEach(x => { this.#nrows += store[x].numberOfRows(); });
+        }
+    }
+
+    numberOfColumns() {
+        return this.#ncols;
+    }
+
+    numberOfRows() {
+        return this.#nrows;
+    }
+
+    available() {
+        return Object.keys(this.#store);
+    }
+
+    get(i) {
+        return this.#store[i];
+    }
+
+    add(i, matrix) {
+        if (this.#ncols === null) {
+            this.#ncols = matrix.numberOfColumns();
+        } else if (matrix.numberOfColumns() != this.#ncols) {
+            throw new Error("all matrices should have the same number of columns");
+        }
+
+        if (i in this.#store) {
+            let old = this.#store[i];
+            this.#nrows -= old.numberOfRows();
+            utils.freeCache(old);
+        }
+
+        this.#store[i] = matrix;
+        this.#nrows += matrix.numberOfRows();
+    }
+
+    remove(i) {
+        utils.freeCache(this.#store[i]);
+        delete this.#store[i];
+    }
+
+    rename(from, to) {
+        if (from !== to) {
+            this.#store[to] = this.#store[from];
+            delete this.#store[from];
+        }
+    }
+
+    free() {
+        for (const [x, v] of Object.entries(this.#store)) {
+            utils.freeCache(v);
+        }
+        return;
+    }
+}
+
+export function reorganizeGenes(matrix, geneInfo) {
+    if (geneInfo === null) {
         let genes = [];
-        if (loaded.matrix.isReorganized()) {
-            let ids = loaded.matrix.identities();
+        if (matrix.isReorganized()) {
+            let ids = matrix.identities();
             for (const i of ids) {
                 genes.push(`Gene ${i + 1}`);
             }
         } else {
-            for (let i = 0; i < loaded.matrix.numberOfRows(); i++) {
+            for (let i = 0; i < matrix.numberOfRows(); i++) {
                 genes.push(`Gene ${i + 1}`);
             }
         }
-        loaded.genes = { "id": genes };
+        geneInfo = { "id": genes };
     } else {
-        if (loaded.matrix.isReorganized()) {
-            scran.matchFeatureAnnotationToRowIdentities(loaded.matrix, loaded.genes);
+        if (matrix.isReorganized()) {
+            scran.matchFeatureAnnotationToRowIdentities(matrix, geneInfo);
         }
     }
+    return geneInfo;
 }
 
 var cache = {
@@ -236,75 +315,51 @@ export function formatFile(file, sizeOnly) {
     return output;
 }
 
-export function splitByFeatureType(output) {
-    // Checking if 'type' is available, and if so, subsetting the
-    // matrix to only "Gene Expression". This is a stop-gap solution
-    // for dealing with non-gene features in 10X Genomics outputs.
-    if (output.genes === null || !("type" in output.genes)) {
-        return;
+export function splitByFeatureType(matrix, genes) { 
+    if (!("type" in genes)) {
+        return null;
     }
 
-    let keep = [];
-    let feat_types = output.genes.type;
-    let others = {};
-
-    feat_types.forEach((x, i) => {
-        let is_gene = x.match(/gene expression/i);
-        if (is_gene) {
-            keep.push(i);
-        } else {
-            if (!(x in others)) {
-                others[x] = [];
-            }
-            others[x].push(i);
+    let types = {};
+    genes.type.forEach((x, i) => {
+        if (!(x in types)) {
+            types[x] = [];
         }
+        types[x].push(i);
     });
 
-    // If nothing matches to 'Gene expression', then clearly it wasn't
-    // very reasonable to subset on it, so we'll just give up.
-    if (keep.length == 0) {
-        return;
-    }
-
-    let subsetted;
-    let sliced = {}
+    let out_mats = new MultiMatrix;
+    let out_genes = {};
     try {
-        for (const [k, v] of Object.entries(others)) {
-            // Setting it up here first, so that we free the matrix in the catch properly.
-            sliced[k] = {};
-            let current = sliced[k];
-
-            current.matrix = scran.subsetRows(output.matrix, v);
-            current.genes = {};
-            for (const [k2, v2] of Object.entries(output.genes)) {
-                current.genes[k2] = scran.matchVectorToRowIdentities(current.matrix, v2);
+        for (const [k, v] of Object.entries(types)) {
+            // Standardizing the names to something the rest of the pipeline
+            // will recognize. By default, we check the 10X vocabulary here.
+            let name = k;
+            if (name.match(/gene expression/i)) {
+                name = "RNA";
+            } else if (name.match(/antibody capture/i)) {
+                name = "ADT";
             }
+
+            out_mats.add(name, scran.subsetRows(matrix, v));
+
+            let curgenes = {};
+            for (const [k2, v2] of Object.entries(output.genes)) {
+                // Skipping 'type', as it's done its purpose now.
+                if (k !== "type") {
+                    curgenes[k2] = scran.matchVectorToRowIdentities(current.matrix, v2);
+                }
+            }
+            out_genes[name] = curgenes;
         }
-        output.alternatives = sliced;
-
-        // Stripping out everything that's not in the gene expression pile.
-        subsetted = scran.subsetRows(output.matrix, keep);
-        utils.freeCache(output.matrix); // releasing it as it'll be replaced with 'subsetted'.
-        output.matrix = subsetted;
-
-        scran.matchFeatureAnnotationToRowIdentities(keep, output.genes);
 
     } catch (e) {
-        for (const [k, v] of Object.entries(sliced)) {
-            utils.freeCache(v.matrix);
-        }
-        utils.freeCache(subsetted);
+        utils.freeCache(out_mats);
         throw e;
     }
 
-    return;
-}
-
-export function freeMatrixAndAlternatives(x) {
-    utils.freeCache(x.matrix);
-    if ("alternatives" in x) {
-        for (const v of Object.values(x.alternatives)) {
-            utils.freeCache(v.matrix);
-        }
-    }
+    return { 
+        matrices: out_mats, 
+        genes: out_genes 
+    };
 }

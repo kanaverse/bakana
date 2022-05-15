@@ -70,23 +70,32 @@ export class Reader {
     }
 
     load() {
-        let output = {};
+        let output;
+        let matrices = new rutils.MultiMatrix;
 
         const tmppath = afile.realizeH5(this.#h5.content);
         try {
-            output.matrix = scran.initializeSparseMatrixFromHDF5(tmppath, "matrix");
+            let out_mat = scran.initializeSparseMatrixFromHDF5(tmppath, "matrix");
+            matrices.add("RNA", out_mat);
+
             let handle = new scran.H5File(tmppath);
-            output.genes = extract_features(handle);
-            output.annotations = null;
-            rutils.reorganizeGenes(output);
-            rutils.splitByFeatureType(output);
-        } catch (e) {
-            utils.freeCache(output.matrix);
-            if (output.alternatives) {
-                for (const [k, v] of Object.entries(output.alternatives)) {
-                    utils.freeCache(v.matrix);
-                }
+            let gene_info = extract_features(handle);
+            let genes = { RNA: rutils.reorganizeGenes(out_mat, gene_info) };
+
+            let split_out = rutils.splitByFeatureType(out_mat, genes.RNA);
+            if (split_out !== null) {
+                utils.freeCache(out_mat);
+                matrices = split_out.matrices;
+                genes = split_out.genes;
             }
+
+            output = {
+                matrix: matrices,
+                genes: genes,
+                annotations: null
+            };
+        } catch (e) {
+            utils.freeCache(matrices);
             throw e;
         } finally {
             afile.removeH5(tmppath);

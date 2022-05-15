@@ -148,32 +148,36 @@ export class Reader {
         var ext = this.#mtx.name.split('.').pop();
         var is_compressed = (ext == "gz");
 
-        let output = {};
+        let matrices = new rutils.MultiMatrix;
+        let output;
         try {
-            output.matrix = scran.initializeSparseMatrixFromMatrixMarketBuffer(contents, { "compressed": is_compressed });
+            let out_mat = scran.initializeSparseMatrixFromMatrixMarketBuffer(contents, { "compressed": is_compressed });
+            matrices.add("RNA", out_mat);
 
+            let gene_info = null;
             if (this.#genes !== null) {
-                output.genes = extract_features(this.#genes, { numberOfRows: output.matrix.numberOfRows(), includeFeatureType: true });
-            } else {
-                output.genes = null;
+                gene_info = extract_features(this.#genes, { numberOfRows: out_mat.numberOfRows(), includeFeatureType: true });
             }
+            let genes = { RNA: rutils.reorganizeGenes(out_mat, gene_info) };
+
+            let split_out = rutils.splitByFeatureType(out_mat, genes.RNA);
+            if (split_out !== null) {
+                utils.freeCache(out_mat);
+                matrices = split_out.matrices;
+                genes = split_out.genes;
+            }
+
+            output = {
+                matrix: matrices,
+                genes: genes
+            };
 
             if (this.#annotations !== null) {
-                output.annotations = extract_annotations(this.#annotations, { numberOfColumns: output.matrix.numberOfColumns() });
-            } else {
-                output.annotations = null;
+                output.annotations = extract_annotations(this.#annotations, { numberOfColumns: out_mat.numberOfColumns() });
             }
-
-            rutils.reorganizeGenes(output);
-            rutils.splitByFeatureType(output);
 
         } catch (e) {
-            utils.freeCache(output.matrix);
-            if (output.alternatives) {
-                for (const [k, v] of Object.entries(output.alternatives)) {
-                    utils.freeCache(v.matrix);
-                }
-            }
+            utils.freeCache(matrices);
             throw e;
         }
 

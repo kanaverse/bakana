@@ -112,17 +112,25 @@ export class Reader {
     }
 
     load() {
-        let output = {};
+        let output;
+        let matrices = new rutils.MatrixMarket;
 
         const tmppath = afile.realizeH5(this.#h5.content);
         try {
-            output.matrix = scran.initializeSparseMatrixFromHDF5(tmppath, "X");
+            let out_mat = scran.initializeSparseMatrixFromHDF5(tmppath, "X");
+            matrices.add("RNA", out_mat);
+
             let handle = new scran.H5File(tmppath);
-            output.genes = extract_features(handle); 
-            output.annotations = extract_annotations(handle);
-            rutils.reorganizeGenes(output);
+            let gene_info = extract_features(handle); 
+            let genes = { RNA: rutils.reorganizeGenes(out_mat, gene_info) };
+
+            output = {
+                matrix: matrices,
+                genes: genes,
+                annotations: extract_annotations(handle)
+            };
         } catch (e) {
-            utils.freeCache(output.matrix);
+            utils.freeCache(matrices);
             throw e;
         } finally {
             afile.removeH5(tmppath);
