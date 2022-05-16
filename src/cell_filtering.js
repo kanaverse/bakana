@@ -1,6 +1,7 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
 import * as rutils from "./utils/reader.js";
+import * as qcutils from "./utils/quality_control.js";
 import * as inputs_module from "./inputs.js";
 
 export class CellFilteringState {
@@ -11,9 +12,15 @@ export class CellFilteringState {
 
     constructor(inputs, qc_states, parameters = null, cache = null) {
         if (!(inputs instanceof inputs_module.InputsState)) {
-            throw new Error("'inputs' should be a State object from './inputs.js'");
+            throw new Error("'inputs' should be an InputsState");
         }
         this.#inputs = inputs;
+
+        for (const v of Object.values(qc_states)) {
+            if (!(v instanceof qcutils.QualityControlStateBase)) {
+                throw new Error("'qc_states' should contain QualityControlStateBase objects");
+            }
+        }
         this.#qc_states = qc_states;
 
         this.#parameters = (parameters === null ? {} : parameters);
@@ -95,7 +102,7 @@ export class CellFilteringState {
         let disc_arr = disc_buffer.array();
         disc_arr.fill(0);
 
-        for (const x of this.#qc_states) {
+        for (const x of Object.values(this.#qc_states)) {
             var cur_disc = x.fetchDiscards();
             if (cur_disc !== null) {
                 cur_disc.forEach((y, i) => {
@@ -137,7 +144,7 @@ export class CellFilteringState {
             this.changed = true;
         }
 
-        for (const x of this.#qc_states) {
+        for (const x of Object.values(this.#qc_states)) {
             if (x.changed) {
                 this.changed = true;
             }

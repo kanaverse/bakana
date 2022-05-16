@@ -26,3 +26,5 @@ export function splitThresholdsByBlock(thresholds, blockLevels) {
 
     return output;
 }
+
+export class QualityControlStateBase {}

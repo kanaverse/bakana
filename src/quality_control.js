@@ -12,7 +12,7 @@ import * as inputs_module from "./inputs.js";
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class QualityControlState {
+export class QualityControlState extends qcutils.QualityControlStateBase {
     #inputs;
     #cache;
     #parameters;

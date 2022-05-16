@@ -10,7 +10,7 @@ import * as qcutils from "../utils/quality_control.js";
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class AdtQualityControlState {
+export class AdtQualityControlState extends qcutils.QualityControlStateBase {
     #inputs;
     #cache;
     #parameters;
