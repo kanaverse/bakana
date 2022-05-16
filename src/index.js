@@ -1,6 +1,7 @@
 import * as scran from "scran.js";
 import * as inputs from "./inputs.js";
 import * as preflight from "./preflight.js";
+
 import * as qc from "./quality_control.js";
 import * as qcadt from "./adt/quality_control.js";
 import * as filters from "./cell_filtering.js";
@@ -40,10 +41,10 @@ import * as vizutils from "./utils/viz_parent.js";
 import * as afile from "./abstract/file.js";
 import * as aserialize from "./abstract/serialize.js";
 
-const step_inputs = "inputs";
-const step_qc = "quality_control";
-const step_qc_adt = "adt_quality_control";
-const step_filter = "cell_filtering";
+const step_inputs = inputs.step_name;
+const step_qc = qc.step_name;
+const step_qc_adt = qcadt.step_name;
+const step_filter = filters.step_name;
 const step_norm = "normalization";
 const step_norm_adt = "adt_normalization";
 const step_feat = "feature_selection";

@@ -1,3 +1,8 @@
+import * as inputs from "./inputs.js";
+import * as qc from "./quality_control.js";
+import * as qcadt from "./adt/quality_control.js";
+import * as filter from "./cell_filtering.js";
+
 /**
  * Generate an object containing all of the default analysis parameters.
  *
@@ -6,6 +11,8 @@
  * 
  * - {@linkcode InputsState#compute inputs}
  * - {@linkcode QualityControlState#compute quality_control}
+ * - {@linkcode AdtQualityControlState#compute adt_quality_control}
+ * - {@linkcode CellFiltering#compute cell_filtering}
  * - {@linkcode FeatureSelectionState#compute feature_selection}
  * - {@linkcode PcaState#compute pca}
  * - {@linkcode NeighborIndexState#compute neighbor_index}
@@ -17,20 +24,7 @@
  * - {@linkcode CellLabellingState#compute cell_labelling}
  */
 export function analysisDefaults() {
-    return {
-        inputs: {
-            sample_factor: null
-        },
-        quality_control: {
-            use_mito_default: true,
-            mito_prefix: "mt-",
-            nmads: 3
-        },
-        adt_quality_control: {
-            igg_prefix: "igg",
-            nmads: 3,
-            min_detected_drop: 0.1
-        },
+    var output = {
         feature_selection: {
             span: 0.3
         },
@@ -79,4 +73,11 @@ export function analysisDefaults() {
             human_references: []
         }
     };
+
+    output[inputs.step_name] = inputs.InputsState.defaults();
+    output[qc.step_name] = qc.QualityControlState.defaults();
+    output[qcadt.step_name] = qcadt.AdtQualityControlState.defaults();
+    output[filter.step_name] = filter.CellFilteringState.defaults();
+
+    return output;
 }

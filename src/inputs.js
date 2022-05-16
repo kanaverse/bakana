@@ -3,6 +3,8 @@ import * as utils from "./utils/general.js";
 import * as iutils from "./utils/inputs.js";
 import * as rutils from "./utils/reader.js";
 
+export const step_name = "inputs";
+
 /**
  * This step handles the loading of the input count matrices into memory.
  * This wraps various matrix initialization functions in [**scran.js**](https://github.com/jkanche/scran.js),
@@ -129,6 +131,12 @@ export class InputsState {
     /***************************
      ******** Compute **********
      ***************************/
+
+    static defaults() {
+        return {
+            sample_factor: null
+        };
+    }
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
@@ -280,7 +288,11 @@ export class InputsState {
                 rhandle.writeDataSet("num_samples", "Int32", [], this.#cache.block_levels.length); 
             }
 
-            rhandle.writeDataSet("indices", "Int32", null, this.#cache.matrix.identities());
+            // Looping through all available matrices.
+            let ihandle = rhandle.createGroup("indices");
+            for (const a of this.#cache.matrix.available()) {
+                ihandle.writeDataSet(a, "Int32", null, this.#cache.matrix.get(a).identities());
+            }
         }
 
         return;
@@ -528,6 +540,15 @@ async function process_and_cache(new_matrices, sample_factor) {
  ******** Loading *********
  **************************/
 
+function createPermutation(perm) {
+    return x => {
+        let copy = x.slice();
+        x.forEach((y, i) => {
+            x[i] = copy[perm[i]];
+        });
+    };
+}
+
 export async function unserialize(handle, embeddedLoader) {
     let ghandle = handle.open("inputs");
     let phandle = ghandle.open("parameters");
@@ -593,20 +614,30 @@ export async function unserialize(handle, embeddedLoader) {
 
     // We need to do something if the permutation is not the same.
     let rhandle = ghandle.open("results");
-    let permuter;
 
-    let perm = null;
+    let perm = {};
     if (solofile) {
         if ("permutation" in rhandle.children) {
             // v1.0-v1.1
             let dhandle = rhandle.open("permutation", { load: true });
             let ids = new Int32Array(dhandle.values.length);
             dhandle.values.forEach((x, i) => { ids[x] = i; });
-            perm = scran.updateRowIdentities(cache.matrix, ids);
+            perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), ids);
         } else if ("identities" in rhandle.children) {
-            // v1.2+
-            let dhandle = rhandle.open("identities", { load: true });
-            perm = scran.updateRowIdentities(cache.matrix, dhandle.values);
+            if (rhandle.children["identities"] == "DataSet") {
+                // v1.2
+                let dhandle = rhandle.open("identities", { load: true });
+                perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), dhandle.values);
+            } else {
+                // v2.0
+                let ihandle = rhandle.open("identities");
+                for (const a of Object.keys(ihandle.children)) {
+                    if (cache.matrix.has(a)) {
+                        let dhandle = rhandle.open(a, { load: true });
+                        perm[a] = scran.updateRowIdentities(cache.matrix.get(a), dhandle.values);
+                    }
+                }
+            }
         } else {
             // Otherwise, we're dealing with v0 states. We'll just
             // assume it was the same, I guess. Should be fine as we didn't change
@@ -617,27 +648,37 @@ export async function unserialize(handle, embeddedLoader) {
         if ("indices" in rhandle.children) {
             // v1.1
             old_ids = rhandle.open("indices", { load: true }).values;
+            perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), old_ids);
         } else {
-            // v1.2+
-            old_ids = rhandle.open("identities", { load: true }).values;
+            if (rhandle.children["identites"] == "DataSet") {
+                // v1.2+
+                old_ids = rhandle.open("identities", { load: true }).values;
+                perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), old_ids);
+            } else {
+                // v2.0
+                let ihandle = rhandle.open("identities");
+                for (const a of Object.keys(ihandle.children)) {
+                    if (cache.matrix.has(a)) {
+                        let dhandle = rhandle.open(a, { load: true });
+                        perm[a] = scran.updateRowIdentities(cache.matrix.get(a), dhandle.values);
+                    }
+                }
+            }
         }
-        perm = scran.updateRowIdentities(cache.matrix, old_ids);
     }
 
-    if (perm === null) {
-        permuter = (x) => {}
-    } else {
-        permuter = (x) => {
-            let copy = x.slice();
-            x.forEach((y, i) => {
-                x[i] = copy[perm[i]];
-            });
-        };
+    let permuter = {};
+    for (const a of cache.matrix.available) {
+        if (a in perm) {
+            permuter[a] = createPermuter(perm[a]); 
+        } else {
+            permuter[a] = x => {};
+        }
     }
 
     return { 
         state: new InputsState(parameters, cache),
         parameters: { sample_factor: parameters.sample_factor }, // only returning the sample factor - we don't pass the files back. 
         permuter: permuter
-    }
+    };
 }

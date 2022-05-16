@@ -3,9 +3,12 @@ import * as utils from "../utils/general.js";
 import * as inputs_module from "../inputs.js";
 import * as qcutils from "../utils/quality_control.js";
 
+export const step_name = "adt_quality_control";
+
 /**
  * This step applies quality control on the ADT count matrix.
- * This wraps `computePerCellAdtQcMetrics` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ * Specifically, it computes the QC metrics and filtering thresholds, wrapping `computePerCellAdtQcMetrics` and `computePerCellAdtQcFilters` from [**scran.js**](https://github.com/jkanche/scran.js).
+ * Note that the actual filtering is done by {@linkcode CellFilteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -73,9 +76,18 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
         return;
     }
 
+    static defaults() {
+        return {
+            igg_prefix: "IgG",
+            nmads: 3,
+            min_detected_drop: 0.1
+
+        };
+    }
+
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `quality_control` property of the `parameters` of {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `adt_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
      *
      * @param {string} igg_prefix - Prefix of the identifiers for isotype controls.
      * @param {number} nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
@@ -196,7 +208,7 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
      *************************/
 
     serialize(handle) {
-        let ghandle = handle.createGroup("adt-quality_control");
+        let ghandle = handle.createGroup(step_name);
 
         {
             let phandle = ghandle.createGroup("parameters"); 
@@ -237,12 +249,17 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
  ******** Loading *********
  **************************/
 
-class AdtQCFiltersMimic {
+class AdtQcFiltersMimic {
     constructor(detected, igg_total, discards) {
         this.detected_ = detected;
         this.igg_total_ = igg_total;
-        this.discards = scran.createUint8WasmArray(discards.length);
-        this.discards.set(discards);
+        try {
+            this.discards = scran.createUint8WasmArray(discards.length);
+            this.discards.set(discards);
+        } catch (e) {
+            utils.freeCache(this.discards);
+            throw e;
+        }
     }
 
     thresholdsDetected({ copy }) {
@@ -266,20 +283,21 @@ class AdtQCFiltersMimic {
 }
 
 export function unserialize(handle, inputs) {
-    let ghandle = handle.open("adt-quality_control");
+    let ghandle = handle.open(step_name);
 
     let parameters = {};
     {
         let phandle = ghandle.open("parameters"); 
         parameters = {
-            mito_prefix: phandle.open("igg_prefix", { load: true }).values[0],
+            igg_prefix: phandle.open("igg_prefix", { load: true }).values[0],
             nmads: phandle.open("nmads", { load: true }).values[0],
             min_detected_drop: phandle.open("min_detected_drop", { load: true }).values[0]
         }
     }
 
+    let output;
     let cache = {};
-    {
+    try {
         let rhandle = ghandle.open("results");
 
         if ("metrics" in rhandle.children) {
@@ -295,16 +313,23 @@ export function unserialize(handle, inputs) {
             let thresholds_igg_total = thandle.open("igg_total", { load: true }).values;
 
             let discards = rhandle.open("discards", { load: true }).values; 
-            cache.filters = new QCFiltersMimic(
+            cache.filters = new AdtQcFiltersMimic(
                 thresholds_detected,
                 thresholds_igg_total,
                 discards
             );
         }
+
+        output = new AdtQualityControlState(inputs, parameters, cache);
+    } catch (e) {
+        utils.freeCache(cache.metrics);
+        utils.freeCache(cache.filters)
+        utils.freeCache(output);
+        throw e;
     }
 
     return {
-        state: new AdtQualityControlState(inputs, parameters, cache),
-        parameters: { ...parameters }
+        state: output,
+        parameters: parameters
     };
 }

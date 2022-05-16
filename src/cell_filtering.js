@@ -4,6 +4,16 @@ import * as rutils from "./utils/reader.js";
 import * as qcutils from "./utils/quality_control.js";
 import * as inputs_module from "./inputs.js";
 
+export const step_name = "cell_filtering";
+
+/**
+ * This step filters the count matrices to remove low-quality cells.
+ * It wraps the `filterCells` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * For multi-modal datasets, this combines the quality calls from all modalities; a cell is removed if it is considered low-quality in any individual modality.
+ *
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ * @hideconstructor
+ */
 export class CellFilteringState {
     #inputs;
     #qc_states;
@@ -154,6 +164,12 @@ export class CellFilteringState {
         return;
     }
 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `cell_filtering` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @return The object is updated with the new results.
+     */
     compute() {
         if (this.#inputs.changed) {
             this.changed = true;
@@ -170,13 +186,62 @@ export class CellFilteringState {
         }
     }
 
+    static defaults() {
+        return {};
+    }
+
     /***************************
      ******** Results **********
      ***************************/
 
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return {Object} An object containing:
+     *
+     * - `retained`: the number of cells retained after filtering out low-quality cells.
+     */
     summary() {
         let remaining = 0;
         this.#cache.discard_buffer.forEach(x => { remaining += (x == 0); });
         return { "retained": remaining };
     }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup(step_name);
+        ghandle.createGroup("parameters"); // for tradition
+
+        let rhandle = ghandle.createGroup("results"); 
+        let disc = this.fetchDiscards();
+        rhandle.writeDataSet("discards", "Uint8", null, disc);
+    }
+}
+
+export function unserialize(handle, inputs) {
+    let ghandle = handle.open(step_name);
+    let parameters = {};
+
+    let output;
+    let cache = {};
+    try {
+        let rhandle = ghandle.open("results");
+        let discards = rhandle.open("discards", { load: true }).values; 
+        cache.discard_buffer = scran.createUint8WasmArray(discards.length);
+        cache.discard_buffer.set(discards);
+
+        output = new QualityControlState(inputs, parameters, cache);
+    } catch (e) {
+        utils.freeCache(cache.discard_buffer);
+        utils.freeCache(output);
+        throw e;
+    }
+
+    return {
+        state: output,
+        parameters: parameters
+    };
 }

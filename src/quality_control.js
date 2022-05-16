@@ -4,10 +4,12 @@ import * as qcutils from "./utils/quality_control.js";
 import { mito } from "./mito.js";
 import * as inputs_module from "./inputs.js";
 
+export const step_name = "quality_control";
+
 /**
- * This step applies quality control on the original count matrix.
- * After removing low-quality cells, the filtered matrix is used for all downstream steps.
- * This wraps `computePerCellQCMetrics` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This step applies quality control on the RNA count matrix.
+ * Specifically, it computes the QC metrics and filtering thresholds, wrapping `computePerCellQCMetrics` and `computePerCellQCFilters` from [**scran.js**](https://github.com/jkanche/scran.js).
+ * Note that the actual filtering is done by {@linkcode CellFilteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -59,6 +61,14 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
     /***************************
      ******** Compute **********
      ***************************/
+
+    static defaults () {
+        return {
+            use_mito_default: true,
+            mito_prefix: "mt-",
+            nmads: 3
+        };
+    }
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
@@ -181,7 +191,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
      *************************/
 
     serialize(handle) {
-        let ghandle = handle.createGroup("quality_control");
+        let ghandle = handle.createGroup(step_name);
 
         {
             let phandle = ghandle.createGroup("parameters"); 
@@ -225,8 +235,14 @@ class QCFiltersMimic {
         this.sums_ = sums;
         this.detected_ = detected;
         this.proportion_ = proportion;
-        this.discards = scran.createUint8WasmArray(discards.length);
-        this.discards.set(discards);
+
+        try {
+            this.discards = scran.createUint8WasmArray(discards.length);
+            this.discards.set(discards);
+        } catch (e) {
+            utils.freeCache(this.discards);
+            throw e;
+        }
     }
 
     thresholdsSums({ copy }) {
@@ -266,8 +282,9 @@ export function unserialize(handle, inputs) {
         }
     }
 
+    let output;
     let cache = {};
-    {
+    try {
         let rhandle = ghandle.open("results");
 
         let mhandle = rhandle.open("metrics");
@@ -293,10 +310,17 @@ export function unserialize(handle, inputs) {
             thresholds_proportion,
             discards
         );
+
+        output = new QualityControlState(inputs, parameters, cache);
+    } catch (e) {
+        utils.freeCache(cache.metrics);
+        utils.freeCache(cache.filters)
+        utils.freeCache(output);
+        throw e;
     }
 
     return {
-        state: new QualityControlState(inputs, parameters, cache),
-        parameters: { ...parameters }
+        state: output,
+        parameters: parameters
     };
 }
