@@ -160,6 +160,10 @@ export class MultiMatrix {
         return Object.keys(this.#store);
     }
 
+    has(i) {
+        return (i in this.#store);
+    }
+
     get(i) {
         return this.#store[i];
     }

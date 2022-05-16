@@ -38,6 +38,10 @@ export class CellFilteringState {
      ******** Getters **********
      ***************************/
 
+    hasAvailable(type) {
+        return this.#cache.matrix.has(type);
+    }
+
     fetchFilteredMatrix({ type = "RNA" } = {}) {
         if (!("matrix" in this.#cache)) {
             this.#apply_filters();
@@ -103,11 +107,8 @@ export class CellFilteringState {
         disc_arr.fill(0);
 
         for (const x of Object.values(this.#qc_states)) {
-            var cur_disc = x.fetchDiscards();
-            if (cur_disc !== null) {
-                cur_disc.forEach((y, i) => {
-                    disc_arr[i] |= y;
-                });
+            if (x.valid()) {
+                x.fetchDiscards().forEach((y, i) => { disc_arr[i] |= y; });
             }
         }
 
@@ -145,7 +146,7 @@ export class CellFilteringState {
         }
 
         for (const x of Object.values(this.#qc_states)) {
-            if (x.changed) {
+            if (x.valid() && x.changed) {
                 this.changed = true;
             }
         }

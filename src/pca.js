@@ -21,6 +21,8 @@ export class PcaState extends putils.PcaStateBase {
     #parameters;
 
     constructor(filter, norm, feat, parameters = null, cache = null) {
+        super();
+
         if (!(filter instanceof filter_module.CellFilteringState)) {
             throw new Error("'filter' should be a State object from './cell_filtering.js'");
         }
@@ -49,6 +51,10 @@ export class PcaState extends putils.PcaStateBase {
     /***************************
      ******** Getters **********
      ***************************/
+
+    valid() {
+        return true;
+    }
 
     fetchPCs() {
         return putils.formatPCs(this.#cache.pcs);

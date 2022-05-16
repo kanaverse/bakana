@@ -16,6 +16,8 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
     #parameters;
 
     constructor(inputs, parameters = null, cache = null) {
+        super();
+
         if (!(inputs instanceof inputs_module.InputsState)) {
             throw new Error("'inputs' should be a State object from './inputs.js'");
         }
@@ -38,15 +40,27 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
     /***************************
      ******** Getters **********
      ***************************/
+    
+    valid() {
+        return this.#inputs.hasAvailable(this.#parameters.target_matrix);
+    }
 
     fetchSums({ unsafe = false } = {}) {
-        // Unsafe, because we're returning a raw view into the Wasm heap,
-        // which might be invalidated upon further allocations.
-        return this.#cache.metrics.sums({ copy: !unsafe });
+        if (this.valid()) { 
+            // Unsafe, because we're returning a raw view into the Wasm heap,
+            // which might be invalidated upon further allocations.
+            return this.#cache.metrics.sums({ copy: !unsafe });
+        } else {
+            return null;
+        }
     }
 
     fetchDiscards() {
-        return this.#cache.filters.discardOverall({ copy: "view" });
+        if (this.valid()) {
+            return this.#cache.filters.discardOverall({ copy: "view" });
+        } else {
+            return null;
+        }
     }
 
     /***************************
@@ -75,7 +89,7 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
         if (this.#inputs.changed || igg_prefix !== this.#parameters.igg_prefix) {
             utils.freeCache(this.#cache.metrics);
 
-            if (this.#inputs.hasAdt() || this.#parameters.__use_main_matrix__) {
+            if (this.valid()) {
                 var mat = this.#inputs.fetchCountMatrix({ type: this.#parameters.target_matrix });
                 var gene_info = this.#inputs.fetchGenes({ type: this.#parameters.target_matrix });
 
@@ -102,13 +116,10 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
         }
 
         if (this.changed || nmads !== this.#parameters.nmads || min_detected_drop !== this.#parameters.min_detected_drop) {
-            utils.freeCache(this.#cache.filters);
-
-            if ("metrics" in this.#cache) {
+            if (this.valid()) {
+                utils.freeCache(this.#cache.filters);
                 let block = this.#inputs.fetchBlock();
                 this.#cache.filters = scran.computePerCellAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, minDetectedDrop: min_detected_drop, block: block });
-            } else {
-                delete this.#cache.filters;
             }
 
             this.#parameters.nmads = nmads;
@@ -138,10 +149,6 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
         }
     }
 
-    #valid() {
-        return "metrics" in this.#cache;
-    }
-
     /**
      * Obtain a summary of the state, typically for display on a UI like **kana**.
      *
@@ -156,29 +163,29 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
      * - `retained`: the number of cells remaining after QC filtering.
      */
     summary() {
-        var output = null;
+        if (!this.valid()) {
+            return null;
+        }
 
-        if (this.#valid()) {
-            output = {};
+        var output = {};
 
-            var blocks = this.#inputs.fetchBlockLevels();
-            if (blocks === null) {
-                blocks = [ "default" ];
-                output.data = { default: this.#format_metrics() };
-            } else {
-                let metrics = this.#format_metrics({ copy: "view" });
-                let bids = this.#inputs.fetchBlock();
-                output.data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
-            }
+        var blocks = this.#inputs.fetchBlockLevels();
+        if (blocks === null) {
+            blocks = [ "default" ];
+            output.data = { default: this.#format_metrics() };
+        } else {
+            let metrics = this.#format_metrics({ copy: "view" });
+            let bids = this.#inputs.fetchBlock();
+            output.data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
+        }
 
-            let listed = this.#format_thresholds({ copy: "view" });
-            output.thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
+        let listed = this.#format_thresholds({ copy: "view" });
+        output.thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
 
-            // We don't use sums for filtering but we do report it in the metrics,
-            // so we just add some NaNs to the thresholds for consistency.
-            for (const [k, v] of Object.entries(output.thresholds)) {
-                v.sums = NaN;
-            }
+        // We don't use sums for filtering but we do report it in the metrics,
+        // so we just add some NaNs to the thresholds for consistency.
+        for (const [k, v] of Object.entries(output.thresholds)) {
+            v.sums = NaN;
         }
 
         return output;
@@ -201,7 +208,7 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
         {
             let rhandle = ghandle.createGroup("results"); 
 
-            if (this.#valid()) {
+            if (this.valid()) {
                 {
                     let mhandle = rhandle.createGroup("metrics");
                     let data = this.#format_metrics({ copy: "view" });

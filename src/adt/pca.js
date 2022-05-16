@@ -1,9 +1,8 @@
 import * as scran from "scran.js";
-import * as utils from "./utils/general.js";
-import * as putils from "./utils/pca.js";
-import * as filter_module from "./cell_filtering.js";
+import * as utils from "../utils/general.js";
+import * as putils from "../utils/pca.js";
+import * as filter_module from "../cell_filtering.js";
 import * as norm_module from "./normalization.js";
-import * as feat_module from "./feature_selection.js";
 
 /**
  * This step performs a principal components analysis (PCA) to compact and denoise ADT data.
@@ -20,6 +19,8 @@ export class AdtPcaState extends putils.PcaStateBase {
     #parameters;
 
     constructor(filter, norm, parameters = null, cache = null) {
+        super();
+
         if (!(filter instanceof filter_module.CellFilteringState)) {
             throw new Error("'filter' should be a CellFilteringState object");
         }
@@ -43,8 +44,16 @@ export class AdtPcaState extends putils.PcaStateBase {
      ******** Getters **********
      ***************************/
 
+    valid() {
+        return this.#norm.valid();
+    }
+
     fetchPCs() {
-        return putils.formatPCs(this.#cache.pcs);
+        if (this.valid()) {
+            return putils.formatPCs(this.#cache.pcs);
+        } else {
+            return null;
+        }
     }
 
     /***************************
@@ -65,14 +74,16 @@ export class AdtPcaState extends putils.PcaStateBase {
         this.changed = false;
 
         if (this.#norm.changed || num_pcs !== this.#parameters.num_pcs || block_method !== this.#parameters.block_method) { 
-            let block = this.#filter.fetchFilteredBlock();
-            if (block_method == "none") {
-                block = null;
-            }
+            if (this.valid()) {
+                let block = this.#filter.fetchFilteredBlock();
+                if (block_method == "none") {
+                    block = null;
+                }
 
-            var mat = this.#norm.fetchNormalizedMatrix();
-            utils.freeCache(this.#cache.pcs);
-            this.#cache.pcs = scran.runPCA(mat, { numberOfPCs: num_pcs, block: block, blockMethod: block_method });
+                var mat = this.#norm.fetchNormalizedMatrix();
+                utils.freeCache(this.#cache.pcs);
+                this.#cache.pcs = scran.runPCA(mat, { numberOfPCs: num_pcs, block: block, blockMethod: block_method });
+            }
 
             this.#parameters.num_pcs = num_pcs;
             this.#parameters.block_method = block_method;
@@ -94,6 +105,10 @@ export class AdtPcaState extends putils.PcaStateBase {
      * - `var_exp`: a `Float64Array` of length equal to `num_pcs`, containing the proportion of variance explained for each successive PC.
      */
     summary() {
-        return putils.formatSummary(this.#cache.pcs);
+        if (this.valid()) {
+            return putils.formatSummary(this.#cache.pcs);
+        } else {
+            return null;
+        }
     }
 }

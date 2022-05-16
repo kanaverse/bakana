@@ -13,3 +13,5 @@ export function subsetSums(qc, filter, output) {
         }
     });
 }
+
+export class NormalizationStateBase {}

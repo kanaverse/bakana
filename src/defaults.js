@@ -26,6 +26,11 @@ export function analysisDefaults() {
             mito_prefix: "mt-",
             nmads: 3
         },
+        adt_quality_control: {
+            igg_prefix: "igg",
+            nmads: 3,
+            min_detected_drop: 0.1
+        },
         feature_selection: {
             span: 0.3
         },
@@ -33,6 +38,16 @@ export function analysisDefaults() {
             num_hvgs: 2000,
             num_pcs: 20,
             block_method: "none"
+        },
+        adt_pca: {
+            num_pcs: 20,
+            block_method: "none"
+        },
+        combine_embeddings: {
+            weights: null
+        },
+        batch_correction: {
+            method: "none"
         },
         neighbor_index: {
             approximate: true

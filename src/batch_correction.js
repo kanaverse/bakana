@@ -6,6 +6,8 @@ import * as combine_module from "./combine_embeddings.js";
 export class BatchCorrectionState {
     #filter;
     #combined;
+    #parameters;
+    #cache;
 
     constructor(filter, combined, parameters = null, cache = null) {
         if (!(filter instanceof filter_module.CellFilteringState)) {
@@ -29,7 +31,7 @@ export class BatchCorrectionState {
 
     fetchPCs() {
         let upstream = this.#combined.fetchPCs();
-        if (this.#parameters.block_method == "mnn") {
+        if (this.#parameters.method == "mnn") {
             upstream.pcs = this.#cache.corrected;
         } 
         return upstream;
@@ -39,20 +41,27 @@ export class BatchCorrectionState {
      ******** Compute **********
      ***************************/
 
-    compute() {
+    compute(method) {
         this.changed = false;
 
-        if (this.#filter.changed || this.#pca.changed || block_method !== this.#parameters.block_method) { 
-            if (block_method == "mnn") {
+        if (this.#filter.changed || this.#combined.changed || method !== this.#parameters.method) { 
+            if (method == "mnn") {
                 let corrected = utils.allocateCachedArray(pcs.length, "Float64Array", this.#cache, "corrected");
                 let block = this.#filter.fetchFilteredBlock();
                 let pcs = this.#combined.fetchPCs();
                 scran.mnnCorrect(pcs.pcs, block, { buffer: corrected, numberOfCells: pcs.num_obs, numberOfDims: pcs.num_pcs });
             }
 
-            this.#parameters.block_method = block_method;
+            this.#parameters.method = method;
             this.changed = true;
         }
     }
 
+    /**************************
+     ******** Results**********
+     **************************/
+
+    summary() {
+        return {};
+    }
 }

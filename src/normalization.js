@@ -11,13 +11,15 @@ import * as filter_module from "./cell_filtering.js";
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class NormalizationState {
+export class NormalizationState extends nutils.NormalizationStateBase {
     #qc
     #filter;
     #parameters;
     #cache;
 
     constructor(qc, filter, parameters = null, cache = null) {
+        super();
+
         if (!(qc instanceof qc_module.QualityControlState)) {
             throw new Error("'filt' should be a State object from './quality_control.js'");
         }
@@ -40,6 +42,10 @@ export class NormalizationState {
     /***************************
      ******** Getters **********
      ***************************/
+
+    valid() {
+        return true;
+    }
 
     fetchNormalizedMatrix() {
         if (!("matrix" in this.#cache)) {

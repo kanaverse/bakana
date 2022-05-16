@@ -9,7 +9,12 @@ import * as normalization from "./normalization.js";
 import * as adtnorm from "./adt/normalization.js";
 
 import * as variance from "./feature_selection.js";
+
 import * as pca from "./pca.js";
+import * as adtpca from "./adt/pca.js";
+import * as combine from "./combine_embeddings.js";
+import * as correct from "./batch_correction.js";
+
 import * as index from "./neighbor_index.js";
 import * as cluster_choice from "./choose_clustering.js";
 import * as kmeans_cluster from "./kmeans_cluster.js";
@@ -43,6 +48,9 @@ const step_norm = "normalization";
 const step_norm_adt = "adt_normalization";
 const step_feat = "feature_selection";
 const step_pca = "pca";
+const step_pca_adt = "adt_pca";
+const step_combine = "combine_embeddings";
+const step_correct = "batch_correction";
 const step_neighbors = "neighbor_index";
 const step_tsne = "tsne";
 const step_umap = "umap";
@@ -106,8 +114,8 @@ export async function createAnalysis() {
     output[step_feat] = new variance.FeatureSelectionState(output[step_filter], output[step_norm]);
 
     output[step_pca] = new pca.PcaState(output[step_filter], output[step_norm], output[step_feat]);
-    output[step_pca_adt] = new adtpca.AdtPcaState(output[step_filter], output[step_norm]);
-    output[step_combine] = new combine.CombinedEmbeddingsState({ "RNA": output[step_pca], "ADT": output[step_pca_adt] });
+    output[step_pca_adt] = new adtpca.AdtPcaState(output[step_filter], output[step_norm_adt]);
+    output[step_combine] = new combine.CombineEmbeddingsState({ "RNA": output[step_pca], "ADT": output[step_pca_adt] });
     output[step_correct] = new correct.BatchCorrectionState(output[step_filter], output[step_combine]);
 
     output[step_neighbors] = new index.NeighborIndexState(output[step_correct]);
@@ -118,6 +126,7 @@ export async function createAnalysis() {
     output[step_kmeans] = new kmeans_cluster.KmeansClusterState(output[step_correct]);
     output[step_snn] = new snn_cluster.SnnGraphClusterState(output[step_neighbors]);
     output[step_choice] = new cluster_choice.ChooseClusteringState(output[step_snn], output[step_kmeans]);
+
     output[step_markers] = new cluster_markers.MarkerDetectionState(output[step_filter], { "RNA": output[step_norm], "ADT": output[step_norm_adt] }, output[step_choice]);
     output[step_labels] = new label_cells.CellLabellingState(output[step_inputs], output[step_markers]);
     output[step_custom] = new custom_markers.CustomSelectionsState(output[step_filter], output[step_norm]);
@@ -207,6 +216,7 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
         promises.push(p);
     }
 
+    /*** Loading ***/
     quickStart(step_inputs);
     await state[step_inputs].compute(
         matrices, 
@@ -214,6 +224,7 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
     );
     quickFinish(step_inputs);
 
+    /*** Quality control ***/
     quickStart(step_qc);
     state[step_qc].compute(
         params[step_qc]["use_mito_default"], 
@@ -222,20 +233,35 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
     );
     quickFinish(step_qc);
 
+    quickStart(step_qc_adt);
+    state[step_qc_adt].compute(
+        params[step_qc_adt]["igg_prefix"], 
+        params[step_qc_adt]["nmads"],
+        params[step_qc_adt]["min_detected_drop"]
+    );
+    quickFinish(step_qc);
+
     quickStart(step_filter);
     state[step_filter].compute();
     quickFinish(step_filter);
 
+    /*** Normalization ***/
     quickStart(step_norm);
     state[step_norm].compute();
     quickFinish(step_norm);
 
+    quickStart(step_norm_adt);
+    state[step_norm_adt].compute();
+    quickFinish(step_norm_adt);
+
+    /*** Feature selection ***/
     quickStart(step_feat);
     state[step_feat].compute(
         params[step_feat]["span"]
     );
     quickFinish(step_feat);
-
+  
+    /*** Dimensionality reduction ***/
     quickStart(step_pca);
     state[step_pca].compute(
         params[step_pca]["num_hvgs"],
@@ -244,12 +270,31 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
     );
     quickFinish(step_pca);
 
+    quickStart(step_pca_adt);
+    state[step_pca_adt].compute(
+        params[step_pca_adt]["num_pcs"],
+        params[step_pca_adt]["block_method"]
+    );
+    quickFinish(step_pca_adt);
+
+    quickStart(step_combine);
+    state[step_combine].compute(
+        params[step_combine]["weights"]
+    );
+    quickFinish(step_combine);
+
+    quickStart(step_correct);
+    state[step_correct].compute();
+    quickFinish(step_correct);
+
+    /*** Nearest neighbors ***/
     quickStart(step_neighbors);
     state[step_neighbors].compute(
         params[step_neighbors]["approximate"]
     );
     quickFinish(step_neighbors);
 
+    /*** Visualization ***/
     {
         quickStart(step_tsne);
         let p = state[step_tsne].compute(
@@ -271,6 +316,7 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
         asyncQuickFinish(step_umap, p);
     }
 
+    /*** Clustering ***/
     let method = params[step_choice]["method"];
 
     quickStart(step_kmeans);

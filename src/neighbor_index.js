@@ -1,6 +1,6 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
-import * as pca_module from "./pca.js";
+import * as correct_module from "./batch_correction.js";
 
 /**
  * This step assembles the neighbor search indices from the PCs (see {@linkplain PcaState}) in preparation for nearest neighbor searches in downstream steps.
@@ -10,15 +10,15 @@ import * as pca_module from "./pca.js";
  * @hideconstructor
  */
 export class NeighborIndexState {
-    #pca;
+    #correct;
     #parameters;
     #cache;
 
-    constructor(pca, parameters = null, cache = null) {
-        if (!(pca instanceof pca_module.PcaState)) {
-            throw new Error("'pca' should be a State object from './pca.js'");
+    constructor(correct, parameters = null, cache = null) {
+        if (!(correct instanceof correct_module.BatchCorrectionState)) {
+            throw new Error("'correct' should be a BatchCorrectionState object");
         }
-        this.#pca = pca;
+        this.#correct = correct;
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
@@ -45,7 +45,7 @@ export class NeighborIndexState {
      ***************************/
 
     #raw_compute(approximate) {
-        var pcs = this.#pca.fetchPCs();
+        var pcs = this.#correct.fetchPCs();
         this.#cache.raw = scran.buildNeighborSearchIndex(pcs.pcs, { approximate: approximate, numberOfDims: pcs.num_pcs, numberOfCells: pcs.num_obs });
         return;
     }
@@ -62,7 +62,7 @@ export class NeighborIndexState {
     compute(approximate) {
         this.changed = false;
 
-        if (this.#pca.changed || approximate != this.#parameters.approximate) {
+        if (this.#correct.changed || approximate != this.#parameters.approximate) {
             utils.freeCache(this.#cache.raw);
             this.#raw_compute(approximate);
             this.#parameters.approximate = approximate;

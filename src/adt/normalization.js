@@ -11,13 +11,15 @@ import * as filter_module from "../cell_filtering.js";
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class AdtNormalizationState {
+export class AdtNormalizationState extends nutils.NormalizationStateBase {
     #qc;
     #filter;
     #parameters;
     #cache;
 
     constructor(qc, filter, parameters = null, cache = null) {
+        super();
+
         if (!(qc instanceof qc_module.AdtQualityControlState)) {
             throw new Error("'qc' should be a AdtQualityControlState object");
         }
@@ -46,11 +48,19 @@ export class AdtNormalizationState {
      ******** Getters **********
      ***************************/
 
+    valid() {
+        return this.#filter.hasAvailable(this.#parameters.target_matrix);
+    }
+
     fetchNormalizedMatrix() {
-        if (!("matrix" in this.#cache)) {
-            this.#raw_compute();
+        if (this.valid()) {
+            if (!("matrix" in this.#cache)) {
+                this.#raw_compute();
+            }
+            return this.#cache.matrix;
+        } else {
+            return null;
         }
-        return this.#cache.matrix;
     }
 
     /**
@@ -98,19 +108,23 @@ export class AdtNormalizationState {
         this.changed = false;
 
         if (this.#qc.changed || this.#filter.changed) {
-            var mat = this.#filter.fetchFilteredMatrix({ type: this.#parameters.target_matrix });
-            var total_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "total_buffer");
-            nutils.subsetSums(this.#qc, this.#filter, total_buffer.array());
+            if (this.valid()) {
+                var mat = this.#filter.fetchFilteredMatrix({ type: this.#parameters.target_matrix });
+                var total_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "total_buffer");
+                nutils.subsetSums(this.#qc, this.#filter, total_buffer.array());
 
-            var block = this.#filter.fetchFilteredBlock();
-            var sf_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "sf_buffer");
-            scran.quickAdtSizeFactors(mat, { totals: total_buffer, block: block, buffer: sf_buffer });
+                var block = this.#filter.fetchFilteredBlock();
+                var sf_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "sf_buffer");
+                scran.quickAdtSizeFactors(mat, { totals: total_buffer, block: block, buffer: sf_buffer });
+            }
 
             this.changed = true;
         } 
 
         if (this.changed) {
-            this.#raw_compute();
+            if (this.valid()) {
+                this.#raw_compute();
+            }
         }
         return;
     }

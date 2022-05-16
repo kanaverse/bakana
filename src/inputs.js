@@ -37,6 +37,10 @@ export class InputsState {
         return this.#cache.matrix.available();
     }
 
+    hasAvailable(type) {
+        return this.#cache.matrix.has(type);
+    }
+
     fetchCountMatrix({ type = "RNA" } = {}) {
         return this.#cache.matrix.get(type);
     }

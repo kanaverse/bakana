@@ -18,6 +18,8 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
     #parameters;
 
     constructor(inputs, parameters = null, cache = null) {
+        super();
+
         if (!(inputs instanceof inputs_module.InputsState)) {
             throw new Error("'inputs' should be a State object from './inputs.js'");
         }
@@ -39,6 +41,10 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
     /***************************
      ******** Getters **********
      ***************************/
+    
+    valid() {
+        return true;
+    }
 
     fetchSums({ unsafe = false } = {}) {
         // Unsafe, because we're returning a raw view into the Wasm heap,

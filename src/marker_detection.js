@@ -1,8 +1,8 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
+import * as nutils from "./utils/normalization.js";
 import * as markers from "./utils/markers.js";
 import * as filter_module from "./cell_filtering.js";
-import * as norm_module from "./normalization.js";
 import * as choice_module from "./choose_clustering.js";
 
 /**
@@ -15,21 +15,23 @@ import * as choice_module from "./choose_clustering.js";
  */
 export class MarkerDetectionState {
     #filter;
-    #norm;
+    #norm_states;
     #choice;
     #parameters;
     #cache;
 
-    constructor(filter, norm, choice, parameters = null, cache = null) {
+    constructor(filter, norm_states, choice, parameters = null, cache = null) {
         if (!(filter instanceof filter_module.CellFilteringState)) {
             throw new Error("'filter' should be a State object from './cell_filtering.js'");
         }
         this.#filter = filter;
 
-        if (!(norm instanceof norm_module.NormalizationState)) {
-            throw new Error("'norm' should be a State object from './normalization.js'");
+        for (const norm of Object.values(norm_states)) {
+            if (!(norm instanceof nutils.NormalizationStateBase)) {
+                throw new Error("'norm' should be a NormalizationStateBase object");
+            }
         }
-        this.#norm = norm;
+        this.#norm_states = norm_states;
 
         if (!(choice instanceof choice_module.ChooseClusteringState)) {
             throw new Error("'choice' should be a State object from './choose_clustering.js'");
@@ -38,11 +40,14 @@ export class MarkerDetectionState {
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
+        this.#cache.raw = {};
         this.changed = false;
     }
 
     free() {
-        utils.freeCache(this.#cache.raw);
+        for (const v of Object.values(this.#cache.raw)) {
+            utils.freeCache(v);
+        }
     }
 
     /***************************
@@ -66,18 +71,18 @@ export class MarkerDetectionState {
      *   - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
      */
     fetchGroupResults(group, rank_type) {
-        return markers.fetchGroupResults(this.#cache.raw, group, rank_type); 
+        return markers.fetchGroupResults(this.#cache.raw["RNA"], group, rank_type); 
     }
 
     /** 
      * @return The number of clusters for which markers were computed.
      */
     numberOfGroups() {
-        return this.#cache.raw.numberOfGroups();
+        return this.#cache.raw["RNA"].numberOfGroups();
     }
 
     fetchGroupMeans(group, { copy = true }) {
-        return this.#cache.raw.means(group, { copy: copy });
+        return this.#cache.raw["RNA"].means(group, { copy: copy });
     }
 
     /***************************
@@ -92,17 +97,21 @@ export class MarkerDetectionState {
     compute() {
         this.changed = false;
 
-        if (this.#norm.changed || this.#choice.changed) {
-            var mat = this.#norm.fetchNormalizedMatrix();
-            var clusters = this.#choice.fetchClustersAsWasmArray();
-            var block = this.#filter.fetchFilteredBlock();
-            
-            utils.freeCache(this.#cache.raw);
-            this.#cache.raw = scran.scoreMarkers(mat, clusters, { block: block });
+        for (const [k, v] of Object.entries(this.#norm_states)) {
+            if (v.valid()) {
+                if (v.changed || this.#choice.changed) {
+                    var mat = v.fetchNormalizedMatrix();
+                    var clusters = this.#choice.fetchClustersAsWasmArray();
+                    var block = this.#filter.fetchFilteredBlock();
+                    
+                    utils.freeCache(this.#cache.raw[k]);
+                    this.#cache.raw[k] = scran.scoreMarkers(mat, clusters, { block: block });
 
-            // No parameters to set.
+                    // No parameters to set.
 
-            this.changed = true;
+                    this.changed = true;
+                }
+            }
         }
 
         return;
