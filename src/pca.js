@@ -1,5 +1,6 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
+import * as putils from "./utils/pca.js";
 import * as filter_module from "./cell_filtering.js";
 import * as norm_module from "./normalization.js";
 import * as feat_module from "./feature_selection.js";
@@ -12,7 +13,7 @@ import * as feat_module from "./feature_selection.js";
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class PcaState {
+export class PcaState extends putils.PcaStateBase {
     #filter;
     #norm;
     #feat;
@@ -43,25 +44,14 @@ export class PcaState {
     free() {
         utils.freeCache(this.#cache.hvg_buffer);
         utils.freeCache(this.#cache.pcs);
-        utils.freeCache(this.#cache.corrected);
     }
 
     /***************************
      ******** Getters **********
      ***************************/
 
-    fetchPCs({ original = false } = {}) {
-        let pcs;
-        if (!original && this.#parameters.block_method == "mnn") {
-            pcs = this.#cache.corrected;
-        } else {
-            pcs = this.#cache.pcs.principalComponents({ copy: "view" });
-        }
-        return {
-            "pcs": pcs,
-            "num_pcs": this.#parameters.num_pcs,
-            "num_obs": pcs.length / this.#parameters.num_pcs
-        };
+    fetchPCs() {
+        return putils.formatPCs(this.#cache.pcs);
     }
 
     /***************************
@@ -75,13 +65,13 @@ export class PcaState {
      * @param {number} num_pcs - Number of PCs to return.
      * @param {number} num_hvgs - Number of highly variable genes (see {@linkplain FeatureSelectionState}) to use in the PCA.
      * @param {string} block_method - Blocking method to use when dealing with multiple samples.
-     * This can be `"none"`, `"block"` or `"mnn"`.
+     * This can be `"none"`, `"block"` or `"weight"`.
      *
      * @return The object is updated with the new results.
      */
     compute(num_hvgs, num_pcs, block_method) {
         this.changed = false;
-        
+
         if (this.#feat.changed || num_hvgs !== this.#parameters.num_hvgs) {
             choose_hvgs(num_hvgs, this.#feat, this.#cache);
             this.#parameters.num_hvgs = num_hvgs;
@@ -90,25 +80,14 @@ export class PcaState {
 
         if (this.changed || this.#norm.changed || num_pcs !== this.#parameters.num_pcs || block_method !== this.#parameters.block_method) { 
             let sub = this.#cache.hvg_buffer;
-
             let block = this.#filter.fetchFilteredBlock();
-            let block_type = "block";
             if (block_method == "none") {
                 block = null;
-            } else if (block_method == "mnn") {
-                block_type = "weight";
             }
 
             var mat = this.#norm.fetchNormalizedMatrix();
-
             utils.freeCache(this.#cache.pcs);
-            this.#cache.pcs = scran.runPCA(mat, { features: sub, numberOfPCs: num_pcs, block: block, blockMethod: block_type });
-
-            if (block_method == "mnn") {
-                let pcs = this.#cache.pcs.principalComponents({ copy:"view" });
-                let corrected = utils.allocateCachedArray(pcs.length, "Float64Array", this.#cache, "corrected");
-                scran.mnnCorrect(this.#cache.pcs, block, { buffer: corrected });
-            }
+            this.#cache.pcs = scran.runPCA(mat, { features: sub, numberOfPCs: num_pcs, block: block, blockMethod: block_method });
 
             this.#parameters.num_pcs = num_pcs;
             this.#parameters.block_method = block_method;
@@ -130,13 +109,7 @@ export class PcaState {
      * - `var_exp`: a `Float64Array` of length equal to `num_pcs`, containing the proportion of variance explained for each successive PC.
      */
     summary() {
-        var pca_output = this.#cache.pcs;
-        var var_exp = pca_output.varianceExplained();
-        var total_var = pca_output.totalVariance();
-        var_exp.forEach((x, i) => {
-            var_exp[i] = x/total_var;
-        });
-        return { "var_exp": var_exp };
+        return putils.formatSummary(this.#cache.pcs);
     }
 
     /*************************

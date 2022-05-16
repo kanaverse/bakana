@@ -4,8 +4,10 @@ import * as preflight from "./preflight.js";
 import * as qc from "./quality_control.js";
 import * as qcadt from "./adt/quality_control.js";
 import * as filters from "./cell_filtering.js";
+
 import * as normalization from "./normalization.js";
 import * as adtnorm from "./adt/normalization.js";
+
 import * as variance from "./feature_selection.js";
 import * as pca from "./pca.js";
 import * as index from "./neighbor_index.js";
@@ -96,22 +98,27 @@ export async function createAnalysis() {
 
     output[step_qc] = new qc.QualityControlState(output[step_inputs]);
     output[step_qc_adt] = new qcadt.AdtQualityControlState(output[step_inputs]);
-    output[step_filter] = new filters.CellFilteringState(output[step_inputs], [output[step_qc]]);
+    output[step_filter] = new filters.CellFilteringState(output[step_inputs], { "RNA": output[step_qc], "ADT": output[step_qc_adt] });
 
     output[step_norm] = new normalization.NormalizationState(output[step_qc], output[step_filter]);
     output[step_norm_adt] = new adtnorm.AdtNormalizationState(output[step_qc_adt], output[step_filter]);
 
     output[step_feat] = new variance.FeatureSelectionState(output[step_filter], output[step_norm]);
+
     output[step_pca] = new pca.PcaState(output[step_filter], output[step_norm], output[step_feat]);
-    output[step_neighbors] = new index.NeighborIndexState(output[step_pca]);
+    output[step_pca_adt] = new adtpca.AdtPcaState(output[step_filter], output[step_norm]);
+    output[step_combine] = new combine.CombinedEmbeddingsState({ "RNA": output[step_pca], "ADT": output[step_pca_adt] });
+    output[step_correct] = new correct.BatchCorrectionState(output[step_filter], output[step_combine]);
+
+    output[step_neighbors] = new index.NeighborIndexState(output[step_correct]);
 
     output[step_tsne] = new tsne.TsneState(output[step_neighbors]);
     output[step_umap] = new umap.UmapState(output[step_neighbors]);
 
-    output[step_kmeans] = new kmeans_cluster.KmeansClusterState(output[step_pca]);
+    output[step_kmeans] = new kmeans_cluster.KmeansClusterState(output[step_correct]);
     output[step_snn] = new snn_cluster.SnnGraphClusterState(output[step_neighbors]);
     output[step_choice] = new cluster_choice.ChooseClusteringState(output[step_snn], output[step_kmeans]);
-    output[step_markers] = new cluster_markers.MarkerDetectionState(output[step_filter], output[step_norm], output[step_choice]);
+    output[step_markers] = new cluster_markers.MarkerDetectionState(output[step_filter], { "RNA": output[step_norm], "ADT": output[step_norm_adt] }, output[step_choice]);
     output[step_labels] = new label_cells.CellLabellingState(output[step_inputs], output[step_markers]);
     output[step_custom] = new custom_markers.CustomSelectionsState(output[step_filter], output[step_norm]);
 
