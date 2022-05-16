@@ -39,7 +39,11 @@ export function allocateCachedArray(size, type, cache, name = "buffer") {
     var reallocate = true;
     if (name in cache) {
         var candidate = cache[name];
-        if (candidate.size != size || candidate.constructor.className != type) {
+
+        // Views also trigger reallocation, because it is assumed that the
+        // caller of this function does not own the view, but downstream
+        // uses of the array will involve writing to it.
+        if (candidate.size != size || candidate.constructor.className != type || candidate.owner !== null) { 
             candidate.free();
         } else {
             reallocate = false;

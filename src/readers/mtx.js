@@ -173,7 +173,8 @@ export class Reader {
             };
 
             if (this.#annotations !== null) {
-                output.annotations = extract_annotations(this.#annotations, { numberOfColumns: out_mat.numberOfColumns() });
+                let first = matrices.get(matrices.available()[0]);
+                output.annotations = extract_annotations(this.#annotations, { numberOfColumns: first.numberOfColumns() });
             }
 
         } catch (e) {

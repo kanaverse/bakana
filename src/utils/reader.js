@@ -345,13 +345,14 @@ export function splitByFeatureType(matrix, genes) {
                 name = "ADT";
             }
 
-            out_mats.add(name, scran.subsetRows(matrix, v));
+            let sub = scran.subsetRows(matrix, v);
+            out_mats.add(name, sub);
 
             let curgenes = {};
-            for (const [k2, v2] of Object.entries(output.genes)) {
+            for (const [k2, v2] of Object.entries(genes)) {
                 // Skipping 'type', as it's done its purpose now.
                 if (k !== "type") {
-                    curgenes[k2] = scran.matchVectorToRowIdentities(current.matrix, v2);
+                    curgenes[k2] = scran.matchVectorToRowIdentities(sub, v2);
                 }
             }
             out_genes[name] = curgenes;

@@ -487,7 +487,7 @@ async function process_datasets(matrices, sample_factor) {
 
             } catch (e) {
                 utils.freeCache(blocks);
-                rutils.freeMatrixAndAlternatives(current);
+                utils.freeCache(current);
                 throw e;
             }
         }
@@ -520,16 +520,6 @@ async function process_and_cache(new_matrices, sample_factor) {
         gene_info_type[key] = scran.guessFeatures(val);
     }
     cache.gene_types = gene_info_type;
-
-    cache.adt_key = null;
-    if ("alternatives" in cache) {
-        for (const k of Object.keys(cache.alternatives)) {
-            if (k.match(/antibody/i) || k.match(/adt/i)) {
-                cache.adt_key = k;
-                break;
-            }
-        }
-    }
 
     return cache;
 }

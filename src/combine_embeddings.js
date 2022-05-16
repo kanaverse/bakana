@@ -28,16 +28,11 @@ export class CombineEmbeddingsState {
      ***************************/
 
     fetchPCs() {
-        let keys = Object.keys(this.#pca_states);
-        if (keys.length > 1) {
-            return {
-                "pcs": this.#cache.combined_buffer,
-                "num_obs": this.#cache.num_cells,
-                "num_pcs": this.#cache.total_dims
-            };
-        } else {
-            return this.#pca_states[keys[0]].fetchPCs();
-        }
+        return {
+            "pcs": this.#cache.combined_buffer,
+            "num_obs": this.#cache.num_cells,
+            "num_pcs": this.#cache.total_dims
+        };
     }
 
     /***************************
@@ -48,31 +43,31 @@ export class CombineEmbeddingsState {
         this.changed = false;
 
         for (const x of Object.values(this.#pca_states)) {
-            if (x.changed) {
+            if (x.valid() && x.changed) {
                 this.changed = true;
                 break;
             }
         }
 
         if (this.changed) {
-            let keys = Object.keys(this.#pca_states);
-            
-            if (keys.length > 1) {
-                let used = [];
+            let to_use = [];
+            for (const [k, v] of Object.entries(this.#pca_states)) {
+                if (v.valid()) {
+                    to_use.push(k);
+                }
+            }
+
+            // We merge the embeddings if there's more than one. If there's
+            // just one, we create a view on it directly and avoid allocating
+            // an unnecessary buffer.
+            if (to_use.length > 1) {
                 let collected = [];
                 let total = 0;
                 let ncells = null;
 
-                for (const x of keys) {
-                    let state = this.#pca_states[x];
-                    if (!state.valid()) {
-                        continue;
-                    }
-                    
-                    let curpcs = state.fetchPCs();
+                for (const x of to_use) {
+                    let curpcs = this.#pca_states[x].fetchPCs();
                     collected.push(curpcs.pcs);
-                    used.push(x);
-
                     if (ncells == null) {
                         ncells = curpcs.num_obs;
                     } else if (ncells !== curpcs.num_obs) {
@@ -96,6 +91,12 @@ export class CombineEmbeddingsState {
                 scran.scaleByNeighbors(collected, ncells, { buffer: buffer, weights: weight_arr });
                 this.#cache.num_cells = ncells;
                 this.#cache.total_dims = total;
+            } else {
+                let pcs = this.#pca_states[to_use[0]].fetchPCs();
+                utils.freeCache(this.#cache.combined_buffer);
+                this.#cache.combined_buffer = pcs.pcs.view();
+                this.#cache.num_cells = pcs.num_obs;
+                this.#cache.total_dims = pcs.num_pcs;
             }
 
             this.#parameters.weights = weights;

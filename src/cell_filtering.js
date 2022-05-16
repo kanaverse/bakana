@@ -98,25 +98,37 @@ export class CellFilteringState {
      ***************************/
 
     #apply_filters() {
-        let available = this.#inputs.listAvailableTypes();
-
         // A discard signal in any modality causes the cell to be removed.
-        let mat = this.#inputs.fetchCountMatrix(available[0]);
-        let disc_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Uint8Array", this.#cache, "discard_buffer");
-        let disc_arr = disc_buffer.array();
-        disc_arr.fill(0);
-
-        for (const x of Object.values(this.#qc_states)) {
-            if (x.valid()) {
-                x.fetchDiscards().forEach((y, i) => { disc_arr[i] |= y; });
+        // Of course, if there's only one valid modality, we just create
+        // a view on it and use it directly.
+        let to_use = [];
+        for (const [k, v] of Object.entries(this.#qc_states)) {
+            if (v.valid()) {
+                to_use.push(k);
             }
+        }
+
+        let disc_buffer;
+        let first = this.#qc_states[to_use[0]].fetchDiscards();
+        if (to_use.length > 1) {
+            disc_buffer = utils.allocateCachedArray(first.length, "Uint8Array", this.#cache, "discard_buffer");
+            let disc_arr = disc_buffer.array();
+            disc_arr.fill(0);
+            for (const u of to_use) {
+                this.#qc_states[u].fetchDiscards().forEach((y, i) => { disc_arr[i] |= y; });
+            }
+        } else {
+            disc_buffer = first.view();
+            utils.freeCache(this.#cache.discard_buffer);
+            this.#cache.discard_buffer = disc_buffer;
         }
 
         // Subsetting all modalities.
         utils.freeCache(this.#cache.matrix);
         this.#cache.matrix = new rutils.MultiMatrix;
+        let available = this.#inputs.listAvailableTypes();
         for (const a of available) {
-            let src = this.#inputs.fetchCountMatrix({ mode: a });
+            let src = this.#inputs.fetchCountMatrix({ type: a });
             let sub = scran.filterCells(src, disc_buffer);
             this.#cache.matrix.add(a, sub);
         }
@@ -128,6 +140,8 @@ export class CellFilteringState {
             let bcache = utils.allocateCachedArray(this.#cache.matrix.numberOfColumns(), "Int32Array", this.#cache, "block_buffer");
             let bcache_arr = bcache.array();
             let block_arr = block.array();
+            let disc_arr = disc_buffer.array();
+
             let j = 0;
             for (let i = 0; i < block_arr.length; i++) {
                 if (disc_arr[i] == 0) {
