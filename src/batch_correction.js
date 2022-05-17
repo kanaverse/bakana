@@ -43,24 +43,37 @@ export class BatchCorrectionState {
      ******** Compute **********
      ***************************/
 
-    compute(method) {
+    compute(method, num_neighbors, approximate) {
         this.changed = false;
 
-        if (this.#filter.changed || this.#combined.changed || method !== this.#parameters.method) { 
-            if (method == "mnn") {
+        if (this.#filter.changed || this.#combined.changed || 
+            method !== this.#parameters.method || 
+            num_neighbors !== this.#parameters.num_neighbors || 
+            approximate !== this.#parameters.approximate) 
+        { 
+            let block = this.#filter.fetchFilteredBlock();
+            if (method == "mnn" && block !== null) {
                 let corrected = utils.allocateCachedArray(pcs.length, "Float64Array", this.#cache, "corrected");
-                let block = this.#filter.fetchFilteredBlock();
                 let pcs = this.#combined.fetchPCs();
-                scran.mnnCorrect(pcs.pcs, block, { buffer: corrected, numberOfCells: pcs.num_obs, numberOfDims: pcs.num_pcs });
+                scran.mnnCorrect(pcs.pcs, block, { k: num_neighbors, buffer: corrected, numberOfCells: pcs.num_obs, numberOfDims: pcs.num_pcs, approximate: approximate });
+            } else {
+                utils.freeCache(this.#cache.corrected);
+                delete this.#cache.corrected;
             }
 
             this.#parameters.method = method;
+            this.#parameters.num_neighbors = num_neighbors;
+            this.#parameters.approximate = approximate;
             this.changed = true;
         }
     }
 
     static defaults() {
-        return {};
+        return {
+            method: "mnn",
+            num_neighbors: 15,
+            approximate: true
+        };
     }
 
     /**************************
@@ -81,6 +94,8 @@ export class BatchCorrectionState {
         {
             let phandle = ghandle.createGroup("parameters"); 
             phandle.writeDataSet("method", "String", [], this.#parameters.method);
+            phandle.writeDataSet("num_neighbors", "Int32", [], this.#parameters.num_neighbors);
+            phandle.writeDataSet("approximate", "Uint8", [], Number(this.#parameters.approximate));
         }
 
         {
@@ -98,12 +113,12 @@ export class BatchCorrectionState {
 export function unserialize(handle, filter, combined) {
     let ghandle = handle.open(step_name);
 
-    let parameters = {};
+    let parameters = BatchCorrection.defaults();
     {
         let phandle = ghandle.open("parameters"); 
-        parameters = { 
-            method: phandle.open("method", { load: true }).values[0]
-        };
+        parameters.method = phandle.open("method", { load: true }).values[0];
+        parameters.num_neighbors = phandle.open("num_neighbors", { load: true }).values[0];
+        parameters.approximate = phandle.open("approximate", { load: true }).values[0] > 0;
     }
 
     let output;

@@ -43,11 +43,12 @@ export class CombineEmbeddingsState {
 
     static defaults() {
         return { 
-            weights: null
+            weights: null,
+            approximate: true
         };
     }
 
-    compute(weights) {
+    compute(weights, approximate) {
         this.changed = false;
 
         for (const x of Object.values(this.#pca_states)) {
@@ -57,7 +58,7 @@ export class CombineEmbeddingsState {
             }
         }
 
-        if (this.changed) {
+        if (this.changed || approximate !== this.#parameters.approximate || utils.changedParameters(weights, this.#parameters.weights)) {
             let to_use = [];
             for (const [k, v] of Object.entries(this.#pca_states)) {
                 if (v.valid()) {
@@ -96,7 +97,7 @@ export class CombineEmbeddingsState {
                 }
 
                 let buffer = utils.allocateCachedArray(ncells * total, "Float64Array", this.#cache, "combined_buffer");
-                scran.scaleByNeighbors(collected, ncells, { buffer: buffer, weights: weight_arr });
+                scran.scaleByNeighbors(collected, ncells, { buffer: buffer, weights: weight_arr, approximate: approximate });
                 this.#cache.num_cells = ncells;
                 this.#cache.total_dims = total;
             } else {
@@ -131,6 +132,7 @@ export class CombineEmbeddingsState {
 
         {
             let phandle = ghandle.createGroup("parameters"); 
+            phandle.writeDataSet("approximate", "Uint8", [], this.#parameters.approximate);
             let whandle = phandle.createGroup("weights");
             if (this.#parameters.weights !== null) {
                 for (const [k, v] of Object.entries(this.#parameters.weights)) {
@@ -150,24 +152,19 @@ export class CombineEmbeddingsState {
 export function unserialize(handle, pca_states) {
     let ghandle = handle.open(step_name);
 
-    let parameters = {};
+    let parameters = CombineEmbeddingsState.defaults();
     {
         let phandle = ghandle.open("parameters");
-        let weights = {};
+        parameters.approximate = phandle.open("approximate", { load: true }).values[0] > 0;
 
         let whandle = phandle.open("weights");
         let keys = Object.keys(whandle.children);
         if (keys.length) {
+            parameters.weights = {};
             for (const k of keys) {
-                weights[k] = whandle.open(k, { load: true }).values[0];
+                parameters.weights[k] = whandle.open(k, { load: true }).values[0];
             }
-        } else {
-            weights = null;
         }
-
-        parameters = {
-            weights: weights
-        };
     }
 
     let output;

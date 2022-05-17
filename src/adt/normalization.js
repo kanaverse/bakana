@@ -104,12 +104,15 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
+     * @param {number} num_pcs - Number of PCs to use for creating a low-dimensional embedding for clustering.
+     * @param {number} num_clusters - Number of clusters to create with k-means clustering.
+     *
      * @return The object is updated with new results.
      */
-    compute() {
+    compute(num_pcs, num_clusters) {
         this.changed = false;
 
-        if (this.#qc.changed || this.#filter.changed) {
+        if (this.#qc.changed || this.#filter.changed || num_pcs !== this.#parameters.num_pcs || num_clusters != this.#parameters.num_clusters) {
             if (this.valid()) {
                 var mat = this.#filter.fetchFilteredMatrix({ type: this.#parameters.target_matrix });
                 var total_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "total_buffer");
@@ -117,7 +120,7 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
 
                 var block = this.#filter.fetchFilteredBlock();
                 var sf_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "sf_buffer");
-                scran.quickAdtSizeFactors(mat, { totals: total_buffer, block: block, buffer: sf_buffer });
+                scran.quickAdtSizeFactors(mat, { totals: total_buffer, block: block, buffer: sf_buffer, numberOfPCs: num_pcs, numberOfClusters: num_clusters });
             }
 
             this.changed = true;
@@ -132,7 +135,10 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
     }
 
     static defaults() {
-        return {};
+        return {
+           num_pcs: 25,
+           num_clusters: 20
+        };
     }
 
     /***************************
@@ -155,7 +161,10 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
 
     serialize(handle) {
         let ghandle = handle.createGroup(step_name);
-        ghandle.createGroup("parameters"); // Token effort.
+        let phandle = ghandle.createGroup("parameters"); 
+        phandle.writeDataSet("num_pcs", "Int32", [], this.#parameters.num_pcs);
+        phandle.writeDataSet("num_clusters", "Int32", [], this.#parameters.num_clusters);
+
         let rhandle = ghandle.createGroup("results"); 
         if (this.valid()) {
             rhandle.writeDataSet("size_factors", "Float64", null, this.#cache.sf_buffer);
@@ -169,6 +178,11 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
 
 export function unserialize(handle, qc, filter) {
     let ghandle = handle.open(step_name);
+
+    let parameters = AdtNormalizationState.defaults();
+    let phandle = ghandle.open("parameters");
+    parameters.num_pcs = phandle.open("num_pcs", { load: true }).values[0];
+    parameters.num_clusters = phandle.open("num_clusters", { load: true }).values[0];
 
     let output;
     let cache = {};

@@ -253,7 +253,10 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
     quickFinish(step_norm);
 
     quickStart(step_norm_adt);
-    state[step_norm_adt].compute();
+    state[step_norm_adt].compute(
+        params[step_norm_adt]["num_pcs"],    
+        params[step_norm_adt]["num_clusters"]    
+    );
     quickFinish(step_norm_adt);
 
     /*** Feature selection ***/
@@ -281,12 +284,17 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
 
     quickStart(step_combine);
     state[step_combine].compute(
-        params[step_combine]["weights"]
+        params[step_combine]["weights"],
+        params[step_combine]["approximate"]
     );
     quickFinish(step_combine);
 
     quickStart(step_correct);
-    state[step_correct].compute();
+    state[step_correct].compute(
+        params[step_combine]["method"],
+        params[step_combine]["num_neighbors"],
+        params[step_combine]["approximate"]
+    );
     quickFinish(step_correct);
 
     /*** Nearest neighbors ***/
