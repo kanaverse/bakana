@@ -4,6 +4,8 @@ import * as nutils from "../utils/normalization.js";
 import * as qc_module from "./quality_control.js";
 import * as filter_module from "../cell_filtering.js";
 
+export const step_name = "adt_normalization";
+
 /**
  * This step performs normalization and log-transformation on the QC-filtered ADT matrix from the {@linkplain AdtQualityControlState}.
  * It wraps the `groupedSizeFactors` and `logNormCounts` functions from [**scran.js**](https://github.com/jkanche/scran.js).
@@ -129,6 +131,10 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
         return;
     }
 
+    static defaults() {
+        return {};
+    }
+
     /***************************
      ******** Results **********
      ***************************/
@@ -148,10 +154,12 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
      *************************/
 
     serialize(handle) {
-        let ghandle = handle.createGroup("adt-normalization");
+        let ghandle = handle.createGroup(step_name);
         ghandle.createGroup("parameters"); // Token effort.
         let rhandle = ghandle.createGroup("results"); 
-        rhande.writeDataSet("size_factors", "Float64", null, this.#cache.sf_buffer);
+        if (this.valid()) {
+            rhande.writeDataSet("size_factors", "Float64", null, this.#cache.sf_buffer);
+        }
     }
 }
 
@@ -159,17 +167,29 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
  ******** Loading *********
  **************************/
 
-export function unserialize(handle, qc) {
-    let ghandle = handle.open("adt-normalization");
-    let rhandle = ghandle.open("results");
-    let sf = rhandle.open("size_factors", { load: true }).values;
+export function unserialize(handle, qc, filter) {
+    let ghandle = handle.open(step_name);
 
+    let output;
     let cache = {};
-    cache.sf_buffer = scran.createFloat64WasmArray(sf.length);
-    cache.sf_buffer.set(sf);
+    try {
+        let rhandle = ghandle.open("results");
+        
+        if ("size_factors" in rhandle.children) {
+            let sf = rhandle.open("size_factors", { load: true }).values;
+            cache.sf_buffer = scran.createFloat64WasmArray(sf.length);
+            cache.sf_buffer.set(sf);
+        }
+
+        output = new AdtNormalizationState(qc, filter, cache);
+    } catch (e) {
+        utils.freeCache(cache.sf_buffer);
+        utils.freeCache(output);
+        throw e;
+    }
 
     return {
-        state: new AdtNormalizationState(qc, null, cache),
+        state: output,
         parameters: {}
     }
 }

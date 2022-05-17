@@ -2,6 +2,10 @@ import * as inputs from "./inputs.js";
 import * as qc from "./quality_control.js";
 import * as qcadt from "./adt/quality_control.js";
 import * as filter from "./cell_filtering.js";
+import * as norm from "./normalization.js";
+import * as normadt from "./adt/normalization.js";
+import * as pca from "./pca.js";
+import * as pcaadt from "./adt/pca.js";
 
 /**
  * Generate an object containing all of the default analysis parameters.
@@ -27,11 +31,6 @@ export function analysisDefaults() {
     var output = {
         feature_selection: {
             span: 0.3
-        },
-        pca: {
-            num_hvgs: 2000,
-            num_pcs: 20,
-            block_method: "none"
         },
         adt_pca: {
             num_pcs: 20,
@@ -75,9 +74,16 @@ export function analysisDefaults() {
     };
 
     output[inputs.step_name] = inputs.InputsState.defaults();
+
     output[qc.step_name] = qc.QualityControlState.defaults();
     output[qcadt.step_name] = qcadt.AdtQualityControlState.defaults();
     output[filter.step_name] = filter.CellFilteringState.defaults();
+
+    output[norm.step_name] = norm.NormalizationState.defaults();
+    output[normadt.step_name] = normadt.AdtNormalizationState.defaults();
+
+    output[pca.step_name] = pca.PcaState.defaults();
+    output[pcaadt.step_name] = pcaadt.AdtPcaState.defaults();
 
     return output;
 }

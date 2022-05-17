@@ -7,12 +7,12 @@ import * as qcadt from "./adt/quality_control.js";
 import * as filters from "./cell_filtering.js";
 
 import * as normalization from "./normalization.js";
-import * as adtnorm from "./adt/normalization.js";
+import * as normadt from "./adt/normalization.js";
 
 import * as variance from "./feature_selection.js";
 
 import * as pca from "./pca.js";
-import * as adtpca from "./adt/pca.js";
+import * as pcaadt from "./adt/pca.js";
 import * as combine from "./combine_embeddings.js";
 import * as correct from "./batch_correction.js";
 
@@ -45,11 +45,11 @@ const step_inputs = inputs.step_name;
 const step_qc = qc.step_name;
 const step_qc_adt = qcadt.step_name;
 const step_filter = filters.step_name;
-const step_norm = "normalization";
-const step_norm_adt = "adt_normalization";
+const step_norm = normalization.step_name;
+const step_norm_adt = normadt.step_name;
 const step_feat = "feature_selection";
-const step_pca = "pca";
-const step_pca_adt = "adt_pca";
+const step_pca = pca.step_name;
+const step_pca_adt = pcaadt.step_name;
 const step_combine = "combine_embeddings";
 const step_correct = "batch_correction";
 const step_neighbors = "neighbor_index";
@@ -110,12 +110,12 @@ export async function createAnalysis() {
     output[step_filter] = new filters.CellFilteringState(output[step_inputs], { "RNA": output[step_qc], "ADT": output[step_qc_adt] });
 
     output[step_norm] = new normalization.NormalizationState(output[step_qc], output[step_filter]);
-    output[step_norm_adt] = new adtnorm.AdtNormalizationState(output[step_qc_adt], output[step_filter]);
+    output[step_norm_adt] = new normadt.AdtNormalizationState(output[step_qc_adt], output[step_filter]);
 
     output[step_feat] = new variance.FeatureSelectionState(output[step_filter], output[step_norm]);
 
     output[step_pca] = new pca.PcaState(output[step_filter], output[step_norm], output[step_feat]);
-    output[step_pca_adt] = new adtpca.AdtPcaState(output[step_filter], output[step_norm_adt]);
+    output[step_pca_adt] = new pcaadt.AdtPcaState(output[step_filter], output[step_norm_adt]);
     output[step_combine] = new combine.CombineEmbeddingsState({ "RNA": output[step_pca], "ADT": output[step_pca_adt] });
     output[step_correct] = new correct.BatchCorrectionState(output[step_filter], output[step_combine]);
 

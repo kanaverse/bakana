@@ -4,6 +4,8 @@ import * as putils from "../utils/pca.js";
 import * as filter_module from "../cell_filtering.js";
 import * as norm_module from "./normalization.js";
 
+export const step_name = "adt_pca";
+
 /**
  * This step performs a principal components analysis (PCA) to compact and denoise ADT data.
  * The resulting PCs can be used as input to various per-cell analyses like clustering and dimensionality reduction.
@@ -93,6 +95,13 @@ export class AdtPcaState extends putils.PcaStateBase {
         return;
     }
 
+    static defaults() {
+        return {
+            num_pcs: 20,
+            block_method: "none"
+        };
+    }
+
     /***************************
      ******** Results **********
      ***************************/
@@ -111,4 +120,70 @@ export class AdtPcaState extends putils.PcaStateBase {
             return null;
         }
     }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup(step_name);
+
+        {
+            let phandle = ghandle.createGroup("parameters"); 
+            phandle.writeDataSet("num_pcs", "Int32", [], this.#parameters.num_pcs);
+            phandle.writeDataSet("block_method", "String", [], this.#parameters.block_method);
+        }
+
+        {
+            let rhandle = ghandle.createGroup("results");
+
+            if (this.valid()) {
+                let ve = this.summary().var_exp;
+                rhandle.writeDataSet("var_exp", "Float64", null, ve);
+
+                let pcs = this.fetchPCs({ original: true });
+                rhandle.writeDataSet("pcs", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
+            }
+        }
+    }
+}
+
+/**************************
+ ******** Loading *********
+ **************************/
+
+export function unserialize(handle, filter, norm) {
+    let ghandle = handle.open(step_name);
+
+    let parameters = {};
+    {
+        let phandle = ghandle.open("parameters"); 
+        parameters = { 
+            num_pcs: phandle.open("num_pcs", { load: true }).values[0],
+            block_method: phandle.open("block_method", { load: true }).values[0]
+        };
+    }
+
+    let output;
+    let cache = {};
+    try {
+        let rhandle = ghandle.open("results");
+
+        if ("var_exp" in rhandle.children) {
+            let var_exp = rhandle.open("var_exp", { load: true }).values;
+            let pcs = rhandle.open("pcs", { load: true }).values;
+            cache.pcs = new putils.PcaMimic(pcs, var_exp);
+        }
+
+        output = new AdtPcaState(filter, norm, parameters, cache);
+    } catch (e) {
+        utils.freeCache(cache.pcs);
+        utils.freeCache(output);
+        throw e;
+    }
+
+    return {
+        state: output,
+        parameters: parameters
+    };
 }

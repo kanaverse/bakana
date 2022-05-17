@@ -4,6 +4,8 @@ import * as nutils from "./utils/normalization.js";
 import * as qc_module from "./quality_control.js";
 import * as filter_module from "./cell_filtering.js";
 
+export const step_name = "normalization";
+
 /**
  * This step performs normalization and log-transformation on the QC-filtered matrix from the {@linkplain QualityControlState}.
  * It wraps the `logNormCounts` function from [**scran.js**](https://github.com/jkanche/scran.js).
@@ -98,6 +100,10 @@ export class NormalizationState extends nutils.NormalizationStateBase {
         return;
     }
 
+    static defaults() {
+        return {};
+    }
+
     /***************************
      ******** Results **********
      ***************************/
@@ -128,9 +134,9 @@ export class NormalizationState extends nutils.NormalizationStateBase {
  ******** Loading *********
  **************************/
 
-export function unserialize(handle, qc) {
+export function unserialize(handle, qc, filter) {
     return {
-        state: new NormalizationState(qc),
+        state: new NormalizationState(qc, filter),
         parameters: {}
     }
 }

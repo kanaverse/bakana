@@ -5,6 +5,8 @@ import * as filter_module from "./cell_filtering.js";
 import * as norm_module from "./normalization.js";
 import * as feat_module from "./feature_selection.js";
 
+export const step_name = "pca";
+
 /**
  * This step performs a principal components analysis (PCA) to compact and denoise the data.
  * The resulting PCs can be used as input to various per-cell analyses like clustering and dimensionality reduction.
@@ -103,6 +105,14 @@ export class PcaState extends putils.PcaStateBase {
         return;
     }
 
+    static defaults() {
+        return {
+            num_hvgs: 2000,
+            num_pcs: 20,
+            block_method: "none"
+        };
+    }
+
     /***************************
      ******** Results **********
      ***************************/
@@ -123,7 +133,7 @@ export class PcaState extends putils.PcaStateBase {
      *************************/
 
     serialize(handle) {
-        let ghandle = handle.createGroup("pca");
+        let ghandle = handle.createGroup(step_name);
 
         {
             let phandle = ghandle.createGroup("parameters"); 
@@ -140,11 +150,6 @@ export class PcaState extends putils.PcaStateBase {
 
             let pcs = this.fetchPCs({ original: true });
             rhandle.writeDataSet("pcs", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
-
-            if (this.#parameters.block_method == "mnn") {
-                let corrected = this.#cache.corrected;
-                rhandle.writeDataSet("corrected", "Float64", [pcs.num_obs, pcs.num_pcs], corrected); 
-            }
         }
     }
 }
@@ -174,32 +179,8 @@ function choose_hvgs(num_hvgs, feat, cache) {
  ******** Loading *********
  **************************/
 
-class PCAMimic { 
-    constructor(pcs, var_exp) {
-        this.var_exp = var_exp;
-        this.pcs = scran.createFloat64WasmArray(pcs.length);
-        this.pcs.set(pcs);
-    }
-
-    principalComponents({ copy }) {
-        return utils.mimicGetter(this.pcs, copy);
-    }
-
-    varianceExplained({ copy = true } = {}) {
-        return utils.mimicGetter(this.var_exp, copy);
-    }
-
-    totalVariance () {
-        return 1;
-    }
-
-    free() {
-        this.pcs.free();
-    }
-}
-
 export function unserialize(handle, filter, norm, feat) {
-    let ghandle = handle.open("pca");
+    let ghandle = handle.open(step_name);
 
     let parameters = {};
     {
@@ -217,24 +198,26 @@ export function unserialize(handle, filter, norm, feat) {
         }
     }
 
+    let output;
     let cache = {};
-    choose_hvgs(parameters.num_hvgs, feat, cache);
+    try {
+        choose_hvgs(parameters.num_hvgs, feat, cache);
 
-    {
         let rhandle = ghandle.open("results");
         let var_exp = rhandle.open("var_exp", { load: true }).values;
         let pcs = rhandle.open("pcs", { load: true }).values;
-        cache.pcs = new PCAMimic(pcs, var_exp);
+        cache.pcs = new putils.PcaMimic(pcs, var_exp);
 
-        if (parameters.block_method == "mnn") {
-            let corrected = rhandle.open("corrected", { load: true }).values;
-            let corbuffer = utils.allocateCachedArray(corrected.length, "Float64Array", cache, "corrected");
-            corbuffer.set(corrected);
-        }
+        output = new PcaState(filter, norm, feat, parameters, cache);
+    } catch (e) {
+        utils.freeCache(cache.hvg_buffer);
+        utils.freeCache(cache.pcs);
+        utils.freeCache(output);
+        throw e;
     }
 
     return {
-        state: new PcaState(filter, norm, feat, parameters, cache),
-        parameters: { ...parameters }
+        state: output,
+        parameters: parameters
     };
 }
