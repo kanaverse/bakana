@@ -15,7 +15,7 @@ export class KmeansClusterState {
 
     constructor(correct, parameters = null, cache = null) {
         if (!(correct instanceof correct_module.BatchCorrectionState)) {
-            throw new Error("'pca' should be a BatchCorrectionState object");
+            throw new Error("'correct' should be a BatchCorrectionState object");
         }
         this.#correct = correct;
 

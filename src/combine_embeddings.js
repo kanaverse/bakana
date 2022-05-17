@@ -2,6 +2,8 @@ import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as putils from "./utils/pca.js";
 
+export const step_name = "combine_embeddings";
+
 export class CombineEmbeddingsState {
     #pca_states;
     #parameters;
@@ -38,6 +40,12 @@ export class CombineEmbeddingsState {
     /***************************
      ******** Compute **********
      ***************************/
+
+    static defaults() {
+        return { 
+            weights: null
+        };
+    }
 
     compute(weights) {
         this.changed = false;
@@ -113,4 +121,77 @@ export class CombineEmbeddingsState {
     summary() {
         return {};
     }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup(step_name);
+
+        {
+            let phandle = ghandle.createGroup("parameters"); 
+            let whandle = phandle.createGroup("weights");
+            if (this.#parameters.weights !== null) {
+                for (const [k, v] of Object.entries(this.#parameters.weights)) {
+                    whandle.writeDataSet(k, "Float64", [], v);
+                }
+            }
+        }
+
+        {
+            let rhandle = ghandle.createGroup("results");
+            let pcs = this.fetchPCs();
+            rhandle.writeDataSet("pcs", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
+        }
+    }
+}
+
+export function unserialize(handle, pca_states) {
+    let ghandle = handle.open(step_name);
+
+    let parameters = {};
+    {
+        let phandle = ghandle.open("parameters");
+        let weights = {};
+
+        let whandle = phandle.open("weights");
+        let keys = Object.keys(whandle.children);
+        if (keys.length) {
+            for (const k of keys) {
+                weights[k] = whandle.open(k, { load: true }).values[0];
+            }
+        } else {
+            weights = null;
+        }
+
+        parameters = {
+            weights: weights
+        };
+    }
+
+    let output;
+    let cache = {};
+    try {
+        let rhandle = ghandle.open("results");
+
+        let phandle = rhandle.open("pcs", { load: true });
+        cache.num_cells = phandle.shape[0];
+        cache.total_dims = phandle.shape[1];
+
+        let vals = phandle.values;
+        cache.combined_buffer = scran.createFloat64WasmArray(vals.length);
+        cache.combined_buffer.set(vals);
+
+        output = new CombineEmbeddingsState(pca_states, parameters, cache);
+    } catch (e) {
+        utils.freeCache(cache.pcs);
+        utils.freeCache(output);
+        throw e;
+    }
+
+    return {
+        state: output,
+        parameters: parameters
+    };
 }

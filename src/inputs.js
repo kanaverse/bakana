@@ -667,18 +667,18 @@ export async function unserialize(handle, embeddedLoader) {
         }
     }
 
-    let permuter = {};
-    for (const a of cache.matrix.available) {
+    let permuters = {};
+    for (const a of cache.matrix.available()) {
         if (a in perm) {
-            permuter[a] = createPermuter(perm[a]); 
+            permuters[a] = createPermuter(perm[a]); 
         } else {
-            permuter[a] = x => {};
+            permuters[a] = x => {};
         }
     }
 
     return { 
         state: new InputsState(parameters, cache),
         parameters: { sample_factor: parameters.sample_factor }, // only returning the sample factor - we don't pass the files back. 
-        permuter: permuter
+        permuters: permuters
     };
 }

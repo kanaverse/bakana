@@ -158,7 +158,7 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
         ghandle.createGroup("parameters"); // Token effort.
         let rhandle = ghandle.createGroup("results"); 
         if (this.valid()) {
-            rhande.writeDataSet("size_factors", "Float64", null, this.#cache.sf_buffer);
+            rhandle.writeDataSet("size_factors", "Float64", null, this.#cache.sf_buffer);
         }
     }
 }

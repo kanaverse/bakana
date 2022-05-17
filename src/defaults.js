@@ -6,6 +6,10 @@ import * as norm from "./normalization.js";
 import * as normadt from "./adt/normalization.js";
 import * as pca from "./pca.js";
 import * as pcaadt from "./adt/pca.js";
+import * as combine from "./combine_embeddings.js";
+import * as correct from "./batch_correction.js";
+import * as markers from "./marker_detection.js";
+import * as custom from "./custom_selections.js";
 
 /**
  * Generate an object containing all of the default analysis parameters.
@@ -31,10 +35,6 @@ export function analysisDefaults() {
     var output = {
         feature_selection: {
             span: 0.3
-        },
-        adt_pca: {
-            num_pcs: 20,
-            block_method: "none"
         },
         combine_embeddings: {
             weights: null
@@ -84,6 +84,11 @@ export function analysisDefaults() {
 
     output[pca.step_name] = pca.PcaState.defaults();
     output[pcaadt.step_name] = pcaadt.AdtPcaState.defaults();
+    output[combine.step_name] = combine.CombineEmbeddingsState.defaults();
+    output[correct.step_name] = correct.BatchCorrectionState.defaults();
+
+    output[markers.step_name] = markers.MarkerDetectionState.defaults();
+    output[custom.step_name] = custom.CustomSelectionsState.defaults();
 
     return output;
 }

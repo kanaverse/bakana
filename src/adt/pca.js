@@ -141,7 +141,7 @@ export class AdtPcaState extends putils.PcaStateBase {
                 let ve = this.summary().var_exp;
                 rhandle.writeDataSet("var_exp", "Float64", null, ve);
 
-                let pcs = this.fetchPCs({ original: true });
+                let pcs = this.fetchPCs();
                 rhandle.writeDataSet("pcs", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
             }
         }

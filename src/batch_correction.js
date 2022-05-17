@@ -3,6 +3,8 @@ import * as utils from "./utils/general.js";
 import * as filter_module from "./cell_filtering.js";
 import * as combine_module from "./combine_embeddings.js";
 
+export const step_name = "batch_correction";
+
 export class BatchCorrectionState {
     #filter;
     #combined;
@@ -57,6 +59,10 @@ export class BatchCorrectionState {
         }
     }
 
+    static defaults() {
+        return {};
+    }
+
     /**************************
      ******** Results**********
      **************************/
@@ -64,4 +70,58 @@ export class BatchCorrectionState {
     summary() {
         return {};
     }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup(step_name);
+
+        {
+            let phandle = ghandle.createGroup("parameters"); 
+            phandle.writeDataSet("method", "String", [], this.#parameters.method);
+        }
+
+        {
+            let rhandle = ghandle.createGroup("results");
+            let pcs = this.fetchPCs();
+            rhandle.writeDataSet("corrected", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
+        }
+    }
+}
+
+/**************************
+ ******** Loading *********
+ **************************/
+
+export function unserialize(handle, filter, combined) {
+    let ghandle = handle.open(step_name);
+
+    let parameters = {};
+    {
+        let phandle = ghandle.open("parameters"); 
+        parameters = { 
+            method: phandle.open("method", { load: true }).values[0]
+        };
+    }
+
+    let output;
+    let cache = {};
+    try {
+        let rhandle = ghandle.open("results");
+        let corrected = rhandle.open("corrected", { load: true }).values;
+        cache.corrected = scran.createFloat64WasmArray(corrected.length);
+        cache.corrected.set(corrected);
+        output = new BatchCorrectionState(filter, combined, parameters, cache);
+    } catch (e) {
+        utils.freeCache(cache.pcs);
+        utils.freeCache(output);
+        throw e;
+    }
+
+    return {
+        state: output,
+        parameters: parameters
+    };
 }

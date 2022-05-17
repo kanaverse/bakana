@@ -221,7 +221,7 @@ export class CellFilteringState {
     }
 }
 
-export function unserialize(handle, inputs) {
+export function unserialize(handle, inputs, qc_states) {
     let ghandle = handle.open(step_name);
     let parameters = {};
 
@@ -233,7 +233,7 @@ export function unserialize(handle, inputs) {
         cache.discard_buffer = scran.createUint8WasmArray(discards.length);
         cache.discard_buffer.set(discards);
 
-        output = new QualityControlState(inputs, parameters, cache);
+        output = new CellFilteringState(inputs, qc_states, parameters, cache);
     } catch (e) {
         utils.freeCache(cache.discard_buffer);
         utils.freeCache(output);

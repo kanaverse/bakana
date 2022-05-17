@@ -1,3 +1,6 @@
+import * as scran from "scran.js";
+import * as utils from "./general.js";
+
 export function formatPCs(pcs) {
     return {
         "pcs": pcs.principalComponents({ copy: "view" }),
@@ -19,7 +22,7 @@ export function formatSummary(pcs) {
 
 export class PcaStateBase {}
 
-class PcaMimic { 
+export class PcaMimic { 
     constructor(pcs, var_exp) {
         this.var_exp = var_exp;
         try {
