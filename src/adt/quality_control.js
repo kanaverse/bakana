@@ -119,12 +119,10 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
                 }
 
                 this.#cache.metrics = scran.computePerCellAdtQcMetrics(mat, [subsets]);
-            } else {
-                delete this.#cache.metrics;
+                this.changed = true;
             }
 
             this.#parameters.igg_prefix = igg_prefix;
-            this.changed = true;
         }
 
         if (this.changed || nmads !== this.#parameters.nmads || min_detected_drop !== this.#parameters.min_detected_drop) {
@@ -132,11 +130,11 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
                 utils.freeCache(this.#cache.filters);
                 let block = this.#inputs.fetchBlock();
                 this.#cache.filters = scran.computePerCellAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, minDetectedDrop: min_detected_drop, block: block });
+                this.changed = true;
             }
 
             this.#parameters.nmads = nmads;
             this.#parameters.min_detected_drop = min_detected_drop;
-            this.changed = true;
         }
 
         return;

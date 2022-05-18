@@ -85,11 +85,12 @@ export class AdtPcaState extends putils.PcaStateBase {
                 var mat = this.#norm.fetchNormalizedMatrix();
                 utils.freeCache(this.#cache.pcs);
                 this.#cache.pcs = scran.runPCA(mat, { numberOfPCs: num_pcs, block: block, blockMethod: block_method });
+
+                this.changed = true;
             }
 
             this.#parameters.num_pcs = num_pcs;
             this.#parameters.block_method = block_method;
-            this.changed = true;
         }
 
         return;
