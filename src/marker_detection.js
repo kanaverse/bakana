@@ -231,7 +231,7 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
             let chandle = rhandle.open("clusters");
             let clusters = {};
             for (const cl of Object.keys(chandle.children)) {
-                clusters[Number(cl)] = markers.unserializeGroupStats(chandle.open(cl), permuter["RNA"]);
+                clusters[Number(cl)] = markers.unserializeGroupStats(chandle.open(cl), permuters["RNA"]);
             }
             cache.raw = { RNA: new ScoreMarkersMimic(clusters) };
         } else {

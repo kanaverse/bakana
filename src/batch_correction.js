@@ -142,36 +142,40 @@ export class BatchCorrectionState {
  **************************/
 
 export function unserialize(handle, filter, combined) {
-    let ghandle = handle.open(step_name);
-
+    let cache = {};
     let parameters = BatchCorrectionState.defaults();
-    {
+    let output;
+    
+    if (step_name in handle.children) {
+        let ghandle = handle.open(step_name);
+
         let phandle = ghandle.open("parameters"); 
         parameters.method = phandle.open("method", { load: true }).values[0];
         parameters.num_neighbors = phandle.open("num_neighbors", { load: true }).values[0];
         parameters.approximate = phandle.open("approximate", { load: true }).values[0] > 0;
-    }
 
-    let output;
-    let cache = {};
-    try {
-        let rhandle = ghandle.open("results");
+        try {
+            let rhandle = ghandle.open("results");
 
-        if ("corrected" in rhandle.children) {
-            let corrected = rhandle.open("corrected", { load: true }).values;
-            cache.corrected = scran.createFloat64WasmArray(corrected.length);
-            cache.corrected.set(corrected);
-        } else {
-            // Creating a view from the upstream combined state.
-            let pcs = combined.fetchPCs();
-            cache.corrected = pcs.pcs.view();
+            if ("corrected" in rhandle.children) {
+                let corrected = rhandle.open("corrected", { load: true }).values;
+                cache.corrected = scran.createFloat64WasmArray(corrected.length);
+                cache.corrected.set(corrected);
+            } else {
+                // Creating a view from the upstream combined state.
+                let pcs = combined.fetchPCs();
+                cache.corrected = pcs.pcs.view();
+            }
+
+            output = new BatchCorrectionState(filter, combined, parameters, cache);
+        } catch (e) {
+            utils.freeCache(cache.corrected);
+            utils.freeCache(output);
+            throw e;
         }
-
-        output = new BatchCorrectionState(filter, combined, parameters, cache);
-    } catch (e) {
-        utils.freeCache(cache.corrected);
-        utils.freeCache(output);
-        throw e;
+    } else {
+        // Fallback for v1.
+        output = new BatchCorrectionState(filter, combined);
     }
 
     return {

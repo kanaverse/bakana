@@ -14,30 +14,19 @@ test("splitting by feature type works as expected with ADTs", () => {
     });
 
     let deets = reader.load();
-    expect(deets.matrix.numberOfRows()).toBe(deets.genes.type.length);
-    expect("Antibody Capture" in deets.alternatives).toBe(true);
+    expect(deets.matrix.get("RNA").numberOfRows()).toBe(deets.genes.RNA.id.length);
+    expect(deets.matrix.get("ADT").numberOfRows()).toBe(deets.genes.ADT.id.length);
 
     // Everything remaining in the main matrix matches Ensembl.
-    let guessed = bakana.callScran(scran => scran.guessFeatures(deets.genes.id));
+    let guessed = bakana.callScran(scran => scran.guessFeatures(deets.genes.RNA.id));
     expect(guessed.species).toBe("human");
     expect(guessed.type).toBe("ensembl");
     expect(guessed.confidence).toBe(1);
 
-    let found = Array.from(new Set(deets.genes.type));
-    expect(found.length).toBe(1);
-    expect(found[0]).toBe("Gene Expression");
-
     // The ADT matrix just contains ADTs, which do look like gene symbols.
-    let alt = deets.alternatives["Antibody Capture"];
-    expect(alt.matrix.numberOfRows()).toBe(alt.genes.id.length);
-
-    let alt_guessed = bakana.callScran(scran => scran.guessFeatures(alt.genes.id));
+    let alt_guessed = bakana.callScran(scran => scran.guessFeatures(deets.genes.ADT.id));
     expect(alt_guessed.species).toBe("human");
     expect(alt_guessed.type).toBe("symbol");
-
-    let alt_found = Array.from(new Set(alt.genes.type));
-    expect(alt_found.length).toBe(1);
-    expect(alt_found[0]).toBe("Antibody Capture");
 })
 
 test("splitting by feature type works as expected when there are no ADTs", () => {
@@ -49,6 +38,7 @@ test("splitting by feature type works as expected when there are no ADTs", () =>
     });
 
     let deets = reader.load();
-    expect(deets.matrix.numberOfRows()).toBe(deets.genes.type.length);
-    expect("alternative" in deets).toBe(false);
+    expect(deets.matrix.numberOfRows()).toBe(deets.genes.RNA.id.length);
+    expect(deets.matrix.get("RNA").numberOfRows()).toBe(deets.genes.RNA.id.length);
+    expect(deets.matrix.has("ADT")).toBe(false);
 })

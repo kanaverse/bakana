@@ -176,33 +176,39 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
  **************************/
 
 export function unserialize(handle, qc, filter) {
-    let ghandle = handle.open(step_name);
-
-    let parameters = AdtNormalizationState.defaults();
-    let phandle = ghandle.open("parameters");
-    parameters.num_pcs = phandle.open("num_pcs", { load: true }).values[0];
-    parameters.num_clusters = phandle.open("num_clusters", { load: true }).values[0];
-
-    let output;
     let cache = {};
-    try {
-        let rhandle = ghandle.open("results");
-        
-        if ("size_factors" in rhandle.children) {
-            let sf = rhandle.open("size_factors", { load: true }).values;
-            cache.sf_buffer = scran.createFloat64WasmArray(sf.length);
-            cache.sf_buffer.set(sf);
-        }
+    let parameters = AdtNormalizationState.defaults();
+    let output;
 
-        output = new AdtNormalizationState(qc, filter, cache);
-    } catch (e) {
-        utils.freeCache(cache.sf_buffer);
-        utils.freeCache(output);
-        throw e;
+    if (step_name in handle.children) {
+        let ghandle = handle.open(step_name);
+
+        let phandle = ghandle.open("parameters");
+        parameters.num_pcs = phandle.open("num_pcs", { load: true }).values[0];
+        parameters.num_clusters = phandle.open("num_clusters", { load: true }).values[0];
+
+        try {
+            let rhandle = ghandle.open("results");
+            
+            if ("size_factors" in rhandle.children) {
+                let sf = rhandle.open("size_factors", { load: true }).values;
+                cache.sf_buffer = scran.createFloat64WasmArray(sf.length);
+                cache.sf_buffer.set(sf);
+            }
+
+            output = new AdtNormalizationState(qc, filter, parameters, cache);
+        } catch (e) {
+            utils.freeCache(cache.sf_buffer);
+            utils.freeCache(output);
+            throw e;
+        }
+    } else {
+        // Fallback for v1.
+        output = new AdtNormalizationState(qc, filter);
     }
 
     return {
         state: output,
-        parameters: {}
+        parameters: { ...parameters } // make a copy to avoid pass-by-reference links with state's internal parameters
     }
 }

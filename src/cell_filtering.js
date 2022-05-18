@@ -228,34 +228,39 @@ export class CellFilteringState {
 }
 
 export function unserialize(handle, inputs, qc_states) {
-    let ghandle = handle.open(step_name);
     let parameters = CellFilteringState.defaults();
-
     let output;
     let cache = {};
-    try {
-        let rhandle = ghandle.open("results");
 
-        if ("discards" in rhandle.children) {
-            let discards = rhandle.open("discards", { load: true }).values; 
-            cache.discard_buffer = scran.createUint8WasmArray(discards.length);
-            cache.discard_buffer.set(discards);
-        } else {
-            // Figuring out which upstream QC state contains the discard vector
-            // and creating a view on it so that our fetchDiscards() works properly.
-            let to_use = utils.findValidUpstreamStates(qc_states, "QC");
-            if (to_use.length != 1) {
-                throw new Error("only one upstream QC state should be valid if 'discards' is not available");
+    if (step_name in handle.children) {
+        let ghandle = handle.open(step_name);
+
+        try {
+            let rhandle = ghandle.open("results");
+
+            if ("discards" in rhandle.children) {
+                let discards = rhandle.open("discards", { load: true }).values; 
+                cache.discard_buffer = scran.createUint8WasmArray(discards.length);
+                cache.discard_buffer.set(discards);
+            } else {
+                // Figuring out which upstream QC state contains the discard vector
+                // and creating a view on it so that our fetchDiscards() works properly.
+                let to_use = utils.findValidUpstreamStates(qc_states, "QC");
+                if (to_use.length != 1) {
+                    throw new Error("only one upstream QC state should be valid if 'discards' is not available");
+                }
+                let use_state = qc_states[to_use[0]];
+                cache.discard_buffer = use_state.fetchDiscards().view();
             }
-            let use_state = qc_states[to_use[0]];
-            cache.discard_buffer = use_state.fetchDiscards().view();
-        }
 
-        output = new CellFilteringState(inputs, qc_states, parameters, cache);
-    } catch (e) {
-        utils.freeCache(cache.discard_buffer);
-        utils.freeCache(output);
-        throw e;
+            output = new CellFilteringState(inputs, qc_states, parameters, cache);
+        } catch (e) {
+            utils.freeCache(cache.discard_buffer);
+            utils.freeCache(output);
+            throw e;
+        }
+    } else {
+        output = new CellFilteringState(inputs, qc_states);
     }
 
     return {

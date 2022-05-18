@@ -154,33 +154,34 @@ export class AdtPcaState extends putils.PcaStateBase {
  **************************/
 
 export function unserialize(handle, filter, norm) {
-    let ghandle = handle.open(step_name);
-
-    let parameters = {};
-    {
-        let phandle = ghandle.open("parameters"); 
-        parameters = { 
-            num_pcs: phandle.open("num_pcs", { load: true }).values[0],
-            block_method: phandle.open("block_method", { load: true }).values[0]
-        };
-    }
-
-    let output;
     let cache = {};
-    try {
-        let rhandle = ghandle.open("results");
+    let parameters = AdtPcaState.defaults();
+    let output;
 
-        if ("var_exp" in rhandle.children) {
-            let var_exp = rhandle.open("var_exp", { load: true }).values;
-            let pcs = rhandle.open("pcs", { load: true }).values;
-            cache.pcs = new putils.PcaMimic(pcs, var_exp);
+    if (step_name in handle.children) {
+        let ghandle = handle.open(step_name);
+
+        let phandle = ghandle.open("parameters"); 
+        parameters.num_pcs = phandle.open("num_pcs", { load: true }).values[0];
+        parameters.block_method = phandle.open("block_method", { load: true }).values[0];
+
+        try {
+            let rhandle = ghandle.open("results");
+
+            if ("var_exp" in rhandle.children) {
+                let var_exp = rhandle.open("var_exp", { load: true }).values;
+                let pcs = rhandle.open("pcs", { load: true }).values;
+                cache.pcs = new putils.PcaMimic(pcs, var_exp);
+            }
+
+            output = new AdtPcaState(filter, norm, parameters, cache);
+        } catch (e) {
+            utils.freeCache(cache.pcs);
+            utils.freeCache(output);
+            throw e;
         }
-
-        output = new AdtPcaState(filter, norm, parameters, cache);
-    } catch (e) {
-        utils.freeCache(cache.pcs);
-        utils.freeCache(output);
-        throw e;
+    } else {
+        output = new AdtPcaState(filter, norm);
     }
 
     return {

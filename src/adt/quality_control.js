@@ -281,49 +281,51 @@ class AdtQcFiltersMimic {
 }
 
 export function unserialize(handle, inputs) {
-    let ghandle = handle.open(step_name);
-
-    let parameters = {};
-    {
-        let phandle = ghandle.open("parameters"); 
-        parameters = {
-            igg_prefix: phandle.open("igg_prefix", { load: true }).values[0],
-            nmads: phandle.open("nmads", { load: true }).values[0],
-            min_detected_drop: phandle.open("min_detected_drop", { load: true }).values[0]
-        }
-    }
-
-    let output;
     let cache = {};
-    try {
-        let rhandle = ghandle.open("results");
+    let parameters = AdtQualityControlState.defaults();
+    let output;
 
-        if ("metrics" in rhandle.children) {
-            let mhandle = rhandle.open("metrics");
-            let detected = mhandle.open("detected", { load: true }).values;
-            cache.metrics = scran.emptyPerCellAdtQcMetricsResults(detected.length, 1);
-            cache.metrics.detected({ copy: false }).set(detected);
-            let igg_total = mhandle.open("igg_total", { load: true }).values;
-            cache.metrics.subsetTotals(0, { copy: false }).set(igg_total);
+    if (step_name in handle.children) {
+        let ghandle = handle.open(step_name);
 
-            let thandle = rhandle.open("thresholds");
-            let thresholds_detected = thandle.open("detected", { load: true }).values;
-            let thresholds_igg_total = thandle.open("igg_total", { load: true }).values;
+        let phandle = ghandle.open("parameters"); 
+        parameters.igg_prefix = phandle.open("igg_prefix", { load: true }).values[0];
+        parameters.nmads = phandle.open("nmads", { load: true }).values[0];
+        parameters.min_detected_drop = phandle.open("min_detected_drop", { load: true }).values[0];
 
-            let discards = rhandle.open("discards", { load: true }).values; 
-            cache.filters = new AdtQcFiltersMimic(
-                thresholds_detected,
-                thresholds_igg_total,
-                discards
-            );
+        try {
+            let rhandle = ghandle.open("results");
+
+            if ("metrics" in rhandle.children) {
+                let mhandle = rhandle.open("metrics");
+                let detected = mhandle.open("detected", { load: true }).values;
+                cache.metrics = scran.emptyPerCellAdtQcMetricsResults(detected.length, 1);
+                cache.metrics.detected({ copy: false }).set(detected);
+                let igg_total = mhandle.open("igg_total", { load: true }).values;
+                cache.metrics.subsetTotals(0, { copy: false }).set(igg_total);
+
+                let thandle = rhandle.open("thresholds");
+                let thresholds_detected = thandle.open("detected", { load: true }).values;
+                let thresholds_igg_total = thandle.open("igg_total", { load: true }).values;
+
+                let discards = rhandle.open("discards", { load: true }).values; 
+                cache.filters = new AdtQcFiltersMimic(
+                    thresholds_detected,
+                    thresholds_igg_total,
+                    discards
+                );
+            }
+
+            output = new AdtQualityControlState(inputs, parameters, cache);
+        } catch (e) {
+            utils.freeCache(cache.metrics);
+            utils.freeCache(cache.filters)
+            utils.freeCache(output);
+            throw e;
         }
-
-        output = new AdtQualityControlState(inputs, parameters, cache);
-    } catch (e) {
-        utils.freeCache(cache.metrics);
-        utils.freeCache(cache.filters)
-        utils.freeCache(output);
-        throw e;
+    } else {
+        // Fallback for v1.
+        output = new AdtQualityControlState(inputs);
     }
 
     return {

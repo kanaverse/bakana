@@ -332,6 +332,10 @@ export function splitByFeatureType(matrix, genes) {
         types[x].push(i);
     });
 
+    if (Object.keys(types).length == 1) {
+        return null;
+    }
+
     let out_mats = new MultiMatrix;
     let out_genes = {};
     try {
@@ -352,7 +356,9 @@ export function splitByFeatureType(matrix, genes) {
             for (const [k2, v2] of Object.entries(genes)) {
                 // Skipping 'type', as it's done its purpose now.
                 if (k !== "type") {
-                    curgenes[k2] = scran.matchVectorToRowIdentities(sub, v2);
+                    let copy = new v2.constructor(v.length);
+                    v.forEach((x, i) => { copy[i] = v2[x]; });
+                    curgenes[k2] = copy;
                 }
             }
             out_genes[name] = curgenes;

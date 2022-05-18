@@ -62,7 +62,7 @@ test("quality control works as expected for ADTs with blocking", async () => {
 
     // Let's pretend the main count matrix is the ADT matrix.
     let qcstate = new qc.AdtQualityControlState(istate);
-    qcstate.useMainMatrix();
+    qcstate.useRNAMatrix();
     qcstate.compute("IgG", 3, 0.1);
     let summ = qcstate.summary();
 

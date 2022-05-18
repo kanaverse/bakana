@@ -173,60 +173,67 @@ export class CombineEmbeddingsState {
 }
 
 export function unserialize(handle, pca_states) {
-    let ghandle = handle.open(step_name);
-
-    let parameters = CombineEmbeddingsState.defaults();
-    {
-        let phandle = ghandle.open("parameters");
-        parameters.approximate = phandle.open("approximate", { load: true }).values[0] > 0;
-
-        let whandle = phandle.open("weights");
-        let keys = Object.keys(whandle.children);
-
-        // If it's empty, we just use the default of null.
-        if (keys.length) {
-            parameters.weights = {};
-            for (const k of keys) {
-                parameters.weights[k] = whandle.open(k, { load: true }).values[0];
-            }
-        }
-    }
-
-    let output;
     let cache = {};
-    try {
-        let rhandle = ghandle.open("results");
+    let parameters = CombineEmbeddingsState.defaults();
+    let output;
 
-        if ("pcs" in rhandle.children) {
-            let phandle = rhandle.open("pcs", { load: true });
-            cache.num_cells = phandle.shape[0];
-            cache.total_dims = phandle.shape[1];
+    if (step_name in handle.children) {
+        let ghandle = handle.open(step_name);
 
-            let vals = phandle.values;
-            cache.combined_buffer = scran.createFloat64WasmArray(vals.length);
-            cache.combined_buffer.set(vals);
-        } else {
-            // Creating a view from the valid upstream PCA state.
-            let to_use = utils.findValidUpstreamStates(pca_states, "PCA");
-            if (to_use.length != 1) {
-                throw new Error("only one upstream PCA state should be valid if 'discards' is not available");
+        {
+            let phandle = ghandle.open("parameters");
+            parameters.approximate = phandle.open("approximate", { load: true }).values[0] > 0;
+
+            let whandle = phandle.open("weights");
+            let keys = Object.keys(whandle.children);
+
+            // If it's empty, we just use the default of null.
+            if (keys.length) {
+                parameters.weights = {};
+                for (const k of keys) {
+                    parameters.weights[k] = whandle.open(k, { load: true }).values[0];
+                }
             }
-            let pcs = pca_states[to_use[0]].fetchPCs();
-            CombineEmbeddingsState.createPcsView(cache, pcs);
         }
 
-        output = new CombineEmbeddingsState(pca_states, parameters, cache);
-    } catch (e) {
-        utils.freeCache(cache.pcs);
-        utils.freeCache(output);
-        throw e;
+        try {
+            let rhandle = ghandle.open("results");
+
+            if ("pcs" in rhandle.children) {
+                let phandle = rhandle.open("pcs", { load: true });
+                cache.num_cells = phandle.shape[0];
+                cache.total_dims = phandle.shape[1];
+
+                let vals = phandle.values;
+                cache.combined_buffer = scran.createFloat64WasmArray(vals.length);
+                cache.combined_buffer.set(vals);
+            } else {
+                // Creating a view from the valid upstream PCA state.
+                let to_use = utils.findValidUpstreamStates(pca_states, "PCA");
+                if (to_use.length != 1) {
+                    throw new Error("only one upstream PCA state should be valid if 'discards' is not available");
+                }
+                let pcs = pca_states[to_use[0]].fetchPCs();
+                CombineEmbeddingsState.createPcsView(cache, pcs);
+            }
+
+            output = new CombineEmbeddingsState(pca_states, parameters, cache);
+        } catch (e) {
+            utils.freeCache(cache.pcs);
+            utils.freeCache(output);
+            throw e;
+        }
+    } else {
+        // Fallback for v1.
+        output = new CombineEmbeddingsState(pca_states);
     }
 
     return {
         state: output,
 
-        // Make a copy to avoid pass-by-reference links with state's internal parameters.
-        // Arguments include nested dicts so we have to do a deep copy via stringify.
+        // Make a copy to avoid pass-by-reference links with state's internal
+        // parameters. Arguments include nested dicts so we have to do a deep
+        // copy via stringify.
         parameters: JSON.parse(JSON.stringify(parameters)) 
     };
 }

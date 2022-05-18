@@ -644,9 +644,18 @@ export async function unserialize(handle, embeddedLoader) {
         if ("indices" in rhandle.children) {
             // v1.1
             old_ids = rhandle.open("indices", { load: true }).values;
+
+            let ref = cache.matrix.get("RNA").identities().sort();
+            let old_ids2 = old_ids.slice().sort();
+            for (var i = 0; i < old_ids2.length; i++) {
+                if (ref[i] != old_ids2[i]) {
+                    console.log([i, ref[i], old_ids2[i]]);
+                    break;
+                }
+            }
             perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), old_ids);
         } else {
-            if (rhandle.children["identites"] == "DataSet") {
+            if (rhandle.children["identities"] == "DataSet") {
                 // v1.2+
                 old_ids = rhandle.open("identities", { load: true }).values;
                 perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), old_ids);
