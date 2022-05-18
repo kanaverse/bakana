@@ -5,6 +5,13 @@ import * as combine_module from "./combine_embeddings.js";
 
 export const step_name = "batch_correction";
 
+/**
+ * Correct for batch effects in PC space based on mutual nearest neighbors.
+ * This wraps the `mnnCorrect` function from [**scran.js**](https://jkanche.com/scran.js).
+ * 
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ * @hideconstructor
+ */
 export class BatchCorrectionState {
     #filter;
     #combined;
@@ -45,6 +52,14 @@ export class BatchCorrectionState {
      ******** Compute **********
      ***************************/
 
+    /**
+     * @param {string} method - The correction method to use.
+     * Currently this can be either `"mnn"` or `"none"`.
+     * @param {number} num_neighbors - Number of neighbors to use during MNN correction.
+     * @param {boolean} approximate - Whether to use an approximate method to identify MNNs.
+     *
+     * @return The object is updated with new results.
+     */
     compute(method, num_neighbors, approximate) {
         this.changed = false;
 
