@@ -175,6 +175,8 @@ export class Reader {
             if (this.#annotations !== null) {
                 let first = matrices.get(matrices.available()[0]);
                 output.annotations = extract_annotations(this.#annotations, { numberOfColumns: first.numberOfColumns() });
+            } else {
+                output.annotations = null;
             }
 
         } catch (e) {

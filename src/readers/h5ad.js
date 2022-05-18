@@ -113,7 +113,7 @@ export class Reader {
 
     load() {
         let output;
-        let matrices = new rutils.MatrixMarket;
+        let matrices = new rutils.MultiMatrix;
 
         const tmppath = afile.realizeH5(this.#h5.content);
         try {

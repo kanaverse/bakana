@@ -224,6 +224,9 @@ export function unserialize(handle, pca_states) {
 
     return {
         state: output,
-        parameters: parameters
+
+        // Make a copy to avoid pass-by-reference links with state's internal parameters.
+        // Arguments include nested dicts so we have to do a deep copy via stringify.
+        parameters: JSON.parse(JSON.stringify(parameters)) 
     };
 }

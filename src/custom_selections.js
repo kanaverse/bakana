@@ -67,16 +67,20 @@ export class CustomSelectionsState {
      * Nothing is returned.
      */
     addSelection(id, selection) {
+        let to_use = utils.findValidUpstreamStates(this.#norm_states);
+
         // Assumes that we have at least one cell in and outside the selection!
+        let mat = this.#norm_states[to_use[0]].fetchNormalizedMatrix();
         var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Int32Array", this.#cache);
         buffer.fill(0);
         var tmp = buffer.array();
         selection.forEach(element => { tmp[element] = 1; });
 
         let res = {};
-        for (const [k, v] of Object.entries(this.#norm_states)) {
+        for (const k of to_use) {
+            let v = this.#norm_states[k];
             if (v.valid()) {
-                var mat = v.fetchNormalizedMatrix();
+                let mat = v.fetchNormalizedMatrix();
                 res[k] = scran.scoreMarkers(mat, buffer); 
             }
         }

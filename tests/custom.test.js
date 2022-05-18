@@ -18,13 +18,13 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     await bakana.runAnalysis(state, files, params);
 
     state.custom_selections.addSelection("evens", [0,2,4,6,8]);
-    let res = state.custom_selections.fetchResults("evens", "cohen");
+    let res = state.custom_selections.fetchResults("evens", "cohen", "RNA");
     expect("ordering" in res).toBe(true);
     expect("means" in res).toBe(true);
     expect("lfc" in res).toBe(true);
 
     state.custom_selections.addSelection("odds", [1,3,5,7,9]);
-    let res2 = state.custom_selections.fetchResults("odds", "cohen");
+    let res2 = state.custom_selections.fetchResults("odds", "cohen", "RNA");
     expect("ordering" in res2).toBe(true);
     expect("means" in res2).toBe(true);
     expect("lfc" in res2).toBe(true);
@@ -42,7 +42,7 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     );
 
     expect(reloaded.parameters.custom_selections.selections.evens.length).toBe(5);
-    let reres = reloaded.state.custom_selections.fetchResults("evens", "cohen");
+    let reres = reloaded.state.custom_selections.fetchResults("evens", "cohen", "RNA");
     expect(reres.ordering).toEqual(res.ordering);
 
     await bakana.freeAnalysis(state);

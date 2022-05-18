@@ -60,8 +60,8 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     expect(new_params.pca instanceof Object).toBe(true);
 
     // Checking that the permutation is unchanged on reload.
-    let old_ids = state.inputs.summary()["genes"]["id"];
-    let new_ids = reloaded.state.inputs.summary()["genes"]["id"];
+    let old_ids = state.inputs.summary()["genes"]["RNA"]["id"];
+    let new_ids = reloaded.state.inputs.summary()["genes"]["RNA"]["id"];
     expect(old_ids.length).toBeGreaterThan(0);
     expect(old_ids).toEqual(new_ids);
 

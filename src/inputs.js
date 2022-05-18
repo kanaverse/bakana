@@ -289,7 +289,7 @@ export class InputsState {
             }
 
             // Looping through all available matrices.
-            let ihandle = rhandle.createGroup("indices");
+            let ihandle = rhandle.createGroup("identities");
             for (const a of this.#cache.matrix.available()) {
                 ihandle.writeDataSet(a, "Int32", null, this.#cache.matrix.get(a).identities());
             }
@@ -303,14 +303,14 @@ export class InputsState {
  ******* Internals ********
  **************************/
 
-function bind_single_dataset(dkeys, datasets, geneInfo, chosen) {
+function bind_single_modality(dkeys, datasets, type) {
     let output = {};
 
     try {
         // Identify the gene columns to use.
         let genes = {};
         for (const k of dkeys) {
-            genes[k] = datasets[k].genes;
+            genes[k] = datasets[k].genes[type];
             if (genes[k] === null) {
                 throw new Error("no gene annotations found in matrix '" + k + "'");
             }
@@ -325,9 +325,8 @@ function bind_single_dataset(dkeys, datasets, geneInfo, chosen) {
         let gnames = [];
         let mats = [];
         for (const k of dkeys) {
-            let current = datasets[k];
-            gnames.push(current.genes[best_fields[k]]);
-            mats.push(current.matrix);
+            gnames.push(genes[k][best_fields[k]]);
+            mats.push(datasets[k].matrix.get(type));
         }
 
         let merged = scran.cbindWithNames(mats, gnames);
@@ -337,7 +336,7 @@ function bind_single_dataset(dkeys, datasets, geneInfo, chosen) {
         // any attempt at merging and deduplication across objects.
         let included = new Set(merged.indices);
         output.genes = {};
-        let first_genes = datasets[dkeys[0]].genes;
+        let first_genes = genes[dkeys[0]];
         for (const [key, val] of Object.entries(first_genes)) {
             output.genes[key] = val.filter((x, i) => included.has(i));
         }
@@ -350,14 +349,14 @@ function bind_single_dataset(dkeys, datasets, geneInfo, chosen) {
     return output;
 }
 
-function bind_datasets(dkeys, matrices, geneInfo) {
+function bind_datasets(dkeys, datasets) {
     // Checking which feature types are available across all datasets.
     let available = null;
     for (const k of dkeys) {
         if (available === null) {
-            available = datasets[k].available();
+            available = datasets[k].matrix.available();
         } else {
-            let present = new Set(datasets[k].available());
+            let present = new Set(datasets[k].matrix.available());
             available = available.filter(x => present.has(x));
         }
     }
@@ -367,15 +366,12 @@ function bind_datasets(dkeys, matrices, geneInfo) {
         matrix: new rutils.MultiMatrix, 
         genes: {} 
     };
+
     try {
-        try {
-            for (const a of available) {
-                let current = bind_single_dataset(dkeys, datasets, geneInfo, a);
-                output.matrix.add(a, current.matrix);
-                output.genes[a] = current.genes;
-            }
-        } catch (e) {
-            throw e;
+        for (const a of available) {
+            let current = bind_single_modality(dkeys, datasets, a);
+            output.matrix.add(a, current.matrix);
+            output.genes[a] = current.genes;
         }
 
         let total = output.matrix.numberOfColumns();
@@ -499,7 +495,7 @@ async function process_datasets(matrices, sample_factor) {
 
             } catch (e) {
                 utils.freeCache(blocks);
-                utils.freeCache(current);
+                utils.freeCache(current.matrix);
                 throw e;
             }
         }
@@ -516,7 +512,7 @@ async function process_datasets(matrices, sample_factor) {
             // No need to hold references to the individual matrices
             // once the full matrix is loaded.
             for (const [k, v] of Object.entries(datasets)) {
-                utils.free(v);
+                utils.freeCache(v.matrix);
             }
         }
         return output;
@@ -540,7 +536,7 @@ async function process_and_cache(new_matrices, sample_factor) {
  ******** Loading *********
  **************************/
 
-function createPermutation(perm) {
+function createPermuter(perm) {
     return x => {
         let copy = x.slice();
         x.forEach((y, i) => {
@@ -633,7 +629,7 @@ export async function unserialize(handle, embeddedLoader) {
                 let ihandle = rhandle.open("identities");
                 for (const a of Object.keys(ihandle.children)) {
                     if (cache.matrix.has(a)) {
-                        let dhandle = rhandle.open(a, { load: true });
+                        let dhandle = ihandle.open(a, { load: true });
                         perm[a] = scran.updateRowIdentities(cache.matrix.get(a), dhandle.values);
                     }
                 }
@@ -659,7 +655,7 @@ export async function unserialize(handle, embeddedLoader) {
                 let ihandle = rhandle.open("identities");
                 for (const a of Object.keys(ihandle.children)) {
                     if (cache.matrix.has(a)) {
-                        let dhandle = rhandle.open(a, { load: true });
+                        let dhandle = ihandle.open(a, { load: true });
                         perm[a] = scran.updateRowIdentities(cache.matrix.get(a), dhandle.values);
                     }
                 }
@@ -669,7 +665,7 @@ export async function unserialize(handle, embeddedLoader) {
 
     let permuters = {};
     for (const a of cache.matrix.available()) {
-        if (a in perm) {
+        if (a in perm && perm[a] !== null) {
             permuters[a] = createPermuter(perm[a]); 
         } else {
             permuters[a] = x => {};

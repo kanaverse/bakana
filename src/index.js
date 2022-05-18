@@ -241,7 +241,7 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
         params[step_qc_adt]["nmads"],
         params[step_qc_adt]["min_detected_drop"]
     );
-    quickFinish(step_qc);
+    quickFinish(step_qc_adt);
 
     quickStart(step_filter);
     state[step_filter].compute();

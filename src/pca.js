@@ -218,6 +218,6 @@ export function unserialize(handle, filter, norm, feat) {
 
     return {
         state: output,
-        parameters: parameters
+        parameters: { ...parameters } // make a copy to avoid pass-by-reference links with state's internal parameters
     };
 }

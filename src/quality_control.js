@@ -321,6 +321,6 @@ export function unserialize(handle, inputs) {
 
     return {
         state: output,
-        parameters: parameters
+        parameters: { ...parameters } // make a copy to avoid pass-by-reference links with state's internal parameters
     };
 }

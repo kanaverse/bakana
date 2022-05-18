@@ -20,27 +20,27 @@ test("fetching of various bits and pieces is done correctly", async () => {
     // Markers.
     expect(state.marker_detection.numberOfGroups()).toBeGreaterThan(0);
 
-    let res = state.marker_detection.fetchGroupResults(0, "cohen-mean");
+    let res = state.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
     expect("ordering" in res).toBe(true);
     expect("means" in res).toBe(true);
     expect("lfc" in res).toBe(true);
 
     // Normalized expression.
     let exprs = state.normalization.fetchExpression(0);
-    let nfiltered = state.quality_control.fetchFilteredMatrix().numberOfColumns();
+    let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
     expect(exprs.length).toBe(nfiltered);
 
     // Factor annotations, with and without filtering.
     let cell_anno = state.inputs.fetchAnnotations("level1class");
     expect(cell_anno.index.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
-    let filtered_anno = state.quality_control.fetchFilteredAnnotations("level1class");
+    let filtered_anno = state.cell_filtering.fetchFilteredAnnotations("level1class");
     expect(filtered_anno.index.length).toBe(nfiltered);
     expect(filtered_anno.levels.length).toBeLessThan(20);
 
     // Non-factor annotations, with and without filtering.
     let sex_anno = state.inputs.fetchAnnotations("sex");
     expect(sex_anno.values.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
-    let filtered_sex = state.quality_control.fetchFilteredAnnotations("sex");
+    let filtered_sex = state.cell_filtering.fetchFilteredAnnotations("sex");
     expect(filtered_sex.values.length).toBe(nfiltered);
 
     await bakana.freeAnalysis(state);
@@ -64,8 +64,8 @@ test("manual factorization is done correctly", async () => {
     let cell_anno = state.inputs.fetchAnnotations("3k");
     expect(cell_anno.index.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
 
-    let filtered_anno = state.quality_control.fetchFilteredAnnotations("3k");
-    let nfiltered = state.quality_control.fetchFilteredMatrix().numberOfColumns();
+    let filtered_anno = state.cell_filtering.fetchFilteredAnnotations("3k");
+    let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
     expect(filtered_anno.index.length).toBe(nfiltered);
     expect(filtered_anno.levels.length).toBe(2);
 

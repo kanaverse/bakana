@@ -75,3 +75,16 @@ export function allocateCachedArray(size, type, cache, name = "buffer") {
 export function isObject(object) {
     return typeof object === 'object' && Array.isArray(object) === false;
 }
+
+export function findValidUpstreamStates(states, msg) {
+    let to_use = [];
+    for (const [k, v] of Object.entries(states)) {
+        if (v.valid()) {
+            to_use.push(k);
+        }
+    }
+    if (to_use.length == 0) {
+        throw new Error("expected at least one valid upstream " + msg + " state");
+    }
+    return to_use;
+}

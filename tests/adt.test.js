@@ -23,20 +23,15 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     );
 
     // Checking that the ADTs were split out.
-    let input = state.inputs.summary();
-    let cd3 = state.inputs.fetchAnnotations("Antibody Capture: CD3");
-    expect(cd3.values.length).toBe(input.dimensions.num_cells);
-
-    let all_types = Array.from(new Set(input.genes.type));
-    expect(all_types.length).toBe(1);
-    expect(all_types[0]).toBe("Gene Expression");
+    expect(state.inputs.hasAvailable("RNA")).toBe(true);
+    expect(state.inputs.hasAvailable("ADT")).toBe(true);
 
     // Check that the subsetting was done correctly.
     let f = fs.readFileSync(mtx);
     let buff = f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
     let mat = scran.initializeSparseMatrixFromMatrixMarketBuffer(new Uint8Array(buff), { compressed: true });
 
-    let loaded = state.inputs.fetchCountMatrix();
+    let loaded = state.inputs.fetchCountMatrix({ type: "RNA" });
     expect(mat.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
 
     let loaded_ids = loaded.identities();
@@ -63,10 +58,15 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 
     // Checking that the permutation is unchanged on reload, 
     // even when identities are subsetted.
-    let old_ids = state.inputs.summary()["genes"]["id"];
-    let new_ids = reloaded.state.inputs.summary()["genes"]["id"];
-    expect(old_ids.length).toBeGreaterThan(0);
-    expect(old_ids).toEqual(new_ids);
+    let old_adt_ids = state.inputs.summary()["genes"]["ADT"]["id"];
+    let new_adt_ids = reloaded.state.inputs.summary()["genes"]["ADT"]["id"];
+    expect(old_adt_ids.length).toBeGreaterThan(0);
+    expect(old_adt_ids).toEqual(new_adt_ids);
+
+    let old_rna_ids = state.inputs.summary()["genes"]["RNA"]["id"];
+    let new_rna_ids = reloaded.state.inputs.summary()["genes"]["RNA"]["id"];
+    expect(old_rna_ids.length).toBeGreaterThan(0);
+    expect(old_rna_ids).toEqual(new_rna_ids);
 
     let old_res = state.feature_selection.summary();
     let new_res = reloaded.state.feature_selection.summary();
@@ -92,13 +92,8 @@ test("runAnalysis works correctly (10X)", async () => {
     );
 
     // Checking that the ADTs were split out.
-    let input = state.inputs.summary();
-    let cd3 = state.inputs.fetchAnnotations("Antibody Capture: CD3");
-    expect(cd3.values.length).toBe(input.dimensions.num_cells);
-
-    let all_types = Array.from(new Set(input.genes.type));
-    expect(all_types.length).toBe(1);
-    expect(all_types[0]).toBe("Gene Expression");
+    expect(state.inputs.hasAvailable("RNA")).toBe(true);
+    expect(state.inputs.hasAvailable("ADT")).toBe(true);
 
     // Release me!
     await bakana.freeAnalysis(state);

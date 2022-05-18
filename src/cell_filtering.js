@@ -145,7 +145,7 @@ export class CellFilteringState {
             let bcache = utils.allocateCachedArray(this.#cache.matrix.numberOfColumns(), "Int32Array", this.#cache, "block_buffer");
             let bcache_arr = bcache.array();
             let block_arr = block.array();
-            let disc_arr = disc_buffer.array();
+            let disc_arr = this.#cache.discard_buffer.array();
 
             let j = 0;
             for (let i = 0; i < block_arr.length; i++) {
@@ -169,10 +169,12 @@ export class CellFilteringState {
      * @return The object is updated with the new results.
      */
     compute() {
+        this.changed = false;
+
+        // Checking upstreams.
         if (this.#inputs.changed) {
             this.changed = true;
         }
-
         for (const x of Object.values(this.#qc_states)) {
             if (x.valid() && x.changed) {
                 this.changed = true;
@@ -258,6 +260,6 @@ export function unserialize(handle, inputs, qc_states) {
 
     return {
         state: output,
-        parameters: parameters
+        parameters: { ...parameters } // make a copy to avoid pass-by-reference links with state's internal parameters
     };
 }
