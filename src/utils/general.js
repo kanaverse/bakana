@@ -1,8 +1,9 @@
 import * as scran from "scran.js";
-import * as wa from "wasmarrays.js";
 
 export function mimicGetter(value, copy) {
-    if (value instanceof wa.WasmArray) {
+    // Inheritance seems to be namespaced by module,
+    // so we can't use instanceof.
+    if ("className" in value.constructor && value.constructor.className.endsWith("WasmArray")) { 
         if (copy == "view" || copy == "hdf5") {
             return value.view();
         } else if (copy) {

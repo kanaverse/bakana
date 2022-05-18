@@ -49,12 +49,16 @@ export class CellFilteringState {
      ***************************/
 
     hasAvailable(type) {
-        return this.#cache.matrix.has(type);
+        if ("matrix" in this.#cache) {
+            return this.#cache.matrix.has(type);
+        } else {
+            return this.#inputs.hasAvailable(type);
+        }
     }
 
     fetchFilteredMatrix({ type = "RNA" } = {}) {
         if (!("matrix" in this.#cache)) {
-            this.#apply_filters();
+            this.#filter_matrix();
         }
         return this.#cache.matrix.get(type);
     }
@@ -68,13 +72,9 @@ export class CellFilteringState {
      */
     fetchFilteredBlock() {
         if (!("blocked" in this.#cache)) {
-            this.#apply_filters();
+            this.#filter_block();
         }
-        if (this.#cache.blocked) {
-            return this.#cache.block_buffer;
-        } else {
-            return null;
-        }
+        return this.#cache.block_buffer;
     }
 
     fetchDiscards() {
@@ -107,20 +107,13 @@ export class CellFilteringState {
      ******** Compute **********
      ***************************/
 
-    #apply_filters() {
-        // A discard signal in any modality causes the cell to be removed.
-        // Of course, if there's only one valid modality, we just create
-        // a view on it and use it directly.
-        let to_use = [];
-        for (const [k, v] of Object.entries(this.#qc_states)) {
-            if (v.valid()) {
-                to_use.push(k);
-            }
-        }
-
+    #filter_matrix() {
+        let to_use = utils.findValidUpstreamStates(this.#qc_states, "QC");
         let disc_buffer;
         let first = this.#qc_states[to_use[0]].fetchDiscards();
+
         if (to_use.length > 1) {
+            // A discard signal in any modality causes the cell to be removed. 
             disc_buffer = utils.allocateCachedArray(first.length, "Uint8Array", this.#cache, "discard_buffer");
             let disc_arr = disc_buffer.array();
             disc_arr.fill(0);
@@ -128,6 +121,8 @@ export class CellFilteringState {
                 this.#qc_states[u].fetchDiscards().forEach((y, i) => { disc_arr[i] |= y; });
             }
         } else {
+            // If there's only one valid modality, we just create a view on it
+            // to avoid unnecessary duplication.
             disc_buffer = first.view();
             utils.freeCache(this.#cache.discard_buffer);
             this.#cache.discard_buffer = disc_buffer;
@@ -142,11 +137,11 @@ export class CellFilteringState {
             let sub = scran.filterCells(src, disc_buffer);
             this.#cache.matrix.add(a, sub);
         }
+    }
 
-        // Also subsetting the blocking factor, if any.
+    #filter_block() {
         let block = this.#inputs.fetchBlock();
-        this.#cache.blocked = (block !== null);
-        if (this.#cache.blocked) {
+        if (block !== null) {
             let bcache = utils.allocateCachedArray(this.#cache.matrix.numberOfColumns(), "Int32Array", this.#cache, "block_buffer");
             let bcache_arr = bcache.array();
             let block_arr = block.array();
@@ -159,6 +154,9 @@ export class CellFilteringState {
                     j++;
                 }
             }
+        } else {
+            utils.freeCache(this.#cache.block_buffer);
+            this.#cache.block_buffer = null;
         }
 
         return;
@@ -182,7 +180,8 @@ export class CellFilteringState {
         }
 
         if (this.changed) {
-            this.#apply_filters();
+            this.#filter_matrix();
+            this.#filter_block();
         }
     }
 
@@ -217,21 +216,38 @@ export class CellFilteringState {
 
         let rhandle = ghandle.createGroup("results"); 
         let disc = this.fetchDiscards();
-        rhandle.writeDataSet("discards", "Uint8", null, disc);
+        if (disc.owner === null) {
+            // If it's not a view, we save it; otherwise, we skip it, under the
+            // assumption that only one of the upstream QC states contains the
+            // discard vector.
+            rhandle.writeDataSet("discards", "Uint8", null, disc);
+        }
     }
 }
 
 export function unserialize(handle, inputs, qc_states) {
     let ghandle = handle.open(step_name);
-    let parameters = {};
+    let parameters = CellFilteringState.defaults();
 
     let output;
     let cache = {};
     try {
         let rhandle = ghandle.open("results");
-        let discards = rhandle.open("discards", { load: true }).values; 
-        cache.discard_buffer = scran.createUint8WasmArray(discards.length);
-        cache.discard_buffer.set(discards);
+
+        if ("discards" in rhandle.children) {
+            let discards = rhandle.open("discards", { load: true }).values; 
+            cache.discard_buffer = scran.createUint8WasmArray(discards.length);
+            cache.discard_buffer.set(discards);
+        } else {
+            // Figuring out which upstream QC state contains the discard vector
+            // and creating a view on it so that our fetchDiscards() works properly.
+            let to_use = utils.findValidUpstreamStates(qc_states, "QC");
+            if (to_use.length != 1) {
+                throw new Error("only one upstream QC state should be valid if 'discards' is not available");
+            }
+            let use_state = qc_states[to_use[0]];
+            cache.discard_buffer = use_state.fetchDiscards().view();
+        }
 
         output = new CellFilteringState(inputs, qc_states, parameters, cache);
     } catch (e) {

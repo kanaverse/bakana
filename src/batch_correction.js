@@ -27,15 +27,17 @@ export class BatchCorrectionState {
         this.changed = false;
     }
 
+    free() {
+        utils.freeCache(this.#cache.corrected);
+    }
+
     /***************************
      ******** Getters **********
      ***************************/
 
     fetchPCs() {
         let upstream = this.#combined.fetchPCs();
-        if (this.#parameters.method == "mnn") {
-            upstream.pcs = this.#cache.corrected;
-        } 
+        upstream.pcs = this.#cache.corrected;
         return upstream;
     }
 
@@ -46,26 +48,36 @@ export class BatchCorrectionState {
     compute(method, num_neighbors, approximate) {
         this.changed = false;
 
-        if (this.#filter.changed || this.#combined.changed || 
-            method !== this.#parameters.method || 
-            num_neighbors !== this.#parameters.num_neighbors || 
-            approximate !== this.#parameters.approximate) 
-        { 
-            let block = this.#filter.fetchFilteredBlock();
-            if (method == "mnn" && block !== null) {
+        if (this.#filter.changed || this.#combined.changed) {
+            this.changed = true;
+        }
+        let block = this.#filter.fetchFilteredBlock();
+        let needs_correction = (method == "mnn" && block !== null);
+
+        if (this.changed || method !== this.#parameters.method || num_neighbors !== this.#parameters.num_neighbors || approximate !== this.#parameters.approximate) { 
+            if (needs_correction) {
                 let corrected = utils.allocateCachedArray(pcs.length, "Float64Array", this.#cache, "corrected");
                 let pcs = this.#combined.fetchPCs();
                 scran.mnnCorrect(pcs.pcs, block, { k: num_neighbors, buffer: corrected, numberOfCells: pcs.num_obs, numberOfDims: pcs.num_pcs, approximate: approximate });
-            } else {
-                utils.freeCache(this.#cache.corrected);
-                delete this.#cache.corrected;
+                this.changed = true;
             }
-
-            this.#parameters.method = method;
-            this.#parameters.num_neighbors = num_neighbors;
-            this.#parameters.approximate = approximate;
-            this.changed = true;
         }
+
+        if (this.changed) {
+            // If no correction is actually required, we shouldn't respond to
+            // changes in parameters, because they won't have any effect.
+            if (!needs_correction) {
+                utils.freeCache(this.#cache.corrected);
+                let upstream = this.#combined.fetchPCs();
+                this.#cache.corrected = upstream.pcs.view();
+            }
+        }
+
+        // Updating all parameters, even if they weren't used.
+        this.#parameters.method = method;
+        this.#parameters.num_neighbors = num_neighbors;
+        this.#parameters.approximate = approximate;
+        return;
     }
 
     static defaults() {
@@ -101,7 +113,11 @@ export class BatchCorrectionState {
         {
             let rhandle = ghandle.createGroup("results");
             let pcs = this.fetchPCs();
-            rhandle.writeDataSet("corrected", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
+            if (pcs.pcs.owner !== null) {
+                // If it's not a view, we save it; otherwise we assume
+                // that we can recover it from the upstream state.
+                rhandle.writeDataSet("corrected", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
+            }
         }
     }
 }
@@ -113,7 +129,7 @@ export class BatchCorrectionState {
 export function unserialize(handle, filter, combined) {
     let ghandle = handle.open(step_name);
 
-    let parameters = BatchCorrection.defaults();
+    let parameters = BatchCorrectionState.defaults();
     {
         let phandle = ghandle.open("parameters"); 
         parameters.method = phandle.open("method", { load: true }).values[0];
@@ -125,12 +141,20 @@ export function unserialize(handle, filter, combined) {
     let cache = {};
     try {
         let rhandle = ghandle.open("results");
-        let corrected = rhandle.open("corrected", { load: true }).values;
-        cache.corrected = scran.createFloat64WasmArray(corrected.length);
-        cache.corrected.set(corrected);
+
+        if ("corrected" in rhandle.children) {
+            let corrected = rhandle.open("corrected", { load: true }).values;
+            cache.corrected = scran.createFloat64WasmArray(corrected.length);
+            cache.corrected.set(corrected);
+        } else {
+            // Creating a view from the upstream combined state.
+            let pcs = combined.fetchPCs();
+            cache.corrected = pcs.pcs.view();
+        }
+
         output = new BatchCorrectionState(filter, combined, parameters, cache);
     } catch (e) {
-        utils.freeCache(cache.pcs);
+        utils.freeCache(cache.corrected);
         utils.freeCache(output);
         throw e;
     }

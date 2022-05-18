@@ -38,6 +38,14 @@ export class PcaMimic {
         return utils.mimicGetter(this.pcs, copy);
     }
 
+    numberOfCells() {
+        return this.pcs.length / this.numberOfPCs();
+    }
+
+    numberOfPCs() {
+        return this.var_exp.length;
+    }
+
     varianceExplained({ copy = true } = {}) {
         return utils.mimicGetter(this.var_exp, copy);
     }
