@@ -324,46 +324,31 @@ export function splitByFeatureType(matrix, genes) {
         return null;
     }
 
-    let types = {};
-    genes.type.forEach((x, i) => {
-        if (!(x in types)) {
-            types[x] = [];
-        }
-        types[x].push(i);
-    });
-
-    if (Object.keys(types).length == 1) {
+    let types0 = scran.splitByFactor(genes.type);
+    if (Object.keys(types0).length == 1) {
         return null;
     }
 
-    let out_mats = new MultiMatrix;
-    let out_genes = {};
-    try {
-        for (const [k, v] of Object.entries(types)) {
-            // Standardizing the names to something the rest of the pipeline
-            // will recognize. By default, we check the 10X vocabulary here.
-            let name = k;
-            if (name.match(/gene expression/i)) {
-                name = "RNA";
-            } else if (name.match(/antibody capture/i)) {
-                name = "ADT";
-            }
-
-            let sub = scran.subsetRows(matrix, v);
-            out_mats.add(name, sub);
-
-            let curgenes = {};
-            for (const [k2, v2] of Object.entries(genes)) {
-                // Skipping 'type', as it's done its purpose now.
-                if (k !== "type") {
-                    let copy = new v2.constructor(v.length);
-                    v.forEach((x, i) => { copy[i] = v2[x]; });
-                    curgenes[k2] = copy;
-                }
-            }
-            out_genes[name] = curgenes;
+    // Standardizing the names to something the rest of the pipeline
+    // will recognize. By default, we check the 10X vocabulary here.
+    let types = {};
+    for (const [k, v] of Object.entries(types0)) {
+        if (k.match(/gene expression/i)) {
+            types["RNA"] = v;
+        } else if (k.match(/antibody capture/i)) {
+            types["ADT"] = v;
         }
+    }
 
+    // Skipping 'type', as it's done its purpose now.
+    let gene_deets = { ...genes };
+    delete gene_deets.type;
+    let out_genes = scran.splitArrayCollection(gene_deets, types);
+
+    // Allocating the split matrices.
+    let out_mats;
+    try {
+        out_mats = new MultiMatrix({ store: scran.splitRows(matrix, types) });
     } catch (e) {
         utils.freeCache(out_mats);
         throw e;

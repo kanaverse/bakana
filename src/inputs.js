@@ -334,12 +334,8 @@ function bind_single_modality(dkeys, datasets, type) {
 
         // Extracting gene information from the first object. We won't make
         // any attempt at merging and deduplication across objects.
-        let included = new Set(merged.indices);
-        output.genes = {};
         let first_genes = genes[dkeys[0]];
-        for (const [key, val] of Object.entries(first_genes)) {
-            output.genes[key] = val.filter((x, i) => included.has(i));
-        }
+        output.genes = scran.sliceArrayCollection(first_genes, merged.indices);
 
     } catch (e) {
         utils.freeCache(output.matrix);
@@ -391,37 +387,19 @@ function bind_datasets(dkeys, datasets) {
 
         // Get all annotations keys across datasets; we then concatenate
         // columns with the same name, or we just fill them with missings.
-        let ckeys = new Set();
+        let lengths = [];
+        let annos = [];
         for (const d of dkeys) {
             let current = datasets[d];
             if (current.annotations !== null) {
-                for (const a of Object.keys(current.annotations)) {
-                    ckeys.add(a);
-                }
+                annos.push(current.annotations);
+            } else {
+                annos.push({});
             }
-        }
-        let anno_keys = [...ckeys];
-
-        let combined_annotations = {};
-        for (const i of anno_keys) {
-            let current_combined = [];
-            for (const d of dkeys) {
-                let current = datasets[d];
-                let x;
-                if (current.annotations && current.annotations[i]) {
-                    x = current.annotations[i];
-                    if (!(x instanceof Array)) {
-                        x = Array.from(x);
-                    }
-                } else {
-                    x = new Array(current.matrix.numberOfColumns());
-                }
-                current_combined = current_combined.concat(x);
-            }
-            combined_annotations[i] = current_combined;
+            lengths.push(current.matrix.numberOfColumns());
         }
 
-        output.annotations = combined_annotations;
+        output.annotations = scran.combineArrayCollections(annos, { lengths: lengths });
         output.annotations["__batch__"] = nice_barr;
 
     } catch (e) {
