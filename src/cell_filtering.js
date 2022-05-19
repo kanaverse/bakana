@@ -58,7 +58,7 @@ export class CellFilteringState {
 
     fetchFilteredMatrix({ type = "RNA" } = {}) {
         if (!("matrix" in this.#cache)) {
-            this.#filter_matrix();
+            this.#raw_compute();
         }
         return this.#cache.matrix.get(type);
     }
@@ -71,8 +71,8 @@ export class CellFilteringState {
      * Alternatively `null` if no blocks are present in the dataset.
      */
     fetchFilteredBlock() {
-        if (!("blocked" in this.#cache)) {
-            this.#filter_block();
+        if (!("block_buffer" in this.#cache)) {
+            this.#raw_compute();
         }
         return this.#cache.block_buffer;
     }
@@ -107,7 +107,7 @@ export class CellFilteringState {
      ******** Compute **********
      ***************************/
 
-    #filter_matrix() {
+    #raw_compute() {
         let to_use = utils.findValidUpstreamStates(this.#qc_states, "QC");
         let disc_buffer;
         let first = this.#qc_states[to_use[0]].fetchDiscards();
@@ -137,9 +137,8 @@ export class CellFilteringState {
             let sub = scran.filterCells(src, disc_buffer);
             this.#cache.matrix.add(a, sub);
         }
-    }
 
-    #filter_block() {
+        // Filtering on the block.
         let block = this.#inputs.fetchBlock();
         if (block !== null) {
             let bcache = utils.allocateCachedArray(this.#cache.matrix.numberOfColumns(), "Int32Array", this.#cache, "block_buffer");
@@ -182,8 +181,7 @@ export class CellFilteringState {
         }
 
         if (this.changed) {
-            this.#filter_matrix();
-            this.#filter_block();
+            this.#raw_compute();
         }
     }
 
