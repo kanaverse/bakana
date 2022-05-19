@@ -393,7 +393,7 @@ function bind_datasets(dkeys, datasets) {
         output.block_levels = dkeys;
 
         let nice_barr = new Array(blocks.length);
-        blocks.forEach((x, i) => { nice_bar[i] = dkeys[x]; })
+        blocks.forEach((x, i) => { nice_barr[i] = dkeys[x]; })
         output.annotations["__batch__"] = nice_barr;
 
     } catch (e) {

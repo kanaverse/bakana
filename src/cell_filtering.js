@@ -142,17 +142,7 @@ export class CellFilteringState {
         let block = this.#inputs.fetchBlock();
         if (block !== null) {
             let bcache = utils.allocateCachedArray(this.#cache.matrix.numberOfColumns(), "Int32Array", this.#cache, "block_buffer");
-            let bcache_arr = bcache.array();
-            let block_arr = block.array();
-            let disc_arr = this.#cache.discard_buffer.array();
-
-            let j = 0;
-            for (let i = 0; i < block_arr.length; i++) {
-                if (disc_arr[i] == 0) {
-                    bcache_arr[j] = block_arr[i];
-                    j++;
-                }
-            }
+            scran.filterBlock(block, this.#cache.discard_buffer, { buffer: bcache });
         } else {
             utils.freeCache(this.#cache.block_buffer);
             this.#cache.block_buffer = null;
