@@ -370,21 +370,6 @@ function bind_datasets(dkeys, datasets) {
             output.genes[a] = current.genes;
         }
 
-        let total = output.matrix.numberOfColumns();
-        blocks = scran.createInt32WasmArray(total);
-        let barr = blocks.array();
-        let nice_barr = new Array(total);
-        let sofar = 0;
-        for (var i = 0; i < dkeys.length; i++) {
-            let old = sofar;
-            let current = datasets[dkeys[i]];
-            sofar += current.matrix.numberOfColumns();
-            barr.fill(i, old, sofar);
-            nice_barr.fill(dkeys[i], old, sofar);
-        }
-        output.block_ids = blocks;
-        output.block_levels = dkeys;
-
         // Get all annotations keys across datasets; we then concatenate
         // columns with the same name, or we just fill them with missings.
         let lengths = [];
@@ -398,8 +383,17 @@ function bind_datasets(dkeys, datasets) {
             }
             lengths.push(current.matrix.numberOfColumns());
         }
-
         output.annotations = scran.combineArrayCollections(annos, { lengths: lengths });
+
+        // Generating a block vector.
+        let ncells = new Array(dkeys.length);
+        dkeys.forEach((x, i) => { ncells[i] = datasets[x].matrix.numberOfColumns(); });
+        blocks = scran.createBlock(ncells);
+        output.block_ids = blocks;
+        output.block_levels = dkeys;
+
+        let nice_barr = new Array(blocks.length);
+        blocks.forEach((x, i) => { nice_bar[i] = dkeys[x]; })
         output.annotations["__batch__"] = nice_barr;
 
     } catch (e) {
@@ -454,21 +448,11 @@ async function process_datasets(matrices, sample_factor) {
                     throw new Error("length of sample factor '" + sample_factor + "' should be equal to the number of cells"); 
                 }
 
-                blocks = scran.createInt32WasmArray(ncols);
-                block_levels = [];
-                let block_arr = blocks.array();
-
-                let uvals = {};
-                anno_batch.forEach((x, i) => {
-                    if (!(x in uvals)) {
-                        uvals[x] = block_levels.length;
-                        block_levels.push(x);
-                    }
-                    block_arr[i] = uvals[x];
-                });
-
+                let converted = scran.convertBlock(anno_batch);
+                blocks = converted.ids;
+                block_levels = converted.levels;
                 if (anno_levels !== null) {
-                    block_levels = Array.from(block_levels).map(i => anno_levels[i]);
+                    block_levels = block_levels.map(i => anno_levels[i]);
                 }
 
             } catch (e) {
