@@ -335,7 +335,7 @@ function bind_single_modality(dkeys, datasets, type) {
         // Extracting gene information from the first object. We won't make
         // any attempt at merging and deduplication across objects.
         let first_genes = genes[dkeys[0]];
-        output.genes = scran.sliceArrayCollection(first_genes, merged.indices);
+        output.genes = scran.subsetArrayCollection(first_genes, merged.indices);
 
     } catch (e) {
         utils.freeCache(output.matrix);
