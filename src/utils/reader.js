@@ -125,13 +125,11 @@ export function promoteToNumber(x) {
 
 export class MultiMatrix {
     #store;
-    #nrows;
     #ncols;
 
     constructor({ store = {} } = {}) {
         this.#store = store;
         this.#ncols = null;
-        this.#nrows = 0;
 
         let keys = Object.keys(store);
         if (keys.length) {
@@ -144,16 +142,11 @@ export class MultiMatrix {
                     throw new Error("all matrices should have the same number of columns");
                 }
             }
-            keys.forEach(x => { this.#nrows += store[x].numberOfRows(); });
         }
     }
 
     numberOfColumns() {
         return this.#ncols;
-    }
-
-    numberOfRows() {
-        return this.#nrows;
     }
 
     available() {
@@ -177,12 +170,10 @@ export class MultiMatrix {
 
         if (i in this.#store) {
             let old = this.#store[i];
-            this.#nrows -= old.numberOfRows();
             utils.freeCache(old);
         }
 
         this.#store[i] = matrix;
-        this.#nrows += matrix.numberOfRows();
     }
 
     remove(i) {

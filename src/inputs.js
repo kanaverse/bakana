@@ -209,11 +209,14 @@ export class InputsState {
      * - (optional) `annotations`: an array of strings containing the names of available cell annotation fields.
      */
     summary() {
+        let ngenes = {};
+        for (const a of this.#cache.matrix.available()) {
+            ngenes[a] = this.#cache.matrix.get(a).numberOfRows();
+        }
+        
         var output = {
-            "dimensions": {
-                "num_genes": this.#cache.matrix.numberOfRows(),
-                "num_cells": this.#cache.matrix.numberOfColumns()
-            },
+            "num_cells": this.#cache.matrix.numberOfColumns(),
+            "num_genes": ngenes,
             "genes": { ...(this.#cache.genes) }
         };
         if (this.#cache.annotations !== null) {
@@ -279,7 +282,12 @@ export class InputsState {
 
         {
             let rhandle = ghandle.createGroup("results");
-            rhandle.writeDataSet("dimensions", "Int32", null, [this.#cache.matrix.numberOfRows(), this.#cache.matrix.numberOfColumns()]);
+            rhandle.writeDataSet("num_cells", "Int32", [], this.#cache.matrix.numberOfColumns());
+
+            let fhandle = rhandle.createGroup("num_features");
+            for (const a of this.#cache.matrix.available()) {
+                fhandle.writeDataSet(a, "Int32", [], this.#cache.matrix.get(a).numberOfRows());
+            }
 
             // For diagnostic purposes, we store the number of samples;
             // this may not be captured by the parameters if we're dealing
