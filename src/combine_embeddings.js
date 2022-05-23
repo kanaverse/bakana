@@ -166,7 +166,7 @@ export class CombineEmbeddingsState {
             if (pcs.pcs.owner === null) {
                 // If it's not a view, we save it; otherwise we assume
                 // that we can recover it from the upstream PCA states.
-                rhandle.writeDataSet("pcs", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
+                rhandle.writeDataSet("combined", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
             }
         }
     }
@@ -199,8 +199,8 @@ export function unserialize(handle, pca_states) {
         try {
             let rhandle = ghandle.open("results");
 
-            if ("pcs" in rhandle.children) {
-                let phandle = rhandle.open("pcs", { load: true });
+            if ("combined" in rhandle.children) {
+                let phandle = rhandle.open("combined", { load: true });
                 cache.num_cells = phandle.shape[0];
                 cache.total_dims = phandle.shape[1];
 
@@ -219,7 +219,7 @@ export function unserialize(handle, pca_states) {
 
             output = new CombineEmbeddingsState(pca_states, parameters, cache);
         } catch (e) {
-            utils.freeCache(cache.pcs);
+            utils.freeCache(cache.combined_buffer);
             utils.freeCache(output);
             throw e;
         }
