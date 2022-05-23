@@ -175,7 +175,16 @@ export function unserialize(handle, filter, combined) {
         }
     } else {
         // Fallback for v1.
-        output = new BatchCorrectionState(filter, combined);
+        let ghandle = handle.open("pca");
+
+        let rhandle = ghandle.open("results");
+        if ("corrected" in rhandle) {
+            let corrected = rhandle.open("corrected", { load: true }).values;
+            let corbuffer = utils.allocateCachedArray(corrected.length, "Float64Array", cache, "corrected");
+            corbuffer.set(corrected);
+        }
+
+        output = new BatchCorrectionState(filter, combined, parameters, cache);
     }
 
     return {

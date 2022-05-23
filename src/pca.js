@@ -192,7 +192,10 @@ export function unserialize(handle, filter, norm, feat) {
 
         // For back-compatibility.
         if ("block_method" in phandle.children) {
-            parameters.block_method = phandle.open("block_method", { load: true }).values[0]
+            parameters.block_method = phandle.open("block_method", { load: true }).values[0];
+            if (parameters.block_method == "mnn") {
+                parameters.block_method = "weight";
+            }
         } else {
             parameters.block_method = "none";
         }
