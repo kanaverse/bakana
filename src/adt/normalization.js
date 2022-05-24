@@ -121,6 +121,9 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
                 var block = this.#filter.fetchFilteredBlock();
                 var sf_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "sf_buffer");
                 scran.quickAdtSizeFactors(mat, { totals: total_buffer, block: block, buffer: sf_buffer, numberOfPCs: num_pcs, numberOfClusters: num_clusters });
+
+                this.#parameters.num_pcs = num_pcs;
+                this.#parameters.num_clusters = num_clusters;
                 this.changed = true;
             }
         } 

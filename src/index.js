@@ -291,9 +291,9 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
 
     quickStart(step_correct);
     state[step_correct].compute(
-        params[step_combine]["method"],
-        params[step_combine]["num_neighbors"],
-        params[step_combine]["approximate"]
+        params[step_correct]["method"],
+        params[step_correct]["num_neighbors"],
+        params[step_correct]["approximate"]
     );
     quickFinish(step_correct);
 

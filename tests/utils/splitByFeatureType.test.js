@@ -38,7 +38,6 @@ test("splitting by feature type works as expected when there are no ADTs", () =>
     });
 
     let deets = reader.load();
-    expect(deets.matrix.numberOfRows()).toBe(deets.genes.RNA.id.length);
     expect(deets.matrix.get("RNA").numberOfRows()).toBe(deets.genes.RNA.id.length);
     expect(deets.matrix.has("ADT")).toBe(false);
 })
