@@ -64,8 +64,7 @@ test("reanalysis from a v1.1 analysis works correctly (10X combined)", async () 
     let new_params = reloaded.parameters;
 
     // Missing steps are filled in.
-    expect("cell_labelling" in new_params).toBe(true);
-    expect("kmeans_cluster" in new_params).toBe(true);
+    expect("adt_normalization" in new_params).toBe(true);
 
     // Cleaning up.
     bakana.freeAnalysis(new_state);
@@ -80,8 +79,37 @@ test("reanalysis from a v1.1 analysis works correctly (MatrixMarket)", async () 
     let new_params = reloaded.parameters;
 
     // Missing steps are filled in.
-    expect("cell_labelling" in new_params).toBe(true);
-    expect("kmeans_cluster" in new_params).toBe(true);
+    expect("adt_normalization" in new_params).toBe(true);
+
+    // Cleaning up.
+    bakana.freeAnalysis(new_state);
+})
+
+test("reanalysis from a v1.2 analysis works correctly (10X combined)", async () => {
+    const h5path = "TEST_v1.2_state.h5";
+    let loader = await bakana.parseKanaFile("files/legacy/pbmc-combined-with-kmeans-and-custom_tenx_20220525.kana", h5path);
+    let reloaded = await bakana.loadAnalysis(h5path, loader);
+
+    let new_state = reloaded.state;
+    let new_params = reloaded.parameters;
+
+    // Missing steps are filled in.
+    expect("adt_normalization" in new_params).toBe(true);
+
+    // Cleaning up.
+    bakana.freeAnalysis(new_state);
+})
+
+test("reanalysis from a v1.2 analysis works correctly (MatrixMarket)", async () => {
+    const h5path = "TEST_v1.1_state.h5";
+    let loader = await bakana.parseKanaFile("files/legacy/pbmc4k-with-kmeans-and-custom_mtx_20220525.kana", h5path);
+    let reloaded = await bakana.loadAnalysis(h5path, loader);
+
+    let new_state = reloaded.state;
+    let new_params = reloaded.parameters;
+
+    // Missing steps are filled in.
+    expect("adt_normalization" in new_params).toBe(true);
 
     // Cleaning up.
     bakana.freeAnalysis(new_state);
