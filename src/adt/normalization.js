@@ -150,11 +150,16 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
     /**
      * Obtain a summary of the state, typically for display on a UI like **kana**.
      *
-     * @return An empty object.
-     * This is just provided for consistency with the other classes.
+     * @return {object} Object containing `size_factors`, a Float64Array containing the size factor for each cell.
      */
     summary() {
-        return {};
+        if (!this.valid()) {
+            return null;
+        }
+
+        return {
+            size_factors: this.#cache.sf_buffer.slice()
+        };
     }
 
     /*************************

@@ -42,6 +42,26 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     expect(loaded.row(last)).toEqual(mat.row(last));
     mat.free();
 
+    // Checking all the computations.
+    {
+        // QC.
+        let summ = state.adt_quality_control.summary();
+        let positive_total = 0;
+        summ.data.default.igg_total.forEach(x => { positive_total += (x > 0); });
+        expect(positive_total).toBeGreaterThan(0);
+        expect(summ.thresholds.default.detected).toBeGreaterThan(0);
+        expect(summ.thresholds.default.igg_total).toBeGreaterThan(0);
+    }
+
+    {
+        // Normalization.
+        let norm = state.adt_normalization.summary();
+        expect(norm.size_factors.length).toBeGreaterThan(0);
+        let positive_total = 0;
+        norm.size_factors.forEach(x => { positive_total += (x > 0); });
+        expect(positive_total).toBeGreaterThan(0);
+    }
+
     // Saving and loading.
     const path = "TEST_state_adt.h5";
     let collected = await bakana.saveAnalysis(state, path);
