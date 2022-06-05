@@ -89,7 +89,13 @@ export function preflight(args) {
     const tmppath = afile.realizeH5(formatted.content);
     try {
         let handle = new scran.H5File(tmppath);
-        output.genes = extract_features(handle);
+
+        output.genes = { "RNA": extract_features(handle) };
+        let split_out = rutils.splitByFeatureType(null, output.genes.RNA);
+        if (split_out !== null) {
+            output.genes = split_out.genes;
+        }
+
         let annotations = extract_annotations(handle, { load: false });
         output.annotations = Object.keys(annotations); 
     } finally {

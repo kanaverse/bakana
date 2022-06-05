@@ -331,22 +331,26 @@ export function splitByFeatureType(matrix, genes) {
         }
     }
 
+    let output = {};
+
     // Skipping 'type', as it's done its purpose now.
     let gene_deets = { ...genes };
     delete gene_deets.type;
-    let out_genes = scran.splitArrayCollection(gene_deets, types);
+    output.genes = scran.splitArrayCollection(gene_deets, types);
 
-    // Allocating the split matrices.
-    let out_mats;
-    try {
-        out_mats = new MultiMatrix({ store: scran.splitRows(matrix, types) });
-    } catch (e) {
-        utils.freeCache(out_mats);
-        throw e;
+    if (matrix !== null) {
+        // Allocating the split matrices. Note that this is skipped in the
+        // 'null' case to support feature splitting for the preflight requests
+        // (where the matrix is not loaded, obviously).
+        let out_mats;
+        try {
+            out_mats = new MultiMatrix({ store: scran.splitRows(matrix, types) });
+            output.matrices = out_mats;
+        } catch (e) {
+            utils.freeCache(out_mats);
+            throw e;
+        }
     }
 
-    return { 
-        matrices: out_mats, 
-        genes: out_genes 
-    };
+    return output;
 }
