@@ -73,7 +73,7 @@ export function allocateCachedArray(size, type, cache, name = "buffer") {
 }
 
 export function isObject(object) {
-    return typeof object === 'object' && Array.isArray(object) === false;
+    return typeof object === 'object' && Array.isArray(object) === false && ArrayBuffer.isView(object) === false;
 }
 
 export function findValidUpstreamStates(states, msg) {
