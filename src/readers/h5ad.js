@@ -64,11 +64,7 @@ function extract_annotations(handle, { namesOnly = false } = {}) {
                     let cats = rutils.extractHDF5Strings(chandle, key);
                     if (cats.type !== null) {
                         let old = annotations[key];
-                        annotations[key] = {
-                            "type": "factor",
-                            "index": old,
-                            "levels": cats
-                        }
+                        annotations[key] = old.map(x => cats[x]);
                     }
                 }
             }
