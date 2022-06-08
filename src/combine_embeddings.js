@@ -103,7 +103,7 @@ export class CombineEmbeddingsState {
                 let weight_arr = null;
                 if (weights !== null) {
                     weight_arr = [];
-                    for (const x of used) {
+                    for (const x of to_use) {
                         if (!(x in weights)) {
                             throw new Error("no weight specified for '" + x + "'");
                         }
