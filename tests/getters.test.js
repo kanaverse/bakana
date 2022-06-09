@@ -32,16 +32,15 @@ test("fetching of various bits and pieces is done correctly", async () => {
 
     // Factor annotations, with and without filtering.
     let cell_anno = state.inputs.fetchAnnotations("level1class");
-    expect(cell_anno.index.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
+    expect(cell_anno.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
     let filtered_anno = state.cell_filtering.fetchFilteredAnnotations("level1class");
-    expect(filtered_anno.index.length).toBe(nfiltered);
-    expect(filtered_anno.levels.length).toBeLessThan(20);
+    expect(filtered_anno.length).toBe(nfiltered);
 
     // Non-factor annotations, with and without filtering.
     let sex_anno = state.inputs.fetchAnnotations("sex");
-    expect(sex_anno.values.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
+    expect(sex_anno.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
     let filtered_sex = state.cell_filtering.fetchFilteredAnnotations("sex");
-    expect(filtered_sex.values.length).toBe(nfiltered);
+    expect(filtered_sex.length).toBe(nfiltered);
 
     await bakana.freeAnalysis(state);
 })
@@ -62,12 +61,19 @@ test("manual factorization is done correctly", async () => {
     // factor form by the fetchAnnotations function. Here we check that the manual
     // factorization process was performed correctly.
     let cell_anno = state.inputs.fetchAnnotations("3k");
-    expect(cell_anno.index.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
+    expect(cell_anno.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
 
     let filtered_anno = state.cell_filtering.fetchFilteredAnnotations("3k");
     let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
-    expect(filtered_anno.index.length).toBe(nfiltered);
-    expect(filtered_anno.levels.length).toBe(2);
+    expect(filtered_anno.length).toBe(nfiltered);
+
+    let unique_levels = new Set;
+    filtered_anno.forEach(x => {
+        if (!unique_levels.has(x)) {
+            unique_levels.add(x);
+        }
+    });
+    expect(unique_levels.size).toBe(2);
 
     await bakana.freeAnalysis(state);
 })

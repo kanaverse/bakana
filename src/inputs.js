@@ -62,17 +62,7 @@ export class InputsState {
      *
      * @param {string} col - Name of the annotation field of interest.
      *
-     * @return An object containing the requested annotations.
-     * This will contain:
-     * - `type`: string specifying the the type of annotations.
-     *   This can be either `"factor"` or `"array"`.
-     *
-     * For `type: "factor"`, the object will additionally contain:
-     * - `levels`: an array of strings containing the unique factor levels.
-     * - `index`: an Int32Array of length equal to the number of cells, referencing entries in `levels`.
-     * 
-     * For `type: "array"`, the object will additionally contain:
-     * - `values`: a TypedArray of values of length equal to the number of cells.
+     * @return {Array|TypedArray} Array of length equal to the total number of cells, containing the requested annotations.
      */
     fetchAnnotations(col) {
         let annots = this.#cache.annotations;
@@ -82,42 +72,8 @@ export class InputsState {
             throw new Error(`${col} does not exist in the column annotations`);
         }
 
-        let current = annots[col];
-
-        // i.e., is it already a factor? In which case, we make a copy of its contents.
-        // This ensures we don't have any accidental writes or transfers. 
-        if (ArrayBuffer.isView(current)) {
-            return {
-                "type": "array",
-                "values": current.slice()
-            };
-        } else if (utils.isObject(current)) {
-            if (!("type" in current) || current.type != "factor") {
-                throw new Error("annotation column should have 'type: \"factor\"' if it is an object");
-            }
-            return { 
-                type: current.type,
-                index: current.index.slice(),
-                levels: current.levels.slice()
-            };
-        }
-
-        let uniq_vals = [];
-        let uniq_map = {};
-        let indices = new Int32Array(size);
-        annots[col].map((x, i) => {
-            if (!(x in uniq_map)) {
-                uniq_map[x] = uniq_vals.length;
-                uniq_vals.push(x);
-            }
-            indices[i] = uniq_map[x];
-        });
-
-        return {
-            "type": "factor",
-            "index": indices,
-            "levels": uniq_vals
-        };
+        // Make a copy, avoid accidental writes or transfers. 
+        return annots[col].slice();
     }
 
     fetchBlock() {
@@ -444,25 +400,12 @@ async function process_datasets(matrices, sample_factor) {
             // Single matrix with a batch factor.
             try {
                 let anno_batch = current.annotations[sample_factor];
-
-                let anno_levels = null;
-                if (utils.isObject(anno_batch)) {
-                    anno_levels = anno_batch.levels;
-                    anno_batch = anno_batch.index;
-                }
-
-                let ncols = current.matrix.numberOfColumns();
-                if (anno_batch.length != ncols) {
+                if (anno_batch.length != current.matrix.numberOfColumns()) {
                     throw new Error("length of sample factor '" + sample_factor + "' should be equal to the number of cells"); 
                 }
-
                 let converted = scran.convertBlock(anno_batch);
                 blocks = converted.ids;
                 block_levels = converted.levels;
-                if (anno_levels !== null) {
-                    block_levels = block_levels.map(i => anno_levels[i]);
-                }
-
             } catch (e) {
                 utils.freeCache(blocks);
                 utils.freeCache(current.matrix);

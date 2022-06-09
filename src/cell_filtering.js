@@ -86,21 +86,12 @@ export class CellFilteringState {
      *
      * @param {string} col - Name of the annotation field of interest.
      *
-     * @return An object similar to that returned by {@linkcode InputsState#fetchAnnotations InputsState.fetchAnnotations},
-     * after filtering the vectors to only contain information for the remaining cells.
-     * - For `type: "factor"`, the array in `index` will be filtered.
-     * - For `type: "array"`, the array in `values` will be filtered.
+     * @return {Array|TypedArray} Array of length equal to the number of filtered cells, containing the requested annotations.
      */
     fetchFilteredAnnotations(col) { 
         let vec = this.#inputs.fetchAnnotations(col);
         var discard = this.#cache.discard_buffer.array();
-        let filterfun = (x, i) => !discard[i];
-        if (vec.type === "factor") {
-            vec.index = vec.index.filter(filterfun);
-        } else {
-            vec.values = vec.values.filter(filterfun);
-        }
-        return vec;
+        return vec.filter((x, i) => !discard[i]);
     }
 
     /***************************
