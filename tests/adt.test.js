@@ -118,3 +118,59 @@ test("runAnalysis works correctly (10X)", async () => {
     // Release me!
     await bakana.freeAnalysis(state);
 })
+
+test("runAnalysis works for ADTs with blocking", async () => {
+    let state = await bakana.createAnalysis();
+    let params = utils.baseParams();
+
+    // Mocking up a blocking file with pretend batches.
+    let exfile = "TEST_adt_block.tsv";
+    {
+        let previous = "files/datasets/immune_3.0.0-barcodes.tsv.gz";
+        let f = fs.readFileSync(previous);
+        let buff = f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
+        let stuff = bakana.readTable(new Uint8Array(buff));
+
+        let ncells = stuff.length;
+        let per_block = Math.ceil(ncells / 3);
+        let blocks = new Array(ncells);
+        for (var c = 0; c < ncells; c++) {
+            blocks[c] = 'A' + String(Math.floor(c / per_block));
+        }
+
+        fs.writeFileSync(exfile, blocks.join("\n"));
+    }
+    params.inputs.sample_factor = "A0";
+
+    let res = await bakana.runAnalysis(state, 
+        {
+            "combined": {
+                format: "MatrixMarket",
+                mtx: "files/datasets/immune_3.0.0-matrix.mtx.gz",
+                genes: "files/datasets/immune_3.0.0-features.tsv.gz",
+                annotations: exfile
+            }
+        },
+        params
+    );
+
+    let qcstate = state.adt_quality_control;
+    let summ = qcstate.summary();
+
+    // Checking that that there are multiple metrics.
+    let positive_total = 0;
+    summ.data["A0"].detected.forEach(x => { positive_total += (x > 0); });
+    expect(positive_total).toBeGreaterThan(0);
+
+    positive_total = 0;
+    summ.data["A2"].igg_total.forEach(x => { positive_total += (x > 0); });
+    expect(positive_total).toBeGreaterThan(0);
+
+    // Checking that the thresholds are sensible.
+    expect(summ.thresholds["A0"].detected).toBeGreaterThan(0);
+    expect(summ.thresholds["A1"].detected).toBeGreaterThan(0);
+    expect(summ.thresholds["A1"].igg_total).toBeGreaterThan(0);
+
+    // Freeing everyone.
+    bakana.freeAnalysis(state);
+})

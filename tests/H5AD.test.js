@@ -33,6 +33,34 @@ test("runAnalysis works correctly (H5AD)", async () => {
     expect(contents.cell_labelling instanceof Object).toBe(true);
     expect(contents.marker_detection instanceof Object).toBe(true);
 
+    // Computations are done correctly.
+    {
+        // Markers.
+        expect(state.marker_detection.numberOfGroups()).toBeGreaterThan(0);
+
+        let res = state.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
+        expect("ordering" in res).toBe(true);
+        expect("means" in res).toBe(true);
+        expect("lfc" in res).toBe(true);
+
+        // Normalized expression.
+        let exprs = state.normalization.fetchExpression(0);
+        let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
+        expect(exprs.length).toBe(nfiltered);
+
+        // Factor annotations, with and without filtering.
+        let cell_anno = state.inputs.fetchAnnotations("level1class");
+        expect(cell_anno.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
+        let filtered_anno = state.cell_filtering.fetchFilteredAnnotations("level1class");
+        expect(filtered_anno.length).toBe(nfiltered);
+
+        // Non-factor annotations, with and without filtering.
+        let sex_anno = state.inputs.fetchAnnotations("sex");
+        expect(sex_anno.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
+        let filtered_sex = state.cell_filtering.fetchFilteredAnnotations("sex");
+        expect(filtered_sex.length).toBe(nfiltered);
+    }
+
     // Saving and loading.
     const path = "TEST_state_H5AD.h5";
     let collected = await bakana.saveAnalysis(state, path);

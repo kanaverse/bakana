@@ -34,14 +34,57 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         }
     );
 
-    expect(attempts.has("quality_control")).toBe(true);
     expect(attempts.has("pca")).toBe(true);
-    expect(contents.quality_control instanceof Object).toBe(true);
-    expect(contents.quality_control.thresholds.default.proportion).toBeGreaterThan(0);
     expect(contents.pca instanceof Object).toBe(true);
     expect(contents.feature_selection instanceof Object).toBe(true);
     expect(contents.cell_labelling instanceof Object).toBe(true);
-    expect(contents.marker_detection instanceof Object).toBe(true);
+
+    // Quality control.
+    {
+        expect(attempts.has("quality_control")).toBe(true);
+        expect(contents.quality_control instanceof Object).toBe(true);
+        expect(contents.quality_control.thresholds.default.proportion).toBeGreaterThan(0);
+    }
+
+    // Markers.
+    {
+        expect(contents.marker_detection instanceof Object).toBe(true);
+        expect(state.marker_detection.numberOfGroups()).toBeGreaterThan(0);
+
+        let res = state.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
+        expect("ordering" in res).toBe(true);
+        expect("means" in res).toBe(true);
+        expect("lfc" in res).toBe(true);
+    }
+
+    // Normalized expression.
+    {
+        let exprs = state.normalization.fetchExpression(0);
+        let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
+        expect(exprs.length).toBe(nfiltered);
+    }
+
+    // ADTs are no-ops.
+    {
+        expect(state.adt_quality_control.summary()).toBeNull();
+        expect(state.adt_normalization.summary()).toBeNull();
+        expect(state.adt_pca.summary()).toBeNull();
+    }
+
+    // Animation catcher workers correctly.
+    {
+        let collected = { tsne: [], umap: [] }
+        let fun = bakana.setVisualizationAnimate((type, x, y, iterations) => {
+            collected[type].push(iterations);
+        });
+
+        let p = [state.tsne.animate(), state.umap.animate()];
+        await Promise.all(p);
+        bakana.setVisualizationAnimate(null)
+
+        expect(collected.tsne.length).toBeGreaterThan(0);
+        expect(collected.umap.length).toBeGreaterThan(0);
+    }
 
     // Saving and loading.
     const path = "TEST_state_MatrixMarket.h5";
