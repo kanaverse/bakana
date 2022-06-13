@@ -83,44 +83,59 @@ export class CombineEmbeddingsState {
         let to_use = utils.findValidUpstreamStates(this.#pca_states, "PCA");
         let needs_combining = to_use.length > 1;
 
-        if (this.changed || approximate !== this.#parameters.approximate || utils.changedParameters(weights, this.#parameters.weights)) {
-            if (needs_combining) {
-                let collected = [];
-                let total = 0;
-                let ncells = null;
-
-                for (const k of to_use) {
-                    let curpcs = this.#pca_states[k].fetchPCs();
-                    collected.push(curpcs.pcs);
-                    if (ncells == null) {
-                        ncells = curpcs.num_obs;
-                    } else if (ncells !== curpcs.num_obs) {
-                        throw new Error("number of cells should be consistent across all embeddings");
-                    }
-                    total += curpcs.num_pcs;
-                }
-
+        if (needs_combining) {
+            if (this.changed || approximate !== this.#parameters.approximate || utils.changedParameters(weights, this.#parameters.weights)) {
                 let weight_arr = null;
+
                 if (weights !== null) {
                     weight_arr = [];
+                    let has_pos_weight = [];
+
                     for (const x of to_use) {
                         if (!(x in weights)) {
                             throw new Error("no weight specified for '" + x + "'");
                         }
-                        weight_arr.push(weights[x]);
+                        if (weights[x] > 0) {
+                            weight_arr.push(weights[x]);
+                            has_pos_weight.push(x);
+                        }
                     }
+
+                    to_use = has_pos_weight;
                 }
 
-                let buffer = utils.allocateCachedArray(ncells * total, "Float64Array", this.#cache, "combined_buffer");
-                scran.scaleByNeighbors(collected, ncells, { buffer: buffer, weights: weight_arr, approximate: approximate });
-                this.#cache.num_cells = ncells;
-                this.#cache.total_dims = total;
+                if (to_use.length == 1) {
+                    // If only one modality has positive weight,
+                    // we can skip the calculation of combined embeddings.
+                    let pcs = this.#pca_states[to_use[0]].fetchPCs();
+                    this.constructor.createPcsView(this.#cache, pcs);
+
+                } else {
+                    let collected = [];
+                    let total = 0;
+                    let ncells = null;
+
+                    for (const k of to_use) {
+                        let curpcs = this.#pca_states[k].fetchPCs();
+                        collected.push(curpcs.pcs);
+                        if (ncells == null) {
+                            ncells = curpcs.num_obs;
+                        } else if (ncells !== curpcs.num_obs) {
+                            throw new Error("number of cells should be consistent across all embeddings");
+                        }
+                        total += curpcs.num_pcs;
+                    }
+
+                    let buffer = utils.allocateCachedArray(ncells * total, "Float64Array", this.#cache, "combined_buffer");
+                    scran.scaleByNeighbors(collected, ncells, { buffer: buffer, weights: weight_arr, approximate: approximate });
+                    this.#cache.num_cells = ncells;
+                    this.#cache.total_dims = total;
+                }
+
                 this.changed = true;
             }
-        }
-
-        if (this.changed) {
-            if (!needs_combining) {
+        } else {
+            if (this.changed) {
                 // If there's only one embedding, we shouldn't respond to changes
                 // in parameters, because they won't have any effect.
                 let pcs = this.#pca_states[to_use[0]].fetchPCs();
@@ -210,9 +225,21 @@ export function unserialize(handle, pca_states) {
             } else {
                 // Creating a view from the valid upstream PCA state.
                 let to_use = utils.findValidUpstreamStates(pca_states, "PCA");
-                if (to_use.length != 1) {
-                    throw new Error("only one upstream PCA state should be valid if 'discards' is not available");
+
+                if (to_use.length > 1 && parameters.weights !== null) {
+                    let has_nonzero_weight = [];
+                    for (const k of to_use) {
+                        if (parameters.weights[k] > 0) {
+                            has_nonzero_weight.push(k);
+                        }
+                    }
+                    to_use = has_nonzero_weight;
                 }
+
+                if (to_use.length != 1) {
+                    throw new Error("only one upstream PCA state should be valid with non-zero weight if 'combined' is not available");
+                }
+
                 let pcs = pca_states[to_use[0]].fetchPCs();
                 CombineEmbeddingsState.createPcsView(cache, pcs);
             }

@@ -2,6 +2,7 @@ import * as bakana from "../src/index.js";
 import * as utils from "./utils.js";
 import * as scran from "scran.js";
 import * as fs from "fs";
+import * as combine from "../src/combine_embeddings.js";
 
 beforeAll(async () => await bakana.initialize({ localFile: true }));
 afterAll(async () => await bakana.terminate());
@@ -130,6 +131,25 @@ test("runAnalysis works correctly (10X)", async () => {
     // Checking that the ADTs were split out.
     expect(state.inputs.hasAvailable("RNA")).toBe(true);
     expect(state.inputs.hasAvailable("ADT")).toBe(true);
+
+    // What happens when one of the modalities has zero weight?
+    {
+        state.combine_embeddings.compute({ "RNA": 1, "ADT": 0 }, true);
+        let pcs = state.combine_embeddings.fetchPCs();
+        expect(pcs.pcs.owner !== null).toBe(true);
+        expect(pcs.num_pcs).toBe(10);
+
+        const path = "TEST_state_adt.h5";
+        let fhandle = scran.createNewHDF5File(path);
+        state.combine_embeddings.serialize(fhandle);
+
+        let reloaded = combine.unserialize(fhandle, {"RNA": state.pca, "ADT": state.adt_pca});
+        let repcs = reloaded.state.fetchPCs();
+        expect(repcs.pcs.owner !== null).toBe(true);
+        expect(repcs.num_pcs).toBe(10);
+
+        reloaded.state.free();
+    }
 
     // Release me!
     await bakana.freeAnalysis(state);
