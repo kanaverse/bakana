@@ -59,4 +59,5 @@ test("runAnalysis works correctly (10X)", async () => {
 
     // Freeing.
     await bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(reloaded.state);
 })

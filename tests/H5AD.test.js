@@ -79,5 +79,6 @@ test("runAnalysis works correctly (H5AD)", async () => {
 
     // Freeing.
     await bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(reloaded.state);
 })
 
