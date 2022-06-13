@@ -10,12 +10,13 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
     let mtx = "files/datasets/immune_3.0.0-matrix.mtx.gz";
+    let feats = "files/datasets/immune_3.0.0-features.tsv.gz";
     let res = await bakana.runAnalysis(state, 
         { 
             default: {
                 format: "MatrixMarket",
                 mtx: mtx,
-                genes: "files/datasets/immune_3.0.0-features.tsv.gz",
+                genes: feats,
                 annotations: "files/datasets/immune_3.0.0-barcodes.tsv.gz"
             }
         },
@@ -27,20 +28,35 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     expect(state.inputs.hasAvailable("ADT")).toBe(true);
 
     // Check that the subsetting was done correctly.
-    let f = fs.readFileSync(mtx);
-    let buff = f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
-    let mat = scran.initializeSparseMatrixFromMatrixMarketBuffer(new Uint8Array(buff), { compressed: true });
+    {
+        let f = fs.readFileSync(mtx);
+        let buff = f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
+        let mat = scran.initializeSparseMatrixFromMatrixMarketBuffer(new Uint8Array(buff), { compressed: true });
 
-    let loaded = state.inputs.fetchCountMatrix({ type: "RNA" });
-    expect(mat.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
+        let loaded = state.inputs.fetchCountMatrix({ type: "RNA" });
+        expect(mat.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
 
-    let loaded_ids = loaded.identities();
-    let full_ids = mat.identities();
-    expect(loaded_ids).toEqual(full_ids.slice(0, loaded_ids.length));
+        let expected = [];
+        let is_rna = [];
+        {
+            let f = fs.readFileSync(feats);
+            let buff = f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
+            let tab = bakana.readTable(new Uint8Array(buff));
+            mat.identities().forEach((x, i) => {
+                if (tab[x][2].match(/Gene expression/i)) {
+                    is_rna.push(i);
+                    expected.push(x);
+                }
+            });
+        }
 
-    let last = loaded_ids.length - 1;
-    expect(loaded.row(last)).toEqual(mat.row(last));
-    mat.free();
+        let loaded_ids = loaded.identities();
+        expect(Array.from(loaded_ids)).toEqual(expected);
+
+        let last = loaded_ids.length - 1;
+        expect(loaded.row(last)).toEqual(mat.row(is_rna[last]));
+        mat.free();
+    }
 
     // Checking all the computations.
     {
