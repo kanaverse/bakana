@@ -1,4 +1,4 @@
-import * as bakana from "../src/index.js";
+import * as bakana from "../../src/index.js";
 import * as pako from "pako";
 
 test("unpacking text works as expected", () => {
