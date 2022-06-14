@@ -1,3 +1,16 @@
+import * as inputs from "./inputs.js";
+import * as qc from "./quality_control.js";
+import * as qcadt from "./adt/quality_control.js";
+import * as filter from "./cell_filtering.js";
+import * as norm from "./normalization.js";
+import * as normadt from "./adt/normalization.js";
+import * as pca from "./pca.js";
+import * as pcaadt from "./adt/pca.js";
+import * as combine from "./combine_embeddings.js";
+import * as correct from "./batch_correction.js";
+import * as markers from "./marker_detection.js";
+import * as custom from "./custom_selections.js";
+
 /**
  * Generate an object containing all of the default analysis parameters.
  *
@@ -6,6 +19,8 @@
  * 
  * - {@linkcode InputsState#compute inputs}
  * - {@linkcode QualityControlState#compute quality_control}
+ * - {@linkcode AdtQualityControlState#compute adt_quality_control}
+ * - {@linkcode CellFiltering#compute cell_filtering}
  * - {@linkcode FeatureSelectionState#compute feature_selection}
  * - {@linkcode PcaState#compute pca}
  * - {@linkcode NeighborIndexState#compute neighbor_index}
@@ -17,22 +32,15 @@
  * - {@linkcode CellLabellingState#compute cell_labelling}
  */
 export function analysisDefaults() {
-    return {
-        inputs: {
-            sample_factor: null
-        },
-        quality_control: {
-            use_mito_default: true,
-            mito_prefix: "mt-",
-            nmads: 3
-        },
+    var output = {
         feature_selection: {
             span: 0.3
         },
-        pca: {
-            num_hvgs: 2000,
-            num_pcs: 20,
-            block_method: "none"
+        combine_embeddings: {
+            weights: null
+        },
+        batch_correction: {
+            method: "none"
         },
         neighbor_index: {
             approximate: true
@@ -64,4 +72,23 @@ export function analysisDefaults() {
             human_references: []
         }
     };
+
+    output[inputs.step_name] = inputs.InputsState.defaults();
+
+    output[qc.step_name] = qc.QualityControlState.defaults();
+    output[qcadt.step_name] = qcadt.AdtQualityControlState.defaults();
+    output[filter.step_name] = filter.CellFilteringState.defaults();
+
+    output[norm.step_name] = norm.NormalizationState.defaults();
+    output[normadt.step_name] = normadt.AdtNormalizationState.defaults();
+
+    output[pca.step_name] = pca.PcaState.defaults();
+    output[pcaadt.step_name] = pcaadt.AdtPcaState.defaults();
+    output[combine.step_name] = combine.CombineEmbeddingsState.defaults();
+    output[correct.step_name] = correct.BatchCorrectionState.defaults();
+
+    output[markers.step_name] = markers.MarkerDetectionState.defaults();
+    output[custom.step_name] = custom.CustomSelectionsState.defaults();
+
+    return output;
 }

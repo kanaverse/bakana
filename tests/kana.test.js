@@ -44,6 +44,9 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
 
     // Checking that we got something that was reasonable.
     expect(reloaded.state.pca.summary()).toEqual(ref_pca);
+
+    // Releasing all memory.
+    await bakana.freeAnalysis(reloaded.state);
 })
 
 test("saving to and loading from a kana file works with links", async () => {
@@ -76,4 +79,7 @@ test("saving to and loading from a kana file works with links", async () => {
     // Reverting the linkers.
     bakana.setCreateLink(old_create);
     bakana.setResolveLink(old_resolve);
+
+    // Releasing all memory.
+    await bakana.freeAnalysis(reloaded.state);
 })

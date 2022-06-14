@@ -47,6 +47,7 @@ test("switching between clustering methods (SNN first)", async () => {
 
     contents = {};
     await bakana.runAnalysis(state, files, paramcopy, { finishFun: finished });
+    expect(contents.inputs).toBeUndefined();
     expect(contents.pca).toBeUndefined();
     expect(contents.snn_graph_cluster).toBeUndefined();
     expect(contents.kmeans_cluster instanceof Object).toBe(true);

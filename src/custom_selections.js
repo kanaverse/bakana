@@ -1,8 +1,11 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
+import * as nutils from "./utils/normalization.js";
 import * as markers from "./utils/markers.js";
-import * as qc_module from "./quality_control.js";
+import * as filter_module from "./cell_filtering.js";
 import * as norm_module from "./normalization.js";
+
+export const step_name = "custom_selections";
 
 /**
  * Applications can perform marker detection on custom selections of cells.
@@ -13,31 +16,39 @@ import * as norm_module from "./normalization.js";
  * @hideconstructor
  */
 export class CustomSelectionsState {
-    #qc;
-    #norm;
+    #filter;
+    #norm_states;
     #cache;
     #parameters;
 
-    constructor(qc, norm, parameters = null, cache = null) {
-        if (!(qc instanceof qc_module.QualityControlState)) {
-            throw new Error("'qc' should be a State object from './quality_control.js'");
+    constructor(filter, norm_states, parameters = null, cache = null) {
+        if (!(filter instanceof filter_module.CellFilteringState)) {
+            throw new Error("'filter' should be a State object from './cell_filtering.js'");
         }
-        this.#qc = qc;
+        this.#filter = filter;
 
-        if (!(norm instanceof norm_module.NormalizationState)) {
-            throw new Error("'norm' should be a State object from './normalization.js'");
+        for (const norm of Object.values(norm_states)) {
+            if (!(norm instanceof nutils.NormalizationStateBase)) {
+                throw new Error("'norm' should be a NormalizationStateBase object");
+            }
         }
-        this.#norm = norm;
+        this.#norm_states = norm_states;
 
         this.#cache = (cache === null ? { "results": {} } : cache); 
         this.#parameters = (parameters === null ? { "selections": {} } : parameters);
         this.changed = false;
     }
 
+    #liberate(i) {
+        for (const [k, v] of Object.entries(this.#cache.results[i].raw)) {
+            v.free();                                                
+        }
+    }
+
     free() {
         utils.freeCache(this.#cache.buffer);
-        for (const [k, v] of Object.entries(this.#cache.results)) {
-            v.raw.free();
+        for (const k of Object.keys(this.#cache.results)) {
+            this.#liberate(k);
         }
     }
 
@@ -56,19 +67,27 @@ export class CustomSelectionsState {
      * Nothing is returned.
      */
     addSelection(id, selection) {
-        var mat = this.#norm.fetchNormalizedMatrix();
+        let to_use = utils.findValidUpstreamStates(this.#norm_states);
 
+        // Assumes that we have at least one cell in and outside the selection!
+        let mat = this.#norm_states[to_use[0]].fetchNormalizedMatrix();
         var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Int32Array", this.#cache);
         buffer.fill(0);
         var tmp = buffer.array();
         selection.forEach(element => { tmp[element] = 1; });
 
-        // Assumes that we have at least one cell in and outside the selection!
-        var res = scran.scoreMarkers(mat, buffer); 
-      
+        let res = {};
+        for (const k of to_use) {
+            let v = this.#norm_states[k];
+            if (v.valid()) {
+                let mat = v.fetchNormalizedMatrix();
+                res[k] = scran.scoreMarkers(mat, buffer); 
+            }
+        }
+              
         // Removing previous results, if there were any.
         if (id in this.#cache.results) {
-            utils.freeCache(this.#cache.results[id].raw);
+            this.#liberate(id);
         }
       
         this.#cache.results[id] = { "raw": res };
@@ -85,7 +104,7 @@ export class CustomSelectionsState {
      * Nothing is returned.
      */
     removeSelection(id) {
-        utils.freeCache(this.#cache.results[id].raw);
+        this.#liberate(id);
         delete this.#cache.results[id];
         delete this.#parameters.selections[id];
         return;
@@ -101,6 +120,7 @@ export class CustomSelectionsState {
      * @param {string} id - An identifier for the desired selection.
      * @param {string} rank_type - Effect size to use for ranking markers.
      * This should be one of `lfc`, `cohen`, `auc` or `delta_detected`.
+     * @param {string} feat_type - The feature type of interest, usually `"RNA"` or `"ADT"`.
      *
      * @return An object containing the marker statistics for the selection, sorted by the specified effect and summary size from `rank_type`.
      * This contains:
@@ -109,8 +129,8 @@ export class CustomSelectionsState {
      * - `lfc`: a `Float64Array` of length equal to the number of genes, containing the log-fold changes for the comparison between cells inside and outside the selection.
      * - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
      */
-    fetchResults(id, rank_type) {
-        var current = this.#cache.results[id].raw;
+    fetchResults(id, rank_type, feat_type) {
+        var current = this.#cache.results[id].raw[feat_type];
         return markers.fetchGroupResults(current, 1, rank_type + "-mean"); 
     }
 
@@ -129,9 +149,9 @@ export class CustomSelectionsState {
         /* If the QC filter was re-run, all of the selections are invalidated as
          * the identity of the indices may have changed.
          */
-        if (this.#qc.changed) {
-            for (const [key, val] of Object.entries(this.#cache.results)) {
-                utils.freeCache(val.raw);                    
+        if (this.#filter.changed) {
+            for (const key of Object.entries(this.#cache.results)) {
+                this.#liberate(key);
             }
             this.#parameters.selections = {};
             this.#cache.results = {};
@@ -145,6 +165,10 @@ export class CustomSelectionsState {
          */
 
         return;
+    }
+
+    static defaults() {
+        return {};
     }
 
     /***************************
@@ -170,18 +194,21 @@ export class CustomSelectionsState {
 
         {
             let phandle = ghandle.createGroup("parameters");
-            let rhandle = phandle.createGroup("selections");
+            let shandle = phandle.createGroup("selections");
             for (const [key, val] of Object.entries(this.#parameters.selections)) {
-                rhandle.writeDataSet(String(key), "Int32", null, val);
+                shandle.writeDataSet(String(key), "Int32", null, val);
             }
         }
 
         {
-            let chandle = ghandle.createGroup("results");
-            let rhandle = chandle.createGroup("markers");
+            let rhandle = ghandle.createGroup("results");
+            let phandle = rhandle.createGroup("per_selection");
             for (const [key, val] of Object.entries(this.#cache.results)) {
-                let ihandle = rhandle.createGroup(key);
-                markers.serializeGroupStats(ihandle, val.raw, 1, { no_summaries: true });
+                let ihandle = phandle.createGroup(key);
+                for (const [key2, val2] of Object.entries(val.raw)) {
+                    let ahandle = ihandle.createGroup(key2);
+                    markers.serializeGroupStats(ahandle, val2, 1, { no_summaries: true });
+                }
             }
         }
     }
@@ -239,27 +266,42 @@ class CustomMarkersMimic {
     free() {}
 }
 
-export function unserialize(handle, permuter, qc, norm) {
+export function unserialize(handle, permuters, filter, norm_states) {
     let ghandle = handle.open("custom_selections");
 
     let parameters = { selections: {} };
     {
         let phandle = ghandle.open("parameters");
-        let rhandle = phandle.open("selections");
+        let shandle = phandle.open("selections");
 
-        for (const key of Object.keys(rhandle.children)) {
-            parameters.selections[key] = rhandle.open(key, { load: true }).values;
+        for (const key of Object.keys(shandle.children)) {
+            parameters.selections[key] = shandle.open(key, { load: true }).values;
         }
     }
 
     let cache = { results: {} };
     {
-        let chandle = ghandle.open("results");
-        let rhandle = chandle.open("markers");
+        let rhandle = ghandle.open("results");
 
-        for (const sel of Object.keys(rhandle.children)) {
-            let current = markers.unserializeGroupStats(rhandle.open(sel), permuter, { no_summaries: true });
-            cache.results[sel] = { raw: new CustomMarkersMimic({ 1 : current }) };
+        if ("markers" in rhandle.children) {
+            // before v2.0
+            let mhandle = rhandle.open("markers");
+            for (const sel of Object.keys(mhandle.children)) {
+                let current = markers.unserializeGroupStats(mhandle.open(sel), permuters["RNA"], { no_summaries: true });
+                cache.results[sel] = { raw: { RNA: new CustomMarkersMimic({ 1 : current }) } };
+            }
+        } else {
+            // after v2.0.
+            let phandle = rhandle.open("per_selection");
+            for (const sel of Object.keys(phandle.children)) {
+                let shandle = phandle.open(sel);
+                let collected = {};
+                for (const feat of Object.keys(shandle.children)) {
+                    let current = markers.unserializeGroupStats(shandle.open(feat), permuters[feat], { no_summaries: true });
+                    collected[feat] = new CustomMarkersMimic({ 1 : current });
+                }
+                cache.results[sel] = { raw: collected };
+            }
         }
     }
 
@@ -270,7 +312,7 @@ export function unserialize(handle, permuter, qc, norm) {
     }
 
     return {
-        state: new CustomSelectionsState(qc, norm, parameters, cache),
+        state: new CustomSelectionsState(filter, norm_states, parameters, cache),
         parameters: output
     };
 }

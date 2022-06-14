@@ -20,7 +20,7 @@ export function abbreviate(args) {
     return formatted;
 }
 
-function extract_features(gene_file, { numberOfRows = null, includeFeatureType = false } = {}) {
+function extract_features(gene_file, { numberOfRows = null } = {}) {
     const content = new Uint8Array(gene_file.content.buffer());
     var is_gz = gene_file.name.endsWith(".gz");
     let parsed = rutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
@@ -36,7 +36,7 @@ function extract_features(gene_file, { numberOfRows = null, includeFeatureType =
 
     let output = { "id": ids, "symbol": symb };
 
-    if (includeFeatureType && parsed[0].length >= 3) {
+    if (parsed[0].length >= 3) {
         let types = [];
         parsed.forEach(x => { types.push(x[2]); });
         output.type = types;
@@ -91,7 +91,12 @@ export function preflight(args) {
 
     if ("genes" in args) {
         let gene_data = rutils.formatFile(args.genes, false);
-        output.genes = extract_features(gene_data);
+        output.genes = { "RNA": extract_features(gene_data) };
+
+        let split_out = rutils.splitByFeatureType(null, output.genes.RNA);
+        if (split_out !== null) {
+            output.genes = split_out.genes;
+        }
     } else {
         output.genes = null;
     }
@@ -148,29 +153,39 @@ export class Reader {
         var ext = this.#mtx.name.split('.').pop();
         var is_compressed = (ext == "gz");
 
-        let output = {};
+        let matrices = new rutils.MultiMatrix;
+        let output;
         try {
-            output.matrix = scran.initializeSparseMatrixFromMatrixMarketBuffer(contents, { "compressed": is_compressed });
+            let out_mat = scran.initializeSparseMatrixFromMatrixMarketBuffer(contents, { "compressed": is_compressed });
+            matrices.add("RNA", out_mat);
 
+            let gene_info = null;
             if (this.#genes !== null) {
-                output.genes = extract_features(this.#genes, { numberOfRows: output.matrix.numberOfRows(), includeFeatureType: true });
-            } else {
-                output.genes = null;
+                gene_info = extract_features(this.#genes, { numberOfRows: out_mat.numberOfRows() });
+            }
+            let genes = { RNA: rutils.reorganizeGenes(out_mat, gene_info) };
+
+            let split_out = rutils.splitByFeatureType(out_mat, genes.RNA);
+            if (split_out !== null) {
+                utils.freeCache(out_mat);
+                matrices = split_out.matrices;
+                genes = split_out.genes;
             }
 
+            output = {
+                matrix: matrices,
+                genes: genes
+            };
+
             if (this.#annotations !== null) {
-                output.annotations = extract_annotations(this.#annotations, { numberOfColumns: output.matrix.numberOfColumns() });
+                let first = matrices.get(matrices.available()[0]);
+                output.annotations = extract_annotations(this.#annotations, { numberOfColumns: first.numberOfColumns() });
             } else {
                 output.annotations = null;
             }
 
-            rutils.reorganizeGenes(output);
-
-            // Stop-gap solution to remove non-gene entries.
-            rutils.subsetToGenes(output);
-
         } catch (e) {
-            utils.freeCache(output.matrix);
+            utils.freeCache(matrices);
             throw e;
         }
 

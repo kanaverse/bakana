@@ -47,9 +47,15 @@ export function preflight(args) {
     const tmppath = afile.realizeH5(formatted.content);
     try {
         let handle = new scran.H5File(tmppath);
-        output.genes = extract_features(handle);
-        output.annotations = null;
+        output.genes = { "RNA": extract_features(handle) };
+
+        let split_out = rutils.splitByFeatureType(null, output.genes.RNA);
+        if (split_out !== null) {
+            output.genes = split_out.genes;            
+        }
+
         // TODO: try pull out sample IDs from the 10X file, if they exist?
+        output.annotations = null;
     } finally {
         afile.removeH5(tmppath);
     }
@@ -70,20 +76,32 @@ export class Reader {
     }
 
     load() {
-        let output = {};
+        let output;
+        let matrices = new rutils.MultiMatrix;
 
         const tmppath = afile.realizeH5(this.#h5.content);
         try {
-            output.matrix = scran.initializeSparseMatrixFromHDF5(tmppath, "matrix");
-            let handle = new scran.H5File(tmppath);
-            output.genes = extract_features(handle);
-            output.annotations = null;
-            rutils.reorganizeGenes(output);
+            let out_mat = scran.initializeSparseMatrixFromHDF5(tmppath, "matrix");
+            matrices.add("RNA", out_mat);
 
-            // Stop-gap solution to remove non-gene entries, e.g., ADTs.
-            rutils.subsetToGenes(output);
+            let handle = new scran.H5File(tmppath);
+            let gene_info = extract_features(handle);
+            let genes = { RNA: rutils.reorganizeGenes(out_mat, gene_info) };
+
+            let split_out = rutils.splitByFeatureType(out_mat, genes.RNA);
+            if (split_out !== null) {
+                utils.freeCache(out_mat);
+                matrices = split_out.matrices;
+                genes = split_out.genes;
+            }
+
+            output = {
+                matrix: matrices,
+                genes: genes,
+                annotations: null
+            };
         } catch (e) {
-            utils.freeCache(output.matrix);
+            utils.freeCache(matrices);
             throw e;
         } finally {
             afile.removeH5(tmppath);

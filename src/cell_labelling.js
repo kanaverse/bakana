@@ -212,7 +212,7 @@ export class CellLabellingState {
             cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", this.#cache);
 
             for (var g = 0; g < ngroups; g++) {
-                let means = this.#markers.fetchGroupMeans(g, { copy: false }); // Warning: direct view in wasm space - be careful.
+                let means = this.#markers.fetchGroupMeans(g, "RNA", { copy: false }); // Warning: direct view in wasm space - be careful.
                 let cluster_array = cluster_means.array();
                 cluster_array.set(means, g * ngenes);
             }

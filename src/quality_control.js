@@ -1,22 +1,27 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
+import * as qcutils from "./utils/quality_control.js";
 import { mito } from "./mito.js";
 import * as inputs_module from "./inputs.js";
 
+export const step_name = "quality_control";
+
 /**
- * This step applies quality control on the original count matrix.
- * After removing low-quality cells, the filtered matrix is used for all downstream steps.
- * This wraps `computePerCellQCMetrics` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This step applies quality control on the RNA count matrix.
+ * Specifically, it computes the QC metrics and filtering thresholds, wrapping `computePerCellQCMetrics` and `computePerCellQCFilters` from [**scran.js**](https://github.com/jkanche/scran.js).
+ * Note that the actual filtering is done by {@linkcode CellFilteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class QualityControlState {
+export class QualityControlState extends qcutils.QualityControlStateBase {
     #inputs;
     #cache;
     #parameters;
 
     constructor(inputs, parameters = null, cache = null) {
+        super();
+
         if (!(inputs instanceof inputs_module.InputsState)) {
             throw new Error("'inputs' should be a State object from './inputs.js'");
         }
@@ -38,6 +43,10 @@ export class QualityControlState {
     /***************************
      ******** Getters **********
      ***************************/
+    
+    valid() {
+        return true;
+    }
 
     fetchSums({ unsafe = false } = {}) {
         // Unsafe, because we're returning a raw view into the Wasm heap,
@@ -49,83 +58,16 @@ export class QualityControlState {
         return this.#cache.filters.discardOverall({ copy: "view" });
     }
 
-    fetchFilteredMatrix() {
-        if (!("matrix" in this.#cache)) {
-            this.#apply_filters();
-        }
-        return this.#cache.matrix;
-    }
-
-    /**
-     * Fetch the filtered vector of block assignments.
-     *
-     * @return An Int32WasmArray of length equal to the number of cells after filtering, containing the block assignment for each cell.
-     *
-     * Alternatively `null` if no blocks are present in the dataset.
-     */
-    fetchFilteredBlock() {
-        if (!("blocked" in this.#cache)) {
-            this.#apply_filters();
-        }
-        if (this.#cache.blocked) {
-            return this.#cache.block_buffer;
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * Fetch an annotation for the cells remaining after QC filtering.
-     *
-     * @param {string} col - Name of the annotation field of interest.
-     *
-     * @return An object similar to that returned by {@linkcode InputsState#fetchAnnotations InputsState.fetchAnnotations},
-     * after filtering the vectors to only contain information for the remaining cells.
-     * - For `type: "factor"`, the array in `index` will be filtered.
-     * - For `type: "array"`, the array in `values` will be filtered.
-     */
-    fetchFilteredAnnotations(col) { 
-        let vec = this.#inputs.fetchAnnotations(col);
-        var discard = this.fetchDiscards().array();
-        let filterfun = (x, i) => !discard[i];
-        if (vec.type === "factor") {
-            vec.index = vec.index.filter(filterfun);
-        } else {
-            vec.values = vec.values.filter(filterfun);
-        }
-        return vec;
-    }
-
     /***************************
      ******** Compute **********
      ***************************/
 
-    #apply_filters() {
-        var mat = this.#inputs.fetchCountMatrix();
-        var disc = this.fetchDiscards();
-
-        utils.freeCache(this.#cache.matrix);
-        this.#cache.matrix = scran.filterCells(mat, disc);
-
-        let block = this.#inputs.fetchBlock();
-        this.#cache.blocked = (block !== null);
-
-        if (this.#cache.blocked) {
-            let bcache = utils.allocateCachedArray(this.#cache.matrix.numberOfColumns(), "Int32Array", this.#cache, "block_buffer");
-
-            let bcache_arr = bcache.array();
-            let block_arr = block.array();
-            let disc_arr = disc.array();
-            let j = 0;
-            for (let i = 0; i < block_arr.length; i++) {
-                if (disc_arr[i] == 0) {
-                    bcache_arr[j] = block_arr[i];
-                    j++;
-                }
-            }
-        }
-
-        return;
+    static defaults () {
+        return {
+            use_mito_default: true,
+            mito_prefix: "mt-",
+            nmads: 3
+        };
     }
 
     /**
@@ -171,7 +113,7 @@ export class QualityControlState {
             }
 
             utils.freeCache(this.#cache.metrics);
-            this.#cache.metrics = scran.computePerCellQCMetrics(mat, subsets);
+            this.#cache.metrics = scran.computePerCellQCMetrics(mat, [subsets]);
 
             this.#parameters.use_mito_default = use_mito_default;
             this.#parameters.mito_prefix = mito_prefix;
@@ -185,11 +127,6 @@ export class QualityControlState {
 
             this.#parameters.nmads = nmads;
             this.changed = true;
-        }
-
-        if (this.changed) {
-            this.#apply_filters();
-            this.changed = true; // left in for consistency.
         }
 
         return;
@@ -229,51 +166,23 @@ export class QualityControlState {
      * - `retained`: the number of cells remaining after QC filtering.
      */
     summary() {
-        var data = {};
+        var data;
         var blocks = this.#inputs.fetchBlockLevels();
         if (blocks === null) {
             blocks = [ "default" ];
-            data["default"] = this.#format_metrics();
+            data = { default: this.#format_metrics() };
         } else {
             let metrics = this.#format_metrics({ copy: "view" });
             let bids = this.#inputs.fetchBlock();
-            let barray = bids.array();
-
-            for (var b = 0; b < blocks.length; b++) {
-                let current = {};
-                for (const [key, val] of Object.entries(metrics)) {
-                    current[key] = val.array().filter((x, i) => barray[i] == b);
-                }
-                data[blocks[b]] = current;
-            }
+            data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
         }
 
-        // This function should not do any Wasm allocations, so copy: false is safe.
-        var thresholds = {};
-        let listed = this.#format_thresholds({ copy: false });
-        for (var b = 0; b < blocks.length; b++) {
-            let current = {};
-            for (const [key, val] of Object.entries(listed)) {
-                current[key] = val[b];
-            }
-            thresholds[blocks[b]] = current;
-        }
-
-        let remaining = 0;
-        if ("matrix" in this.#cache) {
-            remaining = this.#cache.matrix.numberOfColumns();
-        } else {
-            this.fetchDiscards().array().forEach(x => {
-                if (x == 0) {
-                    remaining++;
-                }
-            });
-        }
+        let listed = this.#format_thresholds({ copy: "view" });
+        let thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
 
         return { 
             "data": data, 
-            "thresholds": thresholds,
-            "retained": remaining
+            "thresholds": thresholds
         };
     }
 
@@ -282,7 +191,7 @@ export class QualityControlState {
      *************************/
 
     serialize(handle) {
-        let ghandle = handle.createGroup("quality_control");
+        let ghandle = handle.createGroup(step_name);
 
         {
             let phandle = ghandle.createGroup("parameters"); 
@@ -326,8 +235,14 @@ class QCFiltersMimic {
         this.sums_ = sums;
         this.detected_ = detected;
         this.proportion_ = proportion;
-        this.discards = scran.createUint8WasmArray(discards.length);
-        this.discards.set(discards);
+
+        try {
+            this.discards = scran.createUint8WasmArray(discards.length);
+            this.discards.set(discards);
+        } catch (e) {
+            utils.freeCache(this.discards);
+            throw e;
+        }
     }
 
     thresholdsSums({ copy }) {
@@ -367,8 +282,9 @@ export function unserialize(handle, inputs) {
         }
     }
 
+    let output;
     let cache = {};
-    {
+    try {
         let rhandle = ghandle.open("results");
 
         let mhandle = rhandle.open("metrics");
@@ -394,10 +310,17 @@ export function unserialize(handle, inputs) {
             thresholds_proportion,
             discards
         );
+
+        output = new QualityControlState(inputs, parameters, cache);
+    } catch (e) {
+        utils.freeCache(cache.metrics);
+        utils.freeCache(cache.filters)
+        utils.freeCache(output);
+        throw e;
     }
 
     return {
-        state: new QualityControlState(inputs, parameters, cache),
-        parameters: { ...parameters }
+        state: output,
+        parameters: { ...parameters } // make a copy to avoid pass-by-reference links with state's internal parameters
     };
 }

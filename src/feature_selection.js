@@ -1,6 +1,6 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import * as qc_module from "./quality_control.js";
+import * as filter_module from "./cell_filtering.js";
 import * as norm_module from "./normalization.js";
 
 /**
@@ -11,16 +11,16 @@ import * as norm_module from "./normalization.js";
  * @hideconstructor
  */
 export class FeatureSelectionState {
-    #qc;
+    #filter;
     #norm;
     #cache;
     #parameters;
 
-    constructor(qc, norm, parameters = null, cache = null) {
-        if (!(qc instanceof qc_module.QualityControlState)) {
-            throw new Error("'qc' should be a State object from './quality_control.js'");
+    constructor(filter, norm, parameters = null, cache = null) {
+        if (!(filter instanceof filter_module.CellFilteringState)) {
+            throw new Error("'filter' should be a State object from './cell_filtering.js'");
         }
-        this.#qc = qc;
+        this.#filter = filter;
 
         if (!(norm instanceof norm_module.NormalizationState)) {
             throw new Error("'norm' should be a State object from './normalization.js'");
@@ -67,7 +67,7 @@ export class FeatureSelectionState {
             utils.freeCache(this.#cache.results);
 
             let mat = this.#norm.fetchNormalizedMatrix();
-            let block = this.#qc.fetchFilteredBlock();
+            let block = this.#filter.fetchFilteredBlock();
             this.#cache.results = scran.modelGeneVar(mat, { span: span, block: block });
 
             this.#cache.sorted_residuals = this.#cache.results.residuals().slice(); // a separate copy.
@@ -160,7 +160,7 @@ class ModelGeneVarMimic {
     free() {}
 }
 
-export function unserialize(handle, permuter, qc, norm) {
+export function unserialize(handle, permuter, filter, norm) {
     let ghandle = handle.open("feature_selection");
 
     let parameters;
@@ -191,7 +191,7 @@ export function unserialize(handle, permuter, qc, norm) {
     cache.sorted_residuals.sort();
 
     return { 
-        state: new FeatureSelectionState(qc, norm, parameters, cache),
+        state: new FeatureSelectionState(filter, norm, parameters, cache),
         parameters: { ...parameters }
     };
 }

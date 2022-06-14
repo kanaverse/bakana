@@ -64,11 +64,9 @@ function extract_annotations(handle, { namesOnly = false } = {}) {
                     let cats = rutils.extractHDF5Strings(chandle, key);
                     if (cats.type !== null) {
                         let old = annotations[key];
-                        annotations[key] = {
-                            "type": "factor",
-                            "index": old,
-                            "levels": cats
-                        }
+                        let temp = new Array(old.length);
+                        old.forEach((x, i) => temp[i] = cats[x]);
+                        annotations[key] = temp;
                     }
                 }
             }
@@ -89,7 +87,13 @@ export function preflight(args) {
     const tmppath = afile.realizeH5(formatted.content);
     try {
         let handle = new scran.H5File(tmppath);
-        output.genes = extract_features(handle);
+
+        output.genes = { "RNA": extract_features(handle) };
+        let split_out = rutils.splitByFeatureType(null, output.genes.RNA);
+        if (split_out !== null) {
+            output.genes = split_out.genes;
+        }
+
         let annotations = extract_annotations(handle, { load: false });
         output.annotations = Object.keys(annotations); 
     } finally {
@@ -112,17 +116,25 @@ export class Reader {
     }
 
     load() {
-        let output = {};
+        let output;
+        let matrices = new rutils.MultiMatrix;
 
         const tmppath = afile.realizeH5(this.#h5.content);
         try {
-            output.matrix = scran.initializeSparseMatrixFromHDF5(tmppath, "X");
+            let out_mat = scran.initializeSparseMatrixFromHDF5(tmppath, "X");
+            matrices.add("RNA", out_mat);
+
             let handle = new scran.H5File(tmppath);
-            output.genes = extract_features(handle); 
-            output.annotations = extract_annotations(handle);
-            rutils.reorganizeGenes(output);
+            let gene_info = extract_features(handle); 
+            let genes = { RNA: rutils.reorganizeGenes(out_mat, gene_info) };
+
+            output = {
+                matrix: matrices,
+                genes: genes,
+                annotations: extract_annotations(handle)
+            };
         } catch (e) {
-            utils.freeCache(output.matrix);
+            utils.freeCache(matrices);
             throw e;
         } finally {
             afile.removeH5(tmppath);

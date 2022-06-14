@@ -1,6 +1,9 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as iutils from "./utils/inputs.js";
+import * as rutils from "./utils/reader.js";
+
+export const step_name = "inputs";
 
 /**
  * This step handles the loading of the input count matrices into memory.
@@ -24,21 +27,28 @@ export class InputsState {
     }
 
     free() {
-        utils.freeCache(this.#cache.matrix);
         utils.freeCache(this.#cache.block_ids);
-        return;
+        utils.freeCache(this.#cache.matrix);
     }
 
     /***************************
      ******** Getters **********
      ***************************/
 
-    fetchCountMatrix() {
-        return this.#cache.matrix;
+    listAvailableTypes() {
+        return this.#cache.matrix.available();
     }
 
-    fetchGenes() {
-        return this.#cache.genes;
+    hasAvailable(type) {
+        return this.#cache.matrix.has(type);
+    }
+
+    fetchCountMatrix({ type = "RNA" } = {}) {
+        return this.#cache.matrix.get(type);
+    }
+
+    fetchGenes({ type = "RNA" } = {}) {
+        return this.#cache.genes[type];
     }
 
     fetchGeneTypes() {
@@ -52,17 +62,7 @@ export class InputsState {
      *
      * @param {string} col - Name of the annotation field of interest.
      *
-     * @return An object containing the requested annotations.
-     * This will contain:
-     * - `type`: string specifying the the type of annotations.
-     *   This can be either `"factor"` or `"array"`.
-     *
-     * For `type: "factor"`, the object will additionally contain:
-     * - `levels`: an array of strings containing the unique factor levels.
-     * - `index`: an Int32Array of length equal to the number of cells, referencing entries in `levels`.
-     * 
-     * For `type: "array"`, the object will additionally contain:
-     * - `values`: a TypedArray of values of length equal to the number of cells.
+     * @return {Array|TypedArray} Array of length equal to the total number of cells, containing the requested annotations.
      */
     fetchAnnotations(col) {
         let annots = this.#cache.annotations;
@@ -72,42 +72,8 @@ export class InputsState {
             throw new Error(`${col} does not exist in the column annotations`);
         }
 
-        let current = annots[col];
-
-        // i.e., is it already a factor? In which case, we make a copy of its contents.
-        // This ensures we don't have any accidental writes or transfers. 
-        if (ArrayBuffer.isView(current)) {
-            return {
-                "type": "array",
-                "values": current.slice()
-            };
-        } else if (utils.isObject(current)) {
-            if (!("type" in current) || current.type != "factor") {
-                throw new Error("annotation column should have 'type: \"factor\"' if it is an object");
-            }
-            return { 
-                type: current.type,
-                index: current.index.slice(),
-                levels: current.levels.slice()
-            };
-        }
-
-        let uniq_vals = [];
-        let uniq_map = {};
-        let indices = new Int32Array(size);
-        annots[col].map((x, i) => {
-            if (!(x in uniq_map)) {
-                uniq_map[x] = uniq_vals.length;
-                uniq_vals.push(x);
-            }
-            indices[i] = uniq_map[x];
-        });
-
-        return {
-            "type": "factor",
-            "index": indices,
-            "levels": uniq_vals
-        };
+        // Make a copy, avoid accidental writes or transfers. 
+        return annots[col].slice();
     }
 
     fetchBlock() {
@@ -121,6 +87,12 @@ export class InputsState {
     /***************************
      ******** Compute **********
      ***************************/
+
+    static defaults() {
+        return {
+            sample_factor: null
+        };
+    }
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
@@ -164,8 +136,7 @@ export class InputsState {
             new_matrices[key] = new namespace.Reader(val);
         }
 
-        utils.freeCache(this.#cache.matrix);
-        utils.freeCache(this.#cache.block_ids);
+        this.free();
         this.#cache = await process_and_cache(new_matrices, sample_factor);
 
         this.#abbreviated = tmp_abbreviated;
@@ -194,11 +165,14 @@ export class InputsState {
      * - (optional) `annotations`: an array of strings containing the names of available cell annotation fields.
      */
     summary() {
+        let ngenes = {};
+        for (const a of this.#cache.matrix.available()) {
+            ngenes[a] = this.#cache.matrix.get(a).numberOfRows();
+        }
+        
         var output = {
-            "dimensions": {
-                "num_genes": this.#cache.matrix.numberOfRows(),
-                "num_cells": this.#cache.matrix.numberOfColumns()
-            },
+            "num_cells": this.#cache.matrix.numberOfColumns(),
+            "num_genes": ngenes,
             "genes": { ...(this.#cache.genes) }
         };
         if (this.#cache.annotations !== null) {
@@ -264,7 +238,12 @@ export class InputsState {
 
         {
             let rhandle = ghandle.createGroup("results");
-            rhandle.writeDataSet("dimensions", "Int32", null, [this.#cache.matrix.numberOfRows(), this.#cache.matrix.numberOfColumns()]);
+            rhandle.writeDataSet("num_cells", "Int32", [], this.#cache.matrix.numberOfColumns());
+
+            let fhandle = rhandle.createGroup("num_features");
+            for (const a of this.#cache.matrix.available()) {
+                fhandle.writeDataSet(a, "Int32", [], this.#cache.matrix.get(a).numberOfRows());
+            }
 
             // For diagnostic purposes, we store the number of samples;
             // this may not be captured by the parameters if we're dealing
@@ -273,7 +252,11 @@ export class InputsState {
                 rhandle.writeDataSet("num_samples", "Int32", [], this.#cache.block_levels.length); 
             }
 
-            rhandle.writeDataSet("indices", "Int32", null, this.#cache.matrix.identities());
+            // Looping through all available matrices.
+            let ihandle = rhandle.createGroup("identities");
+            for (const a of this.#cache.matrix.available()) {
+                ihandle.writeDataSet(a, "Int32", null, this.#cache.matrix.get(a).identities());
+            }
         }
 
         return;
@@ -283,6 +266,108 @@ export class InputsState {
 /**************************
  ******* Internals ********
  **************************/
+
+function bind_single_modality(dkeys, datasets, type) {
+    let output = {};
+
+    try {
+        // Identify the gene columns to use.
+        let genes = {};
+        for (const k of dkeys) {
+            genes[k] = datasets[k].genes[type];
+            if (genes[k] === null) {
+                throw new Error("no gene annotations found in matrix '" + k + "'");
+            }
+        }
+
+        let result = iutils.commonFeatureTypes(genes);
+        if (result.best_type === null) {
+            throw new Error("no common feature types available across all matrices");
+        }
+        let best_fields = result.best_fields;
+
+        let gnames = [];
+        let mats = [];
+        for (const k of dkeys) {
+            gnames.push(genes[k][best_fields[k]]);
+            mats.push(datasets[k].matrix.get(type));
+        }
+
+        let merged = scran.cbindWithNames(mats, gnames);
+        output.matrix = merged.matrix;
+
+        // Extracting gene information from the first object. We won't make
+        // any attempt at merging and deduplication across objects.
+        let first_genes = genes[dkeys[0]];
+        output.genes = scran.subsetArrayCollection(first_genes, merged.indices);
+
+    } catch (e) {
+        utils.freeCache(output.matrix);
+        throw e;
+    }
+
+    return output;
+}
+
+function bind_datasets(dkeys, datasets) {
+    // Checking which feature types are available across all datasets.
+    let available = null;
+    for (const k of dkeys) {
+        if (available === null) {
+            available = datasets[k].matrix.available();
+        } else {
+            let present = new Set(datasets[k].matrix.available());
+            available = available.filter(x => present.has(x));
+        }
+    }
+
+    let blocks;
+    let output = { 
+        matrix: new rutils.MultiMatrix, 
+        genes: {} 
+    };
+
+    try {
+        for (const a of available) {
+            let current = bind_single_modality(dkeys, datasets, a);
+            output.matrix.add(a, current.matrix);
+            output.genes[a] = current.genes;
+        }
+
+        // Get all annotations keys across datasets; we then concatenate
+        // columns with the same name, or we just fill them with missings.
+        let lengths = [];
+        let annos = [];
+        for (const d of dkeys) {
+            let current = datasets[d];
+            if (current.annotations !== null) {
+                annos.push(current.annotations);
+            } else {
+                annos.push({});
+            }
+            lengths.push(current.matrix.numberOfColumns());
+        }
+        output.annotations = scran.combineArrayCollections(annos, { lengths: lengths });
+
+        // Generating a block vector.
+        let ncells = new Array(dkeys.length);
+        dkeys.forEach((x, i) => { ncells[i] = datasets[x].matrix.numberOfColumns(); });
+        blocks = scran.createBlock(ncells);
+        output.block_ids = blocks;
+        output.block_levels = dkeys;
+
+        let nice_barr = new Array(blocks.length);
+        blocks.forEach((x, i) => { nice_barr[i] = dkeys[x]; })
+        output.annotations["__batch__"] = nice_barr;
+
+    } catch (e) {
+        utils.freeCache(blocks);
+        utils.freeCache(output.matrix);
+        throw e;
+    } 
+
+    return output;
+}
 
 async function process_datasets(matrices, sample_factor) {
     // Loading all of the individual matrices. 
@@ -315,35 +400,12 @@ async function process_datasets(matrices, sample_factor) {
             // Single matrix with a batch factor.
             try {
                 let anno_batch = current.annotations[sample_factor];
-
-                let anno_levels = null;
-                if (utils.isObject(anno_batch)) {
-                    anno_levels = anno_batch.levels;
-                    anno_batch = anno_batch.index;
-                }
-
-                let ncols = current.matrix.numberOfColumns();
-                if (anno_batch.length != ncols) {
+                if (anno_batch.length != current.matrix.numberOfColumns()) {
                     throw new Error("length of sample factor '" + sample_factor + "' should be equal to the number of cells"); 
                 }
-
-                blocks = scran.createInt32WasmArray(ncols);
-                block_levels = [];
-                let block_arr = blocks.array();
-
-                let uvals = {};
-                anno_batch.forEach((x, i) => {
-                    if (!(x in uvals)) {
-                        uvals[x] = block_levels.length;
-                        block_levels.push(x);
-                    }
-                    block_arr[i] = uvals[x];
-                });
-
-                if (anno_levels !== null) {
-                    block_levels = Array.from(block_levels).map(i => anno_levels[i]);
-                }
-
+                let converted = scran.convertBlock(anno_batch);
+                blocks = converted.ids;
+                block_levels = converted.levels;
             } catch (e) {
                 utils.freeCache(blocks);
                 utils.freeCache(current.matrix);
@@ -356,109 +418,16 @@ async function process_datasets(matrices, sample_factor) {
         return current;
 
     } else {
-        // Multiple matrices, each of which represents a batch.
-        let output = {}
-        let blocks;
-
+        let output;
         try {
-            // Identify the gene columns to use
-            let genes = {};
-            for (const k of dkeys) {
-                genes[k] = datasets[k].genes;
-                if (genes[k] === null) {
-                    throw new Error("no gene annotations found in matrix '" + k + "'");
-                }
-            }
-
-            let result = iutils.commonFeatureTypes(genes);
-            if (result.best_type === null) {
-                throw new Error("no common feature types available across all matrices");
-            }
-            let best_fields = result.best_fields;
-
-            let gnames = [];
-            let mats = [];
-            let total = 0;
-            for (const k of dkeys) {
-                let current = datasets[k];
-                gnames.push(current.genes[best_fields[k]]);
-                mats.push(current.matrix);
-                total += current.matrix.numberOfColumns();
-            }
-
-            blocks = scran.createInt32WasmArray(total);
-            let barr = blocks.array();
-            let nice_barr = new Array(total);
-            let sofar = 0;
-            for (var i = 0; i < dkeys.length; i++) {
-                let old = sofar;
-                let current = datasets[dkeys[i]];
-                sofar += current.matrix.numberOfColumns();
-                barr.fill(i, old, sofar);
-                nice_barr.fill(dkeys[i], old, sofar);
-            }
-            output.block_ids = blocks;
-            output.block_levels = dkeys;
-
-            let merged = scran.cbindWithNames(mats, gnames);
-            output.matrix = merged.matrix;
-
-            // Extracting gene information from the first object. We won't make
-            // any attempt at merging and deduplication across objects.
-            let included = new Set(merged.indices);
-            output.genes = {};
-            let first_genes = datasets[dkeys[0]].genes;
-            for (const [key, val] of Object.entries(first_genes)) {
-                output.genes[key] = val.filter((x, i) => included.has(i));
-            }
-
-            // Get all annotations keys across datasets; we then concatenate
-            // columns with the same name, or we just fill them with missings.
-            let ckeys = new Set();
-            for (const d of dkeys) {
-                let current = datasets[d];
-                if (current.annotations !== null) {
-                    for (const a of Object.keys(current.annotations)) {
-                        ckeys.add(a);
-                    }
-                }
-            }
-            let anno_keys = [...ckeys];
-
-            let combined_annotations = {};
-            for (const i of anno_keys) {
-                let current_combined = [];
-                for (const d of dkeys) {
-                    let current = datasets[d];
-                    let x;
-                    if (current.annotations && current.annotations[i]) {
-                        x = current.annotations[i];
-                        if (!(x instanceof Array)) {
-                            x = Array.from(x);
-                        }
-                    } else {
-                        x = new Array(current.matrix.numberOfColumns());
-                    }
-                    current_combined = current_combined.concat(x);
-                }
-                combined_annotations[i] = current_combined;
-            }
-
-            output.annotations = combined_annotations;
-            output.annotations["__batch__"] = nice_barr;
-
-        } catch (e) {
-            utils.freeCache(blocks);
-            throw e;
-
+            output = bind_datasets(dkeys, datasets);
         } finally {
-            // Once the merged dataset is created, the individual dataset
-            // matrices are no longer useful, so we need to delete them anyway.
-            for (const v of Object.values(datasets)) {
+            // No need to hold references to the individual matrices
+            // once the full matrix is loaded.
+            for (const [k, v] of Object.entries(datasets)) {
                 utils.freeCache(v.matrix);
             }
         }
-
         return output;
     }
 }
@@ -467,7 +436,7 @@ async function process_and_cache(new_matrices, sample_factor) {
     let cache = await process_datasets(new_matrices, sample_factor);
 
     var gene_info_type = {};
-    var gene_info = cache.genes;
+    var gene_info = cache.genes["RNA"];
     for (const [key, val] of Object.entries(gene_info)) {
         gene_info_type[key] = scran.guessFeatures(val);
     }
@@ -479,6 +448,15 @@ async function process_and_cache(new_matrices, sample_factor) {
 /**************************
  ******** Loading *********
  **************************/
+
+function createPermuter(perm) {
+    return x => {
+        let copy = x.slice();
+        x.forEach((y, i) => {
+            x[i] = copy[perm[i]];
+        });
+    };
+}
 
 export async function unserialize(handle, embeddedLoader) {
     let ghandle = handle.open("inputs");
@@ -545,20 +523,30 @@ export async function unserialize(handle, embeddedLoader) {
 
     // We need to do something if the permutation is not the same.
     let rhandle = ghandle.open("results");
-    let permuter;
 
-    let perm = null;
+    let perm = {};
     if (solofile) {
         if ("permutation" in rhandle.children) {
             // v1.0-v1.1
             let dhandle = rhandle.open("permutation", { load: true });
             let ids = new Int32Array(dhandle.values.length);
             dhandle.values.forEach((x, i) => { ids[x] = i; });
-            perm = scran.updateRowIdentities(cache.matrix, ids);
+            perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), ids);
         } else if ("identities" in rhandle.children) {
-            // v1.2+
-            let dhandle = rhandle.open("identities", { load: true });
-            perm = scran.updateRowIdentities(cache.matrix, dhandle.values);
+            if (rhandle.children["identities"] == "DataSet") {
+                // v1.2
+                let dhandle = rhandle.open("identities", { load: true });
+                perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), dhandle.values);
+            } else {
+                // v2.0
+                let ihandle = rhandle.open("identities");
+                for (const a of Object.keys(ihandle.children)) {
+                    if (cache.matrix.has(a)) {
+                        let dhandle = ihandle.open(a, { load: true });
+                        perm[a] = scran.updateRowIdentities(cache.matrix.get(a), dhandle.values);
+                    }
+                }
+            }
         } else {
             // Otherwise, we're dealing with v0 states. We'll just
             // assume it was the same, I guess. Should be fine as we didn't change
@@ -569,27 +557,46 @@ export async function unserialize(handle, embeddedLoader) {
         if ("indices" in rhandle.children) {
             // v1.1
             old_ids = rhandle.open("indices", { load: true }).values;
+
+            let ref = cache.matrix.get("RNA").identities().sort();
+            let old_ids2 = old_ids.slice().sort();
+            for (var i = 0; i < old_ids2.length; i++) {
+                if (ref[i] != old_ids2[i]) {
+                    console.log([i, ref[i], old_ids2[i]]);
+                    break;
+                }
+            }
+            perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), old_ids);
         } else {
-            // v1.2+
-            old_ids = rhandle.open("identities", { load: true }).values;
+            if (rhandle.children["identities"] == "DataSet") {
+                // v1.2+
+                old_ids = rhandle.open("identities", { load: true }).values;
+                perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), old_ids);
+            } else {
+                // v2.0
+                let ihandle = rhandle.open("identities");
+                for (const a of Object.keys(ihandle.children)) {
+                    if (cache.matrix.has(a)) {
+                        let dhandle = ihandle.open(a, { load: true });
+                        perm[a] = scran.updateRowIdentities(cache.matrix.get(a), dhandle.values);
+                    }
+                }
+            }
         }
-        perm = scran.updateRowIdentities(cache.matrix, old_ids);
     }
 
-    if (perm === null) {
-        permuter = (x) => {}
-    } else {
-        permuter = (x) => {
-            let copy = x.slice();
-            x.forEach((y, i) => {
-                x[i] = copy[perm[i]];
-            });
-        };
+    let permuters = {};
+    for (const a of cache.matrix.available()) {
+        if (a in perm && perm[a] !== null) {
+            permuters[a] = createPermuter(perm[a]); 
+        } else {
+            permuters[a] = x => {};
+        }
     }
 
     return { 
         state: new InputsState(parameters, cache),
         parameters: { sample_factor: parameters.sample_factor }, // only returning the sample factor - we don't pass the files back. 
-        permuter: permuter
-    }
+        permuters: permuters
+    };
 }

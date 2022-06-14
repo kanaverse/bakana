@@ -1,6 +1,6 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import * as pca_module from "./pca.js";
+import * as correct_module from "./batch_correction.js";
 
 /**
  * This step performs k-means clustering on the PCs, wrapping the `clusterKmeans` function from [**scran.js**](https://github.com/jkanche/scran.js).
@@ -9,15 +9,15 @@ import * as pca_module from "./pca.js";
  * @hideconstructor
  */
 export class KmeansClusterState {
-    #pca;
+    #correct;
     #parameters;
     #cache;
 
-    constructor(pca, parameters = null, cache = null) {
-        if (!(pca instanceof pca_module.PcaState)) {
-            throw new Error("'pca' should be a State object from './pca.js'");
+    constructor(correct, parameters = null, cache = null) {
+        if (!(correct instanceof correct_module.BatchCorrectionState)) {
+            throw new Error("'correct' should be a BatchCorrectionState object");
         }
-        this.#pca = pca;
+        this.#correct = correct;
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
@@ -61,11 +61,11 @@ export class KmeansClusterState {
     compute(run_me, k) {
         this.changed = false;
 
-        if (this.#pca.changed || k != this.#parameters.k || (!this.#valid() && run_me)) {
+        if (this.#correct.changed || k != this.#parameters.k || (!this.#valid() && run_me)) {
             utils.freeCache(this.#cache.raw);
 
             if (run_me) {
-                var pcs = this.#pca.fetchPCs();
+                var pcs = this.#correct.fetchPCs();
                 this.#cache.raw = scran.clusterKmeans(pcs.pcs, k, { numberOfDims: pcs.num_pcs, numberOfCells: pcs.num_obs, initMethod: "pca-part" });
             } else {
                 delete this.#cache.raw; // ensure this step gets re-run later when run_me = true. 

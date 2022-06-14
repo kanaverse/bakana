@@ -123,25 +123,99 @@ export function promoteToNumber(x) {
     return as_num;
 }
 
-export function reorganizeGenes(loaded) {
-    if (loaded.genes === null) {
+export class MultiMatrix {
+    #store;
+    #ncols;
+
+    constructor({ store = {} } = {}) {
+        this.#store = store;
+        this.#ncols = null;
+
+        let keys = Object.keys(store);
+        if (keys.length) {
+            // We ignore numberOfColumns here, as everyone should have the same number of cells.
+            for (var k = 0; k < keys.length; k++) {
+                let current = store[keys[k]];
+                if (k == 0) {
+                    this.#ncols = current.numberOfColumns();
+                } else if (current.numberOfColumns() != this.#ncols) {
+                    throw new Error("all matrices should have the same number of columns");
+                }
+            }
+        }
+    }
+
+    numberOfColumns() {
+        return this.#ncols;
+    }
+
+    available() {
+        return Object.keys(this.#store);
+    }
+
+    has(i) {
+        return (i in this.#store);
+    }
+
+    get(i) {
+        return this.#store[i];
+    }
+
+    add(i, matrix) {
+        if (this.#ncols === null) {
+            this.#ncols = matrix.numberOfColumns();
+        } else if (matrix.numberOfColumns() != this.#ncols) {
+            throw new Error("all matrices should have the same number of columns");
+        }
+
+        if (i in this.#store) {
+            let old = this.#store[i];
+            utils.freeCache(old);
+        }
+
+        this.#store[i] = matrix;
+    }
+
+    remove(i) {
+        utils.freeCache(this.#store[i]);
+        delete this.#store[i];
+    }
+
+    rename(from, to) {
+        if (from !== to) {
+            this.#store[to] = this.#store[from];
+            delete this.#store[from];
+        }
+    }
+
+    free() {
+        for (const [x, v] of Object.entries(this.#store)) {
+            utils.freeCache(v);
+        }
+        return;
+    }
+}
+
+export function reorganizeGenes(matrix, geneInfo) {
+    if (geneInfo === null) {
         let genes = [];
-        if (loaded.matrix.isReorganized()) {
-            let ids = loaded.matrix.identities();
+        if (matrix.isReorganized()) {
+            let ids = matrix.identities();
             for (const i of ids) {
                 genes.push(`Gene ${i + 1}`);
             }
         } else {
-            for (let i = 0; i < loaded.matrix.numberOfRows(); i++) {
+            for (let i = 0; i < matrix.numberOfRows(); i++) {
                 genes.push(`Gene ${i + 1}`);
             }
         }
-        loaded.genes = { "id": genes };
+        geneInfo = { "id": genes };
     } else {
-        if (loaded.matrix.isReorganized()) {
-            scran.matchFeatureAnnotationToRowIdentities(loaded.matrix, loaded.genes);
+        if (matrix.isReorganized()) {
+            scran.matchFeatureAnnotationToRowIdentities(matrix, geneInfo);
         }
     }
+    return geneInfo;
 }
 
 var cache = {
@@ -236,89 +310,47 @@ export function formatFile(file, sizeOnly) {
     return output;
 }
 
-export function subsetToGenes(output) {
-    // Checking if 'type' is available, and if so, subsetting the
-    // matrix to only "Gene Expression". This is a stop-gap solution
-    // for dealing with non-gene features in 10X Genomics outputs.
-    if (output.genes === null || !("type" in output.genes)) {
-        return;
+export function splitByFeatureType(matrix, genes) { 
+    if (!("type" in genes)) {
+        return null;
     }
 
-    let keep = [];
-    let feat_types = output.genes.type;
-    let sub = new Uint8Array(feat_types.length);
-    let others = {};
-
-    feat_types.forEach((x, i) => {
-        let is_gene = x.match(/gene expression/i);
-        sub[i] = is_gene; 
-
-        if (is_gene) {
-            keep.push(i);
-        } else {
-            if (!(x in others)) {
-                others[x] = [];
-            }
-            others[x].push(i);
-        }
-    });
-
-    // If nothing matches to 'Gene expression', then clearly it wasn't
-    // very reasonable to subset on it, so we'll just give up.
-    if (keep.length == 0) {
-        return;
+    let types0 = scran.splitByFactor(genes.type);
+    if (Object.keys(types0).length == 1) {
+        return null;
     }
 
-    // Does anything match 'Antibody capture'? We'll treat this a bit
-    // differently by throwing in some custom normalization.
-    let adt_key = null;
-    for (const k of Object.keys(others)) {
-        if (k.match(/antibody capture/i)) {
-            adt_key = k;
+    // Standardizing the names to something the rest of the pipeline
+    // will recognize. By default, we check the 10X vocabulary here.
+    let types = {};
+    for (const [k, v] of Object.entries(types0)) {
+        if (k.match(/gene expression/i)) {
+            types["RNA"] = v;
+        } else if (k.match(/antibody capture/i)) {
+            types["ADT"] = v;
         }
     }
 
-    if (adt_key !== null) {
-        if (output.annotations === null) {
-            output.annotations = {};
-        }
+    let output = {};
 
-        let partial, norm, pcs, clust, sf, norm2;
+    // Skipping 'type', as it's done its purpose now.
+    let gene_deets = { ...genes };
+    delete gene_deets.type;
+    output.genes = scran.splitArrayCollection(gene_deets, types);
+
+    if (matrix !== null) {
+        // Allocating the split matrices. Note that this is skipped in the
+        // 'null' case to support feature splitting for the preflight requests
+        // (where the matrix is not loaded, obviously).
+        let out_mats;
         try {
-            // Computing some decent size factors for the ADT subset. 
-            partial = scran.subsetRows(output.matrix, others[adt_key]);
-            norm = scran.logNormCounts(partial);
-            pcs = scran.runPCA(norm, { numberOfPCs: Math.min(norm.numberOfRows() - 1, 25) });
-            clust = scran.clusterKmeans(pcs, 20);
-            sf = scran.groupedSizeFactors(partial, clust.clusters({ copy: "view" }));
-            norm2 = scran.logNormCounts(partial, { sizeFactors: sf });
-
-            // And then storing them in the annotations.
-            for (const [i, j] of Object.entries(others[adt_key])) {
-                output.annotations[adt_key + ": " + output.genes.id[j]] = norm2.row(i);
-            }
-        } finally {
-            utils.freeCache(partial);
-            utils.freeCache(norm);
-            utils.freeCache(pcs);
-            utils.freeCache(clust);
-            utils.freeCache(sf);
-            utils.freeCache(norm2);
+            out_mats = new MultiMatrix({ store: scran.splitRows(matrix, types) });
+            output.matrices = out_mats;
+        } catch (e) {
+            utils.freeCache(out_mats);
+            throw e;
         }
     }
 
-    // Stripping out everything that's not in the gene expression pile.
-    let subsetted;
-    try {
-        subsetted = scran.subsetRows(output.matrix, keep);
-        utils.freeCache(output.matrix); // releasing it as it'll be replaced with 'subsetted'.
-        output.matrix = subsetted;
-    } catch (e) {
-        utils.freeCache(subsetted);
-        throw e;
-    }
-
-    scran.matchFeatureAnnotationToRowIdentities(keep, output.genes);
-
-    return;
+    return output;
 }

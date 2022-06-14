@@ -1,8 +1,9 @@
 import * as scran from "scran.js";
-import * as wa from "wasmarrays.js";
 
 export function mimicGetter(value, copy) {
-    if (value instanceof wa.WasmArray) {
+    // Inheritance seems to be namespaced by module,
+    // so we can't use instanceof.
+    if ("className" in value.constructor && value.constructor.className.endsWith("WasmArray")) { 
         if (copy == "view" || copy == "hdf5") {
             return value.view();
         } else if (copy) {
@@ -39,7 +40,11 @@ export function allocateCachedArray(size, type, cache, name = "buffer") {
     var reallocate = true;
     if (name in cache) {
         var candidate = cache[name];
-        if (candidate.size != size || candidate.constructor.className != type) {
+
+        // Views also trigger reallocation, because it is assumed that the
+        // caller of this function does not own the view, but downstream
+        // uses of the array will involve writing to it.
+        if (candidate.size != size || candidate.constructor.className != type || candidate.owner !== null) { 
             candidate.free();
         } else {
             reallocate = false;
@@ -68,5 +73,18 @@ export function allocateCachedArray(size, type, cache, name = "buffer") {
 }
 
 export function isObject(object) {
-    return typeof object === 'object' && Array.isArray(object) === false;
+    return typeof object === 'object' && Array.isArray(object) === false && ArrayBuffer.isView(object) === false;
+}
+
+export function findValidUpstreamStates(states, msg) {
+    let to_use = [];
+    for (const [k, v] of Object.entries(states)) {
+        if (v.valid()) {
+            to_use.push(k);
+        }
+    }
+    if (to_use.length == 0) {
+        throw new Error("expected at least one valid upstream " + msg + " state");
+    }
+    return to_use;
 }
