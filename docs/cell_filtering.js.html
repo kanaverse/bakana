@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>InputsState - Documentation</title>
+    <title>cell_filtering.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -34,530 +34,268 @@
 
 <div id="main">
     
-    <h1 class="page-title">InputsState</h1>
-    
-
-    
-
-
-
-
-<section>
-
-<header>
-    
-        <h2>
-        InputsState
-        </h2>
-        
-            <div class="class-description usertext"><p>This step handles the loading of the input count matrices into memory.
-This wraps various matrix initialization functions in <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>,
-depending on the format of the supplied matrices.</p>
-<p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
-        
-    
-</header>
-
-<article>
-    
-
-    
-
-    
-
-    
-        <h3 class="subsection-title">Classes</h3>
-
-        <dl>
-            <dt><a href="InputsState.html">InputsState</a></dt>
-            <dd></dd>
-        </dl>
-    
-    
-    
-
-     
-
-    
-
-    
-
-    
-        <h3 class="subsection-title">Methods</h3>
-
-        
-            
-
-    
-
-    <h4 class="name" id="compute"><span class="type-signature">(async) </span>compute<span class="signature">(matrices, sample_factor<span class="signature-attributes">nullable</span>)</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="inputs.js.html">inputs.js</a>, <a href="inputs.js.html#line113">line 113</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-<div class="description usertext">
-    <p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.
-<code>matrices</code> is taken from the argument of the same name in <a href="global.html#runAnalysis"><code>runAnalysis</code></a>,
-while <code>sample_factor</code> is taken from the property of the same name in the <code>inputs</code> property of the <code>parameters</code>.</p>
-</div>
-
-
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>matrices</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>An object containing data for one or more count matrices.
-Each property corresponds to a single matrix and should contain a <code>format</code> string property along with any number of File objects (browser) or file paths (Node.js).
-See the description of the argument of the same name in <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>sample_factor</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-                    &lt;nullable><br>
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Name of the column of the cell annotations specifying the sample of origin for each cell.
-This is only used if a single count matrix is supplied.</p>
-<p>If <code>null</code>, all cells are assumed to originate from the same sample.</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>The object is updated with the new results.
-A promise is returned that resolves to <code>null</code> once input loading is complete - this should be resolved before any downstream steps are run.</p>
-</div>
-
-
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="fetchAnnotations"><span class="type-signature"></span>fetchAnnotations<span class="signature">(col)</span><span class="type-signature"> &rarr; {Array|TypedArray}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="inputs.js.html">inputs.js</a>, <a href="inputs.js.html#line67">line 67</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-<div class="description usertext">
-    <p>Fetch an annotation for all cells in the dataset.
-This considers all cells in the dataset before QC filtering -
-see <code>QualityControlState.fetchFilteredAnnotations</code> for an alternative.</p>
-</div>
-
-
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>col</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>Name of the annotation field of interest.</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>Array of length equal to the total number of cells, containing the requested annotations.</p>
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Array</span>
-|
-
-<span class="param-type">TypedArray</span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="summary"><span class="type-signature"></span>summary<span class="signature">()</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="inputs.js.html">inputs.js</a>, <a href="inputs.js.html#line167">line 167</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-<div class="description usertext">
-    <p>Obtain a summary of the state, typically for display on a UI like <strong>kana</strong>.</p>
-</div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>An object containing:</p>
-<ul>
-<li><code>dimensions</code>: an object containing <code>num_genes</code> and <code>num_cells</code>, the number of genes and cells respectively.
-For multiple matrices, the number of cells is the total number across all matrices.</li>
-<li><code>genes</code>: an object containing the per-gene annotation.
-Each property is an array of length equal to the number of genes, usually containing strings with gene identifiers or symbols.
-Property names are arbitrary.</li>
-<li>(optional) <code>annotations</code>: an array of strings containing the names of available cell annotation fields.</li>
-</ul>
-</div>
-
-
-
-    
-
-
-
-        
-    
-
-    
-
-    
-</article>
-
-</section>
+    <h1 class="page-title">cell_filtering.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import * as scran from "scran.js"; 
+import * as utils from "./utils/general.js";
+import * as rutils from "./utils/reader.js";
+import * as qcutils from "./utils/quality_control.js";
+import * as inputs_module from "./inputs.js";
+
+export const step_name = "cell_filtering";
+
+/**
+ * This step filters the count matrices to remove low-quality cells.
+ * It wraps the `filterCells` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * For multi-modal datasets, this combines the quality calls from all modalities; a cell is removed if it is considered low-quality in any individual modality.
+ *
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ * @hideconstructor
+ */
+export class CellFilteringState {
+    #inputs;
+    #qc_states;
+    #cache;
+    #parameters;
+
+    constructor(inputs, qc_states, parameters = null, cache = null) {
+        if (!(inputs instanceof inputs_module.InputsState)) {
+            throw new Error("'inputs' should be an InputsState");
+        }
+        this.#inputs = inputs;
+
+        for (const v of Object.values(qc_states)) {
+            if (!(v instanceof qcutils.QualityControlStateBase)) {
+                throw new Error("'qc_states' should contain QualityControlStateBase objects");
+            }
+        }
+        this.#qc_states = qc_states;
+
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
+    }
+
+    free() {
+        utils.freeCache(this.#cache.block_buffer);
+        utils.freeCache(this.#cache.discard_buffer);
+        utils.freeCache(this.#cache.matrix);
+    }
+
+    /***************************
+     ******** Getters **********
+     ***************************/
+
+    hasAvailable(type) {
+        if ("matrix" in this.#cache) {
+            return this.#cache.matrix.has(type);
+        } else {
+            return this.#inputs.hasAvailable(type);
+        }
+    }
+
+    fetchFilteredMatrix({ type = "RNA" } = {}) {
+        if (!("matrix" in this.#cache)) {
+            this.#raw_compute();
+        }
+        return this.#cache.matrix.get(type);
+    }
+
+    /**
+     * Fetch the filtered vector of block assignments.
+     *
+     * @return An Int32WasmArray of length equal to the number of cells after filtering, containing the block assignment for each cell.
+     *
+     * Alternatively `null` if no blocks are present in the dataset.
+     */
+    fetchFilteredBlock() {
+        if (!("block_buffer" in this.#cache)) {
+            this.#raw_compute();
+        }
+        return this.#cache.block_buffer;
+    }
+
+    fetchDiscards() {
+        return this.#cache.discard_buffer;
+    }
+
+    /**
+     * Fetch an annotation for the cells remaining after QC filtering.
+     *
+     * @param {string} col - Name of the annotation field of interest.
+     *
+     * @return {Array|TypedArray} Array of length equal to the number of filtered cells, containing the requested annotations.
+     */
+    fetchFilteredAnnotations(col) { 
+        let vec = this.#inputs.fetchAnnotations(col);
+        var discard = this.#cache.discard_buffer.array();
+        return vec.filter((x, i) => !discard[i]);
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    #raw_compute() {
+        let to_use = utils.findValidUpstreamStates(this.#qc_states, "QC");
+        let disc_buffer;
+        let first = this.#qc_states[to_use[0]].fetchDiscards();
+
+        if (to_use.length > 1) {
+            // A discard signal in any modality causes the cell to be removed. 
+            disc_buffer = utils.allocateCachedArray(first.length, "Uint8Array", this.#cache, "discard_buffer");
+            let disc_arr = disc_buffer.array();
+            disc_arr.fill(0);
+            for (const u of to_use) {
+                this.#qc_states[u].fetchDiscards().forEach((y, i) => { disc_arr[i] |= y; });
+            }
+        } else {
+            // If there's only one valid modality, we just create a view on it
+            // to avoid unnecessary duplication.
+            disc_buffer = first.view();
+            utils.freeCache(this.#cache.discard_buffer);
+            this.#cache.discard_buffer = disc_buffer;
+        }
+
+        // Subsetting all modalities.
+        utils.freeCache(this.#cache.matrix);
+        this.#cache.matrix = new rutils.MultiMatrix;
+        let available = this.#inputs.listAvailableTypes();
+        for (const a of available) {
+            let src = this.#inputs.fetchCountMatrix({ type: a });
+            let sub = scran.filterCells(src, disc_buffer);
+            this.#cache.matrix.add(a, sub);
+        }
+
+        // Filtering on the block.
+        let block = this.#inputs.fetchBlock();
+        if (block !== null) {
+            let bcache = utils.allocateCachedArray(this.#cache.matrix.numberOfColumns(), "Int32Array", this.#cache, "block_buffer");
+            scran.filterBlock(block, this.#cache.discard_buffer, { buffer: bcache });
+        } else {
+            utils.freeCache(this.#cache.block_buffer);
+            this.#cache.block_buffer = null;
+        }
+
+        return;
+    }
+
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `cell_filtering` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @return The object is updated with the new results.
+     */
+    compute() {
+        this.changed = false;
+
+        // Checking upstreams.
+        if (this.#inputs.changed) {
+            this.changed = true;
+        }
+        for (const x of Object.values(this.#qc_states)) {
+            if (x.valid() &amp;&amp; x.changed) {
+                this.changed = true;
+            }
+        }
+
+        if (this.changed) {
+            this.#raw_compute();
+        }
+    }
+
+    static defaults() {
+        return {};
+    }
+
+    /***************************
+     ******** Results **********
+     ***************************/
+
+    /**
+     * Obtain a summary of the state, typically for display on a UI like **kana**.
+     *
+     * @return {Object} An object containing:
+     *
+     * - `retained`: the number of cells retained after filtering out low-quality cells.
+     */
+    summary() {
+        let remaining = 0;
+        this.#cache.discard_buffer.forEach(x => { remaining += (x == 0); });
+        return { "retained": remaining };
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup(step_name);
+        ghandle.createGroup("parameters"); // for tradition
+
+        let rhandle = ghandle.createGroup("results"); 
+        let disc = this.fetchDiscards();
+        if (disc.owner === null) {
+            // If it's not a view, we save it; otherwise, we skip it, under the
+            // assumption that only one of the upstream QC states contains the
+            // discard vector.
+            rhandle.writeDataSet("discards", "Uint8", null, disc);
+        }
+    }
+}
+
+export function unserialize(handle, inputs, qc_states) {
+    let parameters = CellFilteringState.defaults();
+    let output;
+    let cache = {};
+
+    if (step_name in handle.children) {
+        let ghandle = handle.open(step_name);
+
+        try {
+            let rhandle = ghandle.open("results");
+
+            if ("discards" in rhandle.children) {
+                let discards = rhandle.open("discards", { load: true }).values; 
+                cache.discard_buffer = scran.createUint8WasmArray(discards.length);
+                cache.discard_buffer.set(discards);
+            } else {
+                // Figuring out which upstream QC state contains the discard vector
+                // and creating a view on it so that our fetchDiscards() works properly.
+                let to_use = utils.findValidUpstreamStates(qc_states, "QC");
+                if (to_use.length != 1) {
+                    throw new Error("only one upstream QC state should be valid if 'discards' is not available");
+                }
+                let use_state = qc_states[to_use[0]];
+                cache.discard_buffer = use_state.fetchDiscards().view();
+            }
+
+            output = new CellFilteringState(inputs, qc_states, parameters, cache);
+        } catch (e) {
+            utils.freeCache(cache.discard_buffer);
+            utils.freeCache(output);
+            throw e;
+        }
+    } else {
+        output = new CellFilteringState(inputs, qc_states);
+    }
+
+    return {
+        state: output,
+        parameters: { ...parameters } // make a copy to avoid pass-by-reference links with state's internal parameters
+    };
+}
+</code></pre>
+        </article>
+    </section>
 
 
 
