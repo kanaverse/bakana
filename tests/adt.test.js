@@ -93,6 +93,23 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 
     let new_params = reloaded.parameters;
 
+    {
+        // Check that steps unserialize correctly.
+        let old_keys = Object.keys(state);
+        old_keys.sort();
+        let new_keys = Object.keys(reloaded.state);
+        new_keys.sort();
+        expect(old_keys).toEqual(new_keys);
+
+        test.each(old_keys, step => {
+            let qc_deets = reloaded[step].summary();
+            let ref = state[step].summary();
+            console.log(step);
+            console.log(ref);
+            expect(ref).toEqual(ref);
+        });
+    }
+
     // Checking that the permutation is unchanged on reload, 
     // even when identities are subsetted.
     let old_adt_ids = state.inputs.summary()["genes"]["ADT"]["id"];

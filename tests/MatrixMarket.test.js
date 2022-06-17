@@ -102,6 +102,21 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
 
+    {
+        // Check that steps unserialize correctly.
+        let old_keys = Object.keys(state);
+        old_keys.sort();
+        let new_keys = Object.keys(reloaded.state);
+        new_keys.sort();
+        expect(old_keys).toEqual(new_keys);
+
+        test.each(old_keys, step => {
+            let qc_deets = reloaded[step].summary();
+            let ref = state[step].summary();
+            expect(ref).toEqual(ref);
+        });
+    }
+
     // Checking that the permutation is unchanged on reload.
     let old_ids = state.inputs.summary()["genes"]["RNA"]["id"];
     let new_ids = reloaded.state.inputs.summary()["genes"]["RNA"]["id"];

@@ -189,7 +189,7 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
             output.data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
         }
 
-        let listed = this.#format_thresholds({ copy: "view" });
+        let listed = this.#format_thresholds();
         output.thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
 
         // We don't use sums for filtering but we do report it in the metrics,

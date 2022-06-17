@@ -18,9 +18,8 @@ export function splitThresholdsByBlock(thresholds, blockLevels) {
     }
 
     for (const [key, val] of Object.entries(thresholds)) {
-        let arr = val.array();
         for (var b = 0; b < blockLevels.length; b++) {
-            output[blockLevels[b]][key] = arr[b];
+            output[blockLevels[b]][key] = val[b];
         }
     }
 

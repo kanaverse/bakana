@@ -25,10 +25,8 @@ test("splitting metrics by block works as expected", () => {
 })
 
 test("splitting thresholds by block works as expected", () => {
-    let a1 = bakana.callScran(module => module.createFloat64WasmArray(2));
-    a1.set([1.2,3.4]);
-    let a2 = bakana.callScran(module => module.createFloat64WasmArray(2));
-    a2.set([5.6,7.8]);
+    let a1 = [1.2,3.4];
+    let a2 = [5.6,7.8];
 
     let thresholds = { "foo": a1, "bar": a2 };
     let blocks = [ "odd", "even" ];

@@ -177,7 +177,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
             data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
         }
 
-        let listed = this.#format_thresholds({ copy: "view" });
+        let listed = this.#format_thresholds();
         let thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
 
         return { 
