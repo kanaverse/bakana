@@ -41,8 +41,7 @@ export class MarkerDetectionState {
         this.#choice = choice;
 
         this.#parameters = (parameters === null ? {} : parameters);
-        this.#cache = (cache === null ? {} : cache);
-        this.#cache.raw = {};
+        this.#cache = (cache === null ? { "raw": {} } : cache);
         this.changed = false;
     }
 

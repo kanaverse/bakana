@@ -110,11 +110,16 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         new_keys.sort();
         expect(old_keys).toEqual(new_keys);
 
-        test.each(old_keys, step => {
-            let qc_deets = reloaded[step].summary();
+        for (const step of old_keys) {
+            let qc_deets = reloaded.state[step].summary();
             let ref = state[step].summary();
             expect(ref).toEqual(ref);
-        });
+        }
+
+        // Check that we still get some markers.
+        let reloaded_markers = reloaded.state.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
+        let ref_markers = reloaded.state.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
+        expect(reloaded_markers).toEqual(ref_markers);
     }
 
     // Checking that the permutation is unchanged on reload.
