@@ -37,6 +37,14 @@ test("multi-matrix analyses work correctly", async () => {
     expect("3K" in contents.quality_control.thresholds).toBe(true);
     expect("4K" in contents.quality_control.thresholds).toBe(true);
 
+    {
+        // Check that some correction actually occured.
+        let corrected_pcs = state.batch_correction.fetchPCs();
+        let original_pcs = state.pca.fetchPCs();
+        expect(corrected_pcs.length).toEqual(original_pcs.length);
+        expect(corrected_pcs.pcs.slice()).not.toEqual(original_pcs.pcs.slice());
+    }
+
     // Saving and loading.
     const path = "TEST_state_multi-matrix.h5";
     let collected = await bakana.saveAnalysis(state, path);
@@ -64,6 +72,15 @@ test("multi-matrix analyses work correctly", async () => {
     let new_res = reloaded.state.feature_selection.summary();
     expect("means" in old_res).toBe(true);
     expect(old_res["means"]).toEqual(new_res["means"]);
+
+    {
+        // Check that the PCs are correctly recovered.
+        let corrected_pcs = reloaded.state.batch_correction.fetchPCs();
+        expect(corrected_pcs.pcs.owner).toBeNull();
+        let original_pcs = reloaded.state.pca.fetchPCs();
+        expect(corrected_pcs.length).toEqual(original_pcs.length);
+        expect(corrected_pcs.pcs.slice()).not.toEqual(original_pcs.pcs.slice());
+    }
 
     // Freeing.
     await bakana.freeAnalysis(state);

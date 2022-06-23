@@ -128,7 +128,7 @@ export class BatchCorrectionState {
         {
             let rhandle = ghandle.createGroup("results");
             let pcs = this.fetchPCs();
-            if (pcs.pcs.owner !== null) {
+            if (pcs.pcs.owner === null) {
                 // If it's not a view, we save it; otherwise we assume
                 // that we can recover it from the upstream state.
                 rhandle.writeDataSet("corrected", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
