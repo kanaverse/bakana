@@ -2,6 +2,8 @@ import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as correct_module from "./batch_correction.js";
 
+export const step_name = "neighbor_index";
+
 /**
  * This step assembles the neighbor search indices from the PCs (see {@linkplain PcaState}) in preparation for nearest neighbor searches in downstream steps.
  * It wraps the `buildNeighborSearchIndex` function from [**scran.js**](https://github.com/jkanche/scran.js).
@@ -43,6 +45,12 @@ export class NeighborIndexState {
     /***************************
      ******** Compute **********
      ***************************/
+
+    static defaults() {
+        return {
+            approximate: true
+        };
+    }
 
     #raw_compute(approximate) {
         var pcs = this.#correct.fetchPCs();

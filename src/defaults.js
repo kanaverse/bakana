@@ -8,6 +8,7 @@ import * as pca from "./pca.js";
 import * as pcaadt from "./adt/pca.js";
 import * as combine from "./combine_embeddings.js";
 import * as correct from "./batch_correction.js";
+import * as index from "./neighbor_index.js";
 import * as markers from "./marker_detection.js";
 import * as custom from "./custom_selections.js";
 
@@ -41,9 +42,6 @@ export function analysisDefaults() {
         },
         batch_correction: {
             method: "none"
-        },
-        neighbor_index: {
-            approximate: true
         },
         tsne: {
             perplexity: 30,
@@ -84,8 +82,11 @@ export function analysisDefaults() {
 
     output[pca.step_name] = pca.PcaState.defaults();
     output[pcaadt.step_name] = pcaadt.AdtPcaState.defaults();
+
     output[combine.step_name] = combine.CombineEmbeddingsState.defaults();
     output[correct.step_name] = correct.BatchCorrectionState.defaults();
+
+    output[index.step_name] = index.NeighborIndexState.defaults();
 
     output[markers.step_name] = markers.MarkerDetectionState.defaults();
     output[custom.step_name] = custom.CustomSelectionsState.defaults();
