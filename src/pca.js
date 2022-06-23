@@ -73,7 +73,7 @@ export class PcaState extends putils.PcaStateBase {
      * @param {number} num_pcs - Number of PCs to return.
      * @param {number} num_hvgs - Number of highly variable genes (see {@linkplain FeatureSelectionState}) to use in the PCA.
      * @param {string} block_method - Blocking method to use when dealing with multiple samples.
-     * This can be `"none"`, `"block"` or `"weight"`.
+     * This can be `"none"`, `"regress"` or `"weight"`.
      *
      * @return The object is updated with the new results.
      */
@@ -89,10 +89,6 @@ export class PcaState extends putils.PcaStateBase {
         if (this.changed || this.#norm.changed || num_pcs !== this.#parameters.num_pcs || block_method !== this.#parameters.block_method) { 
             let sub = this.#cache.hvg_buffer;
             let block = this.#filter.fetchFilteredBlock();
-            if (block_method == "none") {
-                block = null;
-            }
-
             var mat = this.#norm.fetchNormalizedMatrix();
             utils.freeCache(this.#cache.pcs);
             this.#cache.pcs = scran.runPCA(mat, { features: sub, numberOfPCs: num_pcs, block: block, blockMethod: block_method });

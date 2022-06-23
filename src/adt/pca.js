@@ -68,7 +68,7 @@ export class AdtPcaState extends putils.PcaStateBase {
      *
      * @param {number} num_pcs - Number of PCs to return.
      * @param {string} block_method - Blocking method to use when dealing with multiple samples.
-     * This can be `"none"`, `"block"` or `"weight"`.
+     * This can be `"none"`, `"regress"` or `"weight"`.
      *
      * @return The object is updated with the new results.
      */
@@ -78,10 +78,6 @@ export class AdtPcaState extends putils.PcaStateBase {
         if (this.#norm.changed || num_pcs !== this.#parameters.num_pcs || block_method !== this.#parameters.block_method) { 
             if (this.valid()) {
                 let block = this.#filter.fetchFilteredBlock();
-                if (block_method == "none") {
-                    block = null;
-                }
-
                 var mat = this.#norm.fetchNormalizedMatrix();
                 utils.freeCache(this.#cache.pcs);
                 this.#cache.pcs = scran.runPCA(mat, { numberOfPCs: num_pcs, block: block, blockMethod: block_method });
