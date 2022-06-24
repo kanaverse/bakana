@@ -111,6 +111,13 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         let reloaded_markers = reloaded.state.marker_detection.fetchGroupResults(0, "auc-min-rank", "ADT");
         let ref_markers = state.marker_detection.fetchGroupResults(0, "auc-min-rank", "ADT");
         expect(reloaded_markers).toEqual(ref_markers);
+
+        // Check that the QC steps got dragged out.
+        let adt_sums = state.adt_quality_control.fetchSums();
+        let positive = 0;
+        adt_sums.forEach(x => { positive += (x > 0); });
+        expect(positive).toBe(adt_sums.length);
+        expect(adt_sums).toEqual(state.adt_quality_control.fetchSums());
     }
 
     // Checking that the permutation is unchanged on reload, 

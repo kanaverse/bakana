@@ -298,9 +298,13 @@ export function unserialize(handle, inputs) {
 
             if ("metrics" in rhandle.children) {
                 let mhandle = rhandle.open("metrics");
+
                 let detected = mhandle.open("detected", { load: true }).values;
                 cache.metrics = scran.emptyPerCellAdtQcMetricsResults(detected.length, 1);
                 cache.metrics.detected({ copy: false }).set(detected);
+
+                let sums = mhandle.open("sums", { load: true }).values;
+                cache.metrics.sums({ copy: false }).set(sums);
                 let igg_total = mhandle.open("igg_total", { load: true }).values;
                 cache.metrics.subsetTotals(0, { copy: false }).set(igg_total);
 
