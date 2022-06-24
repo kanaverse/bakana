@@ -122,6 +122,14 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         expect(reloaded_markers).toEqual(ref_markers);
     }
 
+    {
+        // While the ADT itself is a no-op, the parameters should still be okay.
+        expect(new_params.adt_normalization.num_pcs).toBeGreaterThan(0);
+        expect(new_params.adt_normalization.num_clusters).toBeGreaterThan(0);
+        expect(new_params.combine_embeddings.weights).toBeNull();
+        expect(new_params.batch_correction.num_neighbors).toBeGreaterThan(0);
+    }
+
     // Checking that the permutation is unchanged on reload.
     let old_ids = state.inputs.summary()["genes"]["RNA"]["id"];
     let new_ids = reloaded.state.inputs.summary()["genes"]["RNA"]["id"];
