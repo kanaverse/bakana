@@ -123,79 +123,6 @@ export function promoteToNumber(x) {
     return as_num;
 }
 
-export class MultiMatrix {
-    #store;
-    #ncols;
-
-    constructor({ store = {} } = {}) {
-        this.#store = store;
-        this.#ncols = null;
-
-        let keys = Object.keys(store);
-        if (keys.length) {
-            // We ignore numberOfColumns here, as everyone should have the same number of cells.
-            for (var k = 0; k < keys.length; k++) {
-                let current = store[keys[k]];
-                if (k == 0) {
-                    this.#ncols = current.numberOfColumns();
-                } else if (current.numberOfColumns() != this.#ncols) {
-                    throw new Error("all matrices should have the same number of columns");
-                }
-            }
-        }
-    }
-
-    numberOfColumns() {
-        return this.#ncols;
-    }
-
-    available() {
-        return Object.keys(this.#store);
-    }
-
-    has(i) {
-        return (i in this.#store);
-    }
-
-    get(i) {
-        return this.#store[i];
-    }
-
-    add(i, matrix) {
-        if (this.#ncols === null) {
-            this.#ncols = matrix.numberOfColumns();
-        } else if (matrix.numberOfColumns() != this.#ncols) {
-            throw new Error("all matrices should have the same number of columns");
-        }
-
-        if (i in this.#store) {
-            let old = this.#store[i];
-            utils.freeCache(old);
-        }
-
-        this.#store[i] = matrix;
-    }
-
-    remove(i) {
-        utils.freeCache(this.#store[i]);
-        delete this.#store[i];
-    }
-
-    rename(from, to) {
-        if (from !== to) {
-            this.#store[to] = this.#store[from];
-            delete this.#store[from];
-        }
-    }
-
-    free() {
-        for (const [x, v] of Object.entries(this.#store)) {
-            utils.freeCache(v);
-        }
-        return;
-    }
-}
-
 export function reorganizeGenes(matrix, geneInfo) {
     if (geneInfo === null) {
         let genes = [];
@@ -344,7 +271,7 @@ export function splitByFeatureType(matrix, genes) {
         // (where the matrix is not loaded, obviously).
         let out_mats;
         try {
-            out_mats = new MultiMatrix({ store: scran.splitRows(matrix, types) });
+            out_mats = new scran.MultiMatrix({ store: scran.splitRows(matrix, types) });
             output.matrices = out_mats;
         } catch (e) {
             utils.freeCache(out_mats);

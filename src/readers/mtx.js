@@ -153,7 +153,7 @@ export class Reader {
         var ext = this.#mtx.name.split('.').pop();
         var is_compressed = (ext == "gz");
 
-        let matrices = new rutils.MultiMatrix;
+        let matrices = new scran.MultiMatrix;
         let output;
         try {
             let out_mat = scran.initializeSparseMatrixFromMatrixMarketBuffer(contents, { "compressed": is_compressed });

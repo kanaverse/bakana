@@ -323,7 +323,7 @@ function bind_datasets(dkeys, datasets) {
 
     let blocks;
     let output = { 
-        matrix: new rutils.MultiMatrix, 
+        matrix: new scran.MultiMatrix, 
         genes: {} 
     };
 

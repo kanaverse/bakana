@@ -117,7 +117,7 @@ export class Reader {
 
     load() {
         let output;
-        let matrices = new rutils.MultiMatrix;
+        let matrices = new scran.MultiMatrix;
 
         const tmppath = afile.realizeH5(this.#h5.content);
         try {

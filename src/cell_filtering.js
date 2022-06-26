@@ -121,7 +121,7 @@ export class CellFilteringState {
 
         // Subsetting all modalities.
         utils.freeCache(this.#cache.matrix);
-        this.#cache.matrix = new rutils.MultiMatrix;
+        this.#cache.matrix = new scran.MultiMatrix;
         let available = this.#inputs.listAvailableTypes();
         for (const a of available) {
             let src = this.#inputs.fetchCountMatrix({ type: a });
