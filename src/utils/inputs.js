@@ -78,6 +78,7 @@ export function chooseReader(format) {
 /**
  * List of available readers.
  * Each key specifies a matrix format; the corresponding value should be an ES6 module containing methods to interpret that format.
+ * See {@tutorial custom_readers} for details on adding new readers.
  */
 export var availableReaders = {
     "MatrixMarket": MtxReader,
