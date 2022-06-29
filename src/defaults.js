@@ -94,6 +94,8 @@ export function analysisDefaults() {
     return output;
 }
 
+const correctible_pca_steps = [pca.step_name, pcaadt.step_name];
+
 /**
  * Set the batch correction parameters across multiple steps.
  * This is a convenient helper as the correction process is split across the PCA and batch correction steps.
@@ -107,23 +109,82 @@ export function analysisDefaults() {
  * @return `parameters` is modified with appropriate parameters in `batch_correction`, `pca` and `pcaadt`.
  */
 export function configureBatchCorrection(parameters, method) {
+    let correct_method;
+    let pca_blocker;
+
     if (method == "mnn") {
-        parameters[correct.step_name].method = "mnn";
-        parameters[pca.step_name].block_method = "weight";
-        parameters[pcaadt.step_name].block_method = "weight";
+        correct_method = method;
+        pca_blocker = "weight";
     } else if (method == "regress") {
-        parameters[correct.step_name].method = "none";
-        parameters[pca.step_name].block_method = "regress";
-        parameters[pcaadt.step_name].block_method = "regress";
+        correct_method = "none";
+        pca_blocker = method;
     } else if (method == "none") {
-        parameters[correct.step_name].method = "none";
-        parameters[pca.step_name].block_method = "none";
-        parameters[pcaadt.step_name].block_method = "none";
+        correct_method = method;
+        pca_blocker = method;
     } else {
-        throw new Error("unknown method '" + method + "'");
+        throw new Error("unknown correction method '" + method + "'");
     }
+
+    parameters[correct.step_name].method = correct_method;
+    for (const x of correctible_pca_steps) {
+        parameters[x].block_method = pca_blocker;
+    }
+
     return parameters;
 }
+
+/**
+ * Guess the `method` value from {@linkcode configureBatchCorrection} based on the parameter object.
+ * This effectively consolidates the various correction parameters into a single setting.
+ *
+ * @param {object} parameters - Object containing parameters for all steps, typically after {@linkcode configureBatchCorrection}.
+ * @param {object} [options] - Optional parameters.
+ * @param {boolean} [options.strict] - Whether to only report the `method` when the set of parameters modified by {@linkcode configureBatchCorrection} are consistent.
+ *
+ * @return {?string} One of `"mnn"`, `"regress"` or `"none"`, based on the expected set of modifications from {@linkcode configureBatchCorrection}.
+ * If `strict = false` and there is no exact match to the expected set, the most appropriate method is returned;
+ * otherwise, if `strict = true`, `null` is returned.
+ */
+export function guessBatchCorrectionConfig(parameters, { strict = false } = {}) {
+    let pca_blockers = new Set(correctible_pca_steps.map(x => parameters[x].block_method));
+
+    let resp;
+    if (parameters[correct.step_name].method == "mnn") {
+        resp = "mnn";
+        if (strict) {
+            if (pca_blockers.size > 1 || !pca_blockers.has("weight")) {
+                resp = null;
+            }
+        }
+    } else {
+        if (pca_blockers.has("regress")) {
+            if (strict && pca_blockers.size > 1) {
+                resp = null;
+            } else {
+                resp = "regress";
+            }
+        } else if (pca_blockers.has("none")) {
+            if (strict && pca_blockers.size > 1) {
+                resp = null;
+            } else {
+                resp = "none";
+            }
+        } else {
+            // If pca block_methods are set to 'weight',
+            // this doesn't really correspond to anything,
+            // but is closest to 'none'.
+            if (strict) {
+                resp = null;
+            } else {
+                resp = "none";
+            }
+        }
+    }
+
+    return resp;
+}
+
+const approximatable_steps = [correct.step_name, combine.step_name, index.step_name];
 
 /**
  * Specify whether approximate neighbor searches should be performed across all affected steps.
@@ -135,8 +196,29 @@ export function configureBatchCorrection(parameters, method) {
  * @return `parameters` is modified with appropriate parameters in relevant steps, e.g., `batch_correction`, `combine_embeddings` and `neighbor_index`.
  */
 export function configureApproximateNeighbors(parameters, approximate) {
-    for (const step of [correct.step_name, combine.step_name, index.step_name]) {
+    for (const step of approximatable_steps) {
         parameters[step].approximate = approximate;
     }
     return parameters;
+}
+
+/**
+ * Guess the value of `approximate` from {@linkcode configureApproximateNeighbors} based on the parameter object.
+ * This effectively consolidates the various approximation parameters into a single setting.
+ *
+ * @param {object} parameters - Object containing parameters for all steps, typically after {@linkcode configureApproximateNeighbors}.
+ * @param {object} [options] - Optional parameters.
+ * @param {boolean} [options.strict] - Whether to only report `approximate` when the set of parameters modified by {@linkcode configureApproximateNeighbors} are consistent.
+ *
+ * @return {?boolean} Whether or not approximate neighbor search was used.
+ * If `strict = false` and there is a mixture of approximate and exact matches, an approximate search is reported;
+ * otherwise, if `strict = true`, `null` is returned.
+ */
+export function guessApproximateNeighborsConfig(parameters, { strict = false } = {}) {
+    let approximates = new Set(approximatable_steps.map(x => parameters[x].approximate));
+    if (strict && approximates.size > 1) {
+        return null;
+    } else {
+        return approximates.has(true);
+    }
 }
