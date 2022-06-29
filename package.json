@@ -23,7 +23,7 @@
   "dependencies": {
     "pako": "^2.0.4",
     "papaparse": "^5.3.2",
-    "scran.js": "^0.2.2"
+    "scran.js": "^0.2.4"
   },
   "devDependencies": {
     "docdash": "^1.2.0",
