@@ -39,15 +39,20 @@ export class LoadedFile {
     }
 };
 
+export function realizeH5(loaded) {
+    let tmppath;
+
+    do {
+        tmppath = "temp_" + String(Number(new Date())) + "_" + String(Math.round(Math.random() * 10000)) + ".h5";
+    } while (scran.fileExists(tmppath));
+
+    scran.writeFile(tmppath, new Uint8Array(loaded.buffer()));
+    return tmppath;
+}
+
 export function removeH5(path) {
     if (scran.fileExists(path)) {
         scran.removeFile(path);
     }
     return;
-}
-
-export function realizeH5(loaded) {  
-    const tmppath = "temp_" + String(Number(new Date())) + ".h5";
-    scran.writeFile(tmppath, new Uint8Array(loaded.buffer()));
-    return tmppath;
 }
