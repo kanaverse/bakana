@@ -560,7 +560,7 @@ This is a convenient helper as it is generally unnecessary to switch between exa
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line137">line 137</a>
+        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line198">line 198</a>
     </li></ul></dd>
     
 
@@ -734,7 +734,7 @@ and for no correction, we need to turn off any block handling in PCA as well as 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line109">line 109</a>
+        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line111">line 111</a>
     </li></ul></dd>
     
 
@@ -1239,6 +1239,538 @@ This releases memory on the <strong>scran.js</strong> Wasm heap and terminates a
 </div>
 
 
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="guessApproximateNeighborsConfig"><span class="type-signature"></span>guessApproximateNeighborsConfig<span class="signature">(parameters, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; (nullable) {boolean}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Guess the value of <code>approximate</code> from <a href="global.html#configureApproximateNeighbors"><code>configureApproximateNeighbors</code></a> based on the parameter object.
+This effectively consolidates the various approximation parameters into a single setting.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>parameters</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Object containing parameters for all steps, typically after <a href="global.html#configureApproximateNeighbors"><code>configureApproximateNeighbors</code></a>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Optional parameters.</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>strict</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Whether to only report <code>approximate</code> when the set of parameters modified by <a href="global.html#configureApproximateNeighbors"><code>configureApproximateNeighbors</code></a> are consistent.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line217">line 217</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Whether or not approximate neighbor search was used.
+If <code>strict = false</code> and there is a mixture of approximate and exact matches, an approximate search is reported;
+otherwise, if <code>strict = true</code>, <code>null</code> is returned.</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">boolean</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="guessBatchCorrectionConfig"><span class="type-signature"></span>guessBatchCorrectionConfig<span class="signature">(parameters, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; (nullable) {string}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Guess the <code>method</code> value from <a href="global.html#configureBatchCorrection"><code>configureBatchCorrection</code></a> based on the parameter object.
+This effectively consolidates the various correction parameters into a single setting.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>parameters</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Object containing parameters for all steps, typically after <a href="global.html#configureBatchCorrection"><code>configureBatchCorrection</code></a>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Optional parameters.</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>strict</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Whether to only report the <code>method</code> when the set of parameters modified by <a href="global.html#configureBatchCorrection"><code>configureBatchCorrection</code></a> are consistent.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line148">line 148</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>One of <code>&quot;mnn&quot;</code>, <code>&quot;regress&quot;</code> or <code>&quot;none&quot;</code>, based on the expected set of modifications from <a href="global.html#configureBatchCorrection"><code>configureBatchCorrection</code></a>.
+If <code>strict = false</code> and there is no exact match to the expected set, the most appropriate method is returned;
+otherwise, if <code>strict = true</code>, <code>null</code> is returned.</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
 
     
 
@@ -4762,13 +5294,13 @@ This may be <code>null</code> if <code>matrices</code> has only a single entry t
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="BatchCorrectionState.html">BatchCorrectionState</a></li><li><a href="CellFilteringState.html">CellFilteringState</a></li><li><a href="CellLabellingState.html">CellLabellingState</a></li><li><a href="ChooseClusteringState.html">ChooseClusteringState</a></li><li><a href="CombineEmbeddingsState.html">CombineEmbeddingsState</a></li><li><a href="CustomSelectionsState.html">CustomSelectionsState</a></li><li><a href="FeatureSelectionState.html">FeatureSelectionState</a></li><li><a href="InputsState.html">InputsState</a></li><li><a href="KmeansClusterState.html">KmeansClusterState</a></li><li><a href="MarkerDetectionState.html">MarkerDetectionState</a></li><li><a href="NeighborIndexState.html">NeighborIndexState</a></li><li><a href="NormalizationState.html">NormalizationState</a></li><li><a href="PcaState.html">PcaState</a></li><li><a href="QualityControlState.html">QualityControlState</a></li><li><a href="SnnGraphClusterState.html">SnnGraphClusterState</a></li><li><a href="TsneState.html">TsneState</a></li><li><a href="UmapState.html">UmapState</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-custom_readers.html">custom_readers</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#callScran">callScran</a></li><li><a href="global.html#configureApproximateNeighbors">configureApproximateNeighbors</a></li><li><a href="global.html#configureBatchCorrection">configureBatchCorrection</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#createKanaFile">createKanaFile</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#parseKanaFile">parseKanaFile</a></li><li><a href="global.html#promoteToNumber">promoteToNumber</a></li><li><a href="global.html#readLines">readLines</a></li><li><a href="global.html#readTable">readTable</a></li><li><a href="global.html#removeHDF5File">removeHDF5File</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#unpackText">unpackText</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="BatchCorrectionState.html">BatchCorrectionState</a></li><li><a href="CellFilteringState.html">CellFilteringState</a></li><li><a href="CellLabellingState.html">CellLabellingState</a></li><li><a href="ChooseClusteringState.html">ChooseClusteringState</a></li><li><a href="CombineEmbeddingsState.html">CombineEmbeddingsState</a></li><li><a href="CustomSelectionsState.html">CustomSelectionsState</a></li><li><a href="FeatureSelectionState.html">FeatureSelectionState</a></li><li><a href="InputsState.html">InputsState</a></li><li><a href="KmeansClusterState.html">KmeansClusterState</a></li><li><a href="MarkerDetectionState.html">MarkerDetectionState</a></li><li><a href="NeighborIndexState.html">NeighborIndexState</a></li><li><a href="NormalizationState.html">NormalizationState</a></li><li><a href="PcaState.html">PcaState</a></li><li><a href="QualityControlState.html">QualityControlState</a></li><li><a href="SnnGraphClusterState.html">SnnGraphClusterState</a></li><li><a href="TsneState.html">TsneState</a></li><li><a href="UmapState.html">UmapState</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-custom_readers.html">custom_readers</a></li></ul><h3>Global</h3><ul><li><a href="global.html#analysisDefaults">analysisDefaults</a></li><li><a href="global.html#availableReaders">availableReaders</a></li><li><a href="global.html#callScran">callScran</a></li><li><a href="global.html#configureApproximateNeighbors">configureApproximateNeighbors</a></li><li><a href="global.html#configureBatchCorrection">configureBatchCorrection</a></li><li><a href="global.html#createAnalysis">createAnalysis</a></li><li><a href="global.html#createKanaFile">createKanaFile</a></li><li><a href="global.html#freeAnalysis">freeAnalysis</a></li><li><a href="global.html#guessApproximateNeighborsConfig">guessApproximateNeighborsConfig</a></li><li><a href="global.html#guessBatchCorrectionConfig">guessBatchCorrectionConfig</a></li><li><a href="global.html#initialize">initialize</a></li><li><a href="global.html#loadAnalysis">loadAnalysis</a></li><li><a href="global.html#parseKanaFile">parseKanaFile</a></li><li><a href="global.html#promoteToNumber">promoteToNumber</a></li><li><a href="global.html#readLines">readLines</a></li><li><a href="global.html#readTable">readTable</a></li><li><a href="global.html#removeHDF5File">removeHDF5File</a></li><li><a href="global.html#runAnalysis">runAnalysis</a></li><li><a href="global.html#saveAnalysis">saveAnalysis</a></li><li><a href="global.html#setCellLabellingDownload">setCellLabellingDownload</a></li><li><a href="global.html#setCreateLink">setCreateLink</a></li><li><a href="global.html#setResolveLink">setResolveLink</a></li><li><a href="global.html#setVisualizationAnimate">setVisualizationAnimate</a></li><li><a href="global.html#terminate">terminate</a></li><li><a href="global.html#unpackText">unpackText</a></li><li><a href="global.html#validateAnnotations">validateAnnotations</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Jun 29 2022 05:35:49 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Wed Jun 29 2022 06:36:02 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
