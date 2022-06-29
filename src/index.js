@@ -26,7 +26,7 @@ import * as cluster_markers from "./marker_detection.js";
 import * as label_cells from "./cell_labelling.js";
 import * as custom_markers from "./custom_selections.js";
 
-export { analysisDefaults, configureBatchCorrection, configureApproximateNeighbors } from "./defaults.js";
+export * from "./defaults.js";
 export { validateAnnotations } from "./preflight.js";
 export { availableReaders } from "./utils/inputs.js";
 export { setVisualizationAnimate } from "./utils/viz_parent.js";
