@@ -50,7 +50,9 @@ export function realizeH5(loaded) {
     return tmppath;
 }
 
-export function removeH5(path) {
+// The default is allowed = true here; we are always allowed to delete stuff
+// from the VFS, given that we created it with realizeH5. 
+export function removeH5(path, { allowed = true } = {}) {
     if (scran.fileExists(path)) {
         scran.removeFile(path);
     }

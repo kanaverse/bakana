@@ -706,7 +706,7 @@ export function parseKanaFile(input, statePath, options = {}) {
  * If the file does not exist, this function is a no-op.
  */
 export function removeHDF5File(path) {
-    afile.removeH5(path);
+    afile.removeH5(path, { allowed: true });
     return;
 }
 

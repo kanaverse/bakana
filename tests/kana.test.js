@@ -24,7 +24,6 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
     // Saving to a kana file.
     const path = "TEST_kana_state.h5";
     let collected = await bakana.saveAnalysis(state, path);
-    await bakana.freeAnalysis(state);
 
     const kpath = "TEST_state.kana";
     let res = await bakana.createKanaFile(path, collected.collected, { outputPath: kpath });
@@ -37,6 +36,7 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
         fs.rmSync(tmp, { recursive: true, force: true });
     }
     fs.mkdirSync(tmp);
+
     const round_trip = "TEST_kana_state_again.h5";
 
     let loader = await bakana.parseKanaFile(kpath, round_trip, { stageDir: tmp });
@@ -46,7 +46,14 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
     expect(reloaded.state.pca.summary()).toEqual(ref_pca);
 
     // Releasing all memory.
+    await bakana.freeAnalysis(state);
     await bakana.freeAnalysis(reloaded.state);
+
+    // Deleting the files.
+    bakana.removeHDF5File(path);
+    expect(fs.existsSync(path)).toBe(false); // properly removed.
+    bakana.removeHDF5File(round_trip);
+    expect(fs.existsSync(round_trip)).toBe(false); // properly removed.
 })
 
 test("saving to and loading from a kana file works with links", async () => {
@@ -62,11 +69,13 @@ test("saving to and loading from a kana file works with links", async () => {
     // Saving to a kana file.
     const path = "TEST_kana_state2.h5";
     await bakana.saveAnalysis(state, path, { embedded: false });
-    await bakana.freeAnalysis(state);
 
     const kpath = "TEST_state2.kana";
     let res = await bakana.createKanaFile(path, null, { outputPath: kpath });
     expect(fs.statSync(res).size).toBe(24 + fs.statSync(path).size);
+
+    bakana.removeHDF5File(path);
+    expect(fs.existsSync(path)).toBe(false); // properly removed.
 
     // Alright - trying to unpack everything.
     const round_trip = "TEST_kana_state_again2.h5";
@@ -81,5 +90,10 @@ test("saving to and loading from a kana file works with links", async () => {
     bakana.setResolveLink(old_resolve);
 
     // Releasing all memory.
+    await bakana.freeAnalysis(state);
     await bakana.freeAnalysis(reloaded.state);
+
+    // Deleting the files.
+    bakana.removeHDF5File(path);
+    bakana.removeHDF5File(round_trip);
 })

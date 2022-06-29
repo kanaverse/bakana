@@ -32,10 +32,15 @@ export class LoadedFile {
     }
 };
 
-export function removeH5(path) {  
-    return;
-}
-
 export function realizeH5(loaded) {
     return loaded.path;
+}
+
+// The default is allowed = false here; we are not allowed to delete stuff
+// from the host filesystem, we just read from it most of the time.
+export function removeH5(path, { allowed = false } = {}) {
+    if (allowed && fs.existsSync(path)) {
+        fs.unlinkSync(path);
+    }
+    return;
 }
