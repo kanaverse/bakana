@@ -5,10 +5,24 @@ import * as utils from "./utils.js";
 beforeAll(async () => await bakana.initialize({ localFile: true }));
 afterAll(async () => await bakana.terminate());
 
+function createFinisher(contents) {
+    return (step, res) => {
+        if (typeof res !== "undefined") {
+            contents[step] = res;
+        }
+    };
+}
+
 test("reanalysis from a v0 analysis works correctly (10X)", async () => {
     const h5path = "TEST_v0_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/zeisel_tenx_20220307.kana", h5path);
-    let reloaded = await bakana.loadAnalysis(h5path, loader);
+
+    let contents = {};
+    let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+
+    // Checking that some of the summaries are correctly reported.
+    expect(contents.cell_filtering.retained).toBeGreaterThan(0);
+    expect(contents.combine_embeddings).toEqual({});
 
     let new_state = reloaded.state;
     let new_params = reloaded.parameters;
@@ -24,7 +38,13 @@ test("reanalysis from a v0 analysis works correctly (10X)", async () => {
 test("reanalysis from a v0 analysis works correctly (MatrixMarket)", async () => {
     const h5path = "TEST_v0_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/zeisel_mtx_20220306.kana", h5path);
-    let reloaded = await bakana.loadAnalysis(h5path, loader);
+
+    let contents = {};
+    let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+
+    // Checking that some of the summaries are correctly reported.
+    expect(contents.cell_filtering.retained).toBeGreaterThan(0);
+    expect(contents.combine_embeddings).toEqual({});
 
     let new_state = reloaded.state;
     let new_params = reloaded.parameters;
@@ -40,7 +60,13 @@ test("reanalysis from a v0 analysis works correctly (MatrixMarket)", async () =>
 test("reanalysis from a v1.0 analysis works correctly (10X)", async () => {
     const h5path = "TEST_v1.0_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/zeisel_tenx_20220318.kana", h5path);
-    let reloaded = await bakana.loadAnalysis(h5path, loader);
+
+    let contents = {};
+    let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+
+    // Checking that some of the summaries are correctly reported.
+    expect(contents.cell_filtering.retained).toBeGreaterThan(0);
+    expect(contents.combine_embeddings).toEqual({});
 
     let new_state = reloaded.state;
     let new_params = reloaded.parameters;
@@ -58,7 +84,13 @@ test("reanalysis from a v1.0 analysis works correctly (10X)", async () => {
 test("reanalysis from a v1.1 analysis works correctly (10X combined)", async () => {
     const h5path = "TEST_v1.1_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc-combined_tenx_20220401.kana", h5path);
-    let reloaded = await bakana.loadAnalysis(h5path, loader);
+
+    let contents = {};
+    let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+
+    // Checking that some of the summaries are correctly reported.
+    expect(contents.cell_filtering.retained).toBeGreaterThan(0);
+    expect(contents.combine_embeddings).toEqual({});
 
     let new_state = reloaded.state;
     let new_params = reloaded.parameters;
@@ -73,7 +105,13 @@ test("reanalysis from a v1.1 analysis works correctly (10X combined)", async () 
 test("reanalysis from a v1.1 analysis works correctly (MatrixMarket)", async () => {
     const h5path = "TEST_v1.1_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc4k-with-custom_mtx_20220408.kana", h5path);
-    let reloaded = await bakana.loadAnalysis(h5path, loader);
+
+    let contents = {};
+    let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+
+    // Checking that some of the summaries are correctly reported.
+    expect(contents.cell_filtering.retained).toBeGreaterThan(0);
+    expect(contents.combine_embeddings).toEqual({});
 
     let new_state = reloaded.state;
     let new_params = reloaded.parameters;
@@ -88,7 +126,13 @@ test("reanalysis from a v1.1 analysis works correctly (MatrixMarket)", async () 
 test("reanalysis from a v1.2 analysis works correctly (10X combined)", async () => {
     const h5path = "TEST_v1.2_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc-combined-with-kmeans-and-custom_tenx_20220525.kana", h5path);
-    let reloaded = await bakana.loadAnalysis(h5path, loader);
+
+    let contents = {};
+    let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+
+    // Checking that some of the summaries are correctly reported.
+    expect(contents.cell_filtering.retained).toBeGreaterThan(0);
+    expect(contents.combine_embeddings).toEqual({});
 
     let new_state = reloaded.state;
     let new_params = reloaded.parameters;
@@ -103,7 +147,13 @@ test("reanalysis from a v1.2 analysis works correctly (10X combined)", async () 
 test("reanalysis from a v1.2 analysis works correctly (MatrixMarket)", async () => {
     const h5path = "TEST_v1.1_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc4k-with-kmeans-and-custom_mtx_20220525.kana", h5path);
-    let reloaded = await bakana.loadAnalysis(h5path, loader);
+
+    let contents = {};
+    let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+
+    // Checking that some of the summaries are correctly reported.
+    expect(contents.cell_filtering.retained).toBeGreaterThan(0);
+    expect(contents.combine_embeddings).toEqual({});
 
     let new_state = reloaded.state;
     let new_params = reloaded.parameters;

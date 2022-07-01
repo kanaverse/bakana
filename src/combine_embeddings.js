@@ -192,26 +192,26 @@ export function unserialize(handle, pca_states) {
     let parameters = CombineEmbeddingsState.defaults();
     let output;
 
-    if (step_name in handle.children) {
-        let ghandle = handle.open(step_name);
+    try {
+        if (step_name in handle.children) {
+            let ghandle = handle.open(step_name);
 
-        {
-            let phandle = ghandle.open("parameters");
-            parameters.approximate = phandle.open("approximate", { load: true }).values[0] > 0;
+            {
+                let phandle = ghandle.open("parameters");
+                parameters.approximate = phandle.open("approximate", { load: true }).values[0] > 0;
 
-            let whandle = phandle.open("weights");
-            let keys = Object.keys(whandle.children);
+                let whandle = phandle.open("weights");
+                let keys = Object.keys(whandle.children);
 
-            // If it's empty, we just use the default of null.
-            if (keys.length) {
-                parameters.weights = {};
-                for (const k of keys) {
-                    parameters.weights[k] = whandle.open(k, { load: true }).values[0];
+                // If it's empty, we just use the default of null.
+                if (keys.length) {
+                    parameters.weights = {};
+                    for (const k of keys) {
+                        parameters.weights[k] = whandle.open(k, { load: true }).values[0];
+                    }
                 }
             }
-        }
 
-        try {
             let rhandle = ghandle.open("results");
 
             if ("combined" in rhandle.children) {
@@ -222,37 +222,40 @@ export function unserialize(handle, pca_states) {
                 let vals = phandle.values;
                 cache.combined_buffer = scran.createFloat64WasmArray(vals.length);
                 cache.combined_buffer.set(vals);
-            } else {
-                // Creating a view from the valid upstream PCA state.
-                let to_use = utils.findValidUpstreamStates(pca_states, "PCA");
+            }
+        }
 
-                if (to_use.length > 1 && parameters.weights !== null) {
-                    let has_nonzero_weight = [];
-                    for (const k of to_use) {
-                        if (parameters.weights[k] > 0) {
-                            has_nonzero_weight.push(k);
-                        }
+        if (!("combined_buffer" in cache)) {
+            // This only happens if there was only one upstream PCA state; in which case, 
+            // we figure out which upstream PCA state contains the PC vector
+            // and create a view on it so that our fetchPCs() works properly.
+            // (v1 and earlier also implicitly falls in this category.)
+
+            let to_use = utils.findValidUpstreamStates(pca_states, "PCA");
+
+            if (to_use.length > 1 && parameters.weights !== null) {
+                let has_nonzero_weight = [];
+                for (const k of to_use) {
+                    if (parameters.weights[k] > 0) {
+                        has_nonzero_weight.push(k);
                     }
-                    to_use = has_nonzero_weight;
                 }
-
-                if (to_use.length != 1) {
-                    throw new Error("only one upstream PCA state should be valid with non-zero weight if 'combined' is not available");
-                }
-
-                let pcs = pca_states[to_use[0]].fetchPCs();
-                CombineEmbeddingsState.createPcsView(cache, pcs);
+                to_use = has_nonzero_weight;
             }
 
-            output = new CombineEmbeddingsState(pca_states, parameters, cache);
-        } catch (e) {
-            utils.freeCache(cache.combined_buffer);
-            utils.freeCache(output);
-            throw e;
+            if (to_use.length != 1) {
+                throw new Error("only one upstream PCA state should be valid with non-zero weight if 'combined' is not available");
+            }
+
+            let pcs = pca_states[to_use[0]].fetchPCs();
+            CombineEmbeddingsState.createPcsView(cache, pcs);
         }
-    } else {
-        // Fallback for v1.
-        output = new CombineEmbeddingsState(pca_states);
+
+        output = new CombineEmbeddingsState(pca_states, parameters, cache);
+    } catch (e) {
+        utils.freeCache(cache.combined_buffer);
+        utils.freeCache(output);
+        throw e;
     }
 
     return {
