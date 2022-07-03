@@ -1,6 +1,5 @@
 import * as bakana from "./../../src/index.js";
 import * as mtx from "./../../src/readers/mtx.js";
-import * as rutils from "./../../src/utils/reader.js";
 
 beforeAll(async () => await bakana.initialize({ localFile: true }));
 afterAll(async () => await bakana.terminate());

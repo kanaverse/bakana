@@ -1,7 +1,6 @@
 import * as scran from "scran.js";
-import * as utils from "./../utils/general.js";
-import * as rutils from "./../utils/reader.js";
-import * as afile from "./../abstract/file.js";
+import * as rutils from "./utils/index.js";
+import * as afile from "../abstract/file.js";
 
 export function abbreviate(args) {
     return { 
@@ -90,7 +89,7 @@ export class Reader {
 
             let split_out = rutils.splitByFeatureType(out_mat, genes.RNA);
             if (split_out !== null) {
-                utils.freeCache(out_mat);
+                scran.safeFree(out_mat);
                 matrices = split_out.matrices;
                 genes = split_out.genes;
             }
@@ -101,7 +100,7 @@ export class Reader {
                 annotations: null
             };
         } catch (e) {
-            utils.freeCache(matrices);
+            scran.safeFree(matrices);
             throw e;
         } finally {
             afile.removeH5(tmppath);

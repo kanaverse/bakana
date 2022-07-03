@@ -1,16 +1,16 @@
-import * as inputs from "./inputs.js";
-import * as qc from "./quality_control.js";
-import * as qcadt from "./adt/quality_control.js";
-import * as filter from "./cell_filtering.js";
-import * as norm from "./normalization.js";
-import * as normadt from "./adt/normalization.js";
-import * as pca from "./pca.js";
-import * as pcaadt from "./adt/pca.js";
-import * as combine from "./combine_embeddings.js";
-import * as correct from "./batch_correction.js";
-import * as index from "./neighbor_index.js";
-import * as markers from "./marker_detection.js";
-import * as custom from "./custom_selections.js";
+import * as inputs from "./steps/inputs.js";
+import * as qc from "./steps/quality_control.js";
+import * as qcadt from "./steps/adt_quality_control.js";
+import * as filter from "./steps/cell_filtering.js";
+import * as norm from "./steps/normalization.js";
+import * as normadt from "./steps/adt_normalization.js";
+import * as pca from "./steps/pca.js";
+import * as pcaadt from "./steps/adt_pca.js";
+import * as combine from "./steps/combine_embeddings.js";
+import * as correct from "./steps/batch_correction.js";
+import * as index from "./steps/neighbor_index.js";
+import * as markers from "./steps/marker_detection.js";
+import * as custom from "./steps/custom_selections.js";
 
 /**
  * Generate an object containing all of the default analysis parameters.

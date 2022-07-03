@@ -1,4 +1,4 @@
-import * as from_v0 from "./../legacy/from_v0.js";
+import * as from_v0 from "./legacy_v0.js";
 import * as scran from "scran.js";
 import * as pako from "pako";
 
@@ -29,20 +29,6 @@ function bufferToNumber(buffer) {
     for (const x of buffer) {
         output += multiplier * x;
         multiplier *= 256;
-    }
-    return output;
-}
-
-export function embedFiles() {
-    let output = { collected: [], total: 0 };
-    output.saver = (serialized, size) => {
-        output.collected.push(serialized);
-        let current = output.total;
-        output.total += size;
-        return {
-            "offset": current,
-            "size": size
-        };
     }
     return output;
 }

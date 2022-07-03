@@ -1,5 +1,5 @@
-import * as utils from "./utils/general.js";
-import * as iutils from "./utils/inputs.js";
+import * as rutils from "./readers/index.js";
+import * as iutils from "./steps/inputs.js";
 import * as f from "./abstract/file.js";
 
 /**
@@ -32,7 +32,7 @@ export async function validateAnnotations(matrices) {
     let promises = [];
     for (const key of mkeys) {
         let val = matrices[key];
-        let namespace = iutils.chooseReader(val.format);
+        let namespace = rutils.chooseReader(val.format);
         promises.push(namespace.preflight(val));
     }
     let collected = await Promise.all(promises);

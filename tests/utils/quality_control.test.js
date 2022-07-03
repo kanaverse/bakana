@@ -1,5 +1,5 @@
 import * as bakana from "./../../src/index.js";
-import * as qcutils from "./../../src/utils/quality_control.js";
+import * as qcutils from "./../../src/steps/utils/quality_control.js";
 
 beforeAll(async () => await bakana.initialize({ localFile: true }));
 afterAll(async () => await bakana.terminate());

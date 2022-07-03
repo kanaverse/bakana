@@ -1,8 +1,8 @@
 import * as scran from "scran.js"; 
-import * as utils from "../utils/general.js";
-import * as nutils from "../utils/normalization.js";
-import * as qc_module from "./quality_control.js";
-import * as filter_module from "../cell_filtering.js";
+import * as utils from "./utils/general.js";
+import * as nutils from "./utils/normalization.js";
+import * as qc_module from "./adt_quality_control.js";
+import * as filter_module from "./cell_filtering.js";
 
 export const step_name = "adt_normalization";
 

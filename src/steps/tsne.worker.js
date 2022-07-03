@@ -1,33 +1,34 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as vizutils from "./utils/viz_child.js";
-import * as aworkers from "./abstract/worker_child.js";
+import * as aworkers from "../abstract/worker_child.js";
 
 var cache = {};
 var init_changed = false;
 var init_parameters = {};
 var run_parameters = {};
 
-function rerun(animate) {
+function rerun(animate, iterations) {
+    var num_obs = cache.init.numberOfCells(); 
     var delay = vizutils.chooseDelay(animate);
     var current_status = cache.init.clone();
 
     try {
-        cache.total = current_status.totalEpochs();
-        for (; current_status.currentEpoch() < cache.total; ) {
-            scran.runUMAP(current_status, { runTime: delay });
-
+        for (; current_status.iterations() < iterations; ) {
+            scran.runTSNE(current_status, { runTime: delay, maxIterations: iterations }); 
+  
             if (animate) {
-                var xy = current_status.extractCoordinates();
+                let xy = current_status.extractCoordinates();
                 aworkers.sendMessage({
-                    "type": "umap_iter",
+                    "type": "tsne_iter",
                     "x": xy.x,
                     "y": xy.y,
-                    "iteration": current_status.currentEpoch()
+                    "iteration": current_status.iterations()
                 }, [xy.x.buffer, xy.y.buffer]);
             }
         }
         cache.final = current_status.extractCoordinates();
+
     } finally {
         current_status.free();
     }
@@ -36,9 +37,9 @@ function rerun(animate) {
 var loaded;
 aworkers.registerCallback(msg => {
     var id = msg.data.id;
-
+  
     if (msg.data.cmd == "INIT") {
-        loaded = scran.initialize(msg.data.scranOptions);
+        loaded = scran.initialize(msg.data.scranOptions); 
         loaded
             .then(x => {
                 aworkers.sendMessage({
@@ -54,7 +55,7 @@ aworkers.registerCallback(msg => {
                     "error": error
                 });
             });
-
+  
     } else if (msg.data.cmd == "RUN") {
         loaded
             .then(x => {
@@ -66,27 +67,27 @@ aworkers.registerCallback(msg => {
                 } else {
                     new_neighbors = false;
                 }
-        
-                var init_args = { "min_dist": msg.data.params.min_dist, "num_epochs": msg.data.params.num_epochs };
+
+                var init_args = { "perplexity": msg.data.params.perplexity };
                 if (!new_neighbors && !utils.changedParameters(init_args, init_parameters)) {
                     init_changed = false;
                 } else {
                     utils.freeCache(cache.init);
-                    cache.init = scran.initializeUMAP(cache.neighbors, { epochs: init_args.num_epochs, minDist: init_args.min_dist });
+                    cache.init = scran.initializeTSNE(cache.neighbors, { perplexity: init_args.perplexity });
                     init_parameters = init_args;
                     init_changed = true;
                 }
-        
+
                 // Nothing downstream depends on the run results, so we don't set any changed flag.
-                var run_args = {};
+                var run_args = { "iterations": msg.data.params.iterations };
                 if (init_changed || utils.changedParameters(run_args, run_parameters)) {
-                    rerun(msg.data.params.animate);
+                    rerun(msg.data.params.animate, run_args.iterations);
                     run_parameters = run_args;
                 }
-        
+          
                 aworkers.sendMessage({
                     "id": id,
-                    "type": "umap_run",
+                    "type": "tsne_run",
                     "data": { "status": "SUCCESS" }
                 });
             })
@@ -97,37 +98,37 @@ aworkers.registerCallback(msg => {
                     "error": error
                 });
             });
-    
+  
     } else if (msg.data.cmd == "RERUN") {
         loaded
             .then(x => {
-                rerun(true);
+                rerun(true, run_parameters.iterations);
                 aworkers.sendMessage({
                     "id": id,
-                    "type": "umap_rerun",
+                    "type": "tsne_rerun",
                     "data": { "status": "SUCCESS" }
                 });
             })
             .catch(error => {
-                aworkers.sendMessage({
+                aworkers.sendMessage({ 
                     "id": id,
                     "type": "error",
                     "error": error
                 });
             });
-          
+
     } else if (msg.data.cmd == "FETCH") {
         loaded
             .then(x => {
                 var info = {
                     "x": cache.final.x.slice(),
                     "y": cache.final.y.slice(),
-                    "iterations": cache.total
+                    "iterations": run_parameters.iterations
                 };
                 var transfer = [info.x.buffer, info.y.buffer];
                 aworkers.sendMessage({
                     "id": id,
-                    "type": "umap_fetch",
+                    "type": "tsne_fetch",
                     "data": info
                 }, transfer);
             })

@@ -6,11 +6,11 @@
  */
 
 export function createTsneWorker() {
-    return new Worker(new URL("../tsne.worker.js", import.meta.url), { type: "module" });
+    return new Worker(new URL("../steps/tsne.worker.js", import.meta.url), { type: "module" });
 }
 
 export function createUmapWorker() {
-    return new Worker(new URL("../umap.worker.js", import.meta.url), { type: "module" });
+    return new Worker(new URL("../steps/umap.worker.js", import.meta.url), { type: "module" });
 }
 
 export function registerCallback(worker, callback) {

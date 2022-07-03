@@ -2,16 +2,16 @@ import * as scran from "scran.js";
 import * as vizutils from "./utils/viz_parent.js";
 import * as utils from "./utils/general.js";
 import * as neighbor_module from "./neighbor_index.js";
-import * as aworkers from "./abstract/worker_parent.js";
+import * as aworkers from "../abstract/worker_parent.js";
 
 /**
- * This creates a t-SNE embedding based on the neighbor index constructed by {@linkplain NeighborIndexState}.
- * This wraps `runTSNE` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This creates a UMAP embedding based on the neighbor index constructed at {@linkplain NeighborIndexState}.
+ * This wraps `runUMAP` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
  * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class TsneState {
+export class UmapState {
     #index;
     #parameters;
     #cache;
@@ -34,7 +34,7 @@ export class TsneState {
         this.#reloaded = reloaded;
         this.changed = false;
 
-        let worker = aworkers.createTsneWorker();
+        let worker = aworkers.createUmapWorker();
         let { worker_id, ready } = vizutils.initializeWorker(worker, this.#cache, vizutils.scranOptions);
         this.#worker = worker;
         this.#worker_id = worker_id;
@@ -57,21 +57,21 @@ export class TsneState {
      ******** Compute **********
      ***************************/
 
-    #core(perplexity, iterations, animate, reneighbor) {
+    #core(num_neighbors, num_epochs, min_dist, animate, reneighbor) {
         var nn_out = null;
         if (reneighbor) {
-            var k = scran.perplexityToNeighbors(perplexity);
-            nn_out = vizutils.computeNeighbors(this.#index, k);
+            nn_out = vizutils.computeNeighbors(this.#index, num_neighbors);
         }
 
         let args = {
-            "perplexity": perplexity,
-            "iterations": iterations,
+            "num_neighbors": num_neighbors,
+            "num_epochs": num_epochs,
+            "min_dist": min_dist,
             "animate": animate
         };
 
         // This returns a promise but the message itself is sent synchronously,
-        // which is important to ensure that the t-SNE runs in its worker in
+        // which is important to ensure that the UMAP runs in its worker in
         // parallel with other analysis steps. Do NOT put the runWithNeighbors
         // call in a .then() as this may defer the message sending until 
         // the current thread is completely done processing.
@@ -81,18 +81,19 @@ export class TsneState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `tsne` property of the `parameters` of {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `umap` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {number} perplexity - Number specifying the perplexity for the probability calculations.
-     * @param {number} iterations - Number of iterations to run the algorithm.
-     * @param {boolean} animate - Whether o process animation iterations, see {@linkcode setVisualizationAnimate} for details.
+     * @param {number} num_neighbors - Number of neighbors to use to construct the simplicial sets.
+     * @param {number} num_epochs - Number of epochs to run the algorithm.
+     * @param {number} min_dist - Number specifying the minimum distance between points.
+     * @param {boolean} animate - Whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
      *
-     * @return t-SNE coordinates are computed in parallel on a separate worker thread.
-     * A promise is returned that resolves when those calculations are complete.
+     * @return UMAP coordinates are computed in parallel on a separate worker thread.
+     * A promise that resolves when the calculations are complete.
      */
-    compute(perplexity, iterations, animate) {
-        let same_neighbors = (!this.#index.changed && perplexity === this.#parameters.perplexity);
-        if (same_neighbors && iterations == this.#parameters.iterations) {
+    compute(num_neighbors, num_epochs, min_dist, animate) {
+        let same_neighbors = (!this.#index.changed && this.#parameters.num_neighbors === num_neighbors);
+        if (same_neighbors && num_epochs === this.#parameters.num_epochs && min_dist === this.#parameters.min_dist) {
             this.changed = false;
             return new Promise(resolve => resolve(null));
         }
@@ -104,10 +105,11 @@ export class TsneState {
             this.#reloaded = null;
         }
 
-        this.#core(perplexity, iterations, animate, !same_neighbors);
+        this.#core(num_neighbors, num_epochs, min_dist, animate, !same_neighbors);
 
-        this.#parameters.perplexity = perplexity;
-        this.#parameters.iterations = iterations;
+        this.#parameters.num_neighbors = num_neighbors;
+        this.#parameters.num_epochs = num_epochs;
+        this.#parameters.min_dist = min_dist;
         this.#parameters.animate = animate;
 
         this.changed = true;
@@ -129,8 +131,8 @@ export class TsneState {
                 output.x = output.x.slice();
                 output.y = output.y.slice();
             }
-        
-            output.iterations = this.#parameters.iterations;
+
+            output.iterations = this.#parameters.num_epochs;
             return output;
         } else {
             // Vectors that we get from the worker are inherently
@@ -158,12 +160,13 @@ export class TsneState {
      *************************/
 
     async serialize(handle) {
-        let ghandle = handle.createGroup("tsne");
+        let ghandle = handle.createGroup("umap");
 
         {
             let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("perplexity", "Float64", [], this.#parameters.perplexity);
-            phandle.writeDataSet("iterations", "Int32", [], this.#parameters.iterations);
+            phandle.writeDataSet("num_neighbors", "Int32", [], this.#parameters.num_neighbors);
+            phandle.writeDataSet("num_epochs", "Int32", [], this.#parameters.num_epochs);
+            phandle.writeDataSet("min_dist", "Float64", [], this.#parameters.min_dist);
             phandle.writeDataSet("animate", "Uint8", [], Number(this.#parameters.animate));
         }
 
@@ -178,7 +181,7 @@ export class TsneState {
     }
 
     /***************************
-     ******* Animators *********
+     ******** Getters **********
      ***************************/
 
     /**
@@ -192,13 +195,13 @@ export class TsneState {
             this.#reloaded = null;
 
             // We need to reneighbor because we haven't sent the neighbors across yet.
-            this.#core(this.#parameters.perplexity, this.#parameters.iterations, true, true);
-
+            this.#core(this.#parameters.num_neighbors, this.#parameters.num_epochs, this.#parameters.min_dist, true, true);
+      
             // Mimicking the response from the re-run.
             return this.#run
-                .then(contents => {
+                .then(contents => { 
                     return {
-                        "type": "tsne_rerun",
+                        "type": "umap_rerun",
                         "data": { "status": "SUCCESS" }
                     };
                 });
@@ -213,14 +216,15 @@ export class TsneState {
  **************************/
 
 export function unserialize(handle, index) {
-    let ghandle = handle.open("tsne");
+    let ghandle = handle.open("umap");
 
     let parameters;
     {
         let phandle = ghandle.open("parameters");
         parameters = {
-            perplexity: phandle.open("perplexity", { load: true }).values[0],
-            iterations: phandle.open("iterations", { load: true }).values[0],
+            num_neighbors: phandle.open("num_neighbors", { load: true }).values[0],
+            num_epochs: phandle.open("num_epochs", { load: true }).values[0],
+            min_dist: phandle.open("min_dist", { load: true }).values[0],
             animate: phandle.open("animate", { load: true }).values[0] > 0
         };
     }
@@ -235,7 +239,7 @@ export function unserialize(handle, index) {
     }
 
     return {
-        state: new TsneState(index, parameters, reloaded),
+        state: new UmapState(index, parameters, reloaded),
         parameters: { ...parameters }
     };
 }

@@ -1,8 +1,8 @@
 import * as scran from "scran.js";
-import * as utils from "../utils/general.js";
-import * as putils from "../utils/pca.js";
-import * as filter_module from "../cell_filtering.js";
-import * as norm_module from "./normalization.js";
+import * as utils from "./utils/general.js";
+import * as putils from "./utils/pca.js";
+import * as filter_module from "./cell_filtering.js";
+import * as norm_module from "./adt_normalization.js";
 
 export const step_name = "adt_pca";
 

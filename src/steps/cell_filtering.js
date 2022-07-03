@@ -1,6 +1,5 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import * as rutils from "./utils/reader.js";
 import * as qcutils from "./utils/quality_control.js";
 import * as inputs_module from "./inputs.js";
 

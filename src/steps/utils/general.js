@@ -26,9 +26,8 @@ export function mimicGetter(value, copy) {
 }
 
 export function freeCache(object) {
-    if (object !== undefined && object !== null) {
-        object.free();
-    }
+    // Just an alias for simplicity.
+    scran.safeFree(object);
     return;
 }
 

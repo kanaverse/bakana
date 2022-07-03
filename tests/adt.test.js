@@ -2,7 +2,7 @@ import * as bakana from "../src/index.js";
 import * as utils from "./utils.js";
 import * as scran from "scran.js";
 import * as fs from "fs";
-import * as combine from "../src/combine_embeddings.js";
+import * as combine from "../src/steps/combine_embeddings.js";
 
 beforeAll(async () => await bakana.initialize({ localFile: true }));
 afterAll(async () => await bakana.terminate());

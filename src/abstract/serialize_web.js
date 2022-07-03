@@ -1,6 +1,6 @@
-import * as sutils from "../utils/serialize.js";
+import * as sutils from "./utils/serialize.js";
 import * as scran from "scran.js";
-import * as v0 from "../legacy/from_v0.js";
+import * as v0 from "./utils/legacy_v0.js";
 import * as pako from "pako";
 
 /**

@@ -1,7 +1,7 @@
 import * as scran from "scran.js"; 
-import * as utils from "../utils/general.js";
-import * as inputs_module from "../inputs.js";
-import * as qcutils from "../utils/quality_control.js";
+import * as utils from "./utils/general.js";
+import * as inputs_module from "./inputs.js";
+import * as qcutils from "./utils/quality_control.js";
 
 export const step_name = "adt_quality_control";
 

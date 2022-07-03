@@ -1,6 +1,6 @@
 import * as scran from "scran.js";
 import * as utils from "./general.js";
-import * as aworkers from "../abstract/worker_parent.js";
+import * as aworkers from "../../abstract/worker_parent.js";
 
 var animateFun = (x, y, i) => null;
 
