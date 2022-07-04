@@ -7,7 +7,7 @@
   "module": "module/index.js",
   "scripts": {
     "test": "node --experimental-vm-modules --experimental-wasm-threads node_modules/jest/bin/jest.js --testTimeout=1000000 --runInBand",
-    "jsdoc": "npx jsdoc src src/utils README.md -d docs/built -c docs/jsdoc.config.json"
+    "jsdoc": "npx jsdoc -r src README.md -d docs/built -c docs/jsdoc.config.json"
   },
   "repository": "github:LTLA/bakana",
   "bugs": "https://github.com/LTLA/bakana/issues",
@@ -23,7 +23,7 @@
   "dependencies": {
     "pako": "^2.0.4",
     "papaparse": "^5.3.2",
-    "scran.js": "^0.2.4"
+    "scran.js": "^0.2.5"
   },
   "devDependencies": {
     "docdash": "^1.2.0",
