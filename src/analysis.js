@@ -184,6 +184,7 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
     /*** Quality control ***/
     quickStart(step_qc);
     state[step_qc].compute(
+        params[step_qc]["skip"],
         params[step_qc]["use_mito_default"], 
         params[step_qc]["mito_prefix"], 
         params[step_qc]["nmads"]
@@ -192,6 +193,7 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
 
     quickStart(step_qc_adt);
     state[step_qc_adt].compute(
+        params[step_qc_adt]["skip"],
         params[step_qc_adt]["igg_prefix"], 
         params[step_qc_adt]["nmads"],
         params[step_qc_adt]["min_detected_drop"]

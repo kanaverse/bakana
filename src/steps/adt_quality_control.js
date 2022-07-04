@@ -36,34 +36,29 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
     free() {
         utils.freeCache(this.#cache.metrics);
         utils.freeCache(this.#cache.filters);
-        utils.freeCache(this.#cache.block_buffer);
         utils.freeCache(this.#cache.metrics_buffer);
     }
 
     /***************************
      ******** Getters **********
      ***************************/
-    
+
+    #possible() {
+       return this.#inputs.hasAvailable(this.#parameters.target_matrix);
+    }
+
     valid() {
-        return this.#inputs.hasAvailable(this.#parameters.target_matrix);
+        return this.#possible() && !this.#parameters.skip;
     }
 
     fetchSums({ unsafe = false } = {}) {
-        if (this.valid()) { 
-            // Unsafe, because we're returning a raw view into the Wasm heap,
-            // which might be invalidated upon further allocations.
-            return this.#cache.metrics.sums({ copy: !unsafe });
-        } else {
-            return null;
-        }
+        // Unsafe, because we're returning a raw view into the Wasm heap,
+        // which might be invalidated upon further allocations.
+        return this.#cache.metrics.sums({ copy: !unsafe });
     }
 
     fetchDiscards() {
-        if (this.valid()) {
-            return this.#cache.filters.discardOverall({ copy: "view" });
-        } else {
-            return null;
-        }
+        return this.#cache.filters.discardOverall({ copy: "view" });
     }
 
     /***************************
@@ -89,19 +84,36 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * Each argument is taken from the property of the same name in the `adt_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
      *
+     * @param {boolean} skip - Whether to skip the calculation of quality control statistics.
      * @param {string} igg_prefix - Prefix of the identifiers for isotype controls.
      * @param {number} nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
      * @param {number} min_detected_drop - Minimum proportional drop in the number of detected features before a cell is to be considered low-quality.
      *
      * @return The object is updated with the new results.
      */
-    compute(igg_prefix, nmads, min_detected_drop) {
+    compute(skip, igg_prefix, nmads, min_detected_drop) {
         this.changed = false;
 
-        if (this.#inputs.changed || igg_prefix !== this.#parameters.igg_prefix) {
-            utils.freeCache(this.#cache.metrics);
+        // If the metrics or filters aren't available and we're not skipping
+        // this step, then we need to run this.
+        let skip_impossible = skip || !this.#possible();
+        let unskip_metrics = (!skip_impossible && !("metrics" in this.#cache));
+        let unskip_filters = (!skip_impossible && !("filters" in this.#cache));
 
-            if (this.valid()) {
+        if (this.#inputs.changed || igg_prefix !== this.#parameters.igg_prefix || unskip_metrics) {
+            utils.freeCache(this.#cache.metrics);
+            let metrics_changed = true;
+
+            if (skip_impossible) {
+                if ("metrics" in this.#cache) {
+                    // Delete anything existing, as it won't be valid as other
+                    // things have changed upstream of us. This ensures that we
+                    // can re-run this step later via unskip_metrics = true.
+                    delete this.#cache.metrics;
+                } else {
+                    metrics_changed = false;
+                }
+            } else {
                 var mat = this.#inputs.fetchCountMatrix({ type: this.#parameters.target_matrix });
                 var gene_info = this.#inputs.fetchGenes({ type: this.#parameters.target_matrix });
 
@@ -119,22 +131,43 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
                 }
 
                 this.#cache.metrics = scran.computePerCellAdtQcMetrics(mat, [subsets]);
-                this.changed = true;
             }
 
             this.#parameters.igg_prefix = igg_prefix;
+
+            // No need to indicate that our results have changed if 
+            // we never had any results in the first place.
+            if (metrics_changed) {
+                this.changed = true;
+            }
         }
 
-        if (this.changed || nmads !== this.#parameters.nmads || min_detected_drop !== this.#parameters.min_detected_drop) {
-            if (this.valid()) {
-                utils.freeCache(this.#cache.filters);
+        if (this.changed || nmads !== this.#parameters.nmads || min_detected_drop !== this.#parameters.min_detected_drop || unskip_filters) {
+            utils.freeCache(this.#cache.filters);
+            let filters_changed = true;
+
+            if (skip_impossible) {
+                if ("filters" in this.#cache) {
+                    delete this.#cache.filters;
+                } else {
+                    filters_changed = false;
+                }
+            } else {
                 let block = this.#inputs.fetchBlock();
                 this.#cache.filters = scran.computePerCellAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, minDetectedDrop: min_detected_drop, block: block });
-                this.changed = true;
             }
 
             this.#parameters.nmads = nmads;
             this.#parameters.min_detected_drop = min_detected_drop;
+
+            if (filters_changed) {
+                this.changed = true;
+            }
+        }
+
+        if (this.#parameters.skip !== skip) {
+            this.changed = true;
+            this.#parameters.skip = skip;
         }
 
         return;
@@ -174,7 +207,7 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
      */
     summary() {
         if (!this.valid()) {
-            return null;
+            return {};
         }
 
         var output = {};
@@ -210,6 +243,7 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
 
         {
             let phandle = ghandle.createGroup("parameters"); 
+            phandle.writeDataSet("skip", "Uint8", [], Number(this.#parameters.skip));
             phandle.writeDataSet("igg_prefix", "String", [], this.#parameters.igg_prefix);
             phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
             phandle.writeDataSet("min_detected_drop", "Float64", [], this.#parameters.min_detected_drop);
@@ -218,22 +252,20 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
         {
             let rhandle = ghandle.createGroup("results"); 
 
-            if (this.valid()) {
-                {
-                    let mhandle = rhandle.createGroup("metrics");
-                    let data = this.#format_metrics({ copy: "view" });
-                    mhandle.writeDataSet("sums", "Float64", null, data.sums)
-                    mhandle.writeDataSet("detected", "Int32", null, data.detected);
-                    mhandle.writeDataSet("igg_total", "Float64", null, data.igg_total);
-                }
+            if ("metrics" in this.#cache) { // if skip=true, metrics may not be computed... but if they are, we save them anyway.
+                let mhandle = rhandle.createGroup("metrics");
+                let data = this.#format_metrics({ copy: "view" });
+                mhandle.writeDataSet("sums", "Float64", null, data.sums)
+                mhandle.writeDataSet("detected", "Int32", null, data.detected);
+                mhandle.writeDataSet("igg_total", "Float64", null, data.igg_total);
+            }
 
-                {
-                    let thandle = rhandle.createGroup("thresholds");
-                    let thresholds = this.#format_thresholds({ copy: "hdf5" }); 
-                    for (const x of [ "detected", "igg_total" ]) {
-                        let current = thresholds[x];
-                        thandle.writeDataSet(x, "Float64", null, current);
-                    }
+            if ("thresholds" in this.#cache) { // if skip=true, thresholds may not be reported... but if they are, we save them anyway.
+                let thandle = rhandle.createGroup("thresholds");
+                let thresholds = this.#format_thresholds({ copy: "hdf5" }); 
+                for (const x of [ "detected", "igg_total" ]) {
+                    let current = thresholds[x];
+                    thandle.writeDataSet(x, "Float64", null, current);
                 }
 
                 let disc = this.fetchDiscards();
@@ -296,7 +328,7 @@ export function unserialize(handle, inputs) {
         try {
             let rhandle = ghandle.open("results");
 
-            if ("metrics" in rhandle.children) {
+            if ("metrics" in rhandle.children) { // if skip=true or #possible is false, QC metrics may not be reported.
                 let mhandle = rhandle.open("metrics");
 
                 let detected = mhandle.open("detected", { load: true }).values;
@@ -307,7 +339,9 @@ export function unserialize(handle, inputs) {
                 cache.metrics.sums({ copy: false }).set(sums);
                 let igg_total = mhandle.open("igg_total", { load: true }).values;
                 cache.metrics.subsetTotals(0, { copy: false }).set(igg_total);
+            }
 
+            if ("thresholds" in rhandle.children) { // if skip=true or #possible is false, QC thresholds may not be reported.
                 let thandle = rhandle.open("thresholds");
                 let thresholds_detected = thandle.open("detected", { load: true }).values;
                 let thresholds_igg_total = thandle.open("igg_total", { load: true }).values;
