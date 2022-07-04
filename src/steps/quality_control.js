@@ -257,7 +257,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
                 mhandle.writeDataSet("proportion", "Float64", null, data.proportion);
             }
 
-            if ("thresholds" in this.#cache) { // if skip=true, thresholds may not be computed... but if they are, we save them anyway.
+            if ("filters" in this.#cache) { // if skip=true, thresholds may not be computed... but if they are, we save them anyway.
                 let thandle = rhandle.createGroup("thresholds");
                 let thresholds = this.#format_thresholds({ copy: "hdf5" }); 
                 for (const x of [ "sums", "detected", "proportion" ]) {
