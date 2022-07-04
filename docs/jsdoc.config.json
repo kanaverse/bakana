@@ -26,8 +26,5 @@
         "default": {
             "useLongnameInNav": true
         }
-    },
-    "opts": {
-        "tutorials": "./docs/related"
     }
 }
