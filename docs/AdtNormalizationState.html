@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Class: NormalizationState</title>
+    <title>JSDoc: Class: AdtNormalizationState</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: NormalizationState</h1>
+    <h1 class="page-title">Class: AdtNormalizationState</h1>
 
     
 
@@ -28,10 +28,10 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>NormalizationState</h2>
+        <h2><span class="attribs"><span class="type-signature"></span></span>AdtNormalizationState</h2>
         
-            <div class="class-description"><p>This step performs normalization and log-transformation on the QC-filtered matrix from the <a href="QualityControlState.html">QualityControlState</a>.
-It wraps the <code>logNormCounts</code> function from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.</p>
+            <div class="class-description"><p>This step performs normalization and log-transformation on the QC-filtered ADT matrix from the <a href="AdtQualityControlState.html">AdtQualityControlState</a>.
+It wraps the <code>groupedSizeFactors</code> and <code>logNormCounts</code> functions from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.</p>
 <p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
         
     
@@ -85,7 +85,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_normalization.js.html">steps/normalization.js</a>, <a href="steps_normalization.js.html#line16">line 16</a>
+        <a href="steps_adt_normalization.js.html">steps/adt_normalization.js</a>, <a href="steps_adt_normalization.js.html#line16">line 16</a>
     </li></ul></dd>
     
 
@@ -126,7 +126,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
         <h3 class="subsection-title">Classes</h3>
 
         <dl>
-            <dt><a href="NormalizationState.html">NormalizationState</a></dt>
+            <dt><a href="AdtNormalizationState.html">AdtNormalizationState</a></dt>
             <dd></dd>
         </dl>
     
@@ -148,7 +148,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
 
     
-    <h4 class="name" id="compute"><span class="type-signature"></span>compute<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="compute"><span class="type-signature"></span>compute<span class="signature">(num_pcs, num_clusters)</span><span class="type-signature"></span></h4>
     
 
     
@@ -165,6 +165,78 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
 
 
 
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>num_pcs</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Number of PCs to use for creating a low-dimensional embedding for clustering.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>num_clusters</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Number of clusters to create with k-means clustering.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
 
 
 
@@ -200,7 +272,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_normalization.js.html">steps/normalization.js</a>, <a href="steps_normalization.js.html#line91">line 91</a>
+        <a href="steps_adt_normalization.js.html">steps/adt_normalization.js</a>, <a href="steps_adt_normalization.js.html#line112">line 112</a>
     </li></ul></dd>
     
 
@@ -347,7 +419,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_normalization.js.html">steps/normalization.js</a>, <a href="steps_normalization.js.html#line64">line 64</a>
+        <a href="steps_adt_normalization.js.html">steps/adt_normalization.js</a>, <a href="steps_adt_normalization.js.html#line73">line 73</a>
     </li></ul></dd>
     
 
@@ -393,7 +465,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
 
     
-    <h4 class="name" id="summary"><span class="type-signature"></span>summary<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="summary"><span class="type-signature"></span>summary<span class="signature">()</span><span class="type-signature"> &rarr; {object}</span></h4>
     
 
     
@@ -445,7 +517,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_normalization.js.html">steps/normalization.js</a>, <a href="steps_normalization.js.html#line117">line 117</a>
+        <a href="steps_adt_normalization.js.html">steps/adt_normalization.js</a>, <a href="steps_adt_normalization.js.html#line157">line 157</a>
     </li></ul></dd>
     
 
@@ -474,11 +546,22 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
 
         
 <div class="param-desc">
-    <p>An empty object.
-This is just provided for consistency with the other classes.</p>
+    <p>Object containing <code>size_factors</code>, a Float64Array containing the size factor for each cell.</p>
 </div>
 
 
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+    </dd>
+</dl>
 
     
 

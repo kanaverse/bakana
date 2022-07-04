@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: index.js</title>
+    <title>JSDoc: Source: serialize.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: index.js</h1>
+    <h1 class="page-title">Source: serialize.js</h1>
 
     
 
@@ -26,62 +26,70 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>export * from "./defaults.js";
-export * from "./analysis.js";
-export * from "./serialize.js";
-
-export { validateAnnotations } from "./preflight.js";
-export { availableReaders } from "./readers/index.js";
-export { setVisualizationAnimate } from "./steps/utils/viz_parent.js";
-export { setCreateLink, setResolveLink, unpackText, readLines, readTable, promoteToNumber } from "./readers/utils/index.js";
-export { setCellLabellingDownload } from "./steps/cell_labelling.js";
-
-import * as scran from "scran.js";
-import * as vizutils from "./steps/utils/viz_parent.js";
+            <pre class="prettyprint source linenums"><code>import * as afile from "./abstract/file.js";
+import * as aserialize from "./abstract/serialize.js";
 
 /**
- * Initialize the backend for computation.
- * This is required prior to running any other **bakana** function.
+ * Create a `*.kana` file from the HDF5 state file and the various data files.
  *
- * @param {object} [options] - Optional parameters.
- * @param {number} [options.numberOfThreads] - Number of threads used by **scran.js**.
- * @param {boolean} [options.localFile] - Whether to use local file paths for imported modules in **scran.js**.
- * This only needs to be `true` for old Node versions that do not support file URIs.
- * 
- * @return A promise that resolves to `null` when initialization is complete.
+ * @param {string} statePath - String containing a file path to an existing HDF5 state file.
+ * This should be the same as the `path` used in {@linkcode saveAnalysis}.
+ * On browsers, the path should exist inside the virtual file system of the **scran.js** module.
+ * @param {Array} inputFiles - Array of files to be embedded into the `*.kana` file.
+ * On Node.js, this should be an array of file paths; on browsers, this should be an array of ArrayBuffers.
+ * Typically this is obtained as the resolved return value of {@linkcode saveAnalysis}.
+ *
+ * If `null`, it is assumed that files are linked instead of embedded.
+ * @param {object} [options] - Further options. 
+ * For Node.js, callers can specify `outputPath`, a string containing the output path for the newly created `*.kana` file.
+ *
+ * @return 
+ * For Node.js, a promise is returned that resolves to a path to a new `*.kana` file. 
+ * This is equal to `outputPath` if supplied, otherwise a path to a file in a temporary directory is returned.
+ *
+ * In browsers, an ArrayBuffer is returned containing the full contents of the new `*.kana` file.
  */
-export function initialize({ numberOfThreads = 1, localFile = false } = {}) {
-    let s = scran.initialize({ 
-        numberOfThreads: numberOfThreads,
-        localFile: localFile
-    });
-    vizutils.scranOptions.localFile = localFile;
-    return s.then(x => null); 
+export function createKanaFile(statePath, inputFiles, options = {}) {
+    return aserialize.createKanaFileInternal(statePath, inputFiles, options);
 }
 
 /**
- * Terminate the backend, in particular shutting down all workers.
- * This is typically necessary for a clean shutdown in Node.js applications.
+ * Parse a `*.kana` file by extracting the HDF5 state file and returning a function to extract embeddded data files.
  *
- * @return A promise that resolves to `null` when all workers are terminated.
+ * @param {string|ArrayBuffer} input - The input `*.kana` file.
+ * For Node.js, this should be a string containing a path to the file.
+ * On browsers, this should be an ArrayBuffer containing the full file contents.
+ * @param {string} statePath - String containing a file path to save the HDF5 state file.
+ * This will also be the path supplied to {@linkcode loadAnalysis} to load the state into memory.
+ * On browsers, this will exist inside the virtual file system of the **scran.js** module.
+ * @param {object} [options] - Further options. 
+ * For Node.js, callers can specify `stageDir`, a string containing a path to a staging directory for the extracted data files.
+ *
+ * @return The HDF5 state file is written to `statePath`.
+
+ * In the browser, if `input` contains embedded files, a function is returned that extracts each data file given its offset and size.
+ * (This should be used as `loadFun` in {@linkcode loadAnalysis}.)
+ * If `input` contains linked files, `null` is returned.
+ *
+ * For Node.js, a promise is returned that evaluates to the aforementioned function or `null`. 
  */
-export function terminate() {
-    let s = scran.terminate();
-    let w = vizutils.killAllWorkers();
-    return Promise.all([s, w]).then(x => null);
+export function parseKanaFile(input, statePath, options = {}) {
+    return aserialize.parseKanaFileInternal(input, statePath, options);
 }
 
 /**
- * Call a **scran.js** function.
- * This allows client applications to operate in the same **scran.js** memory space as **bakana** functions,
- * which is not guaranteed if applications import **scran.js** on their own (e.g., due to name mangling with Webpack).
+ * Remove a HDF5 file at the specified path, typically corresponding to the value of `statePath` in {@linkcode saveAnalysis} or {@linkcode loadAnalysis}.
+ * Such files are typically temporary intermediates that are generated from or used to generate a `*.kana` file.
  *
- * @param {function} fun - A function that accepts the **scran.js** module object and presumably calls some of its functions.
+ * @param {string} path Path to a HDF5 file.
+ * On browsers, this path will exist inside the **scran.js** virtual filesystem.
  *
- * @return The return value of `fun`.
+ * @return The specified file is removed.
+ * If the file does not exist, this function is a no-op.
  */
-export function callScran(fun) {
-    return fun(scran);
+export function removeHDF5File(path) {
+    afile.removeH5(path, { allowed: true });
+    return;
 }
 </code></pre>
         </article>

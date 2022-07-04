@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: index.js</title>
+    <title>JSDoc: Source: readers/utils/serialize.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: index.js</h1>
+    <h1 class="page-title">Source: readers/utils/serialize.js</h1>
 
     
 
@@ -26,62 +26,98 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>export * from "./defaults.js";
-export * from "./analysis.js";
-export * from "./serialize.js";
+            <pre class="prettyprint source linenums"><code>import * as afile from "../../abstract/file.js";
 
-export { validateAnnotations } from "./preflight.js";
-export { availableReaders } from "./readers/index.js";
-export { setVisualizationAnimate } from "./steps/utils/viz_parent.js";
-export { setCreateLink, setResolveLink, unpackText, readLines, readTable, promoteToNumber } from "./readers/utils/index.js";
-export { setCellLabellingDownload } from "./steps/cell_labelling.js";
+export function formatFile(file, sizeOnly) {
+    let output = { "name": afile.rawName(file) };
+    if (sizeOnly) {
+        output.size = afile.rawSize(file);
+    } else {
+        output.content = new afile.LoadedFile(file);
+    }
+    return output;
+}
 
-import * as scran from "scran.js";
-import * as vizutils from "./steps/utils/viz_parent.js";
+var cache = {
+    file2link: null, 
+    link2file: null
+};
 
 /**
- * Initialize the backend for computation.
- * This is required prior to running any other **bakana** function.
+ * Specify a function to create links for data files.
+ * By default, this only affects files for the MatrixMarket, H5AD and 10X formats, and is only used when linking is requested.
  *
- * @param {object} [options] - Optional parameters.
- * @param {number} [options.numberOfThreads] - Number of threads used by **scran.js**.
- * @param {boolean} [options.localFile] - Whether to use local file paths for imported modules in **scran.js**.
- * This only needs to be `true` for old Node versions that do not support file URIs.
- * 
- * @return A promise that resolves to `null` when initialization is complete.
+ * @param {function} fun - Function that returns a linking idenfier to a data file.
+ * The function should accept the following arguments:
+ *
+ * - A string specifying the type of the file, e.g., `"mtx"`, `"h5"`.
+ * - A string containing the name of the file.
+ * - An ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
+ *
+ * The function is expected to return a string containing some unique identifier to the file.
+ * This is most typically used to register the file with some user-specified database system for later retrieval.
+ *
+ * @return `fun` is set as the global link creator for this step. 
+ * The _previous_ value of the creator is returned.
  */
-export function initialize({ numberOfThreads = 1, localFile = false } = {}) {
-    let s = scran.initialize({ 
-        numberOfThreads: numberOfThreads,
-        localFile: localFile
-    });
-    vizutils.scranOptions.localFile = localFile;
-    return s.then(x => null); 
+export function setCreateLink(fun) {
+    let previous = cache.file2link;
+    cache.file2link = fun;
+    return previous;
 }
 
 /**
- * Terminate the backend, in particular shutting down all workers.
- * This is typically necessary for a clean shutdown in Node.js applications.
+ * Specify a function to resolve links for data files.
+ * By default, this only affects files for the MatrixMarket, H5AD and 10X formats, and is only used when links are detected.
  *
- * @return A promise that resolves to `null` when all workers are terminated.
+ * @param {function} fun - Function that accepts a string containing a linking idenfier and returns an ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
+ * This is most typically used to retrieve a file from some user-specified database system.
+ *
+ * @return `fun` is set as the global resolver for this step. 
+ * The _previous_ value of the resolver is returned.
  */
-export function terminate() {
-    let s = scran.terminate();
-    let w = vizutils.killAllWorkers();
-    return Promise.all([s, w]).then(x => null);
+export function setResolveLink(fun) {
+    let previous = cache.link2file;
+    cache.link2file = fun;
+    return previous;
 }
 
-/**
- * Call a **scran.js** function.
- * This allows client applications to operate in the same **scran.js** memory space as **bakana** functions,
- * which is not guaranteed if applications import **scran.js** on their own (e.g., due to name mangling with Webpack).
- *
- * @param {function} fun - A function that accepts the **scran.js** module object and presumably calls some of its functions.
- *
- * @return The return value of `fun`.
- */
-export function callScran(fun) {
-    return fun(scran);
+export async function standardSerialize(details, type, embeddedSaver) {
+    let output = { 
+        "type": type,
+        "name": details.name 
+    };
+    let serialized = details.content.serialized();
+
+    if (embeddedSaver !== null) {
+        let eout = await embeddedSaver(serialized, details.content.size());
+        output.offset = eout.offset;
+        output.size = eout.size;
+    } else {
+        let fun = cache.file2link;
+        if (fun === null) {
+            throw new Error("link-creating function has not been set by 'setCreateLink'");
+        }
+        output.id = await fun(type, details.name, serialized);
+    }
+
+    return output;
+}
+
+export async function standardUnserialize(details, embeddedLoader) {
+    let output = { name: details.name };
+
+    if ("id" in details) {
+        let fun = cache.link2file;
+        if (fun === null) {
+            throw new Error("link-resolving function has not been set by 'setResolveLink'");
+        }
+        output.content = new afile.LoadedFile(await fun(details.id));
+    } else {
+        output.content = new afile.LoadedFile(await embeddedLoader(details.offset, details.size));
+    }
+
+    return output;
 }
 </code></pre>
         </article>

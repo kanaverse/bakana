@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: index.js</title>
+    <title>JSDoc: Source: abstract/worker_parent_web.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: index.js</h1>
+    <h1 class="page-title">Source: abstract/worker_parent_web.js</h1>
 
     
 
@@ -26,62 +26,34 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>export * from "./defaults.js";
-export * from "./analysis.js";
-export * from "./serialize.js";
-
-export { validateAnnotations } from "./preflight.js";
-export { availableReaders } from "./readers/index.js";
-export { setVisualizationAnimate } from "./steps/utils/viz_parent.js";
-export { setCreateLink, setResolveLink, unpackText, readLines, readTable, promoteToNumber } from "./readers/utils/index.js";
-export { setCellLabellingDownload } from "./steps/cell_labelling.js";
-
-import * as scran from "scran.js";
-import * as vizutils from "./steps/utils/viz_parent.js";
-
-/**
- * Initialize the backend for computation.
- * This is required prior to running any other **bakana** function.
- *
- * @param {object} [options] - Optional parameters.
- * @param {number} [options.numberOfThreads] - Number of threads used by **scran.js**.
- * @param {boolean} [options.localFile] - Whether to use local file paths for imported modules in **scran.js**.
- * This only needs to be `true` for old Node versions that do not support file URIs.
- * 
- * @return A promise that resolves to `null` when initialization is complete.
+            <pre class="prettyprint source linenums"><code>/**
+ * Webpack (or something in kana's build system) specifically recognizes the
+ * hard-coded path in this 'new Worker(new URL(...))' pattern. This is why we
+ * have hard-coded creators for the workers rather than allowing callers to
+ * pass in the URL as a variable, as that doesn't pack the worker's JS.
  */
-export function initialize({ numberOfThreads = 1, localFile = false } = {}) {
-    let s = scran.initialize({ 
-        numberOfThreads: numberOfThreads,
-        localFile: localFile
-    });
-    vizutils.scranOptions.localFile = localFile;
-    return s.then(x => null); 
+
+export function createTsneWorker() {
+    return new Worker(new URL("../steps/tsne.worker.js", import.meta.url), { type: "module" });
 }
 
-/**
- * Terminate the backend, in particular shutting down all workers.
- * This is typically necessary for a clean shutdown in Node.js applications.
- *
- * @return A promise that resolves to `null` when all workers are terminated.
- */
-export function terminate() {
-    let s = scran.terminate();
-    let w = vizutils.killAllWorkers();
-    return Promise.all([s, w]).then(x => null);
+export function createUmapWorker() {
+    return new Worker(new URL("../steps/umap.worker.js", import.meta.url), { type: "module" });
 }
 
-/**
- * Call a **scran.js** function.
- * This allows client applications to operate in the same **scran.js** memory space as **bakana** functions,
- * which is not guaranteed if applications import **scran.js** on their own (e.g., due to name mangling with Webpack).
- *
- * @param {function} fun - A function that accepts the **scran.js** module object and presumably calls some of its functions.
- *
- * @return The return value of `fun`.
- */
-export function callScran(fun) {
-    return fun(scran);
+export function registerCallback(worker, callback) {
+    worker.onmessage = callback;
+    return;
+}
+
+export function sendMessage(worker, message, transfer) {
+    worker.postMessage(message, transfer);
+    return;
+}
+
+export function terminateWorker(worker) {
+    worker.terminate();
+    return;
 }
 </code></pre>
         </article>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: index.js</title>
+    <title>JSDoc: Source: readers/index.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: index.js</h1>
+    <h1 class="page-title">Source: readers/index.js</h1>
 
     
 
@@ -26,63 +26,27 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>export * from "./defaults.js";
-export * from "./analysis.js";
-export * from "./serialize.js";
+            <pre class="prettyprint source linenums"><code>import * as TENxReader from "./10x.js";
+import * as H5ADReader from "./h5ad.js";
+import * as MtxReader from "./mtx.js";
 
-export { validateAnnotations } from "./preflight.js";
-export { availableReaders } from "./readers/index.js";
-export { setVisualizationAnimate } from "./steps/utils/viz_parent.js";
-export { setCreateLink, setResolveLink, unpackText, readLines, readTable, promoteToNumber } from "./readers/utils/index.js";
-export { setCellLabellingDownload } from "./steps/cell_labelling.js";
-
-import * as scran from "scran.js";
-import * as vizutils from "./steps/utils/viz_parent.js";
-
-/**
- * Initialize the backend for computation.
- * This is required prior to running any other **bakana** function.
- *
- * @param {object} [options] - Optional parameters.
- * @param {number} [options.numberOfThreads] - Number of threads used by **scran.js**.
- * @param {boolean} [options.localFile] - Whether to use local file paths for imported modules in **scran.js**.
- * This only needs to be `true` for old Node versions that do not support file URIs.
- * 
- * @return A promise that resolves to `null` when initialization is complete.
- */
-export function initialize({ numberOfThreads = 1, localFile = false } = {}) {
-    let s = scran.initialize({ 
-        numberOfThreads: numberOfThreads,
-        localFile: localFile
-    });
-    vizutils.scranOptions.localFile = localFile;
-    return s.then(x => null); 
+export function chooseReader(format) {
+    if (!(format in availableReaders)) {
+        throw "unknown matrix format '" + format + "'";
+    }
+    return availableReaders[format];
 }
 
 /**
- * Terminate the backend, in particular shutting down all workers.
- * This is typically necessary for a clean shutdown in Node.js applications.
- *
- * @return A promise that resolves to `null` when all workers are terminated.
+ * List of available readers.
+ * Each key specifies a matrix format; the corresponding value should be an ES6 module containing methods to interpret that format.
+ * See {@tutorial custom_readers} for details on adding new readers.
  */
-export function terminate() {
-    let s = scran.terminate();
-    let w = vizutils.killAllWorkers();
-    return Promise.all([s, w]).then(x => null);
-}
-
-/**
- * Call a **scran.js** function.
- * This allows client applications to operate in the same **scran.js** memory space as **bakana** functions,
- * which is not guaranteed if applications import **scran.js** on their own (e.g., due to name mangling with Webpack).
- *
- * @param {function} fun - A function that accepts the **scran.js** module object and presumably calls some of its functions.
- *
- * @return The return value of `fun`.
- */
-export function callScran(fun) {
-    return fun(scran);
-}
+export var availableReaders = {
+    "MatrixMarket": MtxReader,
+    "10X": TENxReader,
+    "H5AD": H5ADReader
+};
 </code></pre>
         </article>
     </section>

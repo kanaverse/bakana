@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Class: NormalizationState</title>
+    <title>JSDoc: Class: AdtQualityControlState</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: NormalizationState</h1>
+    <h1 class="page-title">Class: AdtQualityControlState</h1>
 
     
 
@@ -28,10 +28,11 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>NormalizationState</h2>
+        <h2><span class="attribs"><span class="type-signature"></span></span>AdtQualityControlState</h2>
         
-            <div class="class-description"><p>This step performs normalization and log-transformation on the QC-filtered matrix from the <a href="QualityControlState.html">QualityControlState</a>.
-It wraps the <code>logNormCounts</code> function from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.</p>
+            <div class="class-description"><p>This step applies quality control on the ADT count matrix.
+Specifically, it computes the QC metrics and filtering thresholds, wrapping <code>computePerCellAdtQcMetrics</code> and <code>computePerCellAdtQcFilters</code> from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.
+Note that the actual filtering is done by <a href="CellFilteringState.html"><code>CellFilteringState</code></a>.</p>
 <p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
         
     
@@ -85,7 +86,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_normalization.js.html">steps/normalization.js</a>, <a href="steps_normalization.js.html#line16">line 16</a>
+        <a href="steps_adt_quality_control.js.html">steps/adt_quality_control.js</a>, <a href="steps_adt_quality_control.js.html#line16">line 16</a>
     </li></ul></dd>
     
 
@@ -126,7 +127,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
         <h3 class="subsection-title">Classes</h3>
 
         <dl>
-            <dt><a href="NormalizationState.html">NormalizationState</a></dt>
+            <dt><a href="AdtQualityControlState.html">AdtQualityControlState</a></dt>
             <dd></dd>
         </dl>
     
@@ -148,7 +149,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
 
     
-    <h4 class="name" id="compute"><span class="type-signature"></span>compute<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="compute"><span class="type-signature"></span>compute<span class="signature">(igg_prefix, nmads, min_detected_drop)</span><span class="type-signature"></span></h4>
     
 
     
@@ -156,105 +157,8 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
 
 
 <div class="description">
-    <p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
-</div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_normalization.js.html">steps/normalization.js</a>, <a href="steps_normalization.js.html#line91">line 91</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>The object is updated with new results.</p>
-</div>
-
-
-
-    
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id="fetchExpression"><span class="type-signature"></span>fetchExpression<span class="signature">(index)</span><span class="type-signature"></span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    <p>Extract normalized expression values.</p>
+    <p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.
+Each argument is taken from the property of the same name in the <code>adt_quality_control</code> property of the <code>parameters</code> of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
 </div>
 
 
@@ -290,7 +194,30 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
 
         <tr>
             
-                <td class="name"><code>index</code></td>
+                <td class="name"><code>igg_prefix</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Prefix of the identifiers for isotype controls.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>nmads</code></td>
             
 
             <td class="type">
@@ -306,7 +233,30 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
 
             
 
-            <td class="description last"><p>An integer specifying the row index to extract.</p></td>
+            <td class="description last"><p>Number of MADs to use for automatically selecting the filter threshold for each metric.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>min_detected_drop</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Minimum proportional drop in the number of detected features before a cell is to be considered low-quality.</p></td>
         </tr>
 
     
@@ -347,7 +297,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_normalization.js.html">steps/normalization.js</a>, <a href="steps_normalization.js.html#line64">line 64</a>
+        <a href="steps_adt_quality_control.js.html">steps/adt_quality_control.js</a>, <a href="steps_adt_quality_control.js.html#line98">line 98</a>
     </li></ul></dd>
     
 
@@ -376,7 +326,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
 
         
 <div class="param-desc">
-    <p>A Float64Array of length equal to the number of (QC-filtered) cells, containing the log-normalized expression values for each cell.</p>
+    <p>The object is updated with the new results.</p>
 </div>
 
 
@@ -445,7 +395,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_normalization.js.html">steps/normalization.js</a>, <a href="steps_normalization.js.html#line117">line 117</a>
+        <a href="steps_adt_quality_control.js.html">steps/adt_quality_control.js</a>, <a href="steps_adt_quality_control.js.html#line175">line 175</a>
     </li></ul></dd>
     
 
@@ -474,8 +424,16 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
 
         
 <div class="param-desc">
-    <p>An empty object.
-This is just provided for consistency with the other classes.</p>
+    <p>An object containing:</p>
+<ul>
+<li><code>data</code>: an object containing one property for each sample.
+Each property is itself an object containing <code>sums</code>, <code>detected</code> and <code>igg_total</code>,
+which are TypedArrays containing the relevant QC metrics for all cells in that sample.</li>
+<li><code>thresholds</code>: an object containing one property for each sample.
+Each property is itself an object containing <code>detected</code> and <code>igg_total</code>,
+which are numbers containing the thresholds on the corresponding QC metrics for that sample.</li>
+<li><code>retained</code>: the number of cells remaining after QC filtering.</li>
+</ul>
 </div>
 
 

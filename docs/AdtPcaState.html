@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Class: NormalizationState</title>
+    <title>JSDoc: Class: AdtPcaState</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: NormalizationState</h1>
+    <h1 class="page-title">Class: AdtPcaState</h1>
 
     
 
@@ -28,10 +28,11 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>NormalizationState</h2>
+        <h2><span class="attribs"><span class="type-signature"></span></span>AdtPcaState</h2>
         
-            <div class="class-description"><p>This step performs normalization and log-transformation on the QC-filtered matrix from the <a href="QualityControlState.html">QualityControlState</a>.
-It wraps the <code>logNormCounts</code> function from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.</p>
+            <div class="class-description"><p>This step performs a principal components analysis (PCA) to compact and denoise ADT data.
+The resulting PCs can be used as input to various per-cell analyses like clustering and dimensionality reduction.
+It wraps the <code>runPCA</code> function from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.</p>
 <p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
         
     
@@ -85,7 +86,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_normalization.js.html">steps/normalization.js</a>, <a href="steps_normalization.js.html#line16">line 16</a>
+        <a href="steps_adt_pca.js.html">steps/adt_pca.js</a>, <a href="steps_adt_pca.js.html#line17">line 17</a>
     </li></ul></dd>
     
 
@@ -126,7 +127,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
         <h3 class="subsection-title">Classes</h3>
 
         <dl>
-            <dt><a href="NormalizationState.html">NormalizationState</a></dt>
+            <dt><a href="AdtPcaState.html">AdtPcaState</a></dt>
             <dd></dd>
         </dl>
     
@@ -148,7 +149,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
 
     
-    <h4 class="name" id="compute"><span class="type-signature"></span>compute<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="compute"><span class="type-signature"></span>compute<span class="signature">(num_pcs, block_method)</span><span class="type-signature"></span></h4>
     
 
     
@@ -156,105 +157,8 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
 
 
 <div class="description">
-    <p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
-</div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_normalization.js.html">steps/normalization.js</a>, <a href="steps_normalization.js.html#line91">line 91</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>The object is updated with new results.</p>
-</div>
-
-
-
-    
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id="fetchExpression"><span class="type-signature"></span>fetchExpression<span class="signature">(index)</span><span class="type-signature"></span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    <p>Extract normalized expression values.</p>
+    <p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.
+Each argument is taken from the property of the same name in the <code>pca</code> property of the <code>parameters</code> of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
 </div>
 
 
@@ -290,7 +194,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
 
         <tr>
             
-                <td class="name"><code>index</code></td>
+                <td class="name"><code>num_pcs</code></td>
             
 
             <td class="type">
@@ -306,7 +210,31 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
 
             
 
-            <td class="description last"><p>An integer specifying the row index to extract.</p></td>
+            <td class="description last"><p>Number of PCs to return.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>block_method</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Blocking method to use when dealing with multiple samples.
+This can be <code>&quot;none&quot;</code>, <code>&quot;regress&quot;</code> or <code>&quot;weight&quot;</code>.</p></td>
         </tr>
 
     
@@ -347,7 +275,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_normalization.js.html">steps/normalization.js</a>, <a href="steps_normalization.js.html#line64">line 64</a>
+        <a href="steps_adt_pca.js.html">steps/adt_pca.js</a>, <a href="steps_adt_pca.js.html#line75">line 75</a>
     </li></ul></dd>
     
 
@@ -376,7 +304,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
 
         
 <div class="param-desc">
-    <p>A Float64Array of length equal to the number of (QC-filtered) cells, containing the log-normalized expression values for each cell.</p>
+    <p>The object is updated with the new results.</p>
 </div>
 
 
@@ -445,7 +373,7 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_normalization.js.html">steps/normalization.js</a>, <a href="steps_normalization.js.html#line117">line 117</a>
+        <a href="steps_adt_pca.js.html">steps/adt_pca.js</a>, <a href="steps_adt_pca.js.html#line113">line 113</a>
     </li></ul></dd>
     
 
@@ -474,8 +402,10 @@ It wraps the <code>logNormCounts</code> function from <a href="https://github.co
 
         
 <div class="param-desc">
-    <p>An empty object.
-This is just provided for consistency with the other classes.</p>
+    <p>An object containing:</p>
+<ul>
+<li><code>var_exp</code>: a <code>Float64Array</code> of length equal to <code>num_pcs</code>, containing the proportion of variance explained for each successive PC.</li>
+</ul>
 </div>
 
 
