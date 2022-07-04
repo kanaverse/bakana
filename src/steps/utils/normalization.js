@@ -1,7 +1,12 @@
 export function subsetSums(qc, filter, output) {
     var discards = filter.fetchDiscards();
     var sums = qc.fetchSums({ unsafe: true }); // no more allocations expected...
-   
+
+    if (discards === null) {
+        output.set(sums);
+        return;
+    }
+
     var j = 0;
     discards.forEach((x, i) => {
         if (!x) {
