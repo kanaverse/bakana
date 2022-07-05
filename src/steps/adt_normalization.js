@@ -115,8 +115,7 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
         if (this.#qc.changed || this.#filter.changed || num_pcs !== this.#parameters.num_pcs || num_clusters != this.#parameters.num_clusters) {
             if (this.valid()) {
                 var mat = this.#filter.fetchFilteredMatrix({ type: this.#parameters.target_matrix });
-                var total_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "total_buffer");
-                nutils.subsetSums(this.#qc, this.#filter, total_buffer.array());
+                let total_buffer = nutils.subsetSums(this.#qc, this.#filter, mat, this.#cache, "total_buffer");
 
                 var block = this.#filter.fetchFilteredBlock();
                 var sf_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "sf_buffer");

@@ -130,9 +130,6 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
 
             this.#parameters.use_mito_default = use_mito_default;
             this.#parameters.mito_prefix = mito_prefix;
-
-            // No need to indicate that our results have changed if 
-            // we never had any results in the first place.
             this.changed = true;
         }
 

@@ -39,6 +39,7 @@ export class NormalizationState extends nutils.NormalizationStateBase {
 
     free() {
         utils.freeCache(this.#cache.matrix);
+        utils.freeCache(this.#cache.sum_buffer);
     }
 
     /***************************
@@ -74,8 +75,7 @@ export class NormalizationState extends nutils.NormalizationStateBase {
 
     #raw_compute() {
         var mat = this.#filter.fetchFilteredMatrix({ type: "RNA" });
-        var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache);
-        nutils.subsetSums(this.#qc, this.#filter, buffer.array());
+        let buffer = nutils.subsetSums(this.#qc, this.#filter, mat, this.#cache, "sum_buffer");
 
         var block = this.#filter.fetchFilteredBlock();
         utils.freeCache(this.#cache.matrix);
