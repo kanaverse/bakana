@@ -90,17 +90,12 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
 
         if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix || unskip_metrics) {
             utils.freeCache(this.#cache.metrics);
-            let metrics_changed = true;
 
             if (skip) {
-                if ("metrics" in this.#cache) {
-                    // Delete anything existing, as it won't be valid as other
-                    // things have changed upstream of us. This ensures that we
-                    // can re-run this step later via unskip_metrics = true.
-                    delete this.#cache.metrics;
-                } else {
-                    metrics_changed = false;
-                }
+                // Delete anything existing, as it won't be valid as other
+                // things have changed upstream of us. This ensures that we
+                // can re-run this step later via unskip_metrics = true.
+                delete this.#cache.metrics;
             } else {
                 var mat = this.#inputs.fetchCountMatrix();
 
@@ -138,36 +133,29 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
 
             // No need to indicate that our results have changed if 
             // we never had any results in the first place.
-            if (metrics_changed) {
-                this.changed = true;
-            }
+            this.changed = true;
         }
 
         if (this.changed || nmads !== this.#parameters.nmads || unskip_filters) {
             utils.freeCache(this.#cache.filters);
-            let filters_changed = true;
 
             if (skip) {
-                if ("filters" in this.#cache) {
-                    // Again, upstream is invalidated.
-                    delete this.#cache.filters;
-                } else {
-                    filters_changed = false;
-                }
+                // Again, upstream is invalidated.
+                delete this.#cache.filters;
             } else {
                 let block = this.#inputs.fetchBlock();
                 this.#cache.filters = scran.computePerCellQCFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
             }
 
             this.#parameters.nmads = nmads;
-            if (filters_changed) {
-                this.changed = true;
-            }
+            this.changed = true;
         }
 
         if (this.#parameters.skip !== skip) {
             this.changed = true;
             this.#parameters.skip = skip;
+        } else if (this.#parameters.skip && skip) {
+            this.changed = false; // there can never be any change if we were already skipping the results.
         }
 
         return;
@@ -207,7 +195,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
      * - `retained`: the number of cells remaining after QC filtering.
      */
     summary() {
-        if (this.valid()) {
+        if (!this.valid()) {
             return {};
         }
 

@@ -102,17 +102,12 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
 
         if (this.#inputs.changed || igg_prefix !== this.#parameters.igg_prefix || unskip_metrics) {
             utils.freeCache(this.#cache.metrics);
-            let metrics_changed = true;
 
             if (skip_impossible) {
-                if ("metrics" in this.#cache) {
-                    // Delete anything existing, as it won't be valid as other
-                    // things have changed upstream of us. This ensures that we
-                    // can re-run this step later via unskip_metrics = true.
-                    delete this.#cache.metrics;
-                } else {
-                    metrics_changed = false;
-                }
+                // Delete anything existing, as it won't be valid as other
+                // things have changed upstream of us. This ensures that we
+                // can re-run this step later via unskip_metrics = true.
+                delete this.#cache.metrics;
             } else {
                 var mat = this.#inputs.fetchCountMatrix({ type: this.#parameters.target_matrix });
                 var gene_info = this.#inputs.fetchGenes({ type: this.#parameters.target_matrix });
@@ -134,24 +129,14 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
             }
 
             this.#parameters.igg_prefix = igg_prefix;
-
-            // No need to indicate that our results have changed if 
-            // we never had any results in the first place.
-            if (metrics_changed) {
-                this.changed = true;
-            }
+            this.changed = true;
         }
 
         if (this.changed || nmads !== this.#parameters.nmads || min_detected_drop !== this.#parameters.min_detected_drop || unskip_filters) {
             utils.freeCache(this.#cache.filters);
-            let filters_changed = true;
 
             if (skip_impossible) {
-                if ("filters" in this.#cache) {
-                    delete this.#cache.filters;
-                } else {
-                    filters_changed = false;
-                }
+                delete this.#cache.filters;
             } else {
                 let block = this.#inputs.fetchBlock();
                 this.#cache.filters = scran.computePerCellAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, minDetectedDrop: min_detected_drop, block: block });
@@ -159,15 +144,14 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
 
             this.#parameters.nmads = nmads;
             this.#parameters.min_detected_drop = min_detected_drop;
-
-            if (filters_changed) {
-                this.changed = true;
-            }
+            this.changed = true;
         }
 
         if (this.#parameters.skip !== skip) {
             this.changed = true;
             this.#parameters.skip = skip;
+        } else if (this.#parameters.skip && skip) {
+            this.changed = false; // force this to be true, no matter what.
         }
 
         return;
@@ -260,7 +244,7 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
                 mhandle.writeDataSet("igg_total", "Float64", null, data.igg_total);
             }
 
-            if ("thresholds" in this.#cache) { // if skip=true, thresholds may not be reported... but if they are, we save them anyway.
+            if ("filters" in this.#cache) { // if skip=true, thresholds may not be reported... but if they are, we save them anyway.
                 let thandle = rhandle.createGroup("thresholds");
                 let thresholds = this.#format_thresholds({ copy: "hdf5" }); 
                 for (const x of [ "detected", "igg_total" ]) {
@@ -324,6 +308,10 @@ export function unserialize(handle, inputs) {
         parameters.igg_prefix = phandle.open("igg_prefix", { load: true }).values[0];
         parameters.nmads = phandle.open("nmads", { load: true }).values[0];
         parameters.min_detected_drop = phandle.open("min_detected_drop", { load: true }).values[0];
+
+        if ("skip" in phandle.children) {
+            parameters.skip = phandle.open("skip", { load: true }).values[0] > 0;
+        }
 
         try {
             let rhandle = ghandle.open("results");

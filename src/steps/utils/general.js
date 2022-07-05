@@ -82,8 +82,5 @@ export function findValidUpstreamStates(states, msg) {
             to_use.push(k);
         }
     }
-    if (to_use.length == 0) {
-        throw new Error("expected at least one valid upstream " + msg + " state");
-    }
     return to_use;
 }
