@@ -104,11 +104,21 @@ export class InputsState {
      * This is only used if a single count matrix is supplied.
      *
      * If `null`, all cells are assumed to originate from the same sample.
+     * @param {?subset} subset - Object describing if any pre-analysis subsetting should be applied.
+     * This may contain either:
+     *
+     * - `indices`, an array of integers that specifies indices of the columns to retain in the loaded dataset.
+     *   For multiple `matrices`, the loaded dataset is created by sorting the individual matrices by the keys of `matrices` before combining them by column.
+     * - `field`, a string specifying a field of the column annotation; and `values`, an array of allowed values for that annotation.
+     *   Cells are only retained if they are associated with any of the allowable values for that annotation field.
+     *
+     * If both are present in `subset`, `indices` takes precedence.
+     * If `subset` is `null`, no subsetting is performed and all cells are used in the downstream analysis.
      *
      * @return The object is updated with the new results.
      * A promise is returned that resolves to `null` once input loading is complete - this should be resolved before any downstream steps are run.
      */
-    async compute(matrices, sample_factor) {
+    async compute(matrices, sample_factor, subset) {
         // Don't bother proceeding with any of the below
         // if we're operating from a reloaded state.
         if (matrices === null) {
@@ -123,7 +133,7 @@ export class InputsState {
             tmp_abbreviated[key] = namespace.abbreviate(val);
         }
 
-        if (!utils.changedParameters(tmp_abbreviated, this.#abbreviated) && this.#parameters.sample_factor === sample_factor) {
+        if (!utils.changedParameters(tmp_abbreviated, this.#abbreviated) && this.#parameters.sample_factor === sample_factor && !utils.changedParameters(subset, this.#parameters.subset)) {
             this.changed = false;
             return;
         }
@@ -135,7 +145,7 @@ export class InputsState {
         }
 
         this.free();
-        this.#cache = await process_and_cache(new_matrices, sample_factor);
+        this.#cache = await process_and_cache(new_matrices, sample_factor, subset);
 
         this.#abbreviated = tmp_abbreviated;
         this.#parameters.matrices = new_matrices;
@@ -230,6 +240,18 @@ export class InputsState {
                 phandle.writeDataSet("format", "String", [], formats[0]);
                 if (this.#parameters.sample_factor !== null) {
                     phandle.writeDataSet("sample_factor", "String", [], this.#parameters.sample_factor);
+                }
+            }
+
+            if (this.#parameters.subset !== null) {
+                let shandle = phandle.createGroup("subset");
+                if ("indices" in this.#parameters.subset) {
+                    shandle.writeDataSet("indices", "Int32", null, this.#parameters.subset.indices);
+                } else if ("field" in this.#parameters.subset) {
+                    shandle.writeDataSet("field", "String", [], this.#parameters.subset.field);
+                    shandle.writeDataSet("values", "String", null, this.#parameters.subset.values);
+                } else {
+                    throw new Error("unrecognized specification for 'subset'");
                 }
             }
         }
@@ -432,7 +454,7 @@ function bind_datasets(dkeys, datasets) {
     return output;
 }
 
-async function process_datasets(matrices, sample_factor) {
+async function load_datasets(matrices, sample_factor) {
     // Loading all of the individual matrices. 
     let datasets = {};
     try {
@@ -495,8 +517,52 @@ async function process_datasets(matrices, sample_factor) {
     }
 }
 
-async function process_and_cache(new_matrices, sample_factor) {
-    let cache = await process_datasets(new_matrices, sample_factor);
+async function subset_datasets(cache, subset) {
+    if (subset === null) {
+        return;
+    }
+
+    // Applying the subset.
+    let keep;
+    if ("indices" in subset) {
+        keep = subset.indices;
+    } else if ("field" in subset) {
+        if (subset.field in cache.annotation) {
+            let anno = cache.annotation[subset.field];
+            keep = [];
+            let allowed = new Set(subset.values);
+            anno.forEach((x, i) => {
+                if (allowed.has(x)) {
+                    keep.push(i);
+                }
+            });
+        } else {
+            throw new Error("failed to find 'subset.field' in the column annotations");
+        }
+    } else {
+        throw new Error("unrecognized specification for 'subset'");
+    }
+
+    for (const key of cache.matrix.available()) {
+        let current = cache.matrix.get(key);
+        cache.matrix.add(key, scran.subsetColumns(current, keep));
+    }
+
+    if (cache.annotations !== null) {
+        cache.annotations = scran.subsetArrayCollection(cache.annotations, keep);
+    }
+
+    if (cache.block_ids !== null) {
+        let subblock = scran.subsetBlock(cache.block_ids, keep);
+        let dropped = scran.dropUnusedBlock(subblock);
+        cache.block_ids = subblock;
+        cache.block_levels = dropped.map(x => cache.block_levels[x]):
+    }
+}
+
+async function process_and_cache(new_matrices, sample_factor, subset) {
+    let cache = await load_datasets(new_matrices, sample_factor);
+    await subset_datasets(cache, subset);
 
     var gene_info_type = {};
     var gene_info = cache.genes["RNA"];
@@ -581,8 +647,24 @@ export async function unserialize(handle, embeddedLoader) {
         }
     }
 
+    // Figuring out the subset.
+    let subset = null;
+    if ("subset" in phandle.children) {
+        let shandle = phandle.open("subset");
+        subset = {};
+        if ("indices" in shandle.children) {
+            subset.indices = shandle.open("indices", { load: true }).values;
+        } else if ("field" in shandle.children) {
+            subset.field = shandle.open("field", { load: true }).values[0];
+            subset.values = shandle.open("values", { load: true }).values;
+        } else {
+            throw new Error("unrecognized specification for 'subset'");
+        }
+    }
+    parameters.subset = subset;
+
     // Loading matrix data.
-    let cache = await process_and_cache(parameters.matrices, parameters.sample_factor);
+    let cache = await process_and_cache(parameters.matrices, parameters.sample_factor, parameters.subset);
 
     // We need to do something if the permutation is not the same.
     let rhandle = ghandle.open("results");
