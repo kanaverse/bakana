@@ -188,4 +188,6 @@ test("analysis works when we skip the QC steps", async () => {
             expect("discards" in qrhandle.children).toBe(false);
         }
     }
+
+    await bakana.freeAnalysis(state);
 })
