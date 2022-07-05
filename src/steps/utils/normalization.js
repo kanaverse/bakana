@@ -28,6 +28,9 @@ export function subsetSums(qc, filter, mat, cache, name) {
                 j++;
             }
         });
+        if (j !== output.length) {
+            throw new Error("normalization and filtering are not in sync");
+        }
     }
 
     return output;
