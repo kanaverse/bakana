@@ -35,8 +35,6 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
     free() {
         utils.freeCache(this.#cache.metrics);
         utils.freeCache(this.#cache.filters);
-        utils.freeCache(this.#cache.matrix);
-        utils.freeCache(this.#cache.block_buffer);
         utils.freeCache(this.#cache.metrics_buffer);
     }
 
@@ -46,6 +44,10 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
     
     valid() {
         return true;
+    }
+
+    skipped() {
+        return this.#parameters.skip;
     }
 
     fetchSums({ unsafe = false } = {}) {
@@ -64,6 +66,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
 
     static defaults () {
         return {
+            skip: false,
             use_mito_default: true,
             mito_prefix: "mt-",
             nmads: 3
@@ -74,59 +77,86 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * Each argument is taken from the property of the same name in the `quality_control` property of the `parameters` of {@linkcode runAnalysis}.
      *
+     * @param {boolean} skip - Whether to skip the calculation of quality control statistics.
      * @param {boolean} use_mito_default - Whether the internal mitochondrial gene lists should be used.
      * @param {string} mito_prefix - Prefix of the identifiers for mitochondrial genes, when `use_mito_default = false`.
      * @param {number} nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
      *
      * @return The object is updated with the new results.
      */
-    compute(use_mito_default, mito_prefix, nmads) {
+    compute(skip, use_mito_default, mito_prefix, nmads) {
         this.changed = false;
 
-        if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix) {
-            var mat = this.#inputs.fetchCountMatrix();
+        // If the metrics or filters aren't available and we're not skipping
+        // this step, then we need to recreate them.
+        let unskip_metrics = (!skip && !("metrics" in this.#cache));
+        let unskip_filters = (!skip && !("filters" in this.#cache));
 
-            // TODO: add more choices.
-            var nsubsets = 1;
-            var subsets = utils.allocateCachedArray(mat.numberOfRows() * nsubsets, "Uint8Array", this.#cache, "metrics_buffer");
-            subsets.fill(0);
-
-            // Finding the prefix.
-            // TODO: use the guessed features to narrow the Ensembl/symbol search.
-            var gene_info = this.#inputs.fetchGenes();
-            var sub_arr = subsets.array();
-            for (const [key, val] of Object.entries(gene_info)) {
-                if (use_mito_default) {
-                    val.forEach((x, i) => {
-                        if (mito.symbol.has(x) || mito.ensembl.has(x)) {
-                            sub_arr[i] = 1;
-                        }
-                    });
-                } else {
-                    var lower_mito = mito_prefix.toLowerCase();
-                    val.forEach((x, i) => {
-                        if(x.toLowerCase().startsWith(lower_mito)) {
-                            sub_arr[i] = 1;
-                        }
-                    });
-                }
-            }
-
+        if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix || unskip_metrics) {
             utils.freeCache(this.#cache.metrics);
-            this.#cache.metrics = scran.computePerCellQCMetrics(mat, [subsets]);
+
+            if (skip) {
+                // Delete anything existing, as it won't be valid as other
+                // things have changed upstream of us. This ensures that we
+                // can re-run this step later via unskip_metrics = true.
+                delete this.#cache.metrics;
+            } else {
+                var mat = this.#inputs.fetchCountMatrix();
+
+                // TODO: add more choices.
+                var nsubsets = 1;
+                var subsets = utils.allocateCachedArray(mat.numberOfRows() * nsubsets, "Uint8Array", this.#cache, "metrics_buffer");
+                subsets.fill(0);
+
+                // Finding the prefix.
+                // TODO: use the guessed features to narrow the Ensembl/symbol search.
+                var gene_info = this.#inputs.fetchGenes();
+                var sub_arr = subsets.array();
+                for (const [key, val] of Object.entries(gene_info)) {
+                    if (use_mito_default) {
+                        val.forEach((x, i) => {
+                            if (mito.symbol.has(x) || mito.ensembl.has(x)) {
+                                sub_arr[i] = 1;
+                            }
+                        });
+                    } else {
+                        var lower_mito = mito_prefix.toLowerCase();
+                        val.forEach((x, i) => {
+                            if(x.toLowerCase().startsWith(lower_mito)) {
+                                sub_arr[i] = 1;
+                            }
+                        });
+                    }
+                }
+
+                this.#cache.metrics = scran.computePerCellQCMetrics(mat, [subsets]);
+            }
 
             this.#parameters.use_mito_default = use_mito_default;
             this.#parameters.mito_prefix = mito_prefix;
             this.changed = true;
         }
 
-        if (this.changed || nmads !== this.#parameters.nmads) {
-            let block = this.#inputs.fetchBlock();
+        if (this.changed || nmads !== this.#parameters.nmads || unskip_filters) {
             utils.freeCache(this.#cache.filters);
-            this.#cache.filters = scran.computePerCellQCFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
+
+            if (skip) {
+                // Again, upstream is invalidated.
+                delete this.#cache.filters;
+            } else {
+                let block = this.#inputs.fetchBlock();
+                this.#cache.filters = scran.computePerCellQCFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
+            }
 
             this.#parameters.nmads = nmads;
             this.changed = true;
+        }
+
+        if (this.#parameters.skip !== skip) {
+            this.changed = true;
+            this.#parameters.skip = skip;
+        } else if (this.#parameters.skip && skip) {
+            this.changed = false; // there can never be any change if we were already skipping the results.
         }
 
         return;
@@ -166,24 +196,29 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
      * - `retained`: the number of cells remaining after QC filtering.
      */
     summary() {
-        var data;
+        if (!this.valid()) {
+            return null;
+        }
+
+        var output = {};
+        if (this.skipped()) {
+            return output;
+        }
+
         var blocks = this.#inputs.fetchBlockLevels();
         if (blocks === null) {
             blocks = [ "default" ];
-            data = { default: this.#format_metrics() };
+            output.data = { default: this.#format_metrics() };
         } else {
             let metrics = this.#format_metrics({ copy: "view" });
             let bids = this.#inputs.fetchBlock();
-            data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
+            output.data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
         }
 
         let listed = this.#format_thresholds();
-        let thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
+        output.thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
 
-        return { 
-            "data": data, 
-            "thresholds": thresholds
-        };
+        return output;
     }
 
     /*************************
@@ -195,6 +230,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
 
         {
             let phandle = ghandle.createGroup("parameters"); 
+            phandle.writeDataSet("skip", "Uint8", [], Number(this.#parameters.skip));
             phandle.writeDataSet("use_mito_default", "Uint8", [], Number(this.#parameters.use_mito_default));
             phandle.writeDataSet("mito_prefix", "String", [], this.#parameters.mito_prefix);
             phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
@@ -203,7 +239,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
         {
             let rhandle = ghandle.createGroup("results"); 
 
-            {
+            if ("metrics" in this.#cache) { // if skip=true, metrics may not be computed... but if they are, we save them anyway.
                 let mhandle = rhandle.createGroup("metrics");
                 let data = this.#format_metrics({ copy: "view" });
                 mhandle.writeDataSet("sums", "Float64", null, data.sums)
@@ -211,17 +247,17 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
                 mhandle.writeDataSet("proportion", "Float64", null, data.proportion);
             }
 
-            {
+            if ("filters" in this.#cache) { // if skip=true, thresholds may not be computed... but if they are, we save them anyway.
                 let thandle = rhandle.createGroup("thresholds");
                 let thresholds = this.#format_thresholds({ copy: "hdf5" }); 
                 for (const x of [ "sums", "detected", "proportion" ]) {
                     let current = thresholds[x];
                     thandle.writeDataSet(x, "Float64", null, current);
                 }
-            }
 
-            let disc = this.fetchDiscards();
-            rhandle.writeDataSet("discards", "Uint8", null, disc);
+                let disc = this.fetchDiscards();
+                rhandle.writeDataSet("discards", "Uint8", null, disc);
+            }
         }
     }
 }
@@ -272,13 +308,15 @@ class QCFiltersMimic {
 export function unserialize(handle, inputs) {
     let ghandle = handle.open("quality_control");
 
-    let parameters = {};
+    let parameters = QualityControlState.defaults(); 
     {
         let phandle = ghandle.open("parameters"); 
-        parameters = {
-            use_mito_default: phandle.open("use_mito_default", { load: true }).values[0] > 0,
-            mito_prefix: phandle.open("mito_prefix", { load: true }).values[0],
-            nmads: phandle.open("nmads", { load: true }).values[0]
+        parameters.use_mito_default = phandle.open("use_mito_default", { load: true }).values[0] > 0;
+        parameters.mito_prefix = phandle.open("mito_prefix", { load: true }).values[0];
+        parameters.nmads = phandle.open("nmads", { load: true }).values[0];
+
+        if ("skip" in phandle.children) { // back-compatible.
+            parameters.skip = phandle.open("skip", { load: true }).values[0] > 0;
         }
     }
 
@@ -287,29 +325,33 @@ export function unserialize(handle, inputs) {
     try {
         let rhandle = ghandle.open("results");
 
-        let mhandle = rhandle.open("metrics");
-        let sums = mhandle.open("sums", { load: true }).values;
+        if ("metrics" in rhandle.children) { // if skip=true, QC metrics may not be reported.
+            let mhandle = rhandle.open("metrics");
+            let sums = mhandle.open("sums", { load: true }).values;
 
-        cache.metrics = scran.emptyPerCellQCMetricsResults(sums.length, 1);
-        cache.metrics.sums({ copy: false }).set(sums);
+            cache.metrics = scran.emptyPerCellQCMetricsResults(sums.length, 1);
+            cache.metrics.sums({ copy: false }).set(sums);
 
-        let detected = mhandle.open("detected", { load: true }).values;
-        cache.metrics.detected({ copy: false }).set(detected);
-        let proportions = mhandle.open("proportion", { load: true }).values;
-        cache.metrics.subsetProportions(0, { copy: false }).set(proportions);
+            let detected = mhandle.open("detected", { load: true }).values;
+            cache.metrics.detected({ copy: false }).set(detected);
+            let proportions = mhandle.open("proportion", { load: true }).values;
+            cache.metrics.subsetProportions(0, { copy: false }).set(proportions);
+        }
 
-        let thandle = rhandle.open("thresholds");
-        let thresholds_sums = thandle.open("sums", { load: true }).values;
-        let thresholds_detected = thandle.open("detected", { load: true }).values;
-        let thresholds_proportion = thandle.open("proportion", { load: true }).values;
+        if ("thresholds" in rhandle.children) { // if skip=true, QC thresholds may not be reported.
+            let thandle = rhandle.open("thresholds");
+            let thresholds_sums = thandle.open("sums", { load: true }).values;
+            let thresholds_detected = thandle.open("detected", { load: true }).values;
+            let thresholds_proportion = thandle.open("proportion", { load: true }).values;
 
-        let discards = rhandle.open("discards", { load: true }).values; 
-        cache.filters = new QCFiltersMimic(
-            thresholds_sums, 
-            thresholds_detected,
-            thresholds_proportion,
-            discards
-        );
+            let discards = rhandle.open("discards", { load: true }).values; 
+            cache.filters = new QCFiltersMimic(
+                thresholds_sums, 
+                thresholds_detected,
+                thresholds_proportion,
+                discards
+            );
+        }
 
         output = new QualityControlState(inputs, parameters, cache);
     } catch (e) {
