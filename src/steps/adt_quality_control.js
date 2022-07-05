@@ -43,12 +43,12 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
      ******** Getters **********
      ***************************/
 
-    #possible() {
+    valid() {
        return this.#inputs.hasAvailable(this.#parameters.target_matrix);
     }
 
-    valid() {
-        return this.#possible() && !this.#parameters.skip;
+    skipped() {
+        return this.#parameters.skip;
     }
 
     fetchSums({ unsafe = false } = {}) {
@@ -96,7 +96,7 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
 
         // If the metrics or filters aren't available and we're not skipping
         // this step, then we need to run this.
-        let skip_impossible = skip || !this.#possible();
+        let skip_impossible = skip || !this.valid();
         let unskip_metrics = (!skip_impossible && !("metrics" in this.#cache));
         let unskip_filters = (!skip_impossible && !("filters" in this.#cache));
 
@@ -191,10 +191,13 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
      */
     summary() {
         if (!this.valid()) {
-            return {};
+            return null;
         }
 
         var output = {};
+        if (this.skipped()) {
+            return output;
+        }
 
         var blocks = this.#inputs.fetchBlockLevels();
         if (blocks === null) {
@@ -316,7 +319,7 @@ export function unserialize(handle, inputs) {
         try {
             let rhandle = ghandle.open("results");
 
-            if ("metrics" in rhandle.children) { // if skip=true or #possible is false, QC metrics may not be reported.
+            if ("metrics" in rhandle.children) { // if skip=true or valid() is false, QC metrics may not be reported.
                 let mhandle = rhandle.open("metrics");
 
                 let detected = mhandle.open("detected", { load: true }).values;
@@ -329,7 +332,7 @@ export function unserialize(handle, inputs) {
                 cache.metrics.subsetTotals(0, { copy: false }).set(igg_total);
             }
 
-            if ("thresholds" in rhandle.children) { // if skip=true or #possible is false, QC thresholds may not be reported.
+            if ("thresholds" in rhandle.children) { // if skip=true or valid() is false, QC thresholds may not be reported.
                 let thandle = rhandle.open("thresholds");
                 let thresholds_detected = thandle.open("detected", { load: true }).values;
                 let thresholds_igg_total = thandle.open("igg_total", { load: true }).values;

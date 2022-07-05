@@ -43,7 +43,11 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
      ***************************/
     
     valid() {
-        return !this.#parameters.skip;
+        return true;
+    }
+
+    skipped() {
+        return this.#parameters.skip;
     }
 
     fetchSums({ unsafe = false } = {}) {
@@ -193,27 +197,28 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
      */
     summary() {
         if (!this.valid()) {
-            return {};
+            return null;
         }
 
-        var data;
+        var output = {};
+        if (this.skipped()) {
+            return output;
+        }
+
         var blocks = this.#inputs.fetchBlockLevels();
         if (blocks === null) {
             blocks = [ "default" ];
-            data = { default: this.#format_metrics() };
+            output.data = { default: this.#format_metrics() };
         } else {
             let metrics = this.#format_metrics({ copy: "view" });
             let bids = this.#inputs.fetchBlock();
-            data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
+            output.data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
         }
 
         let listed = this.#format_thresholds();
-        let thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
+        output.thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
 
-        return { 
-            "data": data, 
-            "thresholds": thresholds
-        };
+        return output;
     }
 
     /*************************

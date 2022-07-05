@@ -27,9 +27,9 @@ test("analysis works when we skip the QC steps", async () => {
     paramcopy.adt_quality_control.skip = true;
 
     await bakana.runAnalysis(state, files, paramcopy, { finishFun: finished });
-    expect(state.quality_control.valid()).toBe(false);
+    expect(state.quality_control.skipped()).toBe(true);
     expect(contents.quality_control).toEqual({});
-    expect(state.adt_quality_control.valid()).toBe(false);
+    expect(state.adt_quality_control.skipped()).toBe(true);
     expect(contents.adt_quality_control).toEqual({});
 
     expect(state.cell_filtering.fetchDiscards()).toBeNull();
@@ -58,10 +58,10 @@ test("analysis works when we skip the QC steps", async () => {
             (offset, size) => offsets[offset]
         );
 
-        expect(reloaded.state.quality_control.valid()).toBe(false);
+        expect(reloaded.state.quality_control.skipped()).toBe(true);
         expect(reloaded.parameters.quality_control.skip).toBe(true);
 
-        expect(reloaded.state.adt_quality_control.valid()).toBe(false);
+        expect(reloaded.state.adt_quality_control.skipped()).toBe(true);
         expect(reloaded.parameters.adt_quality_control.skip).toBe(true);
 
         await bakana.freeAnalysis(reloaded.state);    
@@ -98,13 +98,13 @@ test("analysis works when we skip the QC steps", async () => {
         
         // Changing parameters have no effect when we're still skipping.
         rerun_change(true);
-        expect(curstep.valid()).toBe(false);
+        expect(curstep.skipped()).toBe(true);
         expect(curstep.changed).toBe(false);
 
         // Until we reactivate everything... 
         rerun(false);
         expect(curstep.changed).toBe(true);
-        expect(curstep.valid()).toBe(true);
+        expect(curstep.skipped()).toBe(false);
 
         {
             let has_discards = curstep.fetchDiscards();
@@ -143,15 +143,13 @@ test("analysis works when we skip the QC steps", async () => {
 
                 
             let reloaded;
-            switch (stepname) {
-                case "adt_quality_control":
-                    reloaded = new aqc.unserialize(handle, state.inputs);
-                    break;
-                default:
-                    reloaded = new qc.unserialize(handle, state.inputs);
+            if (stepname == "adt_quality_control") {
+                reloaded = new aqc.unserialize(handle, state.inputs);
+            } else {
+                reloaded = new qc.unserialize(handle, state.inputs);
             }
             let state2 = reloaded.state;
-            expect(state2.valid()).toBe(false);
+            expect(state2.skipped()).toBe(true);
 
             let has_discards = state2.fetchDiscards();
             expect(has_discards.length).toBe(ncells);

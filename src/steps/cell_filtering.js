@@ -5,6 +5,17 @@ import * as inputs_module from "./inputs.js";
 
 export const step_name = "cell_filtering";
 
+function findUsefulUpstreamStates(states, msg) {
+    let is_valid = utils.findValidUpstreamStates(states, msg);
+    let useful = [];
+    for (const v of is_valid) {
+        if (!states[v].skipped()) {
+            useful.push(v);
+        }
+    }
+    return useful;
+}
+
 /**
  * This step filters the count matrices to remove low-quality cells.
  * It wraps the `filterCells` function from [**scran.js**](https://github.com/jkanche/scran.js).
@@ -160,7 +171,7 @@ export class CellFilteringState {
         }
 
         if (this.changed) {
-            let to_use = utils.findValidUpstreamStates(this.#qc_states, "QC");
+            let to_use = findUsefulUpstreamStates(this.#qc_states, "QC");
 
             if (to_use.length > 0) {
                 let disc_buffer;
@@ -171,6 +182,7 @@ export class CellFilteringState {
                     disc_buffer = utils.allocateCachedArray(first.length, "Uint8Array", this.#cache, "discard_buffer");
                     let disc_arr = disc_buffer.array();
                     disc_arr.fill(0);
+
                     for (const u of to_use) {
                         this.#qc_states[u].fetchDiscards().forEach((y, i) => { disc_arr[i] |= y; });
                     }
@@ -260,7 +272,7 @@ export function unserialize(handle, inputs, qc_states) {
         } 
 
         if (!("discard_buffer" in cache)) {
-            let to_use = utils.findValidUpstreamStates(qc_states, "QC");
+            let to_use = findUsefulUpstreamStates(qc_states, "QC");
 
             if (to_use.length == 1) {
                 // We figure out which upstream QC state contains the discard vector

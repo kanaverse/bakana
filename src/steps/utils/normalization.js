@@ -1,26 +1,34 @@
 import * as utils from "./general.js";
 
 export function subsetSums(qc, filter, mat, cache, name) {
-    let discards = filter.fetchDiscards();
-    if (discards === null || !qc.valid()) {
+    if (qc.skipped()) {
         return null;
     }
 
-    let buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", cache);
-    let output = buffer.array();
+    let output = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", cache, name);
+    let discards = filter.fetchDiscards();
 
-    var sums = qc.fetchSums({ unsafe: true }); // no more allocations expected...
+    // unsafe, so no more Wasm allocations past this point. Unfortunately, we
+    // can't use copy: view here, because the sums in the QC state may not be a
+    // WasmArray if it's a reloaded mimic, in which case a copy: view request
+    // would fail.
+    let sums = qc.fetchSums({ unsafe: true }); 
 
-    var j = 0;
-    discards.forEach((x, i) => {
-        if (!x) {
-            if (j == output.length) {
-                throw new Error("normalization and filtering are not in sync");
+    if (discards == null) {
+        output.set(sums);
+    } else {
+        let oarr = output.array();
+        var j = 0;
+        discards.forEach((x, i) => {
+            if (!x) {
+                if (j == output.length) {
+                    throw new Error("normalization and filtering are not in sync");
+                }
+                oarr[j] = sums[i];
+                j++;
             }
-            output[j] = sums[i];
-            j++;
-        }
-    });
+        });
+    }
 
     return output;
 }
