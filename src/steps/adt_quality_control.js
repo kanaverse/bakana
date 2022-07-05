@@ -44,7 +44,7 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
      ***************************/
 
     valid() {
-       return this.#inputs.hasAvailable(this.#parameters.target_matrix);
+        return this.#inputs.hasAvailable(this.#parameters.target_matrix);
     }
 
     skipped() {
