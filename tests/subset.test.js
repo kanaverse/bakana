@@ -66,11 +66,10 @@ test("subsetting behaves correctly with indices", async () => {
     let offsets = utils.mockOffsets(saved.collected);
     {
         let handle = new scran.H5File(path);
-        let reloaded = handle.open("inputs").open("parameters").open("subset").open("indices", { load: true }).values;
-        expect(Array.from(reloaded)).toEqual(subset);
-
         let restate = await inputs.unserialize(handle, (offset, size) => offsets[offset]);
         expect(restate.state.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
+        expect(Array.from(restate.parameters.subset.indices)).toEqual(subset);
+
         restate.state.free();
     }
 
@@ -117,13 +116,11 @@ test("subsetting behaves correctly with a factor", async () => {
     let offsets = utils.mockOffsets(saved.collected);
     {
         let handle = new scran.H5File(path);
-
-        let subhandle = handle.open("inputs").open("parameters").open("subset");
-        expect(subhandle.open("field", { load: true }).values[0]).toEqual("level1class");
-        expect(subhandle.open("values", { load: true }).values).toEqual(["microglia", "interneurons"]);
-
         let restate = await inputs.unserialize(handle, (offset, size) => offsets[offset]);
         expect(restate.state.fetchCountMatrix().numberOfColumns()).toBe(expected_num);
+        expect(restate.parameters.subset.field).toEqual("level1class");
+        expect(restate.parameters.subset.values).toEqual(["microglia", "interneurons"]);
+
         restate.state.free();
     }
     
