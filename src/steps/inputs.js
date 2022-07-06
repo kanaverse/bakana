@@ -150,6 +150,7 @@ export class InputsState {
         this.#abbreviated = tmp_abbreviated;
         this.#parameters.matrices = new_matrices;
         this.#parameters.sample_factor = sample_factor;
+        this.#parameters.subset = subset;
 
         this.changed = true;
 
@@ -527,8 +528,8 @@ async function subset_datasets(cache, subset) {
     if ("indices" in subset) {
         keep = subset.indices;
     } else if ("field" in subset) {
-        if (subset.field in cache.annotation) {
-            let anno = cache.annotation[subset.field];
+        if (subset.field in cache.annotations) {
+            let anno = cache.annotations[subset.field];
             keep = [];
             let allowed = new Set(subset.values);
             anno.forEach((x, i) => {
@@ -543,9 +544,16 @@ async function subset_datasets(cache, subset) {
         throw new Error("unrecognized specification for 'subset'");
     }
 
-    for (const key of cache.matrix.available()) {
-        let current = cache.matrix.get(key);
-        cache.matrix.add(key, scran.subsetColumns(current, keep));
+    let replacement = new scran.MultiMatrix;
+    try {
+        for (const key of cache.matrix.available()) {
+            let current = cache.matrix.get(key);
+            replacement.add(key, scran.subsetColumns(current, keep));
+        }
+        cache.matrix = replacement;
+    } catch (e) {
+        replacement.free();
+        throw e;
     }
 
     if (cache.annotations !== null) {
@@ -556,20 +564,29 @@ async function subset_datasets(cache, subset) {
         let subblock = scran.subsetBlock(cache.block_ids, keep);
         let dropped = scran.dropUnusedBlock(subblock);
         cache.block_ids = subblock;
-        cache.block_levels = dropped.map(x => cache.block_levels[x]):
+        cache.block_levels = dropped.map(x => cache.block_levels[x]);
     }
 }
 
 async function process_and_cache(new_matrices, sample_factor, subset) {
-    let cache = await load_datasets(new_matrices, sample_factor);
-    await subset_datasets(cache, subset);
+    let cache = {};
 
-    var gene_info_type = {};
-    var gene_info = cache.genes["RNA"];
-    for (const [key, val] of Object.entries(gene_info)) {
-        gene_info_type[key] = scran.guessFeatures(val);
+    try {
+        cache = await load_datasets(new_matrices, sample_factor);
+        await subset_datasets(cache, subset);
+
+        var gene_info_type = {};
+        var gene_info = cache.genes["RNA"];
+        for (const [key, val] of Object.entries(gene_info)) {
+            gene_info_type[key] = scran.guessFeatures(val);
+        }
+        cache.gene_types = gene_info_type;
+
+    } catch (e) {
+        utils.freeCache(cache.matrix);
+        utils.freeCache(cache.block_ids);
+        throw e;
     }
-    cache.gene_types = gene_info_type;
 
     return cache;
 }
