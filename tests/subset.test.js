@@ -41,6 +41,7 @@ test("subsetting behaves correctly with indices", async () => {
     });
 
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
+    expect(istate.summary().num_cells).toBe(subset.length);
     expect(istate.fetchCountMatrix().column(2)).toEqual(fullstate.fetchCountMatrix().column(4));
     expect(istate.fetchCountMatrix().column(5)).toEqual(fullstate.fetchCountMatrix().column(10));
 
@@ -93,6 +94,7 @@ test("subsetting behaves correctly with a factor", async () => {
 
     let expected_num = 388;
     expect(istate.fetchCountMatrix().numberOfColumns()).toEqual(expected_num);
+    expect(istate.summary().num_cells).toBe(expected_num);
 
     {
         let subanno = istate.fetchAnnotations("level1class");
