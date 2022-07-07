@@ -79,7 +79,7 @@ export async function parseKanaFileInternal(input, statePath, { stageDir = null 
         let piped = istream.pipe(ostream);
 
         await new Promise((resolve, reject) => {
-            piped.on("unpipe", () => resolve(null));
+            piped.on("finish", () => resolve(null));
             piped.on("error", e => reject(e));
         });
     }
@@ -95,7 +95,7 @@ export async function parseKanaFileInternal(input, statePath, { stageDir = null 
                 let piped = istream.pipe(ostream);
                 
                 await new Promise((resolve, reject) => {
-                    piped.on("unpipe", () => resolve(null));
+                    piped.on("finish", () => resolve(null));
                     piped.on("error", e => reject(e));
                 });
             }
