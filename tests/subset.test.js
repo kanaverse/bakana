@@ -2,6 +2,7 @@ import * as bakana from "../src/index.js";
 import * as inputs from "../src/steps/inputs.js";
 import * as scran from "scran.js";
 import * as utils from "./utils.js"
+import * as fs from "fs";
 
 beforeAll(async () => await bakana.initialize({ localFile: true }));
 afterAll(async () => await bakana.terminate());
@@ -149,7 +150,7 @@ test("subsetting processes the blocking factors", async () => {
     for (var i = 1; i < ncells; i += 2) {
         subset.push(i); // all odds.
     }
-    
+
     let istate = new inputs.InputsState;
     await istate.compute(files, null, {
         indices: new Int32Array(subset)
@@ -180,4 +181,38 @@ test("subsetting processes the blocking factors", async () => {
 
     istate.free();
     fullstate.free();
+})
+
+test("end-to-end run works with subsetting", async () => {
+    let files = { 
+        "default": {
+            format: "MatrixMarket",
+            mtx: "files/datasets/pbmc-combined-matrix.mtx.gz",
+            genes: "files/datasets/pbmc-combined-features.tsv.gz",
+            annotations: "files/datasets/pbmc-combined-barcodes.tsv.gz"
+        }
+    };
+
+    let anno_buffer = fs.readFileSync(files.default.annotations);
+    let offset = anno_buffer.byteOffset;
+    let buf = anno_buffer.buffer.slice(offset, offset + anno_buffer.byteLength);
+    let ncells = bakana.readTable(new Uint8Array(buf), { compression: "gz" }).length - 1;
+
+    let subset = [];
+    for (var i = 1; i < ncells; i += 10) { 
+        subset.push(i); // every 10th cell.
+    }
+    
+    let state = await bakana.createAnalysis();
+    let params = utils.baseParams();
+    params.inputs.subset = { "indices": subset };
+    params.inputs.sample_factor = "3k";
+
+    let res = await bakana.runAnalysis(state, files, params);
+    expect(state.inputs.summary().num_cells).toBe(subset.length);
+
+    let qc_sum = state.quality_control.summary();
+    expect(qc_sum.data["3k"].sums.length + qc_sum.data["4k"].sums.length).toBe(subset.length);
+
+    bakana.freeAnalysis(state);
 })
