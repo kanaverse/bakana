@@ -110,7 +110,7 @@ test("reanalysis from a v1.1 analysis works correctly (10X combined)", async () 
 test("reanalysis from a v1.1 analysis works correctly (MatrixMarket)", async () => {
     const h5path = "TEST_v1.1_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc4k-with-custom_mtx_20220408.kana", h5path);
-    valkana.validateState(h5path, true, 1001000);
+//    valkana.validateState(h5path, true, 1001000);
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
