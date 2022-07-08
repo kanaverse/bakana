@@ -2,6 +2,13 @@ import * as afile from "./abstract/file.js";
 import * as aserialize from "./abstract/serialize.js";
 
 /**
+ * Current version of the kana format.
+ * This is encoded as an `XXXYYYZZZ` integer for version `XXX.YYY.ZZZ`, e.g., 1001002 for version 1.1.2.
+ * @type {number}
+ */
+export const kanaFormatVersion = aserialize.FORMAT_VERSION;
+
+/**
  * Create a `*.kana` file from the HDF5 state file and the various data files.
  *
  * @param {string} statePath - String containing a file path to an existing HDF5 state file.

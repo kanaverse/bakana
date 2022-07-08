@@ -4,7 +4,7 @@ import * as scran from "scran.js";
 import * as fs from "fs";
 import * as combine from "../src/steps/combine_embeddings.js";
 
-beforeAll(async () => await bakana.initialize({ localFile: true }));
+beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 test("runAnalysis works correctly (MatrixMarket)", async () => {
@@ -82,6 +82,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     // Saving and loading.
     const path = "TEST_state_adt.h5";
     let collected = await bakana.saveAnalysis(state, path);
+    utils.validateState(path);
     expect(collected.collected.length).toBe(3);
     expect(typeof(collected.collected[0])).toBe("string");
 
@@ -166,7 +167,7 @@ test("runAnalysis works correctly (10X)", async () => {
         expect(pcs.pcs.owner !== null).toBe(true);
         expect(pcs.num_pcs).toBe(10);
 
-        const path = "TEST_state_adt.h5";
+        const path = "TEST_state_combine-embed.h5";
         let fhandle = scran.createNewHDF5File(path);
         state.combine_embeddings.serialize(fhandle);
 
@@ -235,5 +236,5 @@ test("runAnalysis works for ADTs with blocking", async () => {
     expect(summ.thresholds["A1"].igg_total).toBeGreaterThan(0);
 
     // Freeing everyone.
-    bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(state);
 })

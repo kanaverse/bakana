@@ -2,7 +2,7 @@ import * as bakana from "../src/index.js";
 import * as scran from "scran.js";
 import * as utils from "./utils.js"
 
-beforeAll(async () => await bakana.initialize({ localFile: true }));
+beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 test("multi-matrix analyses work correctly", async () => {
@@ -48,6 +48,7 @@ test("multi-matrix analyses work correctly", async () => {
     // Saving and loading.
     const path = "TEST_state_multi-matrix.h5";
     let collected = await bakana.saveAnalysis(state, path);
+    utils.validateState(path);
     expect(collected.collected.length).toBe(4);
     expect(typeof(collected.collected[0])).toBe("string");
     
@@ -121,6 +122,7 @@ test("single-matrix multi-sample analyses work correctly", async () => {
     // Saving and loading.
     const path = "TEST_state_multi-sample.h5";
     let collected = await bakana.saveAnalysis(state, path);
+    utils.validateState(path);
     expect(collected.collected.length).toBe(3);
     expect(typeof(collected.collected[0])).toBe("string");
     

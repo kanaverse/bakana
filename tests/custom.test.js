@@ -2,7 +2,7 @@ import * as bakana from "../src/index.js";
 import * as scran from "scran.js";
 import * as utils from "./utils.js"
 
-beforeAll(async () => await bakana.initialize({ localFile: true }));
+beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 let files = {
@@ -34,6 +34,7 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     // Saving and loading works correctly.
     const path = "TEST_state_custom.h5";
     let collected = await bakana.saveAnalysis(state, path);
+    utils.validateState(path);
 
     let offsets = utils.mockOffsets(collected.collected);
     let reloaded = await bakana.loadAnalysis(

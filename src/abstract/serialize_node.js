@@ -4,6 +4,7 @@ import * as Path from "path";
 import * as v0 from "./utils/legacy_v0.js";
 import * as pako from "pako";
 import * as os from "os";
+export { FORMAT_VERSION } from "./utils/serialize.js";
 
 /**
  * This contains a function to create and load a kana file with Node.

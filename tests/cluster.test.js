@@ -2,7 +2,7 @@ import * as bakana from "../src/index.js";
 import * as scran from "scran.js";
 import * as utils from "./utils.js"
 
-beforeAll(async () => await bakana.initialize({ localFile: true }));
+beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 test("switching between clustering methods (SNN first)", async () => {
@@ -30,6 +30,7 @@ test("switching between clustering methods (SNN first)", async () => {
 
     const path = "TEST_state_clusters.h5";
     await bakana.saveAnalysis(state, path);
+    utils.validateState(path);
     {
         let handle = new scran.H5File(path);
         let khandle = handle.open("kmeans_cluster");
@@ -53,6 +54,7 @@ test("switching between clustering methods (SNN first)", async () => {
     expect(contents.kmeans_cluster instanceof Object).toBe(true);
 
     await bakana.saveAnalysis(state, path);
+    utils.validateState(path);
     {
         let handle = new scran.H5File(path);
         let khandle = handle.open("kmeans_cluster");
@@ -76,6 +78,7 @@ test("switching between clustering methods (SNN first)", async () => {
     expect(contents.choose_clustering).toBeUndefined();
 
     await bakana.saveAnalysis(state, path);
+    utils.validateState(path);
     {
         let handle = new scran.H5File(path);
         let khandle = handle.open("kmeans_cluster");
@@ -117,6 +120,7 @@ test("switching between clustering methods (k-means first)", async () => {
 
     const path = "TEST_state_clusters.h5";
     await bakana.saveAnalysis(state, path);
+    utils.validateState(path);
     {
         let handle = new scran.H5File(path);
         let khandle = handle.open("kmeans_cluster");
@@ -137,6 +141,7 @@ test("switching between clustering methods (k-means first)", async () => {
     expect(contents.snn_graph_cluster instanceof Object).toBe(true);
 
     await bakana.saveAnalysis(state, path);
+    utils.validateState(path);
     {
         let handle = new scran.H5File(path);
         let khandle = handle.open("kmeans_cluster");
@@ -158,6 +163,7 @@ test("switching between clustering methods (k-means first)", async () => {
     expect(contents.choose_clustering).toBeUndefined();
 
     await bakana.saveAnalysis(state, path);
+    utils.validateState(path);
     {
         let handle = new scran.H5File(path);
         let khandle = handle.open("kmeans_cluster");
