@@ -4,7 +4,7 @@ import * as scran from "scran.js";
 import * as utils from "./utils.js"
 import * as fs from "fs";
 
-beforeAll(async () => await bakana.initialize({ localFile: true }));
+beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 function createSaver(saved) {
@@ -214,5 +214,20 @@ test("end-to-end run works with subsetting", async () => {
     let qc_sum = state.quality_control.summary();
     expect(qc_sum.data["3k"].sums.length + qc_sum.data["4k"].sums.length).toBe(subset.length);
 
-    bakana.freeAnalysis(state);
+    const path = "TEST_subset-inputs.h5";
+    let collected = await bakana.saveAnalysis(state, path);
+    utils.validateState(path);
+
+    let offsets = utils.mockOffsets(collected.collected);
+    let reloaded = await bakana.loadAnalysis(
+        path, 
+        (offset, size) => offsets[offset]
+    );
+
+    let new_params = reloaded.parameters;
+    expect(Array.from(new_params.inputs.subset.indices)).toEqual(subset);
+    expect(reloaded.state.inputs.summary().num_cells).toEqual(subset.length);
+
+    await bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(reloaded.state);
 })
