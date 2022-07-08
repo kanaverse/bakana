@@ -1,8 +1,9 @@
 import * as bakana from "../src/index.js";
 import * as scran from "scran.js";
 import * as utils from "./utils.js";
+import * as valkana from "valkana";
 
-beforeAll(async () => await bakana.initialize({ localFile: true }));
+beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 function createFinisher(contents) {
@@ -16,6 +17,7 @@ function createFinisher(contents) {
 test("reanalysis from a v0 analysis works correctly (10X)", async () => {
     const h5path = "TEST_v0_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/zeisel_tenx_20220307.kana", h5path);
+    // valkana.validateState(h5path, true, 0); // Gave up, doesn't look like a valid v0 file, actually.
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
@@ -38,6 +40,7 @@ test("reanalysis from a v0 analysis works correctly (10X)", async () => {
 test("reanalysis from a v0 analysis works correctly (MatrixMarket)", async () => {
     const h5path = "TEST_v0_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/zeisel_mtx_20220306.kana", h5path);
+    // valkana.validateState(h5path, true, 0); // Gave up, doesn't look like a valid v0 file, actually.
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
@@ -60,6 +63,7 @@ test("reanalysis from a v0 analysis works correctly (MatrixMarket)", async () =>
 test("reanalysis from a v1.0 analysis works correctly (10X)", async () => {
     const h5path = "TEST_v1.0_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/zeisel_tenx_20220318.kana", h5path);
+    // valkana.validateState(h5path, true, 1000000); // Gave up, doesn't look like a valid v1.0 file, actually.
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
@@ -84,6 +88,7 @@ test("reanalysis from a v1.0 analysis works correctly (10X)", async () => {
 test("reanalysis from a v1.1 analysis works correctly (10X combined)", async () => {
     const h5path = "TEST_v1.1_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc-combined_tenx_20220401.kana", h5path);
+    valkana.validateState(h5path, true, 1001000);
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
@@ -105,6 +110,7 @@ test("reanalysis from a v1.1 analysis works correctly (10X combined)", async () 
 test("reanalysis from a v1.1 analysis works correctly (MatrixMarket)", async () => {
     const h5path = "TEST_v1.1_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc4k-with-custom_mtx_20220408.kana", h5path);
+    valkana.validateState(h5path, true, 1001000);
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
@@ -126,6 +132,7 @@ test("reanalysis from a v1.1 analysis works correctly (MatrixMarket)", async () 
 test("reanalysis from a v1.2 analysis works correctly (10X combined)", async () => {
     const h5path = "TEST_v1.2_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc-combined-with-kmeans-and-custom_tenx_20220525.kana", h5path);
+    // valkana.validateState(h5path, true, 1002000); // Gave up, doesn't look like a valid 1.2 file, actually.
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
@@ -145,8 +152,9 @@ test("reanalysis from a v1.2 analysis works correctly (10X combined)", async () 
 })
 
 test("reanalysis from a v1.2 analysis works correctly (MatrixMarket)", async () => {
-    const h5path = "TEST_v1.1_state.h5";
+    const h5path = "TEST_v1.2_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc4k-with-kmeans-and-custom_mtx_20220525.kana", h5path);
+    // valkana.validateState(h5path, true, 1002000); // Gave up, doesn't look like a valid 1.2 file, actually.
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });

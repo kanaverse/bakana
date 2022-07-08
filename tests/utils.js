@@ -1,6 +1,16 @@
 import * as path from "path";
 import * as fs from "fs";
 import * as bakana from "../src/index.js";
+import * as valkana from "valkana";
+
+export async function initializeAll() {
+    await bakana.initialize({ localFile: true });
+    await valkana.initialize({ localFile: true });
+}
+
+export function validateState(path, embedded = true) {
+    valkana.validateState(path, embedded, bakana.kanaFormatVersion);
+}
 
 export function baseParams() {
     let output = bakana.analysisDefaults();

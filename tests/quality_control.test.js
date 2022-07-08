@@ -4,7 +4,7 @@ import * as aqc from "../src/steps/adt_quality_control.js";
 import * as scran from "scran.js";
 import * as utils from "./utils.js"
 
-beforeAll(async () => await bakana.initialize({ localFile: true }));
+beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 test("analysis works when we skip the QC steps", async () => {
@@ -38,6 +38,7 @@ test("analysis works when we skip the QC steps", async () => {
 
     const path = "TEST_state_qc-skip.h5";
     let collected = await bakana.saveAnalysis(state, path);
+    utils.validateState(path);
     {
         let handle = new scran.H5File(path);
         let qhandle = handle.open("quality_control");

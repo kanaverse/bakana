@@ -5,7 +5,7 @@ import * as pako from "pako";
 // Must be integers!
 const FORMAT_EMBEDDED = 0;
 const FORMAT_LINKED = 1;
-const FORMAT_VERSION = 2000000;
+export const FORMAT_VERSION = 2001000;
 
 function numberToBuffer(number) {
     // Store as little-endian. Probably safer

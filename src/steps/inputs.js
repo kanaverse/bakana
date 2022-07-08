@@ -202,15 +202,19 @@ export class InputsState {
         {
             let phandle = ghandle.createGroup("parameters");
 
+            // Make sure we're in sorted order, for consistency with
+            // how the merge is done.
+            let names = Object.keys(this.#parameters.matrices);
+            names.sort();
+
             let formats = [];
-            let names = [];
             let numbers = [];
             let fihandle = phandle.createGroup("files");
             let sofar = 0;
 
-            for (const [key, val] of Object.entries(this.#parameters.matrices)) {
+            for (const key of names) {
+                let val = this.#parameters.matrices[key];
                 formats.push(val.format());
-                names.push(key);
 
                 let files = await val.serialize(embeddedSaver);
                 numbers.push(files.length);

@@ -3,7 +3,7 @@ import * as scran from "scran.js";
 import * as utils from "./utils.js";
 import * as fs from "fs";
 
-beforeAll(async () => await bakana.initialize({ localFile: true }));
+beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 let files = { 
@@ -40,6 +40,7 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
     const round_trip = "TEST_kana_state_again.h5";
 
     let loader = await bakana.parseKanaFile(kpath, round_trip, { stageDir: tmp });
+    utils.validateState(round_trip);
     let reloaded = await bakana.loadAnalysis(round_trip, loader);
 
     // Checking that we got something that was reasonable.
@@ -80,6 +81,7 @@ test("saving to and loading from a kana file works with links", async () => {
     // Alright - trying to unpack everything.
     const round_trip = "TEST_kana_state_again2.h5";
     let loader = await bakana.parseKanaFile(kpath, round_trip);
+    utils.validateState(round_trip, false);
     let reloaded = await bakana.loadAnalysis(round_trip, loader);
 
     // Checking that we got something that was reasonable.
