@@ -251,11 +251,13 @@ export class InputsState {
 
             if (this.#parameters.subset !== null) {
                 let shandle = phandle.createGroup("subset");
+                let schandle = shandle.createGroup("cells");
+
                 if ("indices" in this.#parameters.subset) {
-                    shandle.writeDataSet("indices", "Int32", null, this.#parameters.subset.indices);
+                    schandle.writeDataSet("indices", "Int32", null, this.#parameters.subset.indices);
                 } else if ("field" in this.#parameters.subset) {
-                    shandle.writeDataSet("field", "String", [], this.#parameters.subset.field);
-                    shandle.writeDataSet("values", "String", null, this.#parameters.subset.values);
+                    schandle.writeDataSet("field", "String", [], this.#parameters.subset.field);
+                    schandle.writeDataSet("values", "String", null, this.#parameters.subset.values);
                 } else {
                     throw new Error("unrecognized specification for 'subset'");
                 }
@@ -674,15 +676,20 @@ export async function unserialize(handle, embeddedLoader) {
     if ("subset" in phandle.children) {
         let shandle = phandle.open("subset");
         subset = {};
-        if ("indices" in shandle.children) {
-            subset.indices = shandle.open("indices", { load: true }).values;
-        } else if ("field" in shandle.children) {
-            subset.field = shandle.open("field", { load: true }).values[0];
-            subset.values = shandle.open("values", { load: true }).values;
-        } else {
-            throw new Error("unrecognized specification for 'subset'");
+
+        if ("cells" in shandle.children) {
+            let schandle = shandle.open("cells");
+            if ("indices" in schandle.children) {
+                subset.indices = schandle.open("indices", { load: true }).values;
+            } else if ("field" in schandle.children) {
+                subset.field = schandle.open("field", { load: true }).values[0];
+                subset.values = schandle.open("values", { load: true }).values;
+            } else {
+                throw new Error("unrecognized specification for 'subset'");
+            }
         }
     }
+
     parameters.subset = subset;
 
     // Loading matrix data.
