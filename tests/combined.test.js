@@ -11,22 +11,24 @@ test("multi-matrix analyses work correctly", async () => {
         contents[step] = res;
     };
 
+    let files = { 
+        "4K": {
+            format: "10X",
+            h5: "files/datasets/pbmc4k-tenx.h5"
+        },
+        "3K": {
+            format: "MatrixMarket",
+            mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
+            genes: "files/datasets/pbmc3k-features.tsv.gz",
+            annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
+        }
+    };
+
     let paramcopy = utils.baseParams();
     let state = await bakana.createAnalysis();
     let res = await bakana.runAnalysis(
         state,
-        { 
-            "4K": {
-                format: "10X",
-                h5: "files/datasets/pbmc4k-tenx.h5"
-            },
-            "3K": {
-                format: "MatrixMarket",
-                mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
-                genes: "files/datasets/pbmc3k-features.tsv.gz",
-                annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
-            }
-        },
+        files,
         paramcopy,
         {
             finishFun: finished,
@@ -36,6 +38,23 @@ test("multi-matrix analyses work correctly", async () => {
     expect(contents.quality_control instanceof Object).toBe(true);
     expect("3K" in contents.quality_control.thresholds).toBe(true);
     expect("4K" in contents.quality_control.thresholds).toBe(true);
+
+    {
+        // Checking the blocking factors.
+        expect(state.inputs.fetchBlockLevels()).toEqual(["3K", "4K"]); 
+        let ids = state.inputs.fetchBlock();
+        let counts = {};
+        ids.forEach((x, i) => {
+            if (x in counts) {
+                counts[x] = 1;
+            } else {
+                counts[x]++;
+            }
+        });
+        expect(Object.keys(counts).length).toBe(2);
+        expect(counts[0]).toBeGreaterThan(0);
+        expect(counts[1]).toBeGreaterThan(0);
+    }
 
     {
         // Check that some correction actually occured.
@@ -51,7 +70,23 @@ test("multi-matrix analyses work correctly", async () => {
     utils.validateState(path);
     expect(collected.collected.length).toBe(4);
     expect(typeof(collected.collected[0])).toBe("string");
-    
+
+    {
+        let handle = new scran.H5File(path);
+        let ihandle = handle.open("inputs");
+        expect(ihandle.open("results").open("num_samples", { load: true }).values[0]).toEqual(2);
+
+        let phandle = ihandle.open("parameters");
+        let sample_names = phandle.open("sample_names", { load: true }).values;
+        expect(sample_names).toEqual(["3K", "4K"]); // again, should be sorted.
+
+        let sample_groups = phandle.open("sample_groups", { load: true }).values;
+        expect(Array.from(sample_groups)).toEqual([3, 1]); // 3 MatrixMarket files, one 10X file.
+
+        let formats = phandle.open("format", { load: true }).values;
+        expect(formats).toEqual(["MatrixMarket", "10X"]); 
+    }
+
     let offsets = utils.mockOffsets(collected.collected);
     let reloaded = await bakana.loadAnalysis(
         path, 
