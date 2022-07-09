@@ -69,7 +69,7 @@ test("analysis works when we skip the QC steps", async () => {
     }
 
     // Forcing the upstream to be non-changed.
-    state.inputs.compute(files, null);
+    await state.inputs.compute(files, null, null);
 
     for (const stepname of [ "quality_control", "adt_quality_control" ]) {
         let curstep = state[stepname];

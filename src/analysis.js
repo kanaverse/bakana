@@ -177,7 +177,8 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
     quickStart(step_inputs);
     await state[step_inputs].compute(
         matrices, 
-        params[step_inputs]["sample_factor"]
+        params[step_inputs]["sample_factor"],
+        params[step_inputs]["subset"]
     );
     quickFinish(step_inputs);
 
