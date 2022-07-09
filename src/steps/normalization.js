@@ -79,7 +79,7 @@ export class NormalizationState extends nutils.NormalizationStateBase {
 
         var block = this.#filter.fetchFilteredBlock();
         utils.freeCache(this.#cache.matrix);
-        this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: block });
+        this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: block, allowZeros: true });
         return;
     }
 

@@ -97,7 +97,7 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
         }
 
         utils.freeCache(this.#cache.matrix);
-        this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: block });
+        this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: block, allowZeros: true });
         return;
     }
 
