@@ -68,9 +68,10 @@ export class CustomSelectionsState {
      */
     addSelection(id, selection) {
         let to_use = utils.findValidUpstreamStates(this.#norm_states);
+        let mat = this.#norm_states[to_use[0]].fetchNormalizedMatrix();
+        utils.checkIndices(selection, mat.numberOfColumns());
 
         // Assumes that we have at least one cell in and outside the selection!
-        let mat = this.#norm_states[to_use[0]].fetchNormalizedMatrix();
         var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Int32Array", this.#cache);
         buffer.fill(0);
         var tmp = buffer.array();

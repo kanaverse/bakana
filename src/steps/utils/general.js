@@ -87,3 +87,17 @@ export function findValidUpstreamStates(states, msg) {
     }
     return to_use;
 }
+
+export function checkIndices(indices, max) {
+    for (const i of indices) {
+        if (i < 0 || i >= max) {
+            throw new Error("subset indices are out of range");
+        }
+    }
+
+    for (var i = 1; i < indices.length; i++) {
+        if (indices[i] <= indices[i-1]) {
+            throw new Error("subset indices must be sorted and unique");
+        }
+    }
+}

@@ -534,6 +534,7 @@ async function subset_datasets(cache, subset) {
     let keep;
     if ("indices" in subset) {
         keep = subset.indices;
+        utils.checkIndices(keep, cache.matrix.numberOfColumns());
     } else if ("field" in subset) {
         if (subset.field in cache.annotations) {
             let anno = cache.annotations[subset.field];
