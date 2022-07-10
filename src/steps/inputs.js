@@ -16,10 +16,10 @@ export class InputsState {
     #cache;
     #abbreviated;
 
-    constructor(parameters = null, cache = null) {
+    constructor(parameters = null, cache = null, abbreviated = null) {
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
-        this.#abbreviated = {};
+        this.#abbreviated = (abbreviated === null ? {} : abbreviated);
         this.changed = false;
         return;
     }
@@ -208,6 +208,36 @@ export class InputsState {
             output.annotations = Object.keys(this.#cache.annotations);
         }
         return output;
+    }
+
+    /**************************
+     ******** Subset **********
+     **************************/
+
+    subsetCells(subset) {
+        utils.checkIndices(subset, this.#cache.matrix.numberOfColumns());
+
+        // Pass by reference of the cache's internal contents is probably okay
+        // here, given that everything is readonly anyway.
+        let new_cache = { ...this.#cache };
+        subset_datasets(new_cache, { indices: subset });
+
+        // Faking the original indices for caching.
+        let old_subset = this.#parameters.subset;
+        if (old_subset !== null) {
+            let keep;
+            if ("indices" in old_subset) {
+                keep = old_subset.indices;
+            } else if ("field" in old_subset) {
+                keep = harvest_subset_from_annotation(old_subset, this.#cache.annotations);
+            }
+            subset = subset.map(i => keep[i]);
+        }
+
+        let new_params = this.fetchParameters({ subset: false });
+        new_params.subset = { indices: subset };
+
+        return new InputsState(new_params, new_cache, { ...this.#abbreviated });
     }
 
     /*************************
@@ -544,7 +574,19 @@ async function load_datasets(matrices, sample_factor) {
     }
 }
 
-async function subset_datasets(cache, subset) {
+function harvest_subset_from_annotation(subset, annotations) {
+    let anno = annotations[subset.field];
+    let keep = [];
+    let allowed = new Set(subset.values);
+    anno.forEach((x, i) => {
+        if (allowed.has(x)) {
+            keep.push(i);
+        }
+    });
+    return keep;
+}
+
+function subset_datasets(cache, subset) {
     if (subset === null) {
         return;
     }
@@ -555,18 +597,10 @@ async function subset_datasets(cache, subset) {
         keep = subset.indices;
         utils.checkIndices(keep, cache.matrix.numberOfColumns());
     } else if ("field" in subset) {
-        if (subset.field in cache.annotations) {
-            let anno = cache.annotations[subset.field];
-            keep = [];
-            let allowed = new Set(subset.values);
-            anno.forEach((x, i) => {
-                if (allowed.has(x)) {
-                    keep.push(i);
-                }
-            });
-        } else {
+        if (!(subset.field in cache.annotations)) {
             throw new Error("failed to find 'subset.field' in the column annotations");
         }
+        keep = harvest_subset_from_annotation(subset, cache.annotations);
     } else {
         throw new Error("unrecognized specification for 'subset'");
     }
@@ -589,9 +623,14 @@ async function subset_datasets(cache, subset) {
 
     if (cache.block_ids !== null) {
         let subblock = scran.subsetBlock(cache.block_ids, keep);
-        let dropped = scran.dropUnusedBlock(subblock);
-        cache.block_ids = subblock;
-        cache.block_levels = dropped.map(x => cache.block_levels[x]);
+        try {
+            let dropped = scran.dropUnusedBlock(subblock);
+            cache.block_levels = dropped.map(x => cache.block_levels[x]);
+            cache.block_ids = subblock;
+        } catch (e) {
+            subblock.free();
+            throw e;
+        }
     }
 }
 
@@ -600,7 +639,7 @@ async function process_and_cache(new_matrices, sample_factor, subset) {
 
     try {
         cache = await load_datasets(new_matrices, sample_factor);
-        await subset_datasets(cache, subset);
+        subset_datasets(cache, subset);
 
         var gene_info_type = {};
         var gene_info = cache.genes["RNA"];
@@ -787,6 +826,13 @@ export async function unserialize(handle, embeddedLoader) {
             permuters[a] = x => {};
         }
     }
+
+    /*
+     * We could try to construct 'abbreviated', but there isn't really
+     * any point because callers are expected to set 'matrices = null'
+     * in their calls to 'compute()' on an unserialized analysis, so 
+     * any setting of '#abbreviated' wouldn't even get used.
+     */
 
     return { 
         state: new InputsState(parameters, cache),

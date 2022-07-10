@@ -218,6 +218,7 @@ test("end-to-end run works with subsetting", async () => {
     let qc_sum = state.quality_control.summary();
     expect(qc_sum.data["3k"].sums.length + qc_sum.data["4k"].sums.length).toBe(subset.length);
 
+    // Saving and loading.
     const path = "TEST_subset-inputs.h5";
     let collected = await bakana.saveAnalysis(state, path);
     utils.validateState(path);
@@ -236,6 +237,49 @@ test("end-to-end run works with subsetting", async () => {
     {
         let new_params = bakana.retrieveParameters(reloaded, { wipeIndices: true });
         expect(new_params.inputs.subset).toBeNull();
+    }
+
+    // subsetInputs works as expected. 
+    let refcol = {};
+    for (const i of [ 0, 2, 10 ]) {
+        refcol[i] = state.inputs.fetchCountMatrix().column(i);
+    }
+
+    let subset2 = [];
+    for (var i = 0; i < subset.length; i += 2) { 
+        subset2.push(i); // every 2nd cell.
+    }
+
+    let expected_idx = [];
+    for (var i = 0; i < subset.length; i += 2) { 
+        expected_idx.push(subset[i]);
+    }
+
+    for (var i = 0; i < 2; i++) {
+        // We do this twice to check that the subsetting didn't mutate anything
+        // in 'state.inputs'.
+        let subx = await bakana.subsetInputs(state, subset2);
+
+        let ref = state.inputs.summary();
+        let idetails = subx.inputs.summary();
+        expect(idetails.num_cells).toEqual(subset2.length);
+        expect(idetails.num_genes).toEqual(ref.num_genes);
+        expect(idetails.genes).toStrictEqual(ref.genes); // exact same genes.
+
+        for (const [k, v] of Object.entries(refcol)) {
+            expect(subx.inputs.fetchCountMatrix().column(k/2)).toEqual(v);
+        }
+
+        // Indices were correctly reindexed to be relative to the original cells.
+        let params = subx.inputs.fetchParameters();
+        expect(params.subset.indices).toEqual(expected_idx);
+
+        // Passing of '#abbreviated' avoids extra work on compute().
+        expect(subx.inputs.changed).toBe(false);
+        subx.inputs.compute(files, params.sample_factor, params.subset);
+        expect(subx.inputs.changed).toBe(false);
+
+        await bakana.freeAnalysis(subx);
     }
 
     await bakana.freeAnalysis(state);

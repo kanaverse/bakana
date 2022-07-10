@@ -57,8 +57,12 @@ const step_custom = custom_markers.step_name;
  * This object can be used as input into {@linkcode runAnalysis}.
  */
 export async function createAnalysis() {
+    return create_analysis(new inputs.InputsState);
+}
+
+function create_analysis(input_state) {
     let output = {};
-    output[step_inputs] = new inputs.InputsState;
+    output[step_inputs] = input_state;
 
     output[step_qc] = new qc.QualityControlState(output[step_inputs]);
     output[step_qc_adt] = new qcadt.AdtQualityControlState(output[step_inputs]);
@@ -590,4 +594,22 @@ export function retrieveParameters(state, { wipeIndices = false } = {}) {
         }
     }
     return params;
+}
+
+/**
+ * Create a new analysis state object consisting of a subset of cells from an existing analysis state.
+ * This assumes that the existing state already contains loaded matrix data in its `inputs` property,
+ * which allows us to create a cheap reference without reloading the data into memory.
+ *
+ * @param {object} state - State object such as that produced by {@linkcode createAnalysis} or {@linkcode linkAnalysis}.
+ * This should already contain loaded data, e.g., after a run of {@linkcode runAnalysis}.
+ * @param {TypedArray|Array} subset - Array containing the indices for the desired subset of cells.
+ * This should be sorted and non-duplicate.
+ * Any existing subset in `state` will be overridden by `subset`.
+ *
+ * @return {object} A state object containing loaded matrix data in its `inputs` property.
+ * Note that the other steps do not have any results, so this object should be passed through {@linkcode runAnalysis} before it can be used.
+ */
+export async function subsetInputs(state, subset) {
+    return create_analysis(state.inputs.subsetCells(subset));
 }
