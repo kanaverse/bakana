@@ -29,6 +29,9 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     expect("means" in res2).toBe(true);
     expect("lfc" in res2).toBe(true);
 
+    expect(state.custom_selections.fetchSelectionIndices("evens")).toEqual([0,2,4,6,8]);
+    expect(state.custom_selections.fetchSelectionIndices("odds")).toEqual([1,3,5,7,9]);
+
     state.custom_selections.removeSelection("odds");
 
     // Saving and loading works correctly.

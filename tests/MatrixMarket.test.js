@@ -72,6 +72,20 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         expect(exprs.length).toBe(nfiltered);
     }
 
+    // Clustering.
+    {
+        let filtered_cells = contents.cell_filtering.retained;
+        expect(contents.choose_clustering.clusters.length).toBe(filtered_cells);
+
+        let nclusters = (new Set(contents.choose_clustering.clusters)).size;
+        let expected = new Int32Array(filtered_cells);
+        for (var c = 0; c < nclusters; c++) {
+            let idx = state.choose_clustering.fetchClusterIndices(c);
+            idx.forEach(x => { expected[x] = c; });
+        }
+        expect(contents.choose_clustering.clusters).toEqual(expected);
+    }
+
     // ADTs are no-ops.
     {
         expect(state.adt_quality_control.summary()).toBeNull();

@@ -62,11 +62,14 @@ export class CustomSelectionsState {
      * @param {string} id A unique identifier for the new custom selection.
      * @param {Array|TypedArray} selection The indices of the cells in the selection.
      * Indices should refer to positions of cells in the QC-filtered matrix, not the original matrix.
+     * @param {object} [options] - Optional parameters.
+     * @param {boolean} [options.copy=true] - Whether to make a copy of `selection` before storing it inside this object.
+     * If `false`, it is assumed that the caller makes no further modifications to the passed `selection`.
      *
      * @return The custom selection is added to the state and calculation of its markers is performed.
      * Nothing is returned.
      */
-    addSelection(id, selection) {
+    addSelection(id, selection, { copy = true } = {}) {
         let to_use = utils.findValidUpstreamStates(this.#norm_states);
         let mat = this.#norm_states[to_use[0]].fetchNormalizedMatrix();
         utils.checkIndices(selection, mat.numberOfColumns());
@@ -92,6 +95,11 @@ export class CustomSelectionsState {
         }
       
         this.#cache.results[id] = { "raw": res };
+
+        // making a copy to take ownership.
+        if (copy) {
+            selection = selection.slice();
+        }
         this.#parameters.selections[id] = selection;
         return;
     }
@@ -133,6 +141,26 @@ export class CustomSelectionsState {
     fetchResults(id, rank_type, feat_type) {
         var current = this.#cache.results[id].raw[feat_type];
         return markers.fetchGroupResults(current, 1, rank_type + "-mean"); 
+    }
+
+    /**
+     * Retrieve the indices for a selection of interest.
+     *
+     * @param {string} id - The identifier for the selection.
+     * @param {object} [options] - Optional parameters.
+     * @param {boolean} [options.copy=true] - Whether to make a copy of `selection` before returning it.
+     * If `false`, it is assumed that the caller does not modify the selection.
+     *
+     * @return {Array|TypedArray} Array of indices in the requested selection.
+     * Note that indices are relative to the filtered matrix - 
+     * use {@linkcode CellFilteringState#undoFiltering CellFilteringState.undoFiltering} to convert them to indices on the original dataset.
+     */
+    fetchSelectionIndices(id, { copy = true } = {}) {
+        let raw = this.#parameters.selections[id];
+        if (copy) {
+            raw = raw.slice();
+        }
+        return raw;
     }
 
     fetchParameters({ selections = true } = {}) {
