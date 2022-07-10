@@ -54,11 +54,11 @@ test("runAnalysis works correctly (10X)", async () => {
         (offset, size) => offsets[offset]
     );
 
-    let new_params = reloaded.parameters;
+    let new_params = bakana.retrieveParameters(reloaded);
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
 
     // Freeing.
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded.state);
+    await bakana.freeAnalysis(reloaded);
 })

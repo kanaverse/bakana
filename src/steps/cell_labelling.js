@@ -71,6 +71,19 @@ export class CellLabellingState {
     }
 
     /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchParameters() {
+        // Avoid any pass-by-reference activity.
+        let out = { ...this.#parameters };
+        for (const key of [ "human_references", "mouse_references" ]) {
+            out[key] = out[key].slice();
+        }
+        return out;
+    }
+
+    /***************************
      ******** Compute **********
      ***************************/
 
@@ -420,10 +433,7 @@ export function unserialize(handle, inputs, markers) {
         }
     }
 
-    return {
-        state: new CellLabellingState(inputs, markers, parameters, cache),
-        parameters: { ...parameters }
-    };
+    return new CellLabellingState(inputs, markers, parameters, cache);
 }
 
 /**************************

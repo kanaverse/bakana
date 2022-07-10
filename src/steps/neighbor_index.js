@@ -42,6 +42,10 @@ export class NeighborIndexState {
         return this.#cache.raw;
     }
 
+    fetchParameters() {
+        return { ...this.#parameters }; // avoid pass-by-reference links.
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -127,9 +131,5 @@ export function unserialize(handle, pca) {
     }
 
     let cache = {};
-
-    return { 
-        state: new NeighborIndexState(pca, parameters, cache),
-        parameters: {...parameters }
-    };
+    return new NeighborIndexState(pca, parameters, cache);
 }

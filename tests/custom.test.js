@@ -42,10 +42,17 @@ test("addition, fetching and removal of custom selections works correctly", asyn
         (offset, size) => offsets[offset]
     );
 
-    expect(reloaded.parameters.custom_selections.selections.evens.length).toBe(5);
-    let reres = reloaded.state.custom_selections.fetchResults("evens", "cohen", "RNA");
+    let new_params = bakana.retrieveParameters(reloaded);
+    expect(new_params.custom_selections.selections.evens.length).toBe(5);
+    let reres = reloaded.custom_selections.fetchResults("evens", "cohen", "RNA");
     expect(reres.ordering).toEqual(res.ordering);
 
+    // Retrieval can also skip the indices.
+    {
+        let new_params = bakana.retrieveParameters(reloaded, { wipeIndices: true });
+        expect(new_params.custom_selections.selections).toEqual({});
+    }
+
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded.state);
+    await bakana.freeAnalysis(reloaded);
 })

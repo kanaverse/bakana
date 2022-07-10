@@ -62,6 +62,10 @@ export class PcaState extends putils.PcaStateBase {
         return putils.formatPCs(this.#cache.pcs);
     }
 
+    fetchParameters() {
+        return { ...this.#parameters }; // avoid pass-by-reference links.
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -215,8 +219,5 @@ export function unserialize(handle, filter, norm, feat) {
         throw e;
     }
 
-    return {
-        state: output,
-        parameters: { ...parameters } // make a copy to avoid pass-by-reference links with state's internal parameters
-    };
+    return output;
 }

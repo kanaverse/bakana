@@ -92,24 +92,24 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         (offset, size) => offsets[offset]
     );
 
-    let new_params = reloaded.parameters;
+    let new_params = bakana.retrieveParameters(reloaded);
 
     {
         // Check that steps unserialize correctly.
         let old_keys = Object.keys(state);
         old_keys.sort();
-        let new_keys = Object.keys(reloaded.state);
+        let new_keys = Object.keys(reloaded);
         new_keys.sort();
         expect(old_keys).toEqual(new_keys);
 
         for (const step of old_keys) {
-            let qc_deets = reloaded.state[step].summary();
+            let qc_deets = reloaded[step].summary();
             let ref = state[step].summary();
             expect(ref).toEqual(ref);
         }
 
         // Check that we still get some markers.
-        let reloaded_markers = reloaded.state.marker_detection.fetchGroupResults(0, "auc-min-rank", "ADT");
+        let reloaded_markers = reloaded.marker_detection.fetchGroupResults(0, "auc-min-rank", "ADT");
         let ref_markers = state.marker_detection.fetchGroupResults(0, "auc-min-rank", "ADT");
         expect(reloaded_markers).toEqual(ref_markers);
 
@@ -124,23 +124,23 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     // Checking that the permutation is unchanged on reload, 
     // even when identities are subsetted.
     let old_adt_ids = state.inputs.summary()["genes"]["ADT"]["id"];
-    let new_adt_ids = reloaded.state.inputs.summary()["genes"]["ADT"]["id"];
+    let new_adt_ids = reloaded.inputs.summary()["genes"]["ADT"]["id"];
     expect(old_adt_ids.length).toBeGreaterThan(0);
     expect(old_adt_ids).toEqual(new_adt_ids);
 
     let old_rna_ids = state.inputs.summary()["genes"]["RNA"]["id"];
-    let new_rna_ids = reloaded.state.inputs.summary()["genes"]["RNA"]["id"];
+    let new_rna_ids = reloaded.inputs.summary()["genes"]["RNA"]["id"];
     expect(old_rna_ids.length).toBeGreaterThan(0);
     expect(old_rna_ids).toEqual(new_rna_ids);
 
     let old_res = state.feature_selection.summary();
-    let new_res = reloaded.state.feature_selection.summary();
+    let new_res = reloaded.feature_selection.summary();
     expect("means" in old_res).toBe(true);
     expect(old_res["means"]).toEqual(new_res["means"]);
 
     // Release me!
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded.state);
+    await bakana.freeAnalysis(reloaded);
 })
 
 test("runAnalysis works correctly (10X)", async () => {
@@ -172,11 +172,11 @@ test("runAnalysis works correctly (10X)", async () => {
         state.combine_embeddings.serialize(fhandle);
 
         let reloaded = combine.unserialize(fhandle, {"RNA": state.pca, "ADT": state.adt_pca});
-        let repcs = reloaded.state.fetchPCs();
+        let repcs = reloaded.fetchPCs();
         expect(repcs.pcs.owner !== null).toBe(true);
         expect(repcs.num_pcs).toBe(10);
 
-        reloaded.state.free();
+        reloaded.free();
     }
 
     // Release me!

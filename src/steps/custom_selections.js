@@ -135,6 +135,21 @@ export class CustomSelectionsState {
         return markers.fetchGroupResults(current, 1, rank_type + "-mean"); 
     }
 
+    fetchParameters({ selections = true } = {}) {
+        // Need to make a copy to avoid moving the buffers.
+        let output = { ...this.#parameters };
+
+        let replacement = {};
+        if (selections) {
+            for (const [k, v] of Object.entries(output.selections)) {
+                replacement[k] = v.slice();        
+            }
+        }
+        output.selections = replacement;
+
+        return output;
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -306,15 +321,6 @@ export function unserialize(handle, permuters, filter, norm_states) {
         }
     }
 
-    // Need to make a copy to avoid moving the buffers.
-    let output = { selections: {} };
-    for (const [k, v] of Object.entries(parameters.selections)) {
-        output.selections[k] = v.slice();        
-    }
-
-    return {
-        state: new CustomSelectionsState(filter, norm_states, parameters, cache),
-        parameters: output
-    };
+    return new CustomSelectionsState(filter, norm_states, parameters, cache);
 }
 

@@ -99,7 +99,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         (offset, size) => offsets[offset]
     );
 
-    let new_params = reloaded.parameters;
+    let new_params = bakana.retrieveParameters(reloaded);
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
 
@@ -107,19 +107,19 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         // Check that steps unserialize correctly.
         let old_keys = Object.keys(state);
         old_keys.sort();
-        let new_keys = Object.keys(reloaded.state);
+        let new_keys = Object.keys(reloaded);
         new_keys.sort();
         expect(old_keys).toEqual(new_keys);
 
         for (const step of old_keys) {
-            let qc_deets = reloaded.state[step].summary();
+            let qc_deets = reloaded[step].summary();
             let ref = state[step].summary();
             expect(ref).toEqual(ref);
         }
 
         // Check that we still get some markers.
-        let reloaded_markers = reloaded.state.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
-        let ref_markers = reloaded.state.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
+        let reloaded_markers = reloaded.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
+        let ref_markers = reloaded.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
         expect(reloaded_markers).toEqual(ref_markers);
     }
 
@@ -133,18 +133,18 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 
     // Checking that the permutation is unchanged on reload.
     let old_ids = state.inputs.summary()["genes"]["RNA"]["id"];
-    let new_ids = reloaded.state.inputs.summary()["genes"]["RNA"]["id"];
+    let new_ids = reloaded.inputs.summary()["genes"]["RNA"]["id"];
     expect(old_ids.length).toBeGreaterThan(0);
     expect(old_ids).toEqual(new_ids);
 
     let old_res = state.feature_selection.summary();
-    let new_res = reloaded.state.feature_selection.summary();
+    let new_res = reloaded.feature_selection.summary();
     expect("means" in old_res).toBe(true);
     expect(old_res["means"]).toEqual(new_res["means"]);
 
     // Release me!
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded.state);
+    await bakana.freeAnalysis(reloaded);
 })
 
 test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async () => {
@@ -183,11 +183,11 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
         (offset, size) => offsets[offset]
     );
 
-    let new_params = reloaded.parameters;
+    let new_params = bakana.retrieveParameters(reloaded);
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
 
     // Release me!
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded.state);
+    await bakana.freeAnalysis(reloaded);
 })

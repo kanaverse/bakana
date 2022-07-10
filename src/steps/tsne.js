@@ -54,6 +54,14 @@ export class TsneState {
     }
 
     /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchParameters() {
+        return { ...this.#parameters }; // avoid pass-by-reference links.
+    }
+
+    /***************************
      ******** Compute **********
      ***************************/
 
@@ -234,8 +242,5 @@ export function unserialize(handle, index) {
         };
     }
 
-    return {
-        state: new TsneState(index, parameters, reloaded),
-        parameters: { ...parameters }
-    };
+    return new TsneState(index, parameters, reloaded);
 }

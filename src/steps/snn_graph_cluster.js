@@ -43,6 +43,10 @@ export class SnnGraphClusterState {
         }
     }
 
+    fetchParameters() {
+        return { ...this.#parameters }; // avoid pass-by-reference links.
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -209,10 +213,7 @@ export function unserialize(handle, index) {
         }
     }
 
-    return {
-        state: new SnnGraphClusterState(index, parameters, cache),
-        parameters: { ...parameters }
-    };
+    return new SnnGraphClusterState(index, parameters, cache);
 }
 
 

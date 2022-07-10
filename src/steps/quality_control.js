@@ -60,6 +60,10 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
         return this.#cache.filters.discardOverall({ copy: "view" });
     }
 
+    fetchParameters() {
+        return { ...this.#parameters }; // avoid pass-by-reference links.
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -361,8 +365,5 @@ export function unserialize(handle, inputs) {
         throw e;
     }
 
-    return {
-        state: output,
-        parameters: { ...parameters } // make a copy to avoid pass-by-reference links with state's internal parameters
-    };
+    return output;
 }

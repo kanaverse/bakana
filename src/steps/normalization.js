@@ -69,6 +69,10 @@ export class NormalizationState extends nutils.NormalizationStateBase {
         return buffer.slice();
     }
 
+    fetchParameters() {
+        return { ...this.#parameters }; // avoid pass-by-reference links.
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -135,8 +139,5 @@ export class NormalizationState extends nutils.NormalizationStateBase {
  **************************/
 
 export function unserialize(handle, qc, filter) {
-    return {
-        state: new NormalizationState(qc, filter),
-        parameters: {}
-    }
+    return new NormalizationState(qc, filter);
 }

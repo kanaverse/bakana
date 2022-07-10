@@ -69,7 +69,9 @@ test("subsetting behaves correctly with indices", async () => {
         let handle = new scran.H5File(path);
         let restate = await inputs.unserialize(handle, (offset, size) => offsets[offset]);
         expect(restate.state.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
-        expect(Array.from(restate.parameters.subset.indices)).toEqual(subset);
+
+        let new_params = restate.state.fetchParameters();
+        expect(Array.from(new_params.subset.indices)).toEqual(subset);
 
         restate.state.free();
     }
@@ -119,8 +121,10 @@ test("subsetting behaves correctly with a factor", async () => {
         let handle = new scran.H5File(path);
         let restate = await inputs.unserialize(handle, (offset, size) => offsets[offset]);
         expect(restate.state.fetchCountMatrix().numberOfColumns()).toBe(expected_num);
-        expect(restate.parameters.subset.field).toEqual("level1class");
-        expect(restate.parameters.subset.values).toEqual(["microglia", "interneurons"]);
+
+        let new_params = restate.state.fetchParameters();
+        expect(new_params.subset.field).toEqual("level1class");
+        expect(new_params.subset.values).toEqual(["microglia", "interneurons"]);
 
         restate.state.free();
     }
@@ -224,10 +228,16 @@ test("end-to-end run works with subsetting", async () => {
         (offset, size) => offsets[offset]
     );
 
-    let new_params = reloaded.parameters;
+    let new_params = bakana.retrieveParameters(reloaded);
     expect(Array.from(new_params.inputs.subset.indices)).toEqual(subset);
-    expect(reloaded.state.inputs.summary().num_cells).toEqual(subset.length);
+    expect(reloaded.inputs.summary().num_cells).toEqual(subset.length);
+
+    // Retrieval can also skip the indices.
+    {
+        let new_params = bakana.retrieveParameters(reloaded, { wipeIndices: true });
+        expect(new_params.inputs.subset).toBeNull();
+    }
 
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded.state);
+    await bakana.freeAnalysis(reloaded);
 })

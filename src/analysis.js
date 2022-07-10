@@ -430,13 +430,10 @@ export async function saveAnalysis(state, path, { embedded = true } = {}) {
  * This should accept two arguments - the name of the step and an object containing the results of that step.
  * If `null`, a no-op function is automatically created.
  *
- * @return An object with the following properties:
- * - `parameters`: an object containing the analysis parameters, similar to that created by {@linkcode analysisDefaults}.
- * - `state`: an object containing the loaded analysis state.
- *   This is conceptually equivalent to creating a state with {@linkcode createAnalysis} and running it through {@linkcode runAnalysis} with the associated `parameters`.
+ * @return An object containing the loaded analysis state.
+ * This is conceptually equivalent to creating a state with {@linkcode createAnalysis} and running it through {@linkcode runAnalysis}.
  */
 export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
-    let response = {};
     let state = {};
     let handle = new scran.H5File(path);
     let quickFun = step => {
@@ -450,90 +447,67 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     {
         let out = await inputs.unserialize(handle, loadFun);
         state[step_inputs] = out.state;
-        response[step_inputs] = out.parameters;
         permuters = out.permuters;
         quickFun(step_inputs);
     }
 
     /*** Quality control ***/
     {
-        let out = qc.unserialize(handle, state[step_inputs]);
-        state[step_qc] = out.state;
-        response[step_qc] = out.parameters;
+        state[step_qc] = qc.unserialize(handle, state[step_inputs]);
         quickFun(step_qc);
     }
 
     {
-        let out = qcadt.unserialize(handle, state[step_inputs]);
-        state[step_qc_adt] = out.state;
-        response[step_qc_adt] = out.parameters;
+        state[step_qc_adt] = qcadt.unserialize(handle, state[step_inputs]);
         quickFun(step_qc_adt);
     }
 
     {
-        let out = filters.unserialize(handle, state[step_inputs], { "RNA": state[step_qc], "ADT": state[step_qc_adt] });
-        state[step_filter] = out.state;
-        response[step_filter] = out.parameters;
+        state[step_filter] = filters.unserialize(handle, state[step_inputs], { "RNA": state[step_qc], "ADT": state[step_qc_adt] });
         quickFun(step_filter);
     }
 
     /*** Normalization ***/
     {
-        let out = normalization.unserialize(handle, state[step_qc], state[step_filter]);
-        state[step_norm] = out.state;
-        response[step_norm] = out.parameters;
+        state[step_norm] = normalization.unserialize(handle, state[step_qc], state[step_filter]);
         quickFun(step_norm);
     }
 
     {
-        let out = normadt.unserialize(handle, state[step_qc_adt], state[step_filter]);
-        state[step_norm_adt] = out.state;
-        response[step_norm_adt] = out.parameters;
+        state[step_norm_adt] = normadt.unserialize(handle, state[step_qc_adt], state[step_filter]);
         quickFun(step_norm_adt);
     }
 
     /*** Feature selection ***/
     {
-        let out = variance.unserialize(handle, permuters["RNA"], state[step_filter], state[step_norm]);
-        state[step_feat] = out.state;
-        response[step_feat] = out.parameters;
+        state[step_feat] = variance.unserialize(handle, permuters["RNA"], state[step_filter], state[step_norm]);
         quickFun(step_feat);
     }
 
     /*** Dimensionality reduction ***/
     {
-        let out = pca.unserialize(handle, state[step_filter], state[step_norm], state[step_feat]);
-        state[step_pca] = out.state;
-        response[step_pca] = out.parameters;
+        state[step_pca] = pca.unserialize(handle, state[step_filter], state[step_norm], state[step_feat]);
         quickFun(step_pca);
     }
 
     {
-        let out = pcaadt.unserialize(handle, state[step_filter], state[step_norm_adt]);
-        state[step_pca_adt] = out.state;
-        response[step_pca_adt] = out.parameters;
+        state[step_pca_adt] = pcaadt.unserialize(handle, state[step_filter], state[step_norm_adt]);
         quickFun(step_pca_adt);
     }
 
     {
-        let out = combine.unserialize(handle, { "RNA": state[step_pca], "ADT": state[step_pca_adt] });
-        state[step_combine] = out.state;
-        response[step_combine] = out.parameters;
+        state[step_combine] = combine.unserialize(handle, { "RNA": state[step_pca], "ADT": state[step_pca_adt] });
         quickFun(step_combine);
     }
 
     {
-        let out = correct.unserialize(handle, state[step_filter], state[step_combine]);
-        state[step_correct] = out.state;
-        response[step_correct] = out.parameters;
+        state[step_correct] = correct.unserialize(handle, state[step_filter], state[step_combine]);
         quickFun(step_correct);
     }
 
     /*** Nearest neighbors ***/
     {
-        let out = index.unserialize(handle, state[step_correct]);
-        state[step_neighbors] = out.state;
-        response[step_neighbors] = out.parameters;
+        state[step_neighbors] = index.unserialize(handle, state[step_correct]);
         quickFun(step_neighbors);
     }
 
@@ -542,18 +516,14 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     // is async for general usage.  So we can chuck them in without really
     // worrying that they're blocking anything here.
     {
-        let out = tsne.unserialize(handle, state[step_neighbors]);
-        state[step_tsne] = out.state;
-        response[step_tsne] = out.parameters;
+        state[step_tsne] = tsne.unserialize(handle, state[step_neighbors]);
         if (finishFun !== null) {
             finishFun(step_tsne, await state[step_tsne].summary());
         }
     }
 
     {
-        let out = umap.unserialize(handle, state[step_neighbors]);
-        state[step_umap] = out.state;
-        response[step_umap] = out.parameters;
+        state[step_umap] = umap.unserialize(handle, state[step_neighbors]);
         if (finishFun !== null) {
             finishFun(step_umap, await state[step_umap].summary());
         }
@@ -561,53 +531,63 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
 
     /*** Clustering ***/
     {
-        let out = kmeans_cluster.unserialize(handle, state[step_correct]);
-        state[step_kmeans] = out.state;
-        response[step_kmeans] = out.parameters;
+        state[step_kmeans] = kmeans_cluster.unserialize(handle, state[step_correct]);
         quickFun(step_kmeans);
     }
 
     {
-        let out = snn_cluster.unserialize(handle, state[step_neighbors]);
-        state[step_snn] = out.state;
-        response[step_snn] = out.parameters;
+        state[step_snn] = snn_cluster.unserialize(handle, state[step_neighbors]);
         quickFun(step_snn);
     }
 
     {
-        let out = cluster_choice.unserialize(handle, state[step_snn], state[step_kmeans]);
-        state[step_choice] = out.state;
-        response[step_choice] = out.parameters;
+        state[step_choice] = cluster_choice.unserialize(handle, state[step_snn], state[step_kmeans]);
         quickFun(step_choice);
     }
 
     /*** Markers and labels ***/
     let norm_states = { "RNA": state[step_norm], "ADT": state[step_norm_adt] };
     {
-        let out = cluster_markers.unserialize(handle, permuters, state[step_filter], norm_states, state[step_choice]);
-        state[step_markers] = out.state;
-        response[step_markers] = out.parameters;
+        state[step_markers] = cluster_markers.unserialize(handle, permuters, state[step_filter], norm_states, state[step_choice]);
         quickFun(step_markers);
     }
 
     {
-        let out = label_cells.unserialize(handle, state[step_inputs], state[step_markers]);
-        state[step_labels] = out.state;
-        response[step_labels] = out.parameters;
+        state[step_labels] = label_cells.unserialize(handle, state[step_inputs], state[step_markers]);
         if (finishFun !== null) {
             finishFun(step_labels, await state[step_labels].summary());
         }
     }
 
     {
-        let out = custom_markers.unserialize(handle, permuters, state[step_filter], norm_states);
-        state[step_custom] = out.state;
-        response[step_custom] = out.parameters;
+        state[step_custom] = custom_markers.unserialize(handle, permuters, state[step_filter], norm_states);
         quickFun(step_custom);
     }
 
-    return {
-        state: state,
-        parameters: response
-    };
+    return state;
+}
+
+/**
+ * Retrieve analysis parameters from a state object.
+ * This HDF5 file can then be embedded into a `*.kana` file for distribution.
+ *
+ * @param {object} state - Object containing the analysis state, produced by {@linkcode createAnalysis} or {@linkcode loadAnalysis}.
+ * @param {object} [options] - Optional parameters.
+ * @param {boolean} [options.wipeIndices=false] - Whether to wipe all parameters containing hard-coded indices.
+ * This includes the subset specification for the `inputs` step and the custom selections for the `custom_selections` step.
+ *
+ * @return {object} Object containing the analysis parameters for each step, similar to that created by {@linkcode analysisDefaults}.
+ */
+export function retrieveParameters(state, { wipeIndices = false } = {}) {
+    let params = {};
+    for (const [k, v] of Object.entries(state)) {
+        if (k == "inputs") {
+            params[k] = v.fetchParameters({ subset: !wipeIndices });
+        } else if (k == "custom_selections") {
+            params[k] = v.fetchParameters({ selections: !wipeIndices });
+        } else {
+            params[k] = v.fetchParameters();
+        }
+    }
+    return params;
 }

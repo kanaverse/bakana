@@ -54,6 +54,14 @@ export class UmapState {
     }
 
     /***************************
+     ******** Getters **********
+     ***************************/
+
+    fetchParameters() {
+        return { ...this.#parameters }; // avoid pass-by-reference links.
+    }
+
+    /***************************
      ******** Compute **********
      ***************************/
 
@@ -238,8 +246,5 @@ export function unserialize(handle, index) {
         };
     }
 
-    return {
-        state: new UmapState(index, parameters, reloaded),
-        parameters: { ...parameters }
-    };
+    return new UmapState(index, parameters, reloaded);
 }

@@ -40,6 +40,10 @@ export class KmeansClusterState {
         }
     }
 
+    fetchParameters() {
+        return { ...this.#parameters };
+    };
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -158,8 +162,5 @@ export function unserialize(handle, pca) {
         }
     }
 
-    return {
-        state: new KmeansClusterState(pca, parameters, cache),
-        parameters: { ...parameters }
-    };
+    return new KmeansClusterState(pca, parameters, cache);
 }

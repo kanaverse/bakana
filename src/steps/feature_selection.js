@@ -48,6 +48,10 @@ export class FeatureSelectionState {
         return this.#cache.results.residuals({ copy: !unsafe });
     }
 
+    fetchParameters() {
+        return { ...this.#parameters }; // avoid pass-by-reference activity.
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -190,9 +194,6 @@ export function unserialize(handle, permuter, filter, norm) {
     cache.sorted_residuals = cache.results.residuals({ copy: true });
     cache.sorted_residuals.sort();
 
-    return { 
-        state: new FeatureSelectionState(filter, norm, parameters, cache),
-        parameters: { ...parameters }
-    };
+    return new FeatureSelectionState(filter, norm, parameters, cache);
 }
 

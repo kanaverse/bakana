@@ -48,6 +48,10 @@ export class BatchCorrectionState {
         return upstream;
     }
 
+    fetchParameters() {
+        return { ...this.#parameters }; // avoid pass-by-reference links.
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -187,8 +191,5 @@ export function unserialize(handle, filter, combined) {
         output = new BatchCorrectionState(filter, combined, parameters, cache);
     }
 
-    return {
-        state: output,
-        parameters: { ...parameters } // make a copy to avoid pass-by-reference links with state's internal parameters
-    };
+    return output;
 }

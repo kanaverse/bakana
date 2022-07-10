@@ -44,11 +44,11 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
     let reloaded = await bakana.loadAnalysis(round_trip, loader);
 
     // Checking that we got something that was reasonable.
-    expect(reloaded.state.pca.summary()).toEqual(ref_pca);
+    expect(reloaded.pca.summary()).toEqual(ref_pca);
 
     // Releasing all memory.
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded.state);
+    await bakana.freeAnalysis(reloaded);
 
     // Deleting the files.
     bakana.removeHDF5File(path);
@@ -85,7 +85,7 @@ test("saving to and loading from a kana file works with links", async () => {
     let reloaded = await bakana.loadAnalysis(round_trip, loader);
 
     // Checking that we got something that was reasonable.
-    expect(reloaded.state.pca.summary()).toEqual(ref_pca);
+    expect(reloaded.pca.summary()).toEqual(ref_pca);
 
     // Reverting the linkers.
     bakana.setCreateLink(old_create);
@@ -93,7 +93,7 @@ test("saving to and loading from a kana file works with links", async () => {
 
     // Releasing all memory.
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded.state);
+    await bakana.freeAnalysis(reloaded);
 
     // Deleting the files.
     bakana.removeHDF5File(path);

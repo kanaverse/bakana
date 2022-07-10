@@ -93,34 +93,34 @@ test("multi-matrix analyses work correctly", async () => {
         (offset, size) => offsets[offset]
     );
 
-    let new_params = reloaded.parameters;
+    let new_params = bakana.retrieveParameters(reloaded);
     expect(new_params.inputs.sample_factor).toBeNull();
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
 
     // Checking that the permutation is unchanged on reload.
     let old_ids = state.inputs.summary()["genes"]["RNA"]["id"];
-    let new_ids = reloaded.state.inputs.summary()["genes"]["RNA"]["id"];
+    let new_ids = reloaded.inputs.summary()["genes"]["RNA"]["id"];
     expect(old_ids.length).toBeGreaterThan(0);
     expect(old_ids).toEqual(new_ids);
 
     let old_res = state.feature_selection.summary();
-    let new_res = reloaded.state.feature_selection.summary();
+    let new_res = reloaded.feature_selection.summary();
     expect("means" in old_res).toBe(true);
     expect(old_res["means"]).toEqual(new_res["means"]);
 
     {
         // Check that the PCs are correctly recovered.
-        let corrected_pcs = reloaded.state.batch_correction.fetchPCs();
+        let corrected_pcs = reloaded.batch_correction.fetchPCs();
         expect(corrected_pcs.pcs.owner).toBeNull();
-        let original_pcs = reloaded.state.pca.fetchPCs();
+        let original_pcs = reloaded.pca.fetchPCs();
         expect(corrected_pcs.length).toEqual(original_pcs.length);
         expect(corrected_pcs.pcs.slice()).not.toEqual(original_pcs.pcs.slice());
     }
 
     // Freeing.
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded.state);
+    await bakana.freeAnalysis(reloaded);
 })
 
 test("single-matrix multi-sample analyses work correctly", async () => {
@@ -165,12 +165,12 @@ test("single-matrix multi-sample analyses work correctly", async () => {
         (offset, size) => offsets[offset]
     );
 
-    let new_params = reloaded.parameters;
+    let new_params = bakana.retrieveParameters(reloaded);
     expect(new_params.inputs.sample_factor).toBe("3k");
     expect(new_params.quality_control instanceof Object).toBe(true);
     expect(new_params.pca instanceof Object).toBe(true);
 
     // Freeing.
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded.state);
+    await bakana.freeAnalysis(reloaded);
 })

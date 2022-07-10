@@ -47,6 +47,10 @@ export class ChooseClusteringState {
         }
     }
 
+    fetchParameters() {
+        return { ...this.#parameters };
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -129,9 +133,5 @@ export function unserialize(handle, snn, kmeans) {
     }
 
     let cache = {};
-
-    return {
-        state: new ChooseClusteringState(snn, kmeans, parameters, cache),
-        parameters: { ...parameters }
-    };
+    return new ChooseClusteringState(snn, kmeans, parameters, cache);
 }

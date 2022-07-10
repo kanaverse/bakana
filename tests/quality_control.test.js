@@ -58,14 +58,15 @@ test("analysis works when we skip the QC steps", async () => {
             path, 
             (offset, size) => offsets[offset]
         );
+        let new_params = bakana.retrieveParameters(reloaded);
 
-        expect(reloaded.state.quality_control.skipped()).toBe(true);
-        expect(reloaded.parameters.quality_control.skip).toBe(true);
+        expect(reloaded.quality_control.skipped()).toBe(true);
+        expect(new_params.quality_control.skip).toBe(true);
 
-        expect(reloaded.state.adt_quality_control.skipped()).toBe(true);
-        expect(reloaded.parameters.adt_quality_control.skip).toBe(true);
+        expect(reloaded.adt_quality_control.skipped()).toBe(true);
+        expect(new_params.adt_quality_control.skip).toBe(true);
 
-        await bakana.freeAnalysis(reloaded.state);    
+        await bakana.freeAnalysis(reloaded);
     }
 
     // Forcing the upstream to be non-changed.
@@ -142,19 +143,17 @@ test("analysis works when we skip the QC steps", async () => {
             expect("metrics" in qrhandle.children).toBe(true);
             expect("discards" in qrhandle.children).toBe(true);
 
-                
             let reloaded;
             if (stepname == "adt_quality_control") {
                 reloaded = new aqc.unserialize(handle, state.inputs);
             } else {
                 reloaded = new qc.unserialize(handle, state.inputs);
             }
-            let state2 = reloaded.state;
-            expect(state2.skipped()).toBe(true);
+            expect(reloaded.skipped()).toBe(true);
 
-            let has_discards = state2.fetchDiscards();
+            let has_discards = reloaded.fetchDiscards();
             expect(has_discards.length).toBe(ncells);
-            state2.free();
+            reloaded.free();
         }
 
         // Unskipping and just using the cached results.

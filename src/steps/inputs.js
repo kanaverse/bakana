@@ -82,6 +82,25 @@ export class InputsState {
         return this.#cache.block_levels;
     }
 
+    fetchParameters({ subset = true } = {}) {
+        // Cloning the parameters to avoid pass-by-reference behavior affecting the
+        // InputsState object. We don't pass the files back here.
+        let output = { ...this.#parameters };
+
+        let replacement = null;
+        if (subset && output.subset !== null) {
+            replacement = { ...output.subset };
+            for (const k of ["indices", "values"]) {
+                if (k in replacement) {
+                    replacement[k] = replacement[k].slice();
+                }
+            }
+        }
+        output.subset = replacement;
+
+        return output;
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -769,22 +788,8 @@ export async function unserialize(handle, embeddedLoader) {
         }
     }
 
-    // Cloning the parameters to avoid pass-by-reference behavior affecting the
-    // InputsState object. We only return the sample factor and subset - we
-    // don't pass the files back. 
-    let param_copy = {
-        sample_factor: parameters.sample_factor, 
-        subset: { ...(parameters.subset) }
-    };
-    for (const k of ["indices", "values"]) {
-        if (k in param_copy.subset) {
-            param_copy.subset[k] = param_copy.subset[k].slice();
-        }
-    }
-
     return { 
         state: new InputsState(parameters, cache),
-        parameters: param_copy,
         permuters: permuters
     };
 }

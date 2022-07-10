@@ -21,20 +21,18 @@ test("reanalysis from a v0 analysis works correctly (10X)", async () => {
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+    let new_params = bakana.retrieveParameters(reloaded);
 
     // Checking that some of the summaries are correctly reported.
     expect(contents.cell_filtering.retained).toBeGreaterThan(0);
     expect(contents.combine_embeddings).toEqual({});
-
-    let new_state = reloaded.state;
-    let new_params = reloaded.parameters;
 
     // Missing steps are filled in.
     expect("cell_labelling" in new_params).toBe(true);
     expect("kmeans_cluster" in new_params).toBe(true);
 
     // Cleaning up.
-    bakana.freeAnalysis(new_state);
+    await bakana.freeAnalysis(reloaded);
 })
 
 test("reanalysis from a v0 analysis works correctly (MatrixMarket)", async () => {
@@ -44,20 +42,18 @@ test("reanalysis from a v0 analysis works correctly (MatrixMarket)", async () =>
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+    let new_params = bakana.retrieveParameters(reloaded);
 
     // Checking that some of the summaries are correctly reported.
     expect(contents.cell_filtering.retained).toBeGreaterThan(0);
     expect(contents.combine_embeddings).toEqual({});
-
-    let new_state = reloaded.state;
-    let new_params = reloaded.parameters;
 
     // Missing steps are filled in.
     expect("cell_labelling" in new_params).toBe(true);
     expect("kmeans_cluster" in new_params).toBe(true);
 
     // Cleaning up.
-    bakana.freeAnalysis(new_state);
+    await bakana.freeAnalysis(reloaded);
 })
 
 test("reanalysis from a v1.0 analysis works correctly (10X)", async () => {
@@ -67,13 +63,11 @@ test("reanalysis from a v1.0 analysis works correctly (10X)", async () => {
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+    let new_params = bakana.retrieveParameters(reloaded);
 
     // Checking that some of the summaries are correctly reported.
     expect(contents.cell_filtering.retained).toBeGreaterThan(0);
     expect(contents.combine_embeddings).toEqual({});
-
-    let new_state = reloaded.state;
-    let new_params = reloaded.parameters;
 
     // Missing steps are filled in.
     expect("cell_labelling" in new_params).toBe(true);
@@ -82,7 +76,7 @@ test("reanalysis from a v1.0 analysis works correctly (10X)", async () => {
     expect(new_params.snn_graph_cluster.scheme).toBe("rank"); // recover something from mis-formatted files.
 
     // Cleaning up.
-    bakana.freeAnalysis(new_state);
+    await bakana.freeAnalysis(reloaded);
 })
 
 test("reanalysis from a v1.1 analysis works correctly (10X combined)", async () => {
@@ -92,19 +86,17 @@ test("reanalysis from a v1.1 analysis works correctly (10X combined)", async () 
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+    let new_params = bakana.retrieveParameters(reloaded);
 
     // Checking that some of the summaries are correctly reported.
     expect(contents.cell_filtering.retained).toBeGreaterThan(0);
     expect(contents.combine_embeddings).toEqual({});
 
-    let new_state = reloaded.state;
-    let new_params = reloaded.parameters;
-
     // Missing steps are filled in.
     expect("adt_normalization" in new_params).toBe(true);
 
     // Cleaning up.
-    bakana.freeAnalysis(new_state);
+    await bakana.freeAnalysis(reloaded);
 })
 
 test("reanalysis from a v1.1 analysis works correctly (MatrixMarket)", async () => {
@@ -114,19 +106,17 @@ test("reanalysis from a v1.1 analysis works correctly (MatrixMarket)", async () 
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+    let new_params = bakana.retrieveParameters(reloaded);
 
     // Checking that some of the summaries are correctly reported.
     expect(contents.cell_filtering.retained).toBeGreaterThan(0);
     expect(contents.combine_embeddings).toEqual({});
 
-    let new_state = reloaded.state;
-    let new_params = reloaded.parameters;
-
     // Missing steps are filled in.
     expect("adt_normalization" in new_params).toBe(true);
 
     // Cleaning up.
-    bakana.freeAnalysis(new_state);
+    await bakana.freeAnalysis(reloaded);
 })
 
 test("reanalysis from a v1.2 analysis works correctly (10X combined)", async () => {
@@ -136,19 +126,17 @@ test("reanalysis from a v1.2 analysis works correctly (10X combined)", async () 
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+    let new_params = bakana.retrieveParameters(reloaded);
 
     // Checking that some of the summaries are correctly reported.
     expect(contents.cell_filtering.retained).toBeGreaterThan(0);
     expect(contents.combine_embeddings).toEqual({});
 
-    let new_state = reloaded.state;
-    let new_params = reloaded.parameters;
-
     // Missing steps are filled in.
     expect("adt_normalization" in new_params).toBe(true);
 
     // Cleaning up.
-    bakana.freeAnalysis(new_state);
+    await bakana.freeAnalysis(reloaded);
 })
 
 test("reanalysis from a v1.2 analysis works correctly (MatrixMarket)", async () => {
@@ -158,17 +146,15 @@ test("reanalysis from a v1.2 analysis works correctly (MatrixMarket)", async () 
 
     let contents = {};
     let reloaded = await bakana.loadAnalysis(h5path, loader, { finishFun: createFinisher(contents) });
+    let new_params = bakana.retrieveParameters(reloaded);
 
     // Checking that some of the summaries are correctly reported.
     expect(contents.cell_filtering.retained).toBeGreaterThan(0);
     expect(contents.combine_embeddings).toEqual({});
 
-    let new_state = reloaded.state;
-    let new_params = reloaded.parameters;
-
     // Missing steps are filled in.
     expect("adt_normalization" in new_params).toBe(true);
 
     // Cleaning up.
-    bakana.freeAnalysis(new_state);
+    await bakana.freeAnalysis(reloaded);
 })

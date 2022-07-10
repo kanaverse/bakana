@@ -88,6 +88,10 @@ export class MarkerDetectionState {
         return this.#cache.raw[feat_type].means(group, { copy: copy });
     }
 
+    fetchParameters() {
+        return { ...this.#parameters }; // avoid pass-by-reference links.
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -248,9 +252,6 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
         }
     }
 
-    return {
-        state: new MarkerDetectionState(filter, norm_states, choice, parameters, cache),
-        parameters: { ...parameters } // make a copy to avoid pass-by-reference links with state's internal parameters
-    };
+    return new MarkerDetectionState(filter, norm_states, choice, parameters, cache);
 }
 

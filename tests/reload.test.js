@@ -31,34 +31,41 @@ test("reanalysis from a reloaded analysis works correctly", async () => {
     );
 
     // Re-analyzing without change; should be a no-op.
-    let new_state = reloaded.state;
-    let new_params = reloaded.parameters;
+    {
+        let new_params = bakana.retrieveParameters(reloaded);
 
-    let contents = {};
-    let finished = (step, res) => {
-        if (typeof res !== "undefined") {
-            contents[step] = res;
-        }
-    };
-    await bakana.runAnalysis(new_state, null, new_params, { finishFun: finished });
-    expect(Object.entries(contents).length).toBe(0);
+        let contents = {};
+        let finished = (step, res) => {
+            if (typeof res !== "undefined") {
+                contents[step] = res;
+            }
+        };
+        await bakana.runAnalysis(reloaded, null, new_params, { finishFun: finished });
+        expect(Object.entries(contents).length).toBe(0);
 
-    await bakana.freeAnalysis(new_state);
+        await bakana.freeAnalysis(reloaded);
+    }
 
     // Re-analyzing with a change.
-    let reloaded2 = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
-    let new_state2 = reloaded2.state;
-    let new_params2 = reloaded2.parameters;
-    new_params2.quality_control.nmads = 2.5;
+    {
+        let reloaded2 = await bakana.loadAnalysis(
+            path, 
+            (offset, size) => offsets[offset]
+        );
+        let new_params2 = bakana.retrieveParameters(reloaded2);
+        new_params2.quality_control.nmads = 2.5;
 
-    contents = {};
-    await bakana.runAnalysis(new_state2, null, new_params2, { finishFun: finished });
+        let contents = {};
+        let finished = (step, res) => {
+            if (typeof res !== "undefined") {
+                contents[step] = res;
+            }
+        };
+        await bakana.runAnalysis(reloaded2, null, new_params2, { finishFun: finished });
 
-    expect(contents.inputs).toBeUndefined();
-    expect(contents.quality_control instanceof Object).toBe(true);
+        expect(contents.inputs).toBeUndefined();
+        expect(contents.quality_control instanceof Object).toBe(true);
 
-    await bakana.freeAnalysis(new_state2);
+        await bakana.freeAnalysis(reloaded2);
+    }
 })

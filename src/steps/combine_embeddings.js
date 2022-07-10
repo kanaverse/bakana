@@ -44,6 +44,15 @@ export class CombineEmbeddingsState {
         };
     }
 
+    fetchParameters() {
+        // Avoid any pass-by-reference activity.
+        let out = { ...this.#parameters };
+        if (out.weights !== null) {
+            out.weights = { ...out.weights };
+        }
+        return out;
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -258,12 +267,5 @@ export function unserialize(handle, pca_states) {
         throw e;
     }
 
-    return {
-        state: output,
-
-        // Make a copy to avoid pass-by-reference links with state's internal
-        // parameters. Arguments include nested dicts so we have to do a deep
-        // copy via stringify.
-        parameters: JSON.parse(JSON.stringify(parameters)) 
-    };
+    return output;
 }
