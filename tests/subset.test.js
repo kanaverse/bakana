@@ -47,6 +47,14 @@ test("subsetting behaves correctly with indices", async () => {
     expect(istate.fetchCountMatrix().column(5)).toEqual(fullstate.fetchCountMatrix().column(10));
 
     {
+        let indices = [0,2,4,8];
+        fullstate.undoSubset(indices);
+        expect(indices).toEqual([0,2,4,8]);
+        istate.undoSubset(indices);
+        expect(indices).toEqual([0,4,8,16]);
+    }
+
+    {
         let subanno = istate.fetchAnnotations("level1class");
         expect(subanno.length).toBe(subset.length);
 

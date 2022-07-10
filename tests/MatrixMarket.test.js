@@ -44,6 +44,14 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         expect(attempts.has("quality_control")).toBe(true);
         expect(contents.quality_control instanceof Object).toBe(true);
         expect(contents.quality_control.thresholds.default.proportion).toBeGreaterThan(0);
+
+        // Undoing the filtering works as expected.
+        let last_filtered = contents.cell_filtering.retained - 1;
+        let idx = [0, last_filtered];
+        state.cell_filtering.undoFiltering(idx);
+        expect(idx[1]).toBeGreaterThan(last_filtered);
+        expect(state.inputs.fetchCountMatrix().column(idx[0])).toEqual(state.cell_filtering.fetchFilteredMatrix().column(0));
+        expect(state.inputs.fetchCountMatrix().column(idx[1])).toEqual(state.cell_filtering.fetchFilteredMatrix().column(last_filtered));
     }
 
     // Markers.

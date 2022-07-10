@@ -210,6 +210,30 @@ export class CellFilteringState {
         return {};
     }
 
+    /**
+     * Undo the effect of filtering on an array of indices.
+     * This is primarily useful for adjusting indices from downstream steps (e.g., {@linkcode CustomSelectionsState#fetchSelection fetchSelection})
+     * so that it can be used in {@linkcode subsetInputs}.
+     *
+     * @param {Array|TypedArray} indices - Array of column indices to the filtered matrix.
+     *
+     * @return Entries of `indices` are replaced with indices to the pre-filtered matrix.
+     */
+    undoFiltering(indices) {
+        let discards = this.fetchDiscards();
+        if (discards !== null) {
+            let keep = [];
+            discards.forEach((x, i) => {
+                if (x == 0) {
+                    keep.push(i);
+                }
+            });
+            indices.forEach((x, i) => {
+                indices[i] = keep[x];
+            });
+        } 
+    }
+
     /***************************
      ******** Results **********
      ***************************/

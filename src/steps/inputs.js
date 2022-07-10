@@ -224,6 +224,39 @@ export class InputsState {
         return null;
     }
 
+    /**
+     * Undo the effect of subsetting on an array of indices.
+     *
+     * @param {Array|TypedArray} indices - Array of column indices to the subsetted matrix.
+     *
+     * @return Entries of `indices` are replaced with indices to the pre-subsetted matrix.
+     */
+    undoSubset(indices) {
+        if (this.#parameters.subset !== null) {
+            let old_keep = harvest_subset_indices(this.#parameters.subset, null, this.#cache.annotations);
+            indices.forEach((x, i) => { indices[i] = old_keep[x] });
+        }
+    }
+
+    subsetCells(subset) {
+        utils.checkIndices(subset, this.#cache.matrix.numberOfColumns());
+
+        // Pass by reference of the cache's internal contents is probably okay
+        // here, given that everything is readonly anyway.
+        let new_cache = { ...this.#cache };
+        subset_datasets(new_cache, subset, { freeExisting: false });
+
+        // Faking the original indices for caching. We make a copy here to
+        // take ownership of the underlying memory, otherwise any edits in
+        // the caller would mutate the new InputsState's subset by reference.
+        subset = subset.slice();
+        this.undoSubset(subset);
+        let new_params = this.fetchParameters({ subset: false });
+        new_params.subset = { indices: subset };
+
+        return new InputsState(new_params, new_cache, { ...this.#abbreviated });
+    }
+
     /***************************
      ******** Results **********
      ***************************/
@@ -255,30 +288,6 @@ export class InputsState {
             output.annotations = Object.keys(this.#cache.annotations);
         }
         return output;
-    }
-
-    /**************************
-     ******** Subset **********
-     **************************/
-
-    subsetCells(subset) {
-        utils.checkIndices(subset, this.#cache.matrix.numberOfColumns());
-
-        // Pass by reference of the cache's internal contents is probably okay
-        // here, given that everything is readonly anyway.
-        let new_cache = { ...this.#cache };
-        subset_datasets(new_cache, subset, { freeExisting: false });
-
-        // Faking the original indices for caching.
-        if (this.#parameters.subset !== null) {
-            let old_keep = harvest_subset_indices(this.#parameters.subset, null, this.#cache.annotations);
-            subset = subset.map(i => old_keep[i]);
-        }
-
-        let new_params = this.fetchParameters({ subset: false });
-        new_params.subset = { indices: subset };
-
-        return new InputsState(new_params, new_cache, { ...this.#abbreviated });
     }
 
     /*************************
