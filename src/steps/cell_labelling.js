@@ -203,6 +203,10 @@ export class CellLabellingState {
         }
         let species = this.#cache.feature_details.species;
 
+        // Take ownership to avoid pass-by-reference shenanigans.
+        human_references = human_references.slice();
+        mouse_references = mouse_references.slice();
+
         // Fetching all of the references. This is effectively a no-op
         // if the inputs have not changed, so we do it to fill up 'valid'.
         let valid = {};

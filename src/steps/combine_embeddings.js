@@ -152,7 +152,11 @@ export class CombineEmbeddingsState {
             }
         }
 
-        // Updating all parameters anyway.
+        // Updating all parameters anyway. This requires us to take ownership
+        // of 'weights' to avoid pass-by-reference shenanigans.
+        if (weights !== null) {
+            weights = { ...weights };
+        }
         this.#parameters.weights = weights;
         this.#parameters.approximate = approximate;
         return;
