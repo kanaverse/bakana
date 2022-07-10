@@ -112,6 +112,53 @@ export class InputsState {
         };
     }
 
+    static areSubsetsEqual(sub1, sub2) {
+        let isund1 = (typeof sub1 == "undefined");
+        let isund2 = (typeof sub2 == "undefined");
+        if (isund1 !== isund2) {
+            return false;
+        } else if (isund1) {
+            return true;
+        }
+
+        let isnull1 = (sub1 === null);
+        let isnull2 = (sub2 === null);
+        if (isnull1 !== isnull2) {
+            return false;
+        } else if (isnull1) {
+            return true;
+        }
+
+        let has_indices1 = ("indices" in sub1);
+        let has_indices2 = ("indices" in sub2);
+        if (has_indices1 != has_indices2) {
+            return false;
+        } else if (!has_indices1) {
+            return !utils.changedParameters(sub1, sub2);
+        }
+
+        // Checking everything other than 'indices'; don't try
+        // to stringify potentially long arrays.
+        let rest1 = { ...sub1, indices: null };
+        let rest2 = { ...sub2, indices: null };
+        if (utils.changedParameters(rest1, rest2)) {
+            return false;
+        }
+
+        let n = sub1.indices.length;
+        if (n != sub2.indices.length) {
+            return false;
+        }
+
+        for (var i = 0; i < n; i++) {
+            if (sub1.indices[i] != sub2.indices[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * `matrices` is taken from the argument of the same name in {@linkcode runAnalysis},
@@ -153,7 +200,7 @@ export class InputsState {
             tmp_abbreviated[key] = namespace.abbreviate(val);
         }
 
-        if (!utils.changedParameters(tmp_abbreviated, this.#abbreviated) && this.#parameters.sample_factor === sample_factor && !utils.changedParameters(subset, this.#parameters.subset)) {
+        if (!utils.changedParameters(tmp_abbreviated, this.#abbreviated) && this.#parameters.sample_factor === sample_factor && InputsState.areSubsetsEqual(this.#parameters.subset, subset)) {
             this.changed = false;
             return;
         }
@@ -220,18 +267,12 @@ export class InputsState {
         // Pass by reference of the cache's internal contents is probably okay
         // here, given that everything is readonly anyway.
         let new_cache = { ...this.#cache };
-        subset_datasets(new_cache, { indices: subset });
+        subset_datasets(new_cache, subset, { freeExisting: false });
 
         // Faking the original indices for caching.
-        let old_subset = this.#parameters.subset;
-        if (old_subset !== null) {
-            let keep;
-            if ("indices" in old_subset) {
-                keep = old_subset.indices;
-            } else if ("field" in old_subset) {
-                keep = harvest_subset_from_annotation(old_subset, this.#cache.annotations);
-            }
-            subset = subset.map(i => keep[i]);
+        if (this.#parameters.subset !== null) {
+            let old_keep = harvest_subset_indices(this.#parameters.subset, null, this.#cache.annotations);
+            subset = subset.map(i => old_keep[i]);
         }
 
         let new_params = this.fetchParameters({ subset: false });
@@ -574,35 +615,42 @@ async function load_datasets(matrices, sample_factor) {
     }
 }
 
-function harvest_subset_from_annotation(subset, annotations) {
-    let anno = annotations[subset.field];
-    let keep = [];
-    let allowed = new Set(subset.values);
-    anno.forEach((x, i) => {
-        if (allowed.has(x)) {
-            keep.push(i);
+function harvest_subset_indices(subset, total_ncols, annotations) {
+    let keep = null;
+
+    if (subset !== null) {
+        // Applying the subset.
+        if ("indices" in subset) {
+            keep = subset.indices;
+            if (total_ncols !== null) {
+                utils.checkIndices(keep, total_ncols);
+            }
+
+        } else if ("field" in subset) {
+            if (!(subset.field in annotations)) {
+                throw new Error("failed to find 'subset.field' in the column annotations");
+            }
+            let anno = annotations[subset.field];
+
+            keep = [];
+            let allowed = new Set(subset.values);
+            anno.forEach((x, i) => {
+                if (allowed.has(x)) {
+                    keep.push(i);
+                }
+            });
+
+        } else {
+            throw new Error("unrecognized specification for 'subset'");
         }
-    });
+    }
+
     return keep;
 }
 
-function subset_datasets(cache, subset) {
-    if (subset === null) {
+function subset_datasets(cache, keep, { freeExisting = true } = {}) {
+    if (keep === null) {
         return;
-    }
-
-    // Applying the subset.
-    let keep;
-    if ("indices" in subset) {
-        keep = subset.indices;
-        utils.checkIndices(keep, cache.matrix.numberOfColumns());
-    } else if ("field" in subset) {
-        if (!(subset.field in cache.annotations)) {
-            throw new Error("failed to find 'subset.field' in the column annotations");
-        }
-        keep = harvest_subset_from_annotation(subset, cache.annotations);
-    } else {
-        throw new Error("unrecognized specification for 'subset'");
     }
 
     let replacement = new scran.MultiMatrix;
@@ -610,6 +658,9 @@ function subset_datasets(cache, subset) {
         for (const key of cache.matrix.available()) {
             let current = cache.matrix.get(key);
             replacement.add(key, scran.subsetColumns(current, keep));
+        }
+        if (freeExisting) {
+            cache.matrix.free();
         }
         cache.matrix = replacement;
     } catch (e) {
@@ -626,6 +677,9 @@ function subset_datasets(cache, subset) {
         try {
             let dropped = scran.dropUnusedBlock(subblock);
             cache.block_levels = dropped.map(x => cache.block_levels[x]);
+            if (freeExisting) {
+                cache.block_ids.free();
+            }
             cache.block_ids = subblock;
         } catch (e) {
             subblock.free();
@@ -639,7 +693,8 @@ async function process_and_cache(new_matrices, sample_factor, subset) {
 
     try {
         cache = await load_datasets(new_matrices, sample_factor);
-        subset_datasets(cache, subset);
+        let keep = harvest_subset_indices(subset, cache.matrix.numberOfColumns(), cache.annotations);
+        subset_datasets(cache, keep);
 
         var gene_info_type = {};
         var gene_info = cache.genes["RNA"];

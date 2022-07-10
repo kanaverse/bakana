@@ -285,3 +285,22 @@ test("end-to-end run works with subsetting", async () => {
     await bakana.freeAnalysis(state);
     await bakana.freeAnalysis(reloaded);
 })
+
+test("subset equality checks behave correctly", () => {
+    expect(inputs.InputsState.areSubsetsEqual(undefined, null)).toBe(false);
+    expect(inputs.InputsState.areSubsetsEqual(null, null)).toBe(true);
+    expect(inputs.InputsState.areSubsetsEqual(null, {})).toBe(false);
+    expect(inputs.InputsState.areSubsetsEqual(undefined, {})).toBe(false);
+
+    expect(inputs.InputsState.areSubsetsEqual({}, {})).toBe(true);
+    expect(inputs.InputsState.areSubsetsEqual({fields:"A", values:["B"]}, {fields:"A", values:["B"]})).toBe(true);
+    expect(inputs.InputsState.areSubsetsEqual({fields:"A", values:["B"]}, {fields:"C", values:["B"]})).toBe(false);
+
+    expect(inputs.InputsState.areSubsetsEqual({fields:"A", values:["B"]}, {indices:[1,2,3]})).toBe(false);
+    expect(inputs.InputsState.areSubsetsEqual({indices:[1,2,3]}, {indices:[1,2,3]})).toBe(true);
+    expect(inputs.InputsState.areSubsetsEqual({indices:[1,2,3]}, {indices:[1,2,3,4]})).toBe(false);
+
+    expect(inputs.InputsState.areSubsetsEqual({indices:[1,2,3]}, {indices:[1,2,3], foo:1})).toBe(false);
+    expect(inputs.InputsState.areSubsetsEqual({indices:[1,2,3], foo:1}, {indices:[1,2,3], foo:1})).toBe(true);
+})
+
