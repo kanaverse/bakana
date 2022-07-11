@@ -236,6 +236,7 @@ export class InputsState {
      * @param {TypedArray|Array} indices - Array containing the indices for the desired subset of cells.
      * This should be sorted and non-duplicate.
      * Any existing subset in this object will be overridden by `indices`.
+     * @param {object} [options] - Optional parameters.
      * @param {boolean} [options.copy=true] - Whether to make a copy of `indices` before storing it inside the returned state object.
      * If `false`, it is assumed that the caller makes no further use of the passed `indices`.
      * @param {boolean} [options.onOriginal=false] - Whether `indices` contains indices on the original dataset or on the dataset in `state`.

@@ -212,10 +212,11 @@ export class CellFilteringState {
 
     /**
      * Undo the effect of filtering on an array of indices.
-     * This is primarily useful for adjusting indices from downstream steps (e.g., {@linkcode CustomSelectionsState#fetchSelection fetchSelection})
+     * This is primarily useful for adjusting indices from downstream steps (e.g., {@linkcode CustomSelectionsState#fetchSelectionIndices CustomSelectionsState.fetchSelectionIndices})
      * so that it can be used in {@linkcode subsetInputs}.
      *
      * @param {Array|TypedArray} indices - Array of column indices to the filtered matrix.
+     * Note that this will be modified in-place.
      *
      * @return Entries of `indices` are replaced with indices to the pre-filtered matrix.
      */
