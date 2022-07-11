@@ -89,9 +89,11 @@ export function findValidUpstreamStates(states, msg) {
 }
 
 export function checkIndices(indices, max) {
-    for (const i of indices) {
-        if (i < 0 || i >= max) {
-            throw new Error("subset indices are out of range");
+    if (max !== null) {
+        for (const i of indices) {
+            if (i < 0 || i >= max) {
+                throw new Error("subset indices are out of range");
+            }
         }
     }
 

@@ -37,9 +37,8 @@ test("subsetting behaves correctly with indices", async () => {
     }
 
     let istate = new inputs.InputsState;
-    await istate.compute(files, null, {
-        indices: new Int32Array(subset)
-    });
+    istate.setDirectSubset(new Int32Array(subset));
+    await istate.compute(files, null, null);
 
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
     expect(istate.summary().num_cells).toBe(subset.length);
@@ -63,6 +62,13 @@ test("subsetting behaves correctly with indices", async () => {
         expect(subanno).toEqual(expected);
     }
 
+    // Changes to the subset is a no-op when indices are around.
+    {
+        expect(istate.changed).toBe(true);
+        await istate.compute(files, null, { field: "level1class", values: ["FOO", "BLAH"] });
+        expect(istate.changed).toBe(false);
+    }
+
     // Checking the serialization and unserialization.
     const path = "TEST_subset-inputs.h5";
 
@@ -78,11 +84,24 @@ test("subsetting behaves correctly with indices", async () => {
         let restate = await inputs.unserialize(handle, (offset, size) => offsets[offset]);
         expect(restate.state.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
 
-        let new_params = restate.state.fetchParameters();
-        expect(Array.from(new_params.subset.indices)).toEqual(subset);
+        let indices = restate.state.fetchDirectSubset();
+        expect(Array.from(indices)).toEqual(subset);
+        expect(restate.state.fetchParameters().subset).toBeNull();
 
         restate.state.free();
     }
+
+    // Unsetting works as expected.
+    istate.setDirectSubset(null);
+    expect(istate.changed).toBe(true);
+    expect(istate.summary().num_cells).toBe(fullstate.summary().num_cells);
+    expect(istate.fetchCountMatrix().column(1)).toEqual(fullstate.fetchCountMatrix().column(1));
+
+    // Resetting works as expected.
+    istate.setDirectSubset(subset);
+    expect(istate.changed).toBe(true);
+    expect(istate.summary().num_cells).toBe(subset.length);
+    expect(istate.fetchCountMatrix().column(3)).toEqual(fullstate.fetchCountMatrix().column(6));
 
     istate.free();
     fullstate.free();
@@ -136,7 +155,26 @@ test("subsetting behaves correctly with a factor", async () => {
 
         restate.state.free();
     }
-    
+
+    // Masked and unmasked when the direct subset changes.
+    let subset = [1,10,100];
+    let expected = {};
+    for (const i of subset) {
+        expected[i] = istate.fetchCountMatrix().column(i); 
+    }
+
+    istate.setDirectSubset(subset);
+    expect(istate.summary().num_cells).toBe(subset.length);
+    for (const [i, j] of Object.entries(subset)) {
+        expect(istate.fetchCountMatrix().column(i)).toEqual(expected[j]);
+    }
+
+    istate.setDirectSubset(null);
+    expect(istate.summary().num_cells).toBe(expected_num);
+    for (const i of subset) {
+        expect(istate.fetchCountMatrix().column(i)).toEqual(expected[i]);
+    }
+
     istate.free();
 })
 
@@ -164,9 +202,8 @@ test("subsetting processes the blocking factors", async () => {
     }
 
     let istate = new inputs.InputsState;
-    await istate.compute(files, null, {
-        indices: new Int32Array(subset)
-    });
+    istate.setDirectSubset(new Int32Array(subset));
+    await istate.compute(files, null, null);
 
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
     expect(istate.fetchCountMatrix().column(2)).toEqual(fullstate.fetchCountMatrix().column(5));
@@ -216,8 +253,8 @@ test("end-to-end run works with subsetting", async () => {
     }
     
     let state = await bakana.createAnalysis();
+    state.inputs.setDirectSubset(subset);
     let params = utils.baseParams();
-    params.inputs.subset = { "indices": subset };
     params.inputs.sample_factor = "3k";
 
     let res = await bakana.runAnalysis(state, files, params);
@@ -237,15 +274,8 @@ test("end-to-end run works with subsetting", async () => {
         (offset, size) => offsets[offset]
     );
 
-    let new_params = bakana.retrieveParameters(reloaded);
-    expect(Array.from(new_params.inputs.subset.indices)).toEqual(subset);
+    expect(Array.from(state.inputs.fetchDirectSubset())).toEqual(subset);
     expect(reloaded.inputs.summary().num_cells).toEqual(subset.length);
-
-    // Retrieval can also skip the indices.
-    {
-        let new_params = bakana.retrieveParameters(reloaded, { wipeIndices: true });
-        expect(new_params.inputs.subset).toBeNull();
-    }
 
     // subsetInputs works as expected. 
     let refcol = {};
@@ -279,12 +309,11 @@ test("end-to-end run works with subsetting", async () => {
         }
 
         // Indices were correctly reindexed to be relative to the original cells.
-        let params = subx.inputs.fetchParameters();
-        expect(params.subset.indices).toEqual(expected_idx);
+        expect(subx.inputs.fetchDirectSubset()).toEqual(expected_idx);
 
         // Passing of '#abbreviated' avoids extra work on compute().
         expect(subx.inputs.changed).toBe(false);
-        subx.inputs.compute(files, params.sample_factor, params.subset);
+        subx.inputs.compute(files, params.inputs.sample_factor, params.inputs.subset);
         expect(subx.inputs.changed).toBe(false);
 
         await bakana.freeAnalysis(subx);
@@ -293,22 +322,3 @@ test("end-to-end run works with subsetting", async () => {
     await bakana.freeAnalysis(state);
     await bakana.freeAnalysis(reloaded);
 })
-
-test("subset equality checks behave correctly", () => {
-    expect(inputs.InputsState.areSubsetsEqual(undefined, null)).toBe(false);
-    expect(inputs.InputsState.areSubsetsEqual(null, null)).toBe(true);
-    expect(inputs.InputsState.areSubsetsEqual(null, {})).toBe(false);
-    expect(inputs.InputsState.areSubsetsEqual(undefined, {})).toBe(false);
-
-    expect(inputs.InputsState.areSubsetsEqual({}, {})).toBe(true);
-    expect(inputs.InputsState.areSubsetsEqual({fields:"A", values:["B"]}, {fields:"A", values:["B"]})).toBe(true);
-    expect(inputs.InputsState.areSubsetsEqual({fields:"A", values:["B"]}, {fields:"C", values:["B"]})).toBe(false);
-
-    expect(inputs.InputsState.areSubsetsEqual({fields:"A", values:["B"]}, {indices:[1,2,3]})).toBe(false);
-    expect(inputs.InputsState.areSubsetsEqual({indices:[1,2,3]}, {indices:[1,2,3]})).toBe(true);
-    expect(inputs.InputsState.areSubsetsEqual({indices:[1,2,3]}, {indices:[1,2,3,4]})).toBe(false);
-
-    expect(inputs.InputsState.areSubsetsEqual({indices:[1,2,3]}, {indices:[1,2,3], foo:1})).toBe(false);
-    expect(inputs.InputsState.areSubsetsEqual({indices:[1,2,3], foo:1}, {indices:[1,2,3], foo:1})).toBe(true);
-})
-

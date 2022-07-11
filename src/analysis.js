@@ -578,16 +578,14 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
  * @param {object} state - Object containing the analysis state, produced by {@linkcode createAnalysis} or {@linkcode loadAnalysis}.
  * @param {object} [options] - Optional parameters.
  * @param {boolean} [options.wipeIndices=false] - Whether to wipe all parameters containing hard-coded indices.
- * This includes the subset specification for the `inputs` step and the custom selections for the `custom_selections` step.
+ * This mainly refers to the custom selections for the `custom_selections` step.
  *
  * @return {object} Object containing the analysis parameters for each step, similar to that created by {@linkcode analysisDefaults}.
  */
 export function retrieveParameters(state, { wipeIndices = false } = {}) {
     let params = {};
     for (const [k, v] of Object.entries(state)) {
-        if (k == "inputs") {
-            params[k] = v.fetchParameters({ subset: !wipeIndices });
-        } else if (k == "custom_selections") {
+        if (k == "custom_selections") {
             params[k] = v.fetchParameters({ selections: !wipeIndices });
         } else {
             params[k] = v.fetchParameters();
@@ -603,13 +601,20 @@ export function retrieveParameters(state, { wipeIndices = false } = {}) {
  *
  * @param {object} state - State object such as that produced by {@linkcode createAnalysis} or {@linkcode linkAnalysis}.
  * This should already contain loaded data, e.g., after a run of {@linkcode runAnalysis}.
- * @param {TypedArray|Array} subset - Array containing the indices for the desired subset of cells.
+ * @param {TypedArray|Array} indices - Array containing the indices for the desired subset of cells.
  * This should be sorted and non-duplicate.
- * Any existing subset in `state` will be overridden by `subset`.
+ * Any existing subset in `state` will be overridden by `indices`.
+ * @param {object} [options] - Optional parameters.
+ * @param {boolean} [options.copy=true] - Whether to make a copy of `indices` before storing it inside the returned state object.
+ * If `false`, it is assumed that the caller makes no further use of the passed `indices`.
+ * @param {boolean} [options.onOriginal=false] - Whether `indices` contains indices on the original dataset or on the dataset in `state`.
+ * This distinction is only relevant if `state` itself contains an analysis of a subsetted dataset.
+ * If `false`, the `indices` are assumed to refer to the columns of the already-subsetted dataset that exists in `state`;
+ * if `true`, the `indices` are assumed to refer to the columns of the original dataset from which the subset in `state` was created.
  *
  * @return {object} A state object containing loaded matrix data in its `inputs` property.
  * Note that the other steps do not have any results, so this object should be passed through {@linkcode runAnalysis} before it can be used.
  */
-export async function subsetInputs(state, subset) {
-    return create_analysis(state.inputs.subsetCells(subset));
+export async function subsetInputs(state, indices, { copy = true, onOriginal = false } = {}) {
+    return create_analysis(state.inputs.createDirectSubset(indices, { copy: copy, onOriginal: onOriginal }));
 }
