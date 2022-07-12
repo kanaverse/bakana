@@ -37,7 +37,16 @@ It should return an object containing the `genes` and `annotations` properties:
 - `genes` should be an object where each key is a modality, typically `"RNA"` or `"ADT"`.
   Each modality-specific value should itself be an object where each key is a gene annotation field name and each value is an array of per-gene information.
   The latter usually contains strings with Ensembl identifiers or symbols.
-- `annotations` should be an array of strings containing the names of the per-cell annotation fields.
+- `annotations` should be an object describing the per-cell annotation fields.
+  Each key should be the name of a field, and each value should be an object summarizing the contents of the field.
+  Specifically, each inner object should contain:
+
+  - a `type` property, indicating whether the annotation is `"categorical"` or "`continuous"`.
+  - for categorical annotations, a `values` array containing the unique values.
+    This may be truncated for brevity, in which case the `truncated` property is `true`.
+  - for continuous annotations, the `min` and `max` properties containing the minimum and maximum values.
+
+  For preflight purposes, not all annotation columns need to be listed here.
 
 Alternatively, this method may return a promise that resolves to such an object.
 

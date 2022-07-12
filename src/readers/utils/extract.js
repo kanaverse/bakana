@@ -18,6 +18,37 @@ export function extractHDF5Strings(handle, name) {
     return content.load();
 }
 
+export function summarizeValues(values, limit) {
+    if (values instanceof Array) {
+        let chosen = Array.from(new Set(values));
+        let truncated = false;
+        if (chosen.length > limit) {
+            chosen = chosen.slice(0, limit);
+            truncated = true;
+        }
+        return {
+            "type": "categorical",
+            "values": chosen,
+            "truncated": truncated
+        };
+    } else {
+        let min = Infinity, max = -Infinity;
+        values.forEach(x => {
+            if (x < min) {
+                min = x;
+            }
+            if (x > max) {
+                max = x;
+            }
+        });
+        return { 
+            "type": "continuous",
+            "min": min, 
+            "max": max 
+        };
+    }
+}
+
 /**
  * Unpack a buffer to text, possibly with decompression.
  *

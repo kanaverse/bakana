@@ -19,57 +19,64 @@ export function abbreviate(args) {
     return formatted;
 }
 
-function extract_features(gene_file, { numberOfRows = null } = {}) {
+function extract_features(gene_file, numberOfRows) {
     const content = new Uint8Array(gene_file.content.buffer());
     var is_gz = gene_file.name.endsWith(".gz");
     let parsed = rutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
-    if (numberOfRows !== null && parsed.length !== numberOfRows) {
-        throw new Error("number of matrix rows is not equal to the number of genes in '" + gene_file.name + "'");
+
+    if (parsed.length == numberOfRows + 1) {
+        // If it seems to have a header, we just use that directly.
+        let output = {};
+        let headers = parsed.shift();
+        headers.forEach((x, i) => {
+            output[x] = parsed.map(y => y[i]);
+        });
+        return output;
+
+    } else {
+        // Otherwise, we assume it's standard 10X CellRanger output, without a header.
+        if (parsed.length !== numberOfRows) {
+            throw new Error("number of matrix rows is not equal to the number of rows in '" + gene_file.name + "'");
+        } 
+
+        var ids = [], symb = [];
+        parsed.forEach(x => {
+            ids.push(x[0]);
+            symb.push(x[1]);
+        });
+        let output = { "id": ids, "symbol": symb };
+
+        if (parsed[0].length >= 3) {
+            let types = [];
+            parsed.forEach(x => { types.push(x[2]); });
+            output.type = types;
+        }
+
+        return output;
     }
-
-    var ids = [], symb = [];
-    parsed.forEach(x => {
-        ids.push(x[0]);
-        symb.push(x[1]);
-    });
-
-    let output = { "id": ids, "symbol": symb };
-
-    if (parsed[0].length >= 3) {
-        let types = [];
-        parsed.forEach(x => { types.push(x[2]); });
-        output.type = types;
-    }
-
-    return output;
 }
 
-function extract_annotations(annotation_file, { numberOfColumns = null, namesOnly = false } = {}) {
+function extract_annotations(annotation_file, numberOfColumns, { summary = false, summaryLimit = 50 } = {}) {
     const content = new Uint8Array(annotation_file.content.buffer());
     var is_gz = annotation_file.name.endsWith(".gz");
-    let parsed = rutils.readTable(content, { compression: (is_gz ? "gz" : "none"), firstOnly: namesOnly });
+    let parsed = rutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
 
-    // Check if a header is present or not
+    // Check if a header is present or not. Standard 10X output doesn't have a 
+    // header but we'd like to support some kind of customization.
     let headerFlag = true;
-    if (numberOfColumns !== null) {
-        let diff = numberOfColumns - parsed.length;
-        if (diff === 0) {
-            headerFlag = false;
-        } else if (diff !== -1) {
-            throw "number of annotations rows is not equal to the number of cells in '" + annotation_file.name + "'";
-        }
+    let diff = numberOfColumns - parsed.length;
+    if (diff === 0) {
+        headerFlag = false;
+    } else if (diff !== -1) {
+        throw "number of matrix columns is not equal to the number of rows in '" + annotation_file.name + "'";
     }
 
     let headers;
     if (headerFlag) {
         headers = parsed.shift();
     } else {
-        headers = parsed[0]; // whatever, just using the first row. Hope they're unique enough!
+        headers = parsed[0]; // whatever, just using the first row. Hope it's unique enough!
     }
-
-    if (namesOnly) {
-        return headers;
-    } 
 
     let annotations = {}
     headers.forEach((x, i) => {
@@ -80,17 +87,56 @@ function extract_annotations(annotation_file, { numberOfColumns = null, namesOnl
         if (conv !== null) {
             annotations[k] = conv;
         }
+        if (summary) {
+            annotations[k] = rutils.summarizeValues(annotations[k], summaryLimit);
+        }
     }
 
     return annotations;
 }
 
-export function preflight(args) {
+export async function preflight(args) {
     let output = {};
+
+    let dims = null;
+    if ("genes" in args || "annotations" in args) {
+        let mtx_data = rutils.formatFile(args.mtx, false);
+        var is_gz = mtx_data.name.endsWith(".gz");
+        let content = new Uint8Array(mtx_data.content.buffer());
+        let unpacked = rutils.unpackText(content, { compression: (is_gz ? "gz" : "none") });
+
+        // Iterating through and finding each newline.
+        let start = 0;
+        while (start < unpacked.length) {
+            let end = start;
+            while (end < unpacked.length && unpacked[end] != "\n") {
+                ++end;
+            }
+
+            let line = unpacked.slice(start, end);
+            line = line.replace(/^\s*/, "");
+            line = line.replace(/\s*$/, "");
+            if (!line.startsWith("%")) {
+                let frag = line.split(/\s+/);
+                if (frag.length != 3) {
+                    throw new Error("expected 3 values in the first line of a MatrixMarket file");
+                }
+                dims = [Number(frag[0]), Number(frag[1])];
+                break;
+            }
+
+            // Skip past the newline.
+            start = end + 1;
+        }
+
+        if (dims === null) {
+            throw new Error("failed to determine the matrix dimensions from a MatrixMarket file");
+        }
+    }
 
     if ("genes" in args) {
         let gene_data = rutils.formatFile(args.genes, false);
-        output.genes = { "RNA": extract_features(gene_data) };
+        output.genes = { "RNA": extract_features(gene_data, dims[0]) };
 
         let split_out = rutils.splitByFeatureType(null, output.genes.RNA);
         if (split_out !== null) {
@@ -102,7 +148,7 @@ export function preflight(args) {
 
     if ("annotations" in args) {
         let anno_data = rutils.formatFile(args.annotations, false);
-        output.annotations = extract_annotations(anno_data, { namesOnly: true });
+        output.annotations = extract_annotations(anno_data, dims[1], { summary: true });
     } else {
         output.annotations = null;
     }
@@ -160,7 +206,7 @@ export class Reader {
 
             let gene_info = null;
             if (this.#genes !== null) {
-                gene_info = extract_features(this.#genes, { numberOfRows: out_mat.numberOfRows() });
+                gene_info = extract_features(this.#genes, out_mat.numberOfRows());
             }
             let genes = { RNA: rutils.reorganizeGenes(out_mat, gene_info) };
 
@@ -178,7 +224,7 @@ export class Reader {
 
             if (this.#annotations !== null) {
                 let first = matrices.get(matrices.available()[0]);
-                output.annotations = extract_annotations(this.#annotations, { numberOfColumns: first.numberOfColumns() });
+                output.annotations = extract_annotations(this.#annotations, first.numberOfColumns());
             } else {
                 output.annotations = null;
             }

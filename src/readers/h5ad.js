@@ -32,7 +32,7 @@ function extract_features(handle) {
     return genes;
 }
 
-function extract_annotations(handle, { namesOnly = false } = {}) {
+function extract_annotations(handle, { summary = false, summaryLimit = 50 } = {}) {
     let annotations = null;
 
     if ("obs" in handle.children && handle.children["obs"] == "Group") {
@@ -50,33 +50,44 @@ function extract_annotations(handle, { namesOnly = false } = {}) {
                 continue;
             }
             let dhandle = ohandle.open(key);
+
             if (dhandle.type != "Other") {
-                annotations[key] = (!namesOnly ? dhandle.load() : null);
+                let values = dhandle.load();
+                if (summary) {
+                    annotations[key] = rutils.summarizeValues(values, summaryLimit);
+                } else {
+                    annotations[key] = values;
+                }
             }
         }
 
-        if (!namesOnly && "__categories" in ohandle.children && ohandle.children["__categories"] == "Group") {
+        if ("__categories" in ohandle.children && ohandle.children["__categories"] == "Group") {
             let chandle = ohandle.open("__categories");
 
             for (const [key, val] of Object.entries(chandle.children)) {
                 if (key in annotations) {
                     let cats = rutils.extractHDF5Strings(chandle, key);
-                    if (cats.type !== null) {
-                        let old = annotations[key];
-                        let temp = new Array(old.length);
-                        old.forEach((x, i) => temp[i] = cats[x]);
-                        annotations[key] = temp;
+                    if (cats !== null) {
+                        if (summary) {
+                            annotations[key] = rutils.summarizeValues(cats, summaryLimit);
+                        } else {
+                            let old = annotations[key];
+
+                            // don't use map() as we need to handle IntArray values in 'old'.
+                            let temp = new Array(old.length);
+                            old.forEach((x, i) => {
+                                temp[i] = cats[x]
+                            }); 
+
+                            annotations[key] = temp;
+                        }
                     }
                 }
             }
         }
     }
 
-    if (namesOnly && annotations !== null) {
-        return Object.keys(annotations);
-    } else {
-        return annotations;
-    }
+    return annotations;
 }
 
 export function preflight(args) {
@@ -93,8 +104,7 @@ export function preflight(args) {
             output.genes = split_out.genes;
         }
 
-        let annotations = extract_annotations(handle, { load: false });
-        output.annotations = Object.keys(annotations); 
+        output.annotations = extract_annotations(handle, { summary: true });
     } finally {
         afile.removeH5(tmppath);
     }
