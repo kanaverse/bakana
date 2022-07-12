@@ -183,6 +183,9 @@ bakana.terminate();
 
 ## Developer notes
 
+See [here](docs/related/custom_readers.md) for instructions on adding custom dataset readers.
+This allows us to use **bakana**'s analysis pipeline and serialization capabilities on datasets from other sources such as in-house databases.
+
 Testing requires some combination of the options below,
 depending on the version of Node.js available.
 

@@ -7,12 +7,14 @@
   "module": "module/index.js",
   "scripts": {
     "test": "node --experimental-vm-modules --experimental-wasm-threads node_modules/jest/bin/jest.js --testTimeout=1000000 --runInBand",
-    "jsdoc": "npx jsdoc -r src README.md -u docs/related -d docs/built -c docs/jsdoc.config.json"
+    "jsdoc": "npx jsdoc -r src README.md -d docs/built -c docs/jsdoc.config.json"
   },
   "repository": "github:LTLA/bakana",
   "bugs": "https://github.com/LTLA/bakana/issues",
   "keywords": [
-    "single-cell"
+    "bioinformatics",
+    "single-cell",
+    "scRNA-seq"
   ],
   "author": {
     "name": "Aaron Lun",
