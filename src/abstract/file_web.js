@@ -39,6 +39,10 @@ export class LoadedFile {
     }
 };
 
+export function realizeMatrixMarket(loaded) {
+    return new Uint8Array(loaded.buffer());
+}
+
 export function realizeH5(loaded) {
     let tmppath;
 
