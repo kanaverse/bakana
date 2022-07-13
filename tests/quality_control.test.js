@@ -2,6 +2,7 @@ import * as bakana from "../src/index.js";
 import * as qc from "../src/steps/quality_control.js";
 import * as aqc from "../src/steps/adt_quality_control.js";
 import * as scran from "scran.js";
+import * as valkana from "valkana";
 import * as utils from "./utils.js"
 
 beforeAll(utils.initializeAll);
@@ -79,6 +80,7 @@ test("analysis works when we skip the QC steps", async () => {
         let rerun;
         let rerun_change;
         let defaults = state[stepname].constructor.defaults();
+        let validate;
 
         if (stepname == "adt_quality_control") {
             rerun = skip => {
@@ -88,6 +90,11 @@ test("analysis works when we skip the QC steps", async () => {
             rerun_change = skip => {
                 curstep.compute(skip, defaults.igg_prefix, defaults.nmads + 0.1, defaults.min_detected_drop);
             };
+
+            validate = path => {
+                valkana.validateAdtQualityControlState(path, ncells, 1, true, bakana.kanaFormatVersion);
+            };
+
         } else {
             rerun = skip => {
                 curstep.compute(skip, defaults.use_mito_default, defaults.mito_prefix, defaults.nmads);
@@ -95,6 +102,10 @@ test("analysis works when we skip the QC steps", async () => {
 
             rerun_change = skip => {
                 curstep.compute(skip, defaults.use_mito_default, defaults.mito_prefix, defaults.nmads + 0.1);
+            };
+
+            validate = path => {
+                valkana.validateQualityControlState(path, ncells, 1, bakana.kanaFormatVersion);
             };
         }
         
@@ -134,6 +145,7 @@ test("analysis works when we skip the QC steps", async () => {
 
             let handle = scran.createNewHDF5File(path);
             curstep.serialize(handle);
+            validate(path);
         }
 
         {
@@ -177,6 +189,7 @@ test("analysis works when we skip the QC steps", async () => {
         {
             let handle = scran.createNewHDF5File(path);
             curstep.serialize(handle);
+            validate(path);
         }
 
         {
