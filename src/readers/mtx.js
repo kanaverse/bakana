@@ -102,36 +102,9 @@ export async function preflight(args) {
     if ("genes" in args || "annotations" in args) {
         let mtx_data = rutils.formatFile(args.mtx, false);
         var is_gz = mtx_data.name.endsWith(".gz");
-        let content = new Uint8Array(mtx_data.content.buffer());
-        let unpacked = rutils.unpackText(content, { compression: (is_gz ? "gz" : "none") });
-
-        // Iterating through and finding each newline.
-        let start = 0;
-        while (start < unpacked.length) {
-            let end = start;
-            while (end < unpacked.length && unpacked[end] != "\n") {
-                ++end;
-            }
-
-            let line = unpacked.slice(start, end);
-            line = line.replace(/^\s*/, "");
-            line = line.replace(/\s*$/, "");
-            if (!line.startsWith("%")) {
-                let frag = line.split(/\s+/);
-                if (frag.length != 3) {
-                    throw new Error("expected 3 values in the first line of a MatrixMarket file");
-                }
-                dims = [Number(frag[0]), Number(frag[1])];
-                break;
-            }
-
-            // Skip past the newline.
-            start = end + 1;
-        }
-
-        if (dims === null) {
-            throw new Error("failed to determine the matrix dimensions from a MatrixMarket file");
-        }
+        let mm = afile.realizeMatrixMarket(mtx_data.content);
+        let headers = scran.extractMatrixMarketDimensions(mm, { "compressed": is_gz });
+        dims = [headers.rows, headers.columns];
     }
 
     if ("genes" in args) {
@@ -194,14 +167,14 @@ export class Reader {
     }
 
     load() {
-        var contents = new Uint8Array(this.#mtx.content.buffer());
         var ext = this.#mtx.name.split('.').pop();
         var is_compressed = (ext == "gz");
+        let mm = afile.realizeMatrixMarket(this.#mtx.content);
 
         let matrices = new scran.MultiMatrix;
         let output;
         try {
-            let out_mat = scran.initializeSparseMatrixFromMatrixMarketBuffer(contents, { "compressed": is_compressed });
+            let out_mat = scran.initializeSparseMatrixFromMatrixMarket(mm, { "compressed": is_compressed });
             matrices.add("RNA", out_mat);
 
             let gene_info = null;

@@ -32,6 +32,10 @@ export class LoadedFile {
     }
 };
 
+export function realizeMatrixMarket(loaded) {
+    return loaded.path;
+}
+
 export function realizeH5(loaded) {
     return loaded.path;
 }
