@@ -135,9 +135,7 @@ export class InputsState {
         // Cloning the parameters to avoid pass-by-reference behavior affecting the
         // InputsState object. We don't pass the files back here.
         let output = { ...this.#parameters };
-        if (output.subset !== null) {
-            output.subset.values = output.subset.values.slice();
-        }
+        output.subset = JSON.parse(JSON.stringify(output.subset));
         return output;
     }
 
@@ -173,8 +171,13 @@ export class InputsState {
      *
      * If `null`, all cells are assumed to originate from the same sample.
      * @param {?subset} subset - Object describing if any pre-analysis subsetting should be applied.
-     * This should contain `field`, a string specifying a field of the column annotation; and `values`, an array of allowed values for that annotation.
-     * Cells are only retained if they are associated with any of the allowable values for that annotation field.
+     * This should contain `field`, a string specifying a field of the column annotation.
+     *
+     * - For categorical variables, the object should also contain `values`, an array of allowed values for that annotation.
+     *   Cells are only retained if they are associated with any of the allowable values for that annotation field.
+     * - For continuous variables, the object should also contain `ranges`, an array of arrays.
+     *   Each inner array should contain two numbers defining the start and end of a range.
+     *   Ranges should be sorted and non-overlapping (boundaries excepted).
      *
      * If `subset` is `null`, no subsetting is performed and all cells are used in the downstream analysis.
      *
@@ -438,7 +441,15 @@ export class InputsState {
                     schandle.writeDataSet("indices", "Int32", null, this.#cache[RAW_SUBSET_OVERRIDE]);
                 } else if ("field" in this.#parameters.subset) {
                     schandle.writeDataSet("field", "String", [], this.#parameters.subset.field);
-                    schandle.writeDataSet("values", "String", null, this.#parameters.subset.values);
+
+                    if ("values" in this.#parameters.subset) {
+                        schandle.writeDataSet("values", "String", null, this.#parameters.subset.values);
+                    } else {
+                        let raw_ranges = this.#parameters.subset.ranges;
+                        let ranges = [].concat(...raw_ranges);
+                        check_subset_ranges(ranges);
+                        schandle.writeDataSet("ranges", "Float64", [ranges.length/2, 2], ranges);
+                    }
                 } else {
                     throw new Error("unrecognized specification for 'subset'");
                 }
@@ -701,12 +712,27 @@ function harvest_subset_indices(subset, cache) {
         let anno = cache.raw_annotations[subset.field];
 
         keep = [];
-        let allowed = new Set(subset.values);
-        anno.forEach((x, i) => {
-            if (allowed.has(x)) {
-                keep.push(i);
-            }
-        });
+
+        if ("values" in subset) {
+            let allowed = new Set(subset.values);
+            anno.forEach((x, i) => {
+                if (allowed.has(x)) {
+                    keep.push(i);
+                }
+            });
+        } else {
+            // Check each entry to see whether it belongs to the range.
+            // This is cheaper than sorting anything, assuming there 
+            // aren't that many ranges.
+            anno.forEach((x, i) => {
+                for (const r of subset.ranges) {
+                    if (x >= r[0] &amp;&amp; x &lt;= r[1]) {
+                        keep.push(i);
+                        return;
+                    }
+                }
+            });
+        }
     }
 
     return keep;
@@ -724,6 +750,17 @@ function clone_MultiMatrix(x) {
         throw e;
     }
     return new_matrix;
+}
+
+function check_subset_ranges(ranges) { 
+    if (ranges.length % 2 !== 0) {
+        throw new Error("'ranges' should have two columns in 'subset'");
+    }
+    for (var i = 1; i &lt; ranges.length; i++) {
+        if (ranges[i] &lt; ranges[i-1]) {
+            throw new Error("'ranges' should be sorted in increasing order");
+        }
+    }
 }
 
 /************************************
@@ -932,10 +969,19 @@ export async function unserialize(handle, embeddedLoader) {
             if ("indices" in schandle.children) {
                 raw_indices = schandle.open("indices", { load: true }).values;
             } else if ("field" in schandle.children) {
-                subset = {
-                    field: schandle.open("field", { load: true }).values[0],
-                    values: schandle.open("values", { load: true }).values
-                };
+                subset = { field: schandle.open("field", { load: true }).values[0] };
+
+                if ("values" in schandle.children) {
+                    subset.values = schandle.open("values", { load: true }).values;
+                } else {
+                    let ranges = schandle.open("ranges", { load: true }).values;
+                    check_subset_ranges(ranges);
+                    let reranges = [];
+                    for (var i = 0; i &lt; ranges.length/2; i++) {
+                        reranges.push([ ranges[2*i], ranges[2*i + 1] ]);
+                    }
+                    subset.ranges = reranges;
+                }
             } else {
                 throw new Error("unrecognized specification for 'subset'");
             }
@@ -1053,7 +1099,7 @@ export async function unserialize(handle, embeddedLoader) {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.10</a> on Tue Jul 12 2022 06:26:56 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.10</a> on Wed Jul 13 2022 22:34:44 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
