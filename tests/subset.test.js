@@ -123,7 +123,19 @@ test("subsetting behaves correctly with a factor", async () => {
         values: [ "microglia", "interneurons" ]
     });
 
-    let expected_num = 388;
+    let expected_num = 0;
+    {
+        let handle = new scran.H5File(files.default.h5);
+        let anno = handle.open("obs").open("level1class", { load: true }).values;
+        let levels = handle.open("obs").open("__categories").open("level1class", { load: true }).values;
+        for (const x of anno) {
+            if (levels[x] == "microglia" || levels[x] == "interneurons") {
+                expected_num++;
+            }
+        }
+    }
+
+    expect(expected_num).toBeGreaterThan(0);
     expect(istate.fetchCountMatrix().numberOfColumns()).toEqual(expected_num);
     expect(istate.summary().num_cells).toBe(expected_num);
 
@@ -176,6 +188,74 @@ test("subsetting behaves correctly with a factor", async () => {
     expect(istate.summary().num_cells).toBe(expected_num);
     for (const i of subset) {
         expect(istate.fetchCountMatrix().column(i)).toEqual(expected[i]);
+    }
+
+    istate.free();
+})
+
+test("subsetting behaves correctly with ranges", async () => {
+    let files = {
+        default: {
+            format: "H5AD",
+            h5: "files/datasets/zeisel-brain.h5ad"
+        }
+    };
+
+    let istate = new inputs.InputsState;
+    await istate.compute(files, null, {
+        field: "diameter",
+        ranges: [ [5, 10], [20, 25], [100, 200] ]
+    });
+
+    let expected_num = 0;
+    {
+        let handle = new scran.H5File(files.default.h5);
+        let diameter = handle.open("obs").open("diameter", { load: true }).values;
+        diameter.forEach((x, i) => {
+            if ((x >= 5 && x <= 10) || (x >= 20 && x <= 25) || (x >= 100 && x <= 200)) {
+                expected_num++;
+            }
+        });
+    }
+
+    expect(expected_num).toBeGreaterThan(0);
+    expect(istate.fetchCountMatrix().numberOfColumns()).toEqual(expected_num);
+    expect(istate.summary().num_cells).toBe(expected_num);
+
+    {
+        let subanno = istate.fetchAnnotations("diameter");
+        expect(subanno.length).toBe(expected_num);
+
+        let failed = 0;
+        for (const x of subanno) {
+            if (!(x >= 5 && x <= 10) && !(x >= 20 && x <= 25) && !(x >= 100 && x <= 200)) {
+                failed++;
+            }
+        }
+        expect(failed).toBe(0);
+    }
+
+    // Checking the serialization and unserialization.
+    const path = "TEST_subset-inputs.h5";
+
+    let saved = { collected: [], total: 0 };
+    {
+        let handle = scran.createNewHDF5File(path);
+        await istate.serialize(handle, createSaver(saved));
+        valkana.validateInputsState(path, true, bakana.kanaFormatVersion);
+    }
+
+    let offsets = utils.mockOffsets(saved.collected);
+    {
+        let handle = new scran.H5File(path);
+        let restate = await inputs.unserialize(handle, (offset, size) => offsets[offset]);
+        expect(restate.state.fetchCountMatrix().numberOfColumns()).toBe(expected_num);
+
+        let new_params = restate.state.fetchParameters();
+        expect(new_params.subset.field).toEqual("diameter");
+        expect(new_params.subset.ranges).toEqual([[5, 10], [20, 25], [100, 200]]);
+
+        restate.state.free();
     }
 
     istate.free();
