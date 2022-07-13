@@ -3012,7 +3012,7 @@ If <code>input</code> contains linked files, <code>null</code> is returned.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_utils_extract.js.html">readers/utils/extract.js</a>, <a href="readers_utils_extract.js.html#line103">line 103</a>
+        <a href="readers_utils_extract.js.html">readers/utils/extract.js</a>, <a href="readers_utils_extract.js.html#line134">line 134</a>
     </li></ul></dd>
     
 
@@ -3172,7 +3172,7 @@ Otherwise, <code>null</code> is returned if the conversion could not be performe
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_utils_extract.js.html">readers/utils/extract.js</a>, <a href="readers_utils_extract.js.html#line60">line 60</a>
+        <a href="readers_utils_extract.js.html">readers/utils/extract.js</a>, <a href="readers_utils_extract.js.html#line91">line 91</a>
     </li></ul></dd>
     
 
@@ -3438,7 +3438,7 @@ A trailing newline at the end of each file is removed.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_utils_extract.js.html">readers/utils/extract.js</a>, <a href="readers_utils_extract.js.html#line81">line 81</a>
+        <a href="readers_utils_extract.js.html">readers/utils/extract.js</a>, <a href="readers_utils_extract.js.html#line112">line 112</a>
     </li></ul></dd>
     
 
@@ -5909,7 +5909,7 @@ This is typically necessary for a clean shutdown in Node.js applications.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_utils_extract.js.html">readers/utils/extract.js</a>, <a href="readers_utils_extract.js.html#line31">line 31</a>
+        <a href="readers_utils_extract.js.html">readers/utils/extract.js</a>, <a href="readers_utils_extract.js.html#line62">line 62</a>
     </li></ul></dd>
     
 
@@ -6162,7 +6162,7 @@ This can be <code>&quot;none&quot;</code> or <code>&quot;gz&quot;</code>, with <
 
     
 
-    <h4 class="name" id="validateAnnotations"><span class="type-signature"></span>validateAnnotations<span class="signature">(matrices)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="validateAnnotations"><span class="type-signature">(async) </span>validateAnnotations<span class="signature">(matrices)</span><span class="type-signature"> &rarr; {object}</span></h4>
 
     
 
@@ -6174,7 +6174,7 @@ This can be <code>&quot;none&quot;</code> or <code>&quot;gz&quot;</code>, with <
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="preflight.js.html">preflight.js</a>, <a href="preflight.js.html#line28">line 28</a>
+        <a href="preflight.js.html">preflight.js</a>, <a href="preflight.js.html#line40">line 40</a>
     </li></ul></dd>
     
 
@@ -6299,13 +6299,25 @@ See the argument of the same name in <a href="global.html#runAnalysis"><code>run
 
         
 <div class="param-desc">
-    <p>A promise that resolves to an object containing preflight check information:</p>
+    <p>An object containing preflight check information for the <code>annotations</code> and <code>features</code>.</p>
+<p><code>annotations</code> is an object where each property corresponds to an input matrix in <code>matrices</code>.
+Each element:</p>
 <ul>
-<li><code>annotations</code>: an object where each property corresponds to an input matrix in <code>matrices</code>.
-Each element is an array containing the names of the cell annotation fields in the corresponding matrix;
-or <code>null</code>, if that matrix does not contain any annotations.</li>
-<li><code>features</code>: an object where each key is the name of a modality (e.g., <code>&quot;RNA&quot;</code>, <code>&quot;ADT&quot;</code>) and the property is another object.
-The latter contains:
+<li><code>null</code>, if the corresponding matrix does not contain any annotations.</li>
+<li>An object describing the cell annotation fields in the corresponding matrix.
+Each key of the inner object contains the name of an annotation field,
+while each value is an object summarizing that annotation.
+Each object contains:
+<ul>
+<li>a <code>type</code> property, indicating whether the annotation is <code>&quot;categorical&quot;</code> or &quot;<code>continuous&quot;</code>.</li>
+<li>for categorical annotations, a <code>values</code> array containing the unique values.
+This may be truncated for brevity, in which case the <code>truncated</code> property is <code>true</code>.</li>
+<li>for continuous annotations, the <code>min</code> and <code>max</code> properties containing the minimum and maximum values.</li>
+</ul>
+</li>
+</ul>
+<p><code>features</code> is an object where each key is the name of a modality (e.g., <code>&quot;RNA&quot;</code>, <code>&quot;ADT&quot;</code>) and the property is another object.
+Each inner object contains:</p>
 <ul>
 <li><code>common</code>: an integer containing the number of common genes across all matrices.
 This may be <code>null</code> if <code>matrices</code> has only a single entry that lacks gene annotation.</li>
@@ -6313,11 +6325,21 @@ This may be <code>null</code> if <code>matrices</code> has only a single entry t
 Each property is a string containing the name of the gene annotation field that was chosen for the intersection in the corresponding matrix.
 This may be <code>null</code> if <code>matrices</code> has only a single entry that lacks gene annotation.</li>
 </ul>
-</li>
-</ul>
 </div>
 
 
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+    </dd>
+</dl>
 
     
 
@@ -6343,7 +6365,7 @@ This may be <code>null</code> if <code>matrices</code> has only a single entry t
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.10</a> on Wed Jul 13 2022 22:34:44 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.10</a> on Wed Jul 13 2022 23:05:44 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
