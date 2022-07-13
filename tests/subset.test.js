@@ -1,6 +1,7 @@
 import * as bakana from "../src/index.js";
 import * as inputs from "../src/steps/inputs.js";
 import * as scran from "scran.js";
+import * as valkana from "valkana";
 import * as utils from "./utils.js"
 import * as fs from "fs";
 
@@ -76,6 +77,7 @@ test("subsetting behaves correctly with indices", async () => {
     {
         let handle = scran.createNewHDF5File(path);
         await istate.serialize(handle, createSaver(saved));
+        valkana.validateInputsState(path, true, bakana.kanaFormatVersion);
     }
 
     let offsets = utils.mockOffsets(saved.collected);
@@ -141,6 +143,7 @@ test("subsetting behaves correctly with a factor", async () => {
     {
         let handle = scran.createNewHDF5File(path);
         await istate.serialize(handle, createSaver(saved));
+        valkana.validateInputsState(path, true, bakana.kanaFormatVersion);
     }
 
     let offsets = utils.mockOffsets(saved.collected);

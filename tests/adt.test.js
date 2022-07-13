@@ -1,6 +1,7 @@
 import * as bakana from "../src/index.js";
 import * as utils from "./utils.js";
 import * as scran from "scran.js";
+import * as valkana from "valkana";
 import * as fs from "fs";
 import * as combine from "../src/steps/combine_embeddings.js";
 
@@ -170,6 +171,13 @@ test("runAnalysis works correctly (10X)", async () => {
         const path = "TEST_state_combine-embed.h5";
         let fhandle = scran.createNewHDF5File(path);
         state.combine_embeddings.serialize(fhandle);
+
+        {
+            let ncells = state.cell_filtering.summary().retained;
+            let npcs_rna = state.pca.summary().var_exp.length;
+            let npcs_adt = state.adt_pca.summary().var_exp.length;
+            valkana.validateCombineEmbeddingsState(path, ncells, ["RNA"], npcs_rna + npcs_adt, bakana.kanaFormatVersion);
+        }
 
         let reloaded = combine.unserialize(fhandle, {"RNA": state.pca, "ADT": state.adt_pca});
         let repcs = reloaded.fetchPCs();
