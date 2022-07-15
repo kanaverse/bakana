@@ -2,6 +2,7 @@ import * as sutils from "./utils/serialize.js";
 import * as scran from "scran.js";
 import * as v0 from "./utils/legacy_v0.js";
 import * as pako from "pako";
+export { FORMAT_VERSION } from "./utils/serialize.js";
 
 /**
  * This contains a function to create and load a kana file with the browser.
