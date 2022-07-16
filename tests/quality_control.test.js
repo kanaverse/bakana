@@ -128,6 +128,9 @@ test("analysis works when we skip the QC steps", async () => {
             state.cell_filtering.compute();
             has_discards = state.cell_filtering.fetchDiscards();
             expect(has_discards.length).toBe(ncells);
+            let remaining = state.cell_filtering.summary().retained;
+            expect(remaining).toBeLessThan(ncells);
+            expect(state.cell_filtering.fetchFilteredMatrix().numberOfColumns()).toEqual(remaining);
 
             let lost = 0;
             has_discards.forEach(x => { lost += x; });
@@ -144,6 +147,8 @@ test("analysis works when we skip the QC steps", async () => {
 
             state.cell_filtering.compute();
             expect(state.cell_filtering.fetchDiscards()).toBeNull();
+            expect(state.cell_filtering.summary().retained).toEqual(ncells);
+            expect(state.cell_filtering.fetchFilteredMatrix().numberOfColumns()).toEqual(ncells);
 
             let handle = scran.createNewHDF5File(path);
             curstep.serialize(handle);

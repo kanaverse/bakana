@@ -203,6 +203,9 @@ export class CellFilteringState {
                 utils.freeCache(this.#cache.discard_buffer);
                 delete this.#cache.discard_buffer;
             }
+
+            this.#raw_compute_matrix();
+            this.#raw_compute_block();
         }
     }
 
