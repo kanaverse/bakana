@@ -77,10 +77,10 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
 
     static defaults() {
         return {
+            skip: false,
             igg_prefix: "IgG",
             nmads: 3,
             min_detected_drop: 0.1
-
         };
     }
 
