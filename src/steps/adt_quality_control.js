@@ -183,7 +183,8 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
     /**
      * Obtain a summary of the state, typically for display on a UI like **kana**.
      *
-     * @return An object containing:
+     * @return {?object} 
+     * If QC was not skipped, an object is returned containing:
      *
      * - `data`: an object containing one property for each sample.
      *   Each property is itself an object containing `sums`, `detected` and `igg_total`,
@@ -192,16 +193,16 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
      *   Each property is itself an object containing `detected` and `igg_total`,
      *   which are numbers containing the thresholds on the corresponding QC metrics for that sample.
      * - `retained`: the number of cells remaining after QC filtering.
+     *
+     * Alternatively, `null` may be returned instead if there are no ADT features in the data,
+     * or if the QC was skipped (`skip = true` in {@linkcode AdtQualityControlState#compute compute}).
      */
     summary() {
-        if (!this.valid()) {
+        if (!this.valid() || this.skipped()) {
             return null;
         }
 
         var output = {};
-        if (this.skipped()) {
-            return output;
-        }
 
         var blocks = this.#inputs.fetchBlockLevels();
         if (blocks === null) {

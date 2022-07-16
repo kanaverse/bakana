@@ -155,7 +155,9 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
     /**
      * Obtain a summary of the state, typically for display on a UI like **kana**.
      *
-     * @return {object} Object containing `size_factors`, a Float64Array containing the size factor for each cell.
+     * @return {?object} Object containing `size_factors`, a Float64Array containing the size factor for each cell.
+     *
+     * If there were no ADT features in the dataset, `null` is returned instead.
      */
     summary() {
         if (!this.valid()) {

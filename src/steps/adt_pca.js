@@ -110,9 +110,12 @@ export class AdtPcaState extends putils.PcaStateBase {
     /**
      * Obtain a summary of the state, typically for display on a UI like **kana**.
      *
-     * @return An object containing:
+     * @return {?object}
+     * An object containing:
      *
      * - `var_exp`: a `Float64Array` of length equal to `num_pcs`, containing the proportion of variance explained for each successive PC.
+     *
+     * If there were no ADT features in the dataset, `null` is returned instead.
      */
     summary() {
         if (this.valid()) {

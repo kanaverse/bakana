@@ -28,10 +28,12 @@ test("analysis works when we skip the QC steps", async () => {
     paramcopy.adt_quality_control.skip = true;
 
     await bakana.runAnalysis(state, files, paramcopy, { finishFun: finished });
+    expect(state.quality_control.valid()).toBe(true);
     expect(state.quality_control.skipped()).toBe(true);
-    expect(contents.quality_control).toEqual({});
+    expect(contents.quality_control).toBeNull();
+    expect(state.adt_quality_control.valid()).toBe(true);
     expect(state.adt_quality_control.skipped()).toBe(true);
-    expect(contents.adt_quality_control).toEqual({});
+    expect(contents.adt_quality_control).toBeNull();
 
     expect(state.cell_filtering.fetchDiscards()).toBeNull();
     let ncells = state.inputs.fetchCountMatrix().numberOfColumns();

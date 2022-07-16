@@ -189,7 +189,8 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
     /**
      * Obtain a summary of the state, typically for display on a UI like **kana**.
      *
-     * @return An object containing:
+     * @return {?object} 
+     * An object is returned containing:
      *
      * - `data`: an object containing one property for each sample.
      *   Each property is itself an object containing `sums`, `detected` and `proportion`,
@@ -198,16 +199,16 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
      *   Each property is itself an object containing `sums`, `detected` and `proportion`,
      *   which are numbers containing the thresholds on the corresponding QC metrics for that sample.
      * - `retained`: the number of cells remaining after QC filtering.
+     *
+     * Alternatively, `null` may be returned instead if there are no RNA features in the data,
+     * or if the QC was skipped (`skip = true` in {@linkcode QualityControlState#compute compute}).
      */
     summary() {
-        if (!this.valid()) {
+        if (!this.valid() || this.skipped()) {
             return null;
         }
 
         var output = {};
-        if (this.skipped()) {
-            return output;
-        }
 
         var blocks = this.#inputs.fetchBlockLevels();
         if (blocks === null) {
