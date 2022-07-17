@@ -21,6 +21,7 @@ export function extractHDF5Strings(handle, name) {
 export function summarizeValues(values, limit) {
     if (values instanceof Array) {
         let chosen = Array.from(new Set(values));
+        chosen.sort();
         let truncated = false;
         if (chosen.length > limit) {
             chosen = chosen.slice(0, limit);
@@ -133,7 +134,6 @@ export function readTable(content, { compression = null, delim = "\t", firstOnly
  */
 export function promoteToNumber(x) {
     let as_num = new Float64Array(x.length);
-    let must_string = false;
 
     for (const [i, v] of Object.entries(x)) {
         // See discussion at https://stackoverflow.com/questions/175739/how-can-i-check-if-a-string-is-a-valid-number.
@@ -143,6 +143,10 @@ export function promoteToNumber(x) {
             as_num[i] = opt1;
         } else if (v === "" || v === "NA" || v == "na" || v == "NaN" || v == "nan") {
             as_num[i] = NaN;
+        } else if (v == "Inf" || v == "inf") {
+            as_num[i] = Number.POSITIVE_INFINITY;
+        } else if (v == "-Inf" || v == "-inf") {
+            as_num[i] = Number.NEGATIVE_INFINITY;
         } else {
             return null;
         }

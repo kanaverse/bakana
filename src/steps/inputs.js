@@ -89,7 +89,7 @@ export class InputsState {
         // Cloning the parameters to avoid pass-by-reference behavior affecting the
         // InputsState object. We don't pass the files back here.
         let output = { ...this.#parameters };
-        output.subset = JSON.parse(JSON.stringify(output.subset));
+        output.subset = this.constructor.#cloneSubset(output.subset);
         return output;
     }
 
@@ -173,12 +173,7 @@ export class InputsState {
 
         if (this.changed || (!(RAW_SUBSET_OVERRIDE in this.#cache) && utils.changedParameters(subset, this.#parameters.subset))) {
             subset_and_cache(subset, this.#cache);
-
-            // Take ownership of the object.
-            if (subset !== null) {
-                subset = { ...subset };
-            }
-            this.#parameters.subset = subset;
+            this.#parameters.subset = this.constructor.#cloneSubset(subset);
             this.changed = true;
         }
 
@@ -188,6 +183,25 @@ export class InputsState {
     /******************************
      ******** Subsetting **********
      ******************************/
+
+    static #cloneSubset(subset) {
+        // We use a dedicated cloning function to handle Infs,
+        // as these get converted to nulls by the JSON stringify.
+        if (subset == null) {
+            return subset;
+        }
+
+        let clone = { ...subset };
+        if ("values" in clone) {
+            clone.values = clone.values.slice();
+        }
+
+        if ("ranges" in clone) {
+            clone.ranges = clone.ranges.map(x => x.slice());
+        }
+
+        return clone;
+    }
 
     /**
      * Undo the effect of subsetting on an array of indices.

@@ -257,6 +257,60 @@ test("subsetting behaves correctly with ranges", async () => {
 
         restate.state.free();
     }
+})
+
+test("subsetting behaves correctly with infinite ranges", async () => {
+    let files = {
+        default: {
+            format: "H5AD",
+            h5: "files/datasets/zeisel-brain.h5ad"
+        }
+    };
+
+    let istate = new inputs.InputsState;
+    await istate.compute(files, null, {
+        field: "diameter",
+        ranges: [ [-Infinity, 10], [100, Infinity] ]
+    });
+    expect(istate.fetchParameters().subset.ranges[0][0]).toEqual(-Infinity);
+    expect(istate.fetchParameters().subset.ranges[1][1]).toEqual(Infinity);
+
+    let expected_num = 0;
+    {
+        let handle = new scran.H5File(files.default.h5);
+        let diameter = handle.open("obs").open("diameter", { load: true }).values;
+        diameter.forEach((x, i) => {
+            if (x >= 100 || x <= 10) {
+                expected_num++;
+            }
+        });
+    }
+
+    expect(expected_num).toBeGreaterThan(0);
+    expect(istate.fetchCountMatrix().numberOfColumns()).toEqual(expected_num);
+    expect(istate.summary().num_cells).toBe(expected_num);
+
+    // Checking the serialization and unserialization.
+    const path = "TEST_subset-inputs.h5";
+    let saved = { collected: [], total: 0 };
+    {
+        let handle = scran.createNewHDF5File(path);
+        await istate.serialize(handle, createSaver(saved));
+        valkana.validateInputsState(path, true, bakana.kanaFormatVersion);
+    }
+
+    let offsets = utils.mockOffsets(saved.collected);
+    {
+        let handle = new scran.H5File(path);
+        let restate = await inputs.unserialize(handle, (offset, size) => offsets[offset]);
+        expect(restate.state.fetchCountMatrix().numberOfColumns()).toBe(expected_num);
+
+        let new_params = restate.state.fetchParameters();
+        expect(new_params.subset.field).toEqual("diameter");
+        expect(new_params.subset.ranges).toEqual([[-Infinity, 10], [100, Infinity]]);
+
+        restate.state.free();
+    }
 
     istate.free();
 })
