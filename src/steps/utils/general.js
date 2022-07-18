@@ -31,8 +31,84 @@ export function freeCache(object) {
     return;
 }
 
+function changedParametersIllegal(x, y, xskip, yskip) {
+    // Failing if this is a TypedArray or ArrayBuffer;
+    // we shouldn't be seeing these things here anyway.
+    if (!xskip) {
+        if (x instanceof ArrayBuffer || ArrayBuffer.isView(x)) {
+            throw new Error("parameters cannot contain ArrayBuffers or their views");
+        }
+    }
+    if (!yskip) {
+        if (y instanceof ArrayBuffer || ArrayBuffer.isView(y)) {
+            throw new Error("parameters cannot contain ArrayBuffers or their views");
+        }
+    }
+}
+
 export function changedParameters(x, y) {
-    return JSON.stringify(x) != JSON.stringify(y);
+    if (typeof x != typeof y) {
+        changedParametersIllegal(x, y, false, false);
+        return true;
+    } else if (typeof x != "object") {
+        return x != y;
+    }
+
+    //Handling nulls (which are objects).
+    let xnull = x === null;
+    let ynull = y === null;
+    if (xnull !== ynull) {
+        changedParametersIllegal(x, y, xnull, ynull);
+        return true;
+    } else if (xnull) {
+        return false;
+    }
+
+    // Handling arrays (which are also objects).
+    let xarr = x instanceof Array;
+    let yarr = y instanceof Array;
+    if (xarr != yarr) {
+        changedParametersIllegal(x, y, xarr, yarr);
+        return true;
+    } else if (xarr) {
+        if (x.length != y.length) {
+            return true;
+        }
+
+        for (var i = 0; i < x.length; i++) {
+            if (changedParameters(x[i], y[i])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    changedParametersIllegal(x, y, false, false);
+    
+    // Now actually handling objects. We don't 
+    // worry about the order of the keys here.
+    let xkeys = Object.keys(x);
+    let ykeys = Object.keys(y);
+    if (xkeys.length != ykeys.length) {
+        return true;
+    }
+
+    xkeys.sort();
+    ykeys.sort();
+    for (var i = 0; i < xkeys.length; i++) {
+        if (xkeys[i] != ykeys[i]) {
+            return true;
+        }
+    }
+
+    for (const k of xkeys) {
+        if (changedParameters(x[k], y[k])) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 export function allocateCachedArray(size, type, cache, name = "buffer") {

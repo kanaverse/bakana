@@ -463,7 +463,10 @@ export function commonFeatureTypes(genes) {
         "ensembl-mouse": [],
         "ensembl-human": []
     };
-    let fields = JSON.parse(JSON.stringify(scores));
+
+    // Manually making a copy, until structuredClone becomes widely available.
+    let fields = {};
+    Object.keys(scores).forEach(x => { fields[x] = []; });
 
     let names = Object.keys(genes);
     for (const name of names) {
