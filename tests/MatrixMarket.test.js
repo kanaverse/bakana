@@ -1,4 +1,5 @@
 import * as bakana from "../src/index.js";
+import * as butils from "../src/steps/utils/general.js";
 import * as scran from "scran.js";
 import * as utils from "./utils.js";
 
@@ -122,8 +123,12 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     );
 
     let new_params = bakana.retrieveParameters(reloaded);
-    expect(new_params.quality_control instanceof Object).toBe(true);
-    expect(new_params.pca instanceof Object).toBe(true);
+//    for (const [k, v] of Object.entries(params)) {
+//        if (butils.changedParameters(new_params[k], v)) {
+//            console.log([k, new_params[k], v]);
+//        }
+//    }
+    expect(butils.changedParameters(new_params, params)).toBe(false); // should be the same after a roundtrip.
 
     {
         // Check that steps unserialize correctly.

@@ -78,7 +78,9 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
     }
 
     fetchParameters() {
-        return { ...this.#parameters }; // avoid pass-by-reference links.
+        let output = { ...this.#parameters }; // avoid pass-by-reference links.
+        delete output.target_matrix;
+        return output;
     }
 
     /***************************

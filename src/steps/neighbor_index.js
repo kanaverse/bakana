@@ -126,7 +126,7 @@ export function unserialize(handle, pca) {
     {
         let phandle = ghandle.open("parameters");
         parameters = {
-            approximate: phandle.open("approximate", { load: true }).value > 0
+            approximate: phandle.open("approximate", { load: true }).values[0] > 0
         };
     }
 
