@@ -184,7 +184,7 @@ export function unserialize(handle, filter, norm) {
             throw e;
         }
     } else {
-        output = new AdtPcaState(filter, norm);
+        output = new AdtPcaState(filter, norm, parameters, cache);
     }
 
     return output;

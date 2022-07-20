@@ -221,7 +221,7 @@ export function unserialize(handle, qc, filter) {
         }
     } else {
         // Fallback for v1.
-        output = new AdtNormalizationState(qc, filter);
+        output = new AdtNormalizationState(qc, filter, parameters, cache);
     }
 
     return output;

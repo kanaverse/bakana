@@ -361,7 +361,7 @@ export function unserialize(handle, inputs) {
         }
     } else {
         // Fallback for v1.
-        output = new AdtQualityControlState(inputs);
+        output = new AdtQualityControlState(inputs, parameters, cache);
     }
 
     return output;
