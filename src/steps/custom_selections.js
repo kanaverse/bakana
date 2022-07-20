@@ -323,7 +323,17 @@ export function unserialize(handle, permuters, filter, norm_states) {
         let shandle = phandle.open("selections");
 
         for (const key of Object.keys(shandle.children)) {
-            parameters.selections[key] = shandle.open(key, { load: true }).values;
+            let vals = shandle.open(key, { load: true }).values;
+
+            // v1 wasn't sorted, so we make sure to sort things.
+            for (var i = 1; i < vals.length; i++) {
+                if (vals[i] < vals[i-1]) {
+                    vals.sort();
+                    break;
+                }
+            }
+
+            parameters.selections[key] = vals;
         }
     }
 
