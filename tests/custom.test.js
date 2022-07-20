@@ -31,8 +31,18 @@ test("addition, fetching and removal of custom selections works correctly", asyn
 
     expect(state.custom_selections.fetchSelectionIndices("evens")).toEqual([0,2,4,6,8]);
     expect(state.custom_selections.fetchSelectionIndices("odds")).toEqual([1,3,5,7,9]);
+    {
+        let all = state.custom_selections.fetchSelections();
+        expect(all["evens"]).toEqual([0,2,4,6,8]);
+        expect(all["odds"]).toEqual([1,3,5,7,9]);
+    }
 
     state.custom_selections.removeSelection("odds");
+    {
+        let all = state.custom_selections.fetchSelections();
+        expect("odds" in all).toBe(false)
+        expect("evens" in all).toBe(true)
+    }
 
     // Saving and loading works correctly.
     const path = "TEST_state_custom.h5";
@@ -46,15 +56,10 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     );
 
     let new_params = bakana.retrieveParameters(reloaded);
-    expect(new_params.custom_selections.selections.evens.length).toBe(5);
+    expect(new_params.custom_selections).toEqual({});
+    expect(state.custom_selections.fetchSelectionIndices("evens")).toEqual([0,2,4,6,8]);
     let reres = reloaded.custom_selections.fetchResults("evens", "cohen", "RNA");
     expect(reres.ordering).toEqual(res.ordering);
-
-    // Retrieval can also skip the indices.
-    {
-        let new_params = bakana.retrieveParameters(reloaded, { wipeIndices: true });
-        expect(new_params.custom_selections.selections).toEqual({});
-    }
 
     await bakana.freeAnalysis(state);
     await bakana.freeAnalysis(reloaded);

@@ -573,23 +573,15 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
 
 /**
  * Retrieve analysis parameters from a state object.
- * This HDF5 file can then be embedded into a `*.kana` file for distribution.
  *
  * @param {object} state - Object containing the analysis state, produced by {@linkcode createAnalysis} or {@linkcode loadAnalysis}.
- * @param {object} [options] - Optional parameters.
- * @param {boolean} [options.wipeIndices=false] - Whether to wipe all parameters containing hard-coded indices.
- * This mainly refers to the custom selections for the `custom_selections` step.
  *
  * @return {object} Object containing the analysis parameters for each step, similar to that created by {@linkcode analysisDefaults}.
  */
-export function retrieveParameters(state, { wipeIndices = false } = {}) {
+export function retrieveParameters(state) {
     let params = {};
     for (const [k, v] of Object.entries(state)) {
-        if (k == "custom_selections") {
-            params[k] = v.fetchParameters({ selections: !wipeIndices });
-        } else {
-            params[k] = v.fetchParameters();
-        }
+        params[k] = v.fetchParameters();
     }
     return params;
 }

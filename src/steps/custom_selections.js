@@ -163,19 +163,23 @@ export class CustomSelectionsState {
         return raw;
     }
 
-    fetchParameters({ selections = true } = {}) {
-        // Need to make a copy to avoid moving the buffers.
-        let output = { ...this.#parameters };
-
+    /**
+     * Retrieve indices for all selections.
+     *
+     * @return {object} Object where the keys are the selection names and the values are arrays of indices for each selection.
+     * Each array is a copy and can be modified without affecting the CustomSelectionsState.
+     * See {@linkcode CustomSelectionsState#fetchSelectionIndices fetchSelectionIndices} for more details on the interpretation of the indices.
+     */
+    fetchSelections() {
         let replacement = {};
-        if (selections) {
-            for (const [k, v] of Object.entries(output.selections)) {
-                replacement[k] = v.slice();        
-            }
+        for (const [k, v] of Object.entries(this.#parameters.selections)) {
+            replacement[k] = v.slice(); 
         }
-        output.selections = replacement;
+        return replacement;        
+    }
 
-        return output;
+    fetchParameters() {
+        return {};
     }
 
     /***************************
