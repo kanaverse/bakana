@@ -54,7 +54,7 @@ function extract_annotations(handle, { summary = false, summaryLimit = 50 } = {}
             if (dhandle.type != "Other") {
                 let values = dhandle.load();
                 if (summary) {
-                    annotations[key] = rutils.summarizeValues(values, summaryLimit);
+                    annotations[key] = rutils.summarizeArray(values, { limit: summaryLimit });
                 } else {
                     annotations[key] = values;
                 }
@@ -69,7 +69,7 @@ function extract_annotations(handle, { summary = false, summaryLimit = 50 } = {}
                     let cats = rutils.extractHDF5Strings(chandle, key);
                     if (cats !== null) {
                         if (summary) {
-                            annotations[key] = rutils.summarizeValues(cats, summaryLimit);
+                            annotations[key] = rutils.summarizeArray(cats, { limit: summaryLimit });
                         } else {
                             let old = annotations[key];
 

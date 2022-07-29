@@ -18,9 +18,27 @@ export function extractHDF5Strings(handle, name) {
     return content.load();
 }
 
-export function summarizeValues(values, limit) {
-    if (values instanceof Array) {
-        let chosen = Array.from(new Set(values));
+/**
+ * Summarize an array, typically corresponding to a single column of per-cell annotation.
+ * This can be used as part of a preflight response in a Reader.
+ *
+ * @param {Array|TypedArray} array - Per-cell annotation array of length equal to the number of cells for a given matrix.
+ * An Array is treated as categorical data and should contain strings, while TypedArrays are treated as continuous data.
+ * @param {object} [options] - Optional parameters.
+ * @param {number} [options.limit=50] - Maximum number of unique values to report for categorical `x`.
+ *
+ * @return {object} Object containing `type`, a string indicating whether `array` was categorical or continuous.
+ *
+ * If `"categorical"`, the object will contain `values`, an array of unique values up to the length specified by `limit`.
+ * It will also contain `truncated`, a boolean indicating whether the actual number of unique values exceeds `limit`.
+ *
+ * If `"continuous"`, the object will contain the numbers `min` and `max` specifying the minimum and maximum value in `x`, respectively.
+ * `min` or `max` may be negative or positive infinity, respectively, if there is no bound on one or both ends.
+ * If `min > max`, all values in `array` are `NaN`s such that no bound can be found.
+ */
+export function summarizeArray(array, { limit = 50 } = {}) {
+    if (array instanceof Array) {
+        let chosen = Array.from(new Set(array));
         chosen.sort();
         let truncated = false;
         if (chosen.length > limit) {
@@ -33,8 +51,8 @@ export function summarizeValues(values, limit) {
             "truncated": truncated
         };
     } else {
-        let min = Infinity, max = -Infinity;
-        values.forEach(x => {
+        let min = Number.POSITIVE_INFINITY, max = Number.NEGATIVE_INFINITY;
+        array.forEach(x => {
             if (x < min) {
                 min = x;
             }
@@ -42,6 +60,7 @@ export function summarizeValues(values, limit) {
                 max = x;
             }
         });
+
         return { 
             "type": "continuous",
             "min": min, 
