@@ -4,5 +4,5 @@ node_modules
 TEST_*
 raw.js
 main/
-module/
+browser/
 docs/built

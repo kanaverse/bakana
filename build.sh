@@ -4,7 +4,7 @@ set -e
 set -u
 
 mode=$(echo $1 | sed "s/\/$//")
-if [ $mode != "module" ] && [ $mode != "main" ]
+if [ $mode != "browser" ] && [ $mode != "main" ]
 then
     echo "need to specify 'module' or 'main' as the first argument"
     exit 1
