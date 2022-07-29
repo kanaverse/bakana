@@ -18,6 +18,22 @@ export function extractHDF5Strings(handle, name) {
     return content.load();
 }
 
+/**
+ * Summarize annotation columns for a preflight request.
+ *
+ * @param {Array|TypedArray} values - Column of annotation values, of length equal to the number of cells for a given matrix.
+ * Array are treated as categorical data and should typically contain strings;
+ * TypedArrays are treated as continuous data.
+ * @param {number} limit - Maximum number of unique values to report for Array `values`.
+ *
+ * @return {object} Object containing `type`, a string indicating whether `values` was categorical or continuous.
+ *
+ * If `"categorical"`, the object will contain `values`, an array of unique values up to the length specified by `limit`.
+ * It will also contain `truncated`, a boolean indicating whether the actual number of unique values exceeds `limit`.
+ *
+ * If `"continuous"`, the object will contain `min` and `max`.
+ * These are numbers specifying the minimum and maximum value in `values`, respectively.
+ */
 export function summarizeValues(values, limit) {
     if (values instanceof Array) {
         let chosen = Array.from(new Set(values));
