@@ -77,7 +77,11 @@ export class PcaState extends putils.PcaStateBase {
      * @param {number} num_pcs - Number of PCs to return.
      * @param {number} num_hvgs - Number of highly variable genes (see {@linkplain FeatureSelectionState}) to use in the PCA.
      * @param {string} block_method - Blocking method to use when dealing with multiple samples.
-     * This can be `"none"`, `"regress"` or `"weight"`.
+     * This can be one of:
+     *
+     * - `"none"`, in which case nothing is done using the sample information. 
+     * - `"regress"`, where linear regression is applied to remove mean differences between samples.
+     * - `"weight"`, where samples are weighted so that they contribute equally regardless of the number of cells.
      *
      * @return The object is updated with the new results.
      */

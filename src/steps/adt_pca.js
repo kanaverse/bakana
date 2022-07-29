@@ -72,7 +72,7 @@ export class AdtPcaState extends putils.PcaStateBase {
      *
      * @param {number} num_pcs - Number of PCs to return.
      * @param {string} block_method - Blocking method to use when dealing with multiple samples.
-     * This can be `"none"`, `"regress"` or `"weight"`.
+     * This can be `"none"`, `"regress"` or `"weight"`, see comments in {@linkplain PcaState}.
      *
      * @return The object is updated with the new results.
      */

@@ -143,18 +143,17 @@ let loader = await bakana.parseKanaFile("something.kana", "foo.h5");
 ```
 
 Once the `*.kana` file is parsed, we can reload the analysis state into memory.
-This will also report the parameters used at each step.
+We can also report the parameters used at each step.
 
 ```js
 let reloaded = await bakana.loadAnalysis("foo.h5", loader);
-let new_state = reloaded.state;
-let new_params = reloaded.parameters;
+let params = bakana.retrieveParameters(reloaded);
 ```
 
 These can be used to perform a new analysis, possibly after modifying some parameters.
 
 ```js
-new_params.pca.num_hvgs = 3000;
+params.pca.num_hvgs = 3000;
 await bakana.runAnalysis(new_state, null, new_params);
 ```
 

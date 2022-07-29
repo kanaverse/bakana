@@ -31,6 +31,8 @@ import * as custom from "./steps/custom_selections.js";
  * - {@linkcode SnnGraphClusterState#compute snn_graph_cluster}
  * - {@linkcode ChooseClusteringState#compute choose_clustering}
  * - {@linkcode CellLabellingState#compute cell_labelling}
+ *
+ * See also {@linkcode configureBatchCorrection} and {@linkcode configureApproximateNeighbors} to synchronize certain parameter settings across multiple steps.
  */
 export function analysisDefaults() {
     var output = {
@@ -99,14 +101,14 @@ const correctible_pca_steps = [pca.step_name, pcaadt.step_name];
 /**
  * Set the batch correction parameters across multiple steps.
  * This is a convenient helper as the correction process is split across the PCA and batch correction steps.
- * For MNN, we need to weight by block in PCA before performing MNN correction;
- * for linear regression, we need to regress by block in PCA without any additional correction;
- * and for no correction, we need to turn off any block handling in PCA as well as removing any additional correction.
+ * For MNN, we need to weight by block in the {@linkplain PcaState} before performing MNN correction in {@linkplain BatchCorrectionState};
+ * for linear regression, we need to regress by block in {@linkplain PcaState} without any additional correctioni in {@linkplain BatchCorrectionState};
+ * and for no correction, we need to turn off any block handling in {@linkplain PcaState}as well as removing any additional correction in {@linkplain BatchCorrectionState}.
  *
  * @param {object} parameters Object containing parameters for all steps, e.g., from {@linkcode analysisDefaults}.
  * @param {string} method Correction method to perform, one of `"mnn"`, "`regress"` or `"none"`.
  * 
- * @return `parameters` is modified with appropriate parameters in `batch_correction`, `pca` and `pcaadt`.
+ * @return `parameters` is modified with appropriate parameters in `batch_correction`, `pca` and `adt_pca`.
  */
 export function configureBatchCorrection(parameters, method) {
     let correct_method;
@@ -189,6 +191,7 @@ const approximatable_steps = [correct.step_name, combine.step_name, index.step_n
 /**
  * Specify whether approximate neighbor searches should be performed across all affected steps.
  * This is a convenient helper as it is generally unnecessary to switch between exact and approximate searches in different steps.
+ * Affected steps are {@linkplain BatchCorrectionState}, {@linkplain CombineEmbeddingsState} and {@linkplain NeighborIndexState}.
  *
  * @param {object} parameters Object containing parameters for all steps, e.g., from {@linkcode analysisDefaults}.
  * @param {boolean} approximate Whether to perform approximate nearest neighbor searces.
