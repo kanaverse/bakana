@@ -1,18 +1,5 @@
 import * as scran from "scran.js";
 
-/**
- * Reorganize an array collection based on the permutations to the identities in a ScranMatrix.
- *
- * @param {ScranMatrix} matrix - A ScranMatrix containing matrix data, possibly with reorganization of the rows. 
- * @param {?object} geneInfo - An object containing arrays of length equal to the number of rows in `matrix`.
- * Each array contains some kind of per-gene annotation, where each element corresponds to a row in the original matrix prior to any reorganization.
- *
- * @return If `geneInfo` is not `null`, it is modified in place by reordering the values in each array so that they match the identities of rows in `matrix`.
- * A reference to `geneInfo` is then returned.
- *
- * If `geneInfo` is `null`, an object is returned containing an `id` field with an array of placeholder identifiers for all rows.
- * Each placeholder is named after the position of the row in the original matrix.
- */
 export function reorganizeGenes(matrix, geneInfo) {
     if (geneInfo === null) {
         let genes = [];

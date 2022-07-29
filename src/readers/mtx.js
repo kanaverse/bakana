@@ -88,7 +88,7 @@ function extract_annotations(annotation_file, numberOfColumns, { summary = false
             annotations[k] = conv;
         }
         if (summary) {
-            annotations[k] = rutils.summarizeValues(annotations[k], summaryLimit);
+            annotations[k] = rutils.summarizeArray(annotations[k], { limit: summaryLimit });
         }
     }
 
