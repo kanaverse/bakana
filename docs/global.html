@@ -281,7 +281,7 @@ This is encoded as an <code>XXXYYYZZZ</code> integer for version <code>XXX.YYY.Z
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line35">line 35</a>
+        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line37">line 37</a>
     </li></ul></dd>
     
 
@@ -369,6 +369,7 @@ See the documentation for each step's <code>compute</code> method for more detai
 <li><a href="ChooseClusteringState.html#compute"><code>choose_clustering</code></a></li>
 <li><a href="CellLabellingState.html#compute"><code>cell_labelling</code></a></li>
 </ul>
+<p>See also <a href="global.html#configureBatchCorrection"><code>configureBatchCorrection</code></a> and <a href="global.html#configureApproximateNeighbors"><code>configureApproximateNeighbors</code></a> to synchronize certain parameter settings across multiple steps.</p>
 </div>
 
 
@@ -542,7 +543,7 @@ which is not guaranteed if applications import <strong>scran.js</strong> on thei
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line198">line 198</a>
+        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line201">line 201</a>
     </li></ul></dd>
     
 
@@ -583,7 +584,8 @@ which is not guaranteed if applications import <strong>scran.js</strong> on thei
 
 <div class="description usertext">
     <p>Specify whether approximate neighbor searches should be performed across all affected steps.
-This is a convenient helper as it is generally unnecessary to switch between exact and approximate searches in different steps.</p>
+This is a convenient helper as it is generally unnecessary to switch between exact and approximate searches in different steps.
+Affected steps are <a href="BatchCorrectionState.html">BatchCorrectionState</a>, <a href="CombineEmbeddingsState.html">CombineEmbeddingsState</a> and <a href="NeighborIndexState.html">NeighborIndexState</a>.</p>
 </div>
 
 
@@ -712,7 +714,7 @@ This is a convenient helper as it is generally unnecessary to switch between exa
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line111">line 111</a>
+        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line113">line 113</a>
     </li></ul></dd>
     
 
@@ -754,9 +756,9 @@ This is a convenient helper as it is generally unnecessary to switch between exa
 <div class="description usertext">
     <p>Set the batch correction parameters across multiple steps.
 This is a convenient helper as the correction process is split across the PCA and batch correction steps.
-For MNN, we need to weight by block in PCA before performing MNN correction;
-for linear regression, we need to regress by block in PCA without any additional correction;
-and for no correction, we need to turn off any block handling in PCA as well as removing any additional correction.</p>
+For MNN, we need to weight by block in the <a href="PcaState.html">PcaState</a> before performing MNN correction in <a href="BatchCorrectionState.html">BatchCorrectionState</a>;
+for linear regression, we need to regress by block in <a href="PcaState.html">PcaState</a> without any additional correctioni in <a href="BatchCorrectionState.html">BatchCorrectionState</a>;
+and for no correction, we need to turn off any block handling in <a href="PcaState.html">PcaState</a>as well as removing any additional correction in <a href="BatchCorrectionState.html">BatchCorrectionState</a>.</p>
 </div>
 
 
@@ -859,7 +861,7 @@ and for no correction, we need to turn off any block handling in PCA as well as 
 
         
 <div class="param-desc">
-    <p><code>parameters</code> is modified with appropriate parameters in <code>batch_correction</code>, <code>pca</code> and <code>pcaadt</code>.</p>
+    <p><code>parameters</code> is modified with appropriate parameters in <code>batch_correction</code>, <code>pca</code> and <code>adt_pca</code>.</p>
 </div>
 
 
@@ -1705,7 +1707,7 @@ This releases memory on the <strong>scran.js</strong> Wasm heap and terminates a
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line217">line 217</a>
+        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line220">line 220</a>
     </li></ul></dd>
     
 
@@ -1970,7 +1972,7 @@ otherwise, if <code>strict = true</code>, <code>null</code> is returned.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line148">line 148</a>
+        <a href="defaults.js.html">defaults.js</a>, <a href="defaults.js.html#line150">line 150</a>
     </li></ul></dd>
     
 
@@ -6531,7 +6533,7 @@ This may be <code>null</code> if <code>matrices</code> has only a single entry t
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Fri Jul 29 2022 06:24:10 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Fri Jul 29 2022 15:36:30 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
