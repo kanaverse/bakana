@@ -1,5 +1,6 @@
 import * as pako from "pako";
 import ppp from "papaparse";
+import * as afile from "../../abstract/file.js";
 
 export function extractHDF5Strings(handle, name) {
     if (!(name in handle.children)) {
@@ -120,7 +121,8 @@ export function readLines(buffer, { compression = null } = {}) {
 /**
  * Read a delimiter-separated table from a buffer, possibly with decompression.
  *
- * @param {Uint8Array} buffer - Content to be read.
+ * @param {Uint8Array|ArrayBuffer|string} content - Content to be read as an ArrayBuffer or Uint8Array.
+ * For Node.js, this may be also a string containing a path to a file.
  * @param {object} [options] - Optional parameters.
  * @param {?string} [options.compression] - See {@linkcode unpackText} for details.
  * @param {string} [options.delim] - Delimiter between fields.
@@ -130,7 +132,20 @@ export function readLines(buffer, { compression = null } = {}) {
  * If `firstOnly = true`, the output array only contains one element corresponding to the contents of the first line.
  */
 export function readTable(content, { compression = null, delim = "\t", firstOnly = false } = {}) {
-    let decoded = unpackText(content, { compression: compression });
+    let buffer;
+    if (content instanceof Uint8Array) {
+        buffer = content;
+    } else {
+        // This clause handles file paths on Node.js; for browsers, it should
+        // not be called as 'content' can only be a Uint8Array or ArrayBuffer.
+        if (!(content instanceof ArrayBuffer)) {
+            let loaded = new afile.LoadedFile(content);
+            content = loaded.buffer();
+        }
+        buffer = new Uint8Array(content);
+    }
+
+    let decoded = unpackText(buffer, { compression: compression });
     let res = ppp.parse(decoded, { delimiter: delim, preview: (firstOnly ? 1 : 0) });
 
     // Handle terminating newlines.
