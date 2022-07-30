@@ -16,22 +16,16 @@ test("runAnalysis works correctly (10X)", async () => {
         contents[step] = res;
     };
 
+    let files = {
+        default: {
+            format: "10X",
+            h5: "files/datasets/pbmc4k-tenx.h5"
+        }
+    };
+
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
-    let res = await bakana.runAnalysis(
-        state,
-        {
-            default: {
-                format: "10X",
-                h5: "files/datasets/pbmc4k-tenx.h5"
-            }
-        },
-        params,
-        {
-            startFun: started,
-            finishFun: finished
-        }
-    );
+    let res = await bakana.runAnalysis(state, files, params, { startFun: started, finishFun: finished });
 
     expect(attempts.has("quality_control")).toBe(true);
     expect(attempts.has("pca")).toBe(true);
@@ -40,6 +34,16 @@ test("runAnalysis works correctly (10X)", async () => {
     expect(contents.feature_selection instanceof Object).toBe(true);
     expect(contents.cell_labelling instanceof Object).toBe(true);
     expect(contents.marker_detection instanceof Object).toBe(true);
+
+    // Input reorganization is done correctly.
+    {
+        let loaded = state.inputs.fetchCountMatrix();
+        let loaded_names = state.inputs.fetchGenes().id;
+        let simple = scran.initializeSparseMatrixFromHDF5(files.default.h5, "matrix", { layered: false });
+        let simple_names = (new scran.H5File(files.default.h5)).open("matrix").open("features").open("id", { load: true }).values;
+        utils.checkReorganization(simple, simple_names, loaded, loaded_names);
+        simple.free();
+    }
 
     // Saving and loading.
     const path = "TEST_state_10X.h5";

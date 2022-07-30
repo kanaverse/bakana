@@ -17,28 +17,34 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         contents[step] = res;
     };
 
+    let files = { 
+        default: {
+            format: "MatrixMarket",
+            mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
+            genes: "files/datasets/pbmc3k-features.tsv.gz",
+            annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
+        }
+    };
+
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
-    let res = await bakana.runAnalysis(state, 
-        { 
-            default: {
-                format: "MatrixMarket",
-                mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
-                genes: "files/datasets/pbmc3k-features.tsv.gz",
-                annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
-            }
-        },
-        params,
-        {
-            startFun: started,
-            finishFun: finished
-        }
-    );
+    let res = await bakana.runAnalysis(state, files, params, { startFun: started, finishFun: finished });
 
     expect(attempts.has("pca")).toBe(true);
     expect(contents.pca instanceof Object).toBe(true);
     expect(contents.feature_selection instanceof Object).toBe(true);
     expect(contents.cell_labelling instanceof Object).toBe(true);
+
+    // Input reorganization is done correctly.
+    {
+        let loaded = state.inputs.fetchCountMatrix();
+        let loaded_names = state.inputs.fetchGenes().id;
+        let simple = scran.initializeSparseMatrixFromMatrixMarket(files.default.mtx, { layered: false });
+        let parsed = bakana.readTable(files.default.genes, { compression: "gz" });
+        let simple_names = parsed.map(x => x[0]);
+        utils.checkReorganization(simple, simple_names, loaded, loaded_names);
+        simple.free();
+    }
 
     // Quality control.
     {

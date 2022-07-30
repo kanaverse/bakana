@@ -29,35 +29,60 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     expect(state.inputs.hasAvailable("RNA")).toBe(true);
     expect(state.inputs.hasAvailable("ADT")).toBe(true);
 
-    // Check that the subsetting was done correctly.
+    // Input reorganization is done correctly. 
     {
-        let f = fs.readFileSync(mtx);
-        let buff = f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
-        let mat = scran.initializeSparseMatrixFromMatrixMarketBuffer(new Uint8Array(buff), { compressed: true });
+        let simple = scran.initializeSparseMatrixFromMatrixMarket(mtx, { layered: false });
+        let parsed = bakana.readTable(feats, { compression: "gz" });
+        let simple_names = parsed.map(x => x[0]);
+        let simple_types = parsed.map(x => x[2]);
 
-        let loaded = state.inputs.fetchCountMatrix({ type: "RNA" });
-        expect(mat.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
-
-        let expected = [];
-        let is_rna = [];
+        // For RNA.
         {
-            let f = fs.readFileSync(feats);
-            let buff = f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
-            let tab = bakana.readTable(new Uint8Array(buff));
-            mat.identities().forEach((x, i) => {
-                if (tab[x][2].match(/Gene expression/i)) {
-                    is_rna.push(i);
-                    expected.push(x);
+            let keep = [];
+            simple_types.forEach((x, i) => {
+                if (x.match(/Gene Expression/i)) {
+                    keep.push(i);
                 }
             });
+
+            let simple_names_rna = keep.map(x => simple_names[x]);
+            let simple_rna = scran.subsetRows(simple, keep);
+             
+            let loaded = state.inputs.fetchCountMatrix({ type: "RNA" });
+            let loaded_names = state.inputs.fetchGenes({ type: "RNA" }).id;
+
+            expect(simple.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
+            let sorted = Array.from(loaded.identities()).sort((a, b) => a - b);
+            expect(sorted).toEqual(keep);
+
+            utils.checkReorganization(simple_rna, simple_names_rna, loaded, loaded_names, { referenceSubset: true }); 
+            simple_rna.free();
         }
 
-        let loaded_ids = loaded.identities();
-        expect(Array.from(loaded_ids)).toEqual(expected);
+        // For ADT.
+        {
+            let keep = [];
+            simple_types.forEach((x, i) => {
+                if (x.match(/Antibody Capture/i)) {
+                    keep.push(i);
+                }
+            });
 
-        let last = loaded_ids.length - 1;
-        expect(loaded.row(last)).toEqual(mat.row(is_rna[last]));
-        mat.free();
+            let simple_names_adt = keep.map(x => simple_names[x]);
+            let simple_adt = scran.subsetRows(simple, keep);
+             
+            let loaded = state.inputs.fetchCountMatrix({ type: "ADT" });
+            let loaded_names = state.inputs.fetchGenes({ type: "ADT" }).id;
+
+            expect(simple.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
+            let sorted = Array.from(loaded.identities()).sort();
+            expect(sorted).toEqual(keep);
+
+            utils.checkReorganization(simple_adt, simple_names_adt, loaded, loaded_names, { referenceSubset: true }); 
+            simple_adt.free();
+        }
+
+        simple.free();
     }
 
     // Checking all the computations.

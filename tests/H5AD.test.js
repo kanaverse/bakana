@@ -11,27 +11,32 @@ test("runAnalysis works correctly (H5AD)", async () => {
         contents[step] = res;
     };
 
+    let files = { 
+        default: {
+            format: "H5AD",
+            h5: "files/datasets/zeisel-brain.h5ad"
+        }
+    };
+
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
-    let res = await bakana.runAnalysis(
-        state,
-        { 
-            default: {
-                format: "H5AD",
-                h5: "files/datasets/zeisel-brain.h5ad"
-            }
-        },
-        params,
-        {
-            finishFun: finished,
-        }
-    );
+    let res = await bakana.runAnalysis(state, files, params, { finishFun: finished });
 
     expect(contents.quality_control instanceof Object).toBe(true);
     expect(contents.pca instanceof Object).toBe(true);
     expect(contents.feature_selection instanceof Object).toBe(true);
     expect(contents.cell_labelling instanceof Object).toBe(true);
     expect(contents.marker_detection instanceof Object).toBe(true);
+
+    // Input reorganization is done correctly.
+    {
+        let loaded = state.inputs.fetchCountMatrix();
+        let loaded_names = state.inputs.fetchGenes()._index;
+        let simple = scran.initializeSparseMatrixFromHDF5(files.default.h5, "X", { layered: false });
+        let simple_names = (new scran.H5File(files.default.h5)).open("var").open("_index", { load: true }).values;
+        utils.checkReorganization(simple, simple_names, loaded, loaded_names);
+        simple.free();
+    }
 
     // Computations are done correctly.
     {
