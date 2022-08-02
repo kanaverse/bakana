@@ -110,6 +110,15 @@ test("multi-matrix analyses work correctly", async () => {
     expect(old_res["means"]).toEqual(new_res["means"]);
 
     {
+        // Check that the filtered blocks are correctly restored. This checks
+        // for bugs when the blocks are requested before the filtered matrix is
+        // restored, given that the former depends on the latter.
+        let fblocks = reloaded.cell_filtering.fetchFilteredBlock();
+        let fmat = reloaded.cell_filtering.fetchFilteredMatrix();
+        expect(fblocks.length).toBe(fmat.numberOfColumns());
+    }
+
+    {
         // Check that the PCs are correctly recovered.
         let corrected_pcs = reloaded.batch_correction.fetchPCs();
         expect(corrected_pcs.pcs.owner).toBeNull();

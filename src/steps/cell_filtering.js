@@ -144,8 +144,10 @@ export class CellFilteringState {
         let block = this.#inputs.fetchBlock();
         if (block !== null) {
             if ("discard_buffer" in this.#cache) {
-                // Filtering on the block.
-                let bcache = utils.allocateCachedArray(this.#cache.matrix.numberOfColumns(), "Int32Array", this.#cache, "block_buffer");
+                // Filtering on the block. Might as well force a laod of the
+                // matrix, it'll be needed once we have the blocks anyway.
+                let filtered_ncols = this.fetchFilteredMatrix().numberOfColumns();
+                let bcache = utils.allocateCachedArray(filtered_ncols, "Int32Array", this.#cache, "block_buffer");
                 scran.filterBlock(block, this.#cache.discard_buffer, { buffer: bcache });
             } else {
                 this.#cache.block_buffer = block.view();
