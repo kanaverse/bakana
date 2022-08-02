@@ -140,7 +140,7 @@ export class CustomSelectionsState {
      */
     fetchResults(id, rank_type, feat_type) {
         var current = this.#cache.results[id].raw[feat_type];
-        return markers.fetchGroupResults(current, 1, rank_type + "-mean"); 
+        return markers.formatMarkerResults(current, 1, rank_type + "-mean"); 
     }
 
     /**

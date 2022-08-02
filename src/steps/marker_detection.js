@@ -73,7 +73,7 @@ export class MarkerDetectionState {
      *   - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
      */
     fetchGroupResults(group, rank_type, feat_type) {
-        return markers.fetchGroupResults(this.#cache.raw[feat_type], group, rank_type); 
+        return markers.formatMarkerResults(this.#cache.raw[feat_type], group, rank_type); 
     }
 
     /** 
