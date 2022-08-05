@@ -37,6 +37,30 @@ test("addition, fetching and removal of custom selections works correctly", asyn
         expect(all["odds"]).toEqual([1,3,5,7,9]);
     }
 
+    // Versus mode works correctly.
+    {
+        let vres = state.custom_selections.computeVersus("odds", "evens", "cohen", "RNA");
+        expect("ordering" in vres).toBe(true);
+        expect("lfc" in vres).toBe(true);
+
+        let vres2 = state.custom_selections.computeVersus("evens", "odds", "cohen", "RNA");
+        expect("ordering" in vres2).toBe(true);
+        expect("lfc" in vres2).toBe(true);
+
+        let lfcs = new Array(vres.lfc.length);
+        vres.ordering.forEach((x, i) => {
+            lfcs[x] = vres.lfc[i];
+        });
+
+        let lfcs2 = new Array(vres2.lfc.length);
+        vres2.ordering.forEach((x, i) => {
+            lfcs2[x] = -vres2.lfc[i];
+        });
+
+        expect(lfcs).toEqual(lfcs2);
+    }
+
+    // Removal of selections works correctly.
     state.custom_selections.removeSelection("odds");
     {
         let all = state.custom_selections.fetchSelections();
