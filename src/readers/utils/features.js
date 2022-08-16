@@ -1,28 +1,29 @@
 import * as scran from "scran.js";
 
-export function reorganizeGenes(matrix, geneInfo) {
+export function reorganizeGenes(nrows, ids, geneInfo) {
     if (geneInfo === null) {
         let genes = [];
-        if (matrix.isReorganized()) {
-            let ids = matrix.identities();
+        if (ids !== null) {
             for (const i of ids) {
                 genes.push(`Gene ${i + 1}`);
             }
         } else {
-            for (let i = 0; i < matrix.numberOfRows(); i++) {
+            for (let i = 0; i < nrows; i++) {
                 genes.push(`Gene ${i + 1}`);
             }
         }
         geneInfo = { "id": genes };
     } else {
-        if (matrix.isReorganized()) {
-            scran.matchFeatureAnnotationToRowIdentities(matrix, geneInfo);
+        if (ids != null ){
+            for (const [k, v] of Object.entries(geneInfo)) {
+                geneInfo[k] = scran.quickSliceArray(ids, v);
+            }
         }
     }
     return geneInfo;
 }
 
-export function splitByFeatureType(matrix, genes) { 
+function rawSplitByFeatureType(genes) { 
     if (!("type" in genes)) {
         return null;
     }
@@ -43,24 +44,51 @@ export function splitByFeatureType(matrix, genes) {
         }
     }
 
-    let output = {};
+    let output = { types: types };
 
     // Skipping 'type', as it's done its purpose now.
     let gene_deets = { ...genes };
     delete gene_deets.type;
     output.genes = scran.splitArrayCollection(gene_deets, types);
 
-    if (matrix !== null) {
-        // Allocating the split matrices. Note that this is skipped in the
-        // 'null' case to support feature splitting for the preflight requests
-        // (where the matrix is not loaded, obviously).
-        let out_mats;
-        try {
-            out_mats = new scran.MultiMatrix({ store: scran.splitRows(matrix, types) });
-            output.matrices = out_mats;
-        } catch (e) {
-            scran.safeFree(out_mats);
-            throw e;
+    return output;
+}
+
+export function presplitByFeatureType(genes) { 
+    let output = rawSplitByFeatureType(genes);
+    if (output === null) {
+        return null;
+    }
+    delete output.types;
+    return output;
+}
+
+export function splitByFeatureType(matrix, row_ids, genes) { 
+    let output = rawSplitByFeatureType(genes);
+    if (output === null) {
+        return null;
+    }
+
+    let types = output.types;
+    delete output.types;
+
+    // Allocating the split matrices. 
+    let out_mats;
+    try {
+        out_mats = new scran.MultiMatrix({ store: scran.splitRows(matrix, types) });
+        output.matrices = out_mats;
+    } catch (e) {
+        scran.free(out_mats);
+        throw e;
+    }
+
+    // Also saving the fragmented ids.
+    if (row_ids === null) {
+        output.row_ids = types;
+    } else {
+        output.row_ids = {};
+        for (const [k, v] of Object.entries(types)) {
+            output.row_ids[k] = scran.quickSliceArray(v, row_ids);
         }
     }
 

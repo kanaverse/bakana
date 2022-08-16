@@ -443,7 +443,7 @@ export class InputsState {
             // Looping through all available matrices.
             let ihandle = rhandle.createGroup("identities");
             for (const a of this.#cache.matrix.available()) {
-                ihandle.writeDataSet(a, "Int32", null, this.#cache.matrix.get(a).identities());
+                ihandle.writeDataSet(a, "Int32", null, this.#cache.row_ids[a]);
             }
         }
 
@@ -554,8 +554,9 @@ function bind_single_modality(dkeys, datasets, type) {
 
         // Extracting gene information from the first object. We won't make
         // any attempt at merging and deduplication across objects.
-        let first_genes = genes[dkeys[0]];
-        output.genes = scran.subsetArrayCollection(first_genes, merged.indices);
+        let first = dkeys[0];
+        output.genes = scran.subsetArrayCollection(genes[first], merged.indices);
+        output.row_ids = scran.quickSliceArray(merged.indices, datasets[first].row_ids[type]);
 
     } catch (e) {
         utils.freeCache(output.matrix);
@@ -580,7 +581,8 @@ function bind_datasets(dkeys, datasets) {
     let blocks;
     let output = { 
         matrix: new scran.MultiMatrix, 
-        genes: {} 
+        genes: {},
+        row_ids: {}
     };
 
     try {
@@ -588,6 +590,7 @@ function bind_datasets(dkeys, datasets) {
             let current = bind_single_modality(dkeys, datasets, a);
             output.matrix.add(a, current.matrix);
             output.genes[a] = current.genes;
+            output.row_ids[a] = current.row_ids;
         }
 
         // Get all annotations keys across datasets; we then concatenate
@@ -745,6 +748,7 @@ async function load_and_cache(new_readers, cache) {
 
     let res = await load_datasets(new_readers);
     cache.raw_matrix = res.matrix;
+    cache.row_ids = res.row_ids;
     cache.raw_annotations = res.annotations;
     cache.multi_block_ids = res.block_ids;
     cache.multi_block_levels = res.block_levels;
@@ -986,14 +990,14 @@ export async function unserialize(handle, embeddedLoader) {
             if (rhandle.children["identities"] == "DataSet") {
                 // v1.2
                 let dhandle = rhandle.open("identities", { load: true });
-                perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), dhandle.values);
+                perm.RNA = scran.updateRowIdentities(cache.row_ids["RNA"], dhandle.values);
             } else {
                 // v2.0
                 let ihandle = rhandle.open("identities");
                 for (const a of Object.keys(ihandle.children)) {
                     if (cache.matrix.has(a)) {
                         let dhandle = ihandle.open(a, { load: true });
-                        perm[a] = scran.updateRowIdentities(cache.matrix.get(a), dhandle.values);
+                        perm[a] = scran.updateRowIdentities(cache.row_ids[a], dhandle.values);
                     }
                 }
             }
@@ -1016,19 +1020,19 @@ export async function unserialize(handle, embeddedLoader) {
                     break;
                 }
             }
-            perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), old_ids);
+            perm.RNA = scran.updateRowIdentities(cache.row_ids["RNA"], old_ids);
         } else {
             if (rhandle.children["identities"] == "DataSet") {
                 // v1.2+
                 old_ids = rhandle.open("identities", { load: true }).values;
-                perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), old_ids);
+                perm.RNA = scran.updateRowIdentities(cache.row_ids["RNA"], old_ids);
             } else {
                 // v2.0
                 let ihandle = rhandle.open("identities");
                 for (const a of Object.keys(ihandle.children)) {
                     if (cache.matrix.has(a)) {
                         let dhandle = ihandle.open(a, { load: true });
-                        perm[a] = scran.updateRowIdentities(cache.matrix.get(a), dhandle.values);
+                        perm[a] = scran.updateRowIdentities(cache.row_ids[a], dhandle.values);
                     }
                 }
             }
