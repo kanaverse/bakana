@@ -50,13 +50,10 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
             let simple_ids_rna = keep.slice();
 
             let loaded = state.inputs.fetchCountMatrix({ type: "RNA" });
-            let loaded_ids = state.inputs.fetchCountMatrix({ type : "RNA" });
+            let loaded_ids = state.inputs.fetchRowIds({ type : "RNA" });
             let loaded_names = state.inputs.fetchGenes({ type: "RNA" }).id;
 
             expect(simple.matrix.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
-            let sorted = Array.from(loaded_ids).sort((a, b) => a - b);
-            expect(sorted).toEqual(keep);
-
             utils.checkReorganization(simple_rna, simple_ids_rna, simple_names_rna, loaded, loaded_ids, loaded_names, { referenceSubset: true }); 
             simple_rna.free();
         }
@@ -75,7 +72,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
             let simple_ids_adt = keep.slice();
 
             let loaded = state.inputs.fetchCountMatrix({ type: "ADT" });
-            let loaded_ids = state.inputs.fetchCountMatrix({ type : "ADT" });
+            let loaded_ids = state.inputs.fetchRowIds({ type : "ADT" });
             let loaded_names = state.inputs.fetchGenes({ type: "ADT" }).id;
 
             expect(simple.matrix.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());

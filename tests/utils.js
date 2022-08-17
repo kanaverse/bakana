@@ -87,15 +87,28 @@ export function checkReorganization(matrix, ids, names, loadedMatrix, loadedIds,
         }
     }
 
+    let sorted_ids = loadedIds.slice().sort((a, b) => a - b);
+    let permuter;
     if (referenceSubset) {
-        if (!is_same(ids.slice().sort(), loadedIds.slice().sort())) {
+        // Assume reference IDs are already sorted when referenceSubset = true.
+        if (!is_same(ids, sorted_ids)) {
             throw new Error("reference and loaded identities should have identical elements");
         }
+
+        // Creating a mapping to permute the reference to the loaded order.
         let mapping = {};
         ids.forEach((x, i) => {
             mapping[x] = i;
         });
-        loadedIds = loadedIds.map(x => mapping[x]);
+        permuter = Array.from(loadedIds).map(x => mapping[x]);
+    } else {
+        // Should contain everything at least once.
+        for (var i = 0; i < sorted_ids.length; i++) {
+            if (sorted_ids[i] != i) {
+                throw new error("loaded identities should contain all consecutive integers");
+            }
+        }
+        permuter = Array.from(loadedIds);
     }
 
     // Checking that the reorganization matches up with the reference for every 100th column.
@@ -109,7 +122,7 @@ export function checkReorganization(matrix, ids, names, loadedMatrix, loadedIds,
         }
 
         let converted = new reference_first.constructor(NR);
-        loadedIds.forEach((x, i) => {
+        permuter.forEach((x, i) => {
             converted[i] = reference_first[x];
         });
         if (!is_same(loaded_first, converted)) {
@@ -127,7 +140,7 @@ export function checkReorganization(matrix, ids, names, loadedMatrix, loadedIds,
     }
 
     let converted = new names.constructor(NR);
-    loadedIds.forEach((x, i) => {
+    permuter.forEach((x, i) => {
         converted[i] = names[x];
     });
 
