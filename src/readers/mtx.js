@@ -109,11 +109,13 @@ export async function preflight(args) {
 
     if ("genes" in args) {
         let gene_data = rutils.formatFile(args.genes, false);
-        output.genes = { "RNA": extract_features(gene_data, dims[0]) };
+        let gene_info = extract_features(gene_data, dims[0]);
 
-        let split_out = rutils.splitByFeatureType(null, output.genes.RNA);
+        let split_out = rutils.presplitByFeatureType(gene_info);
         if (split_out !== null) {
             output.genes = split_out.genes;
+        } else {
+            output.genes = { "RNA": gene_info };
         }
     } else {
         output.genes = null;
@@ -171,39 +173,38 @@ export class Reader {
         var is_compressed = (ext == "gz");
         let mm = afile.realizeMatrixMarket(this.#mtx.content);
 
-        let matrices = new scran.MultiMatrix;
-        let output;
+        let output = { matrix: new scran.MultiMatrix };
         try {
-            let out_mat = scran.initializeSparseMatrixFromMatrixMarket(mm, { "compressed": is_compressed });
-            matrices.add("RNA", out_mat);
+            let loaded = scran.initializeSparseMatrixFromMatrixMarket(mm, { "compressed": is_compressed });
+            let out_mat = loaded.matrix;
+            let out_ids = loaded.row_ids;
+            output.matrix.add("RNA", out_mat);
 
-            let gene_info = null;
+            let raw_gene_info = null;
             if (this.#genes !== null) {
-                gene_info = extract_features(this.#genes, out_mat.numberOfRows());
+                raw_gene_info = extract_features(this.#genes, out_mat.numberOfRows());
             }
-            let genes = { RNA: rutils.reorganizeGenes(out_mat, gene_info) };
+            let gene_info = rutils.reorganizeGenes(out_mat.numberOfRows(), out_ids, raw_gene_info);
 
-            let split_out = rutils.splitByFeatureType(out_mat, genes.RNA);
+            let split_out = rutils.splitByFeatureType(out_mat, out_ids, gene_info);
             if (split_out !== null) {
-                scran.safeFree(out_mat);
-                matrices = split_out.matrices;
-                genes = split_out.genes;
+                scran.free(out_mat);
+                output.matrix = split_out.matrices;
+                output.row_ids = split_out.row_ids;
+                output.genes = split_out.genes;
+            } else {
+                output.genes = { RNA: gene_info };
+                output.row_ids = { RNA: out_ids };
             }
-
-            output = {
-                matrix: matrices,
-                genes: genes
-            };
 
             if (this.#annotations !== null) {
-                let first = matrices.get(matrices.available()[0]);
-                output.annotations = extract_annotations(this.#annotations, first.numberOfColumns());
+                output.annotations = extract_annotations(this.#annotations, output.matrix.numberOfColumns());
             } else {
                 output.annotations = null;
             }
 
         } catch (e) {
-            scran.safeFree(matrices);
+            scran.free(output.matrix);
             throw e;
         }
 

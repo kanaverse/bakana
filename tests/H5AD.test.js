@@ -31,11 +31,14 @@ test("runAnalysis works correctly (H5AD)", async () => {
     // Input reorganization is done correctly.
     {
         let loaded = state.inputs.fetchCountMatrix();
+        let loaded_ids = state.inputs.fetchRowIds();
         let loaded_names = state.inputs.fetchGenes()._index;
+
         let simple = scran.initializeSparseMatrixFromHDF5(files.default.h5, "X", { layered: false });
         let simple_names = (new scran.H5File(files.default.h5)).open("var").open("_index", { load: true }).values;
-        utils.checkReorganization(simple, simple_names, loaded, loaded_names);
-        simple.free();
+
+        utils.checkReorganization(simple.matrix, simple.row_ids, simple_names, loaded, loaded_ids, loaded_names);
+        simple.matrix.free();
     }
 
     // Computations are done correctly.

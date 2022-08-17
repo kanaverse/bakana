@@ -46,11 +46,13 @@ export function preflight(args) {
     const tmppath = afile.realizeH5(formatted.content);
     try {
         let handle = new scran.H5File(tmppath);
-        output.genes = { "RNA": extract_features(handle) };
+        let raw_gene_info = extract_features(handle);
 
-        let split_out = rutils.splitByFeatureType(null, output.genes.RNA);
+        let split_out = rutils.presplitByFeatureType(raw_gene_info);
         if (split_out !== null) {
-            output.genes = split_out.genes;            
+            output.genes = split_out.genes;
+        } else {
+            output.genes = { RNA: raw_gene_info };
         }
 
         // TODO: try pull out sample IDs from the 10X file, if they exist?
@@ -75,33 +77,36 @@ export class Reader {
     }
 
     load() {
-        let output;
-        let matrices = new scran.MultiMatrix;
+        let output = { matrix: new scran.MultiMatrix };
 
         const tmppath = afile.realizeH5(this.#h5.content);
         try {
-            let out_mat = scran.initializeSparseMatrixFromHDF5(tmppath, "matrix");
-            matrices.add("RNA", out_mat);
+            let loaded = scran.initializeSparseMatrixFromHDF5(tmppath, "matrix");
+            let out_mat = loaded.matrix;
+            let out_ids = loaded.row_ids;
+            output.matrix.add("RNA", out_mat);
 
             let handle = new scran.H5File(tmppath);
-            let gene_info = extract_features(handle);
-            let genes = { RNA: rutils.reorganizeGenes(out_mat, gene_info) };
+            let raw_gene_info = extract_features(handle);
+            let gene_info = rutils.reorganizeGenes(out_mat.numberOfRows(), out_ids, raw_gene_info);
 
-            let split_out = rutils.splitByFeatureType(out_mat, genes.RNA);
+            let split_out = rutils.splitByFeatureType(out_mat, out_ids, gene_info);
             if (split_out !== null) {
-                scran.safeFree(out_mat);
-                matrices = split_out.matrices;
-                genes = split_out.genes;
+                scran.free(out_mat);
+                output.matrix = split_out.matrices;
+                output.row_ids = split_out.row_ids;
+                output.genes = split_out.genes;
+            } else {
+                output.row_ids = { RNA: out_ids };
+                output.genes = { RNA: gene_info };
             }
 
-            output = {
-                matrix: matrices,
-                genes: genes,
-                annotations: null
-            };
+            output.annotations = null;
+
         } catch (e) {
-            scran.safeFree(matrices);
+            scran.free(output.matrix);
             throw e;
+
         } finally {
             afile.removeH5(tmppath);
         }
