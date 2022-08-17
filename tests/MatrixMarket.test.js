@@ -39,11 +39,14 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     {
         let loaded = state.inputs.fetchCountMatrix();
         let loaded_names = state.inputs.fetchGenes().id;
+        let loaded_ids = state.inputs.fetchRowIds();
+
         let simple = scran.initializeSparseMatrixFromMatrixMarket(files.default.mtx, { layered: false });
         let parsed = bakana.readTable(files.default.genes, { compression: "gz" });
         let simple_names = parsed.map(x => x[0]);
-        utils.checkReorganization(simple, simple_names, loaded, loaded_names);
-        simple.free();
+
+        utils.checkReorganization(simple.matrix, simple.row_ids, simple_names, loaded, loaded_ids, loaded_names);
+        simple.matrix.free();
     }
 
     // Quality control.

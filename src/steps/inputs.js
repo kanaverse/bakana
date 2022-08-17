@@ -54,6 +54,10 @@ export class InputsState {
         return this.#cache.genes[type];
     }
 
+    fetchRowIds({ type = "RNA" } = {}) {
+        return this.#cache.row_ids[type];
+    }
+
     fetchGeneTypes() {
         return this.#cache.gene_types;
     }
@@ -1012,7 +1016,7 @@ export async function unserialize(handle, embeddedLoader) {
             // v1.1
             old_ids = rhandle.open("indices", { load: true }).values;
 
-            let ref = cache.matrix.get("RNA").identities().sort();
+            let ref = cache.ids["RNA"].slice().sort();
             let old_ids2 = old_ids.slice().sort();
             for (var i = 0; i < old_ids2.length; i++) {
                 if (ref[i] != old_ids2[i]) {
