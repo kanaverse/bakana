@@ -50,6 +50,7 @@ export class CustomSelectionsState {
         for (const k of Object.keys(this.#cache.results)) {
             this.#liberate(k);
         }
+        markers.freeVersusResults(this.#cache);
     }
 
     /***************************
@@ -203,6 +204,7 @@ export class CustomSelectionsState {
             }
             this.#parameters.selections = {};
             this.#cache.results = {};
+            markers.freeVersusResults(this.#cache);
             this.changed = true;
         }
 
@@ -217,6 +219,76 @@ export class CustomSelectionsState {
 
     static defaults() {
         return {};
+    }
+
+    /*******************************
+     ******** Versus mode **********
+     *******************************/
+
+    /**
+     * Extract markers for a pairwise comparison between two selections, for more detailed examination of the differences between them.
+     *
+     * @param {string} left - Identifier of one selection in which to find upregulated markers.
+     * @param {string} right - Identifier of another selection to be compared against `left`.
+     * Effect sizes are defined as `left - right`.
+     * @param {string} rank_type - Effect size to use for ranking markers.
+     * This should be one of `lfc`, `cohen`, `auc` or `delta_detected`.
+     * @param {string} feat_type - The feature type of interest, usually `"RNA"` or `"ADT"`.
+     *
+     * @return An object containing the marker statistics for this pairwise comparison, sorted by the specified effect from `rank_type`.
+     * This has the same structure as described for {@linkcode CustomSelectionsState#fetchResults fetchResults}.
+     */
+    computeVersus(left, right, rank_type, feat_type) {
+        return markers.generateVersusResults(
+            left, 
+            right, 
+            rank_type, 
+            feat_type, 
+            this.#cache,
+            (smal, bigg) => {
+                if (!(smal in this.#parameters.selections && bigg in this.#parameters.selections)) {
+                    throw new Error("invalid selection ID requested in versus mode");
+                }
+
+                let smalsel = this.#parameters.selections[smal];
+                let biggsel = this.#parameters.selections[bigg];
+                if (smalsel.length == 0 || biggsel.length == 0) {
+                    throw new Error("non-zero entries should be present for both requested selections in versus mode");
+                }
+
+                let triplets = [];
+                smalsel.forEach((x, i) => {
+                    triplets.push({ "index": i, "cluster": 0 });
+                });
+                biggsel.forEach((x, i) => {
+                    triplets.push({ "index": i, "cluster": 1 });
+                });
+
+                triplets.sort((a, b) => a.index - b.index);
+                let keep = triplets.map(x => x.index);
+                let new_clusters = triplets.map(x => x.cluster);
+
+                var block = this.#filter.fetchFilteredBlock();
+                let new_block = null;
+                if (block !== null) {
+                    let block_arr = block.array();
+                    new_block = keep.map(i => block_arr[i]);
+                    markers.dropUnusedBlocks(new_block);
+                }
+
+                let output;
+                var mat = this.#norm_states[feat_type].fetchNormalizedMatrix();
+                let sub;
+                try {
+                    sub = scran.subsetColumns(mat, keep);
+                    output = scran.scoreMarkers(sub, new_clusters, { block: new_block });
+                } finally {
+                    utils.freeCache(sub);
+                }
+
+                return output;
+            }
+        );
     }
 
     /***************************

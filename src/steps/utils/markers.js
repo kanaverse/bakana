@@ -138,3 +138,52 @@ export function formatMarkerResults(results, group, rankEffect) {
     };
 }
 
+export function generateVersusResults(left, right, rank_type, feat_type, cache, generate) {
+    if (!("versus" in cache)) {
+        cache.versus = {};
+    }
+    let versus = cache.versus;
+
+    let bigg = (left < right ? right : left);
+    let smal = (left < right ? left : right); 
+
+    if (!(bigg in versus)) {
+        versus[bigg] = {};
+    }
+    let biggversus = versus[bigg];
+
+    if (!(smal in biggversus)) {
+        biggversus[smal] = {};
+    }
+    let smalversus = biggversus[smal];
+
+    if (!(feat_type in smalversus)) {
+        smalversus[feat_type] = generate(smal, bigg);
+    }
+    return formatMarkerResults(smalversus[feat_type], (left < right ? 0 : 1), rank_type + "-mean"); 
+}
+
+export function freeVersusResults(cache) {
+    if ("versus" in cache) {
+        for (const v of Object.values(cache.versus)) {
+            for (const v2 of Object.values(v)) {
+                for (const m of Object.values(v2)) {
+                    scran.free(m);
+                }
+            }
+        }
+        delete cache.versus;
+    }
+}
+
+export function dropUnusedBlocks(x) {
+    let counter = 0;
+    let mapping = {};
+    x.forEach((y, i) => {
+        if (!(y in mapping)) {
+            mapping[y] = counter;
+            counter++;
+        }
+        x[i] = mapping[y];
+    });
+}
