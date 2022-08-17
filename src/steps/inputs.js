@@ -989,7 +989,7 @@ export async function unserialize(handle, embeddedLoader) {
             let dhandle = rhandle.open("permutation", { load: true });
             let ids = new Int32Array(dhandle.values.length);
             dhandle.values.forEach((x, i) => { ids[x] = i; });
-            perm.RNA = scran.updateRowIdentities(cache.matrix.get("RNA"), ids);
+            perm.RNA = scran.updateRowIdentities(cache.row_ids["RNA"], ids);
         } else if ("identities" in rhandle.children) {
             if (rhandle.children["identities"] == "DataSet") {
                 // v1.2
@@ -1016,7 +1016,7 @@ export async function unserialize(handle, embeddedLoader) {
             // v1.1
             old_ids = rhandle.open("indices", { load: true }).values;
 
-            let ref = cache.ids["RNA"].slice().sort();
+            let ref = cache.row_ids["RNA"].slice().sort();
             let old_ids2 = old_ids.slice().sort();
             for (var i = 0; i < old_ids2.length; i++) {
                 if (ref[i] != old_ids2[i]) {

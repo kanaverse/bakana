@@ -99,7 +99,7 @@ export function preflight(args) {
         let handle = new scran.H5File(tmppath);
         let raw_gene_info = extract_features(handle);
 
-        let split_out = rutils.presplitByFeatureType(output.genes.RNA);
+        let split_out = rutils.presplitByFeatureType(raw_gene_info);
         if (split_out !== null) {
             output.genes = split_out.genes;
         } else {
