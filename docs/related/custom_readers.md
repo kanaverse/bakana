@@ -3,16 +3,14 @@
 ## Overview
 
 Developers can add new data readers to supplement the defaults in `src/readers`.
-This is most useful for pulling data from external databases for entry into the **bakana** workflow.
+This is most useful for pulling data from external databases for entry into the _bakana_ workflow.
 A new reader should be implemented as an ES6 module with the required exports below.
 
 ## Exports
 
-```js
-abbreviate(args) 
-```
+### `abbreviate(args)`
 
-**Generate a summary of the matrix to check whether the inputs have changed on re-analysis.**
+_Generate a summary of the matrix to check whether the inputs have changed on re-analysis._
 
 This function should accept an object `args` containing information about a single count matrix in the reader's desired format.
 `args` may contain an arbitrary number of properties - their specification is left to the reader.
@@ -23,11 +21,9 @@ The returned object should be easily stringified for quick comparison,
 while still being unique enough to distinguish between most other values of `args`.
 We generally recommend generating a summary based on the file name and size, which is fast and unique enough for most comparisons.
 
-```js
-preflight(args) 
-```
+### `preflight(args)`
 
-**Fetch annotations from the matrix before the analysis begins.**
+_Fetch annotations from the matrix before the analysis begins._
 
 This function should accept an object `args` containing information about a single count matrix in the reader's desired format.
 The expected structure of `args` is identical to that described for `abbreviate()`.
@@ -50,51 +46,50 @@ It should return an object containing the `genes` and `annotations` properties:
 
 Alternatively, this method may return a promise that resolves to such an object.
 
-```js
-new Reader(args)
-```
+### The `Reader` class
 
-**Represent all information about a single count matrix.**
+#### `new Reader(args)`
+
+_Represent all information about a single count matrix._
 
 This constructor should accept an object `args` containing information about a single count matrix in the reader's desired format.
 The expected structure of `args` is identical to that described for `abbreviate()`.
 
-The structure of the class is left as an implementation detail for each reader.
+The class should provide the methods listed below.
 
-```js
-Reader.prototype.format()
-```
+#### `Reader.prototype.format()`
 
-**Specify the format of the count matrix.**
+_Specify the format of the count matrix._
 
 This should return a string specifying the format of the count matrix corresponding to this reader.
 The value of the string is defined by the reader's developer.
 
-```js
-Reader.protoype.load()
-```
+#### `Reader.protoype.load()`
 
-**Load the count matrix into memory.**
+_Load the count matrix into memory._
 
 This should return an object containing:
 
-- `matrix`, a `MultiMatrix` object containing matrices for at least one modality.
-  Each modality-specific matrix should be a `ScranMatrix` containing any number of rows.
+- `matrix`, a `MultiMatrix` object containing submatrices for at least one modality.
+  Each modality-specific submatrix should be a `ScranMatrix` containing any number of rows.
   All modalities should contain data for the same number of columns.
+- `row_ids`, an object specifying the row identities for each submatrix in `matrix`.
+  Keys should correspond to the modality names in `matrix` and each value should be an integer array containing the identities of the submatrix rows.
+  Feature identities should be encoded as non-negative integers that are unique within each submatrix.
+  Developers should endeavor to keep identities consistent across different versions of the reader (i.e., the same feature gets the same integer identity),
+  as **bakana** will automatically use this information to transform old results to match the row order in the current version of the application.
 - The object may also contain `gene`, an object where each key is the name of a modality in `matrix`.
-  Each modality-specific value is another object where each keys is a gene annotation field name and each value is an array of per-gene information.
-  Each array corresponds to the matrix of the corresponding modality in `matrix`;
-  thus, if the rows of `matrix` were reorganized in any way (e.g., subsetting or permutation), the same reorganization should be applied to each array in `genes[<modality>]`.
+  Each modality-specific value is another object where each key is a gene annotation field name and each value is an array of per-gene information.
+  Each array corresponds to the submatrix of the corresponding modality in `matrix` and contains annotation for its rows.
+  (Thus, if the rows of `matrix.get(<modality>)` were reorganized in any way, e.g., subsetting or permutation, the same reorganization should be applied to each array in `genes[<modality>]`.)
 - The object may also contain `annotations`, an object where each key is a cell annotation field name and each value is an array of per-cell information.
   Each array should correspond to a column in `matrix`.
 
 Alternatively, this method may return a promise that resolves to such an object.
 
-```js
-Reader.prototype.serialize(embeddedSaver)
-```
+#### `Reader.prototype.serialize(embeddedSaver)`
 
-**Register the count matrix in the state file.**
+_Register the count matrix in the state file._
 
 This should return an array of objects where each object represents a data file used to create the count matrix.
 Each object should contain `type`, a string specifying the type of file; and `name`, the name of the file.
@@ -109,11 +104,9 @@ If `embeddedSaver = null`, each object in the returned array should instead cont
 This should be a unique string, typically containing a link to some external database system that holds the corresponding file.
 The interpretation of `id` is left to the reader, as long as it can be used to meaningfully recover the same file in `unserialize()` below.
 
-```js
-unserialize(values, embeddedLoader)
-```
+### `unserialize(values, embeddedLoader)`
 
-**Load the count matrix from the state file.**
+_Load the count matrix from the state file._
 
 `values` should be an array of objects where object represents a data file used to create the count matrix.
 Each object should contain `type` and `name`, as described in the `Reader.serialize()` method.
