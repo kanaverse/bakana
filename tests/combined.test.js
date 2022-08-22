@@ -40,6 +40,40 @@ test("multi-matrix analyses work correctly", async () => {
     expect("4K" in contents.quality_control.thresholds).toBe(true);
 
     {
+        // Checking that the matrix was correctly loaded.
+        let loaded3k = scran.initializeSparseMatrixFromMatrixMarket(files["3K"].mtx, { layered: false });
+        let parsed3k = bakana.readTable(files["3K"].genes, { compression: "gz" });
+        let names3k = {};
+        parsed3k.forEach((x, i) => { names3k[x[0]] = i; })
+
+        let loaded4k = scran.initializeSparseMatrixFromHDF5(files["4K"].h5, "matrix", { layered: false });
+        let info4k = (new scran.H5File(files["4K"].h5)).open("matrix").open("features").open("id", { load: true }).values;
+        let names4k = {};
+        info4k.forEach((x, i) => { names4k[x] = i; }); 
+
+        // Randomly picking every 100th gene and checking we get the same results.
+        let combined_names = state.inputs.fetchGenes()["id"];
+        for (var i = 0; i < combined_names.length; i+=100) {
+            let i3 = names3k[combined_names[i]];
+            let x3 = loaded3k.matrix.row(i3);
+            let i4 = names4k[combined_names[i]];
+            let x4 = loaded4k.matrix.row(i4);
+
+            let com = state.inputs.fetchCountMatrix().row(i);
+            let expected = new Float64Array(x3.length + x4.length);
+            expected.set(x3, 0);
+            expected.set(x4, x3.length);
+
+            expect(com).toEqual(expected);
+        }
+
+        // IDs should be the same as the first matrix.
+        let expected_ids = new Int32Array(combined_names.length);
+        combined_names.forEach((x, i) => { expected_ids[i] = names3k[x]; });
+        expect(state.inputs.fetchRowIds()).toEqual(expected_ids);
+    }
+
+    {
         // Checking the blocking factors.
         expect(state.inputs.fetchBlockLevels()).toEqual(["3K", "4K"]); 
         let ids = state.inputs.fetchBlock();
