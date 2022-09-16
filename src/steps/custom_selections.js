@@ -226,6 +226,72 @@ export class CustomSelectionsState {
      *******************************/
 
     /**
+     * Compute markers between two selections as described for {@linkcode CustomSelectionsState#computeVersus computeVersus}, but for a custom matrix, clusters and cache.
+     * This allows applications to run versus-mode comparisons on custom inputs without creating a CustomSelectionState object.
+     *
+     * @param {string} left - Identifier of one selection in which to find upregulated markers.
+     * @param {string} right - Identifier of another selection to be compared against `left`.
+     * Effect sizes are defined as `left - right`.
+     * @param {string} rank_type - Effect size to use for ranking markers.
+     * @param {string} feat_type - The feature type of interest, usually `"RNA"` or `"ADT"`.
+     * @param {ScranMatrix} mat - Matrix containing log-expression data for all cells.
+     * @param {object} selections - Object containing selections of cells as Arrays, TypedArrays or WasmArrays of column indices on `mat`.
+     * Each key should be a selection identifier.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {object} [options.cache={}] - Cache for the results.
+     * @param {?Int32WasmArray} [options.block=null] - Blocking factor of length equal to the number of cells in `mat`, 
+     * see {@linkcode CellFilteringState#fetchFilteredBlock CellFilteringState.fetchFilteredBlock}.
+     *
+     * @return An object containing the marker statistics for this pairwise comparison - see {@linkcode CustomSelectionsState#computeVersus computeVersus} for details.
+     */
+    static computeVersusCustom(left, right, rank_type, feat_type, mat, selections, { cache = {}, block = null } = {}) {
+
+        let generate = (smal, bigg) => {
+            if (!(smal in selections && bigg in selections)) {
+                throw new Error("invalid selection ID requested in versus mode");
+            }
+
+            let smalsel = selections[smal];
+            let biggsel = selections[bigg];
+            if (smalsel.length == 0 || biggsel.length == 0) {
+                throw new Error("non-zero entries should be present for both requested selections in versus mode");
+            }
+
+            let triplets = [];
+            smalsel.forEach((x, i) => {
+                triplets.push({ "index": i, "cluster": 0 });
+            });
+            biggsel.forEach((x, i) => {
+                triplets.push({ "index": i, "cluster": 1 });
+            });
+
+            triplets.sort((a, b) => a.index - b.index);
+            let keep = triplets.map(x => x.index);
+            let new_clusters = triplets.map(x => x.cluster);
+
+            let new_block = null;
+            if (block !== null) {
+                let block_arr = block.array();
+                new_block = keep.map(i => block_arr[i]);
+                markers.dropUnusedBlocks(new_block);
+            }
+
+            let output;
+            let sub;
+            try {
+                sub = scran.subsetColumns(mat, keep);
+                output = scran.scoreMarkers(sub, new_clusters, { block: new_block });
+            } finally {
+                utils.freeCache(sub);
+            }
+
+            return output;
+        }
+
+        return markers.generateVersusResults(left, right, rank_type, feat_type, cache, generate);
+    }
+
+    /**
      * Extract markers for a pairwise comparison between two selections, for more detailed examination of the differences between them.
      *
      * @param {string} left - Identifier of one selection in which to find upregulated markers.
@@ -239,56 +305,9 @@ export class CustomSelectionsState {
      * This has the same structure as described for {@linkcode CustomSelectionsState#fetchResults fetchResults}.
      */
     computeVersus(left, right, rank_type, feat_type) {
-        return markers.generateVersusResults(
-            left, 
-            right, 
-            rank_type, 
-            feat_type, 
-            this.#cache,
-            (smal, bigg) => {
-                if (!(smal in this.#parameters.selections && bigg in this.#parameters.selections)) {
-                    throw new Error("invalid selection ID requested in versus mode");
-                }
-
-                let smalsel = this.#parameters.selections[smal];
-                let biggsel = this.#parameters.selections[bigg];
-                if (smalsel.length == 0 || biggsel.length == 0) {
-                    throw new Error("non-zero entries should be present for both requested selections in versus mode");
-                }
-
-                let triplets = [];
-                smalsel.forEach((x, i) => {
-                    triplets.push({ "index": i, "cluster": 0 });
-                });
-                biggsel.forEach((x, i) => {
-                    triplets.push({ "index": i, "cluster": 1 });
-                });
-
-                triplets.sort((a, b) => a.index - b.index);
-                let keep = triplets.map(x => x.index);
-                let new_clusters = triplets.map(x => x.cluster);
-
-                var block = this.#filter.fetchFilteredBlock();
-                let new_block = null;
-                if (block !== null) {
-                    let block_arr = block.array();
-                    new_block = keep.map(i => block_arr[i]);
-                    markers.dropUnusedBlocks(new_block);
-                }
-
-                let output;
-                var mat = this.#norm_states[feat_type].fetchNormalizedMatrix();
-                let sub;
-                try {
-                    sub = scran.subsetColumns(mat, keep);
-                    output = scran.scoreMarkers(sub, new_clusters, { block: new_block });
-                } finally {
-                    utils.freeCache(sub);
-                }
-
-                return output;
-            }
-        );
+        var block = this.#filter.fetchFilteredBlock();
+        var mat = this.#norm_states[feat_type].fetchNormalizedMatrix();
+        return this.constructor.computeVersusCustom(left, right, rank_type, feat_type, mat, this.#parameters.selections, { cache: this.#cache, block: block });
     }
 
     /***************************

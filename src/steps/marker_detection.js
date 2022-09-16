@@ -140,6 +140,67 @@ export class MarkerDetectionState {
      *******************************/
 
     /**
+     * Compute markers between two clusters as described for {@linkcode MarkerDetectionState#computeVersus computeVersus}, but for a custom matrix, clusters and cache.
+     * This allows applications to run versus-mode comparisons on custom inputs without creating a MarkerDetectionState object.
+     *
+     * @param {number} left - Index of one cluster in which to find upregulated markers.
+     * @param {number} right - Index of another cluster to be compared against `left`.
+     * @param {string} rank_type - Effect size to use for ranking markers.
+     * @param {string} feat_type - Feature type of interest.
+     * @param {ScranMatrix} mat - Matrix containing log-expression data for all cells.
+     * @param {Array|TypedArray|Int32WasmArray} clusters - Integer array of length containing the cluster assignments for all cells in `mat`.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {object} [options.cache={}] - Cache for the results.
+     * @param {?Int32WasmArray} [options.block=null] - Blocking factor of length equal to the number of cells in `mat`, 
+     * see {@linkcode CellFilteringState#fetchFilteredBlock CellFilteringState.fetchFilteredBlock}.
+     *
+     * @return An object containing the marker statistics, see {@linkcode MarkerDetectionState#computeVersus computeVersus} for more details.
+     */
+    static computeVersusCustom(left, right, rank_type, feat_type, mat, clusters, { cache = {}, block = null } = {}) {
+
+        let generate = (smal, bigg) => {
+            let new_clusters = [];
+            let keep = [];
+            let smalfound = false, biggfound = false;
+            clusters.forEach((x, i) => {
+                if (x == smal) {
+                    new_clusters.push(0);
+                    keep.push(i);
+                    smalfound = true;
+                } else if (x == bigg) {
+                    new_clusters.push(1);
+                    keep.push(i);
+                    biggfound = true;
+                }
+            });
+
+            if (!smalfound || !biggfound) {
+                throw new Error("non-zero entries should be present for both requested clusters in versus mode");
+            }
+
+            let new_block = null;
+            if (block !== null) {
+                let block_arr = block.array();
+                new_block = keep.map(i => block_arr[i]);
+                markers.dropUnusedBlocks(new_block);
+            }
+
+            let output;
+            let sub;
+            try {
+                sub = scran.subsetColumns(mat, keep);
+                output = scran.scoreMarkers(sub, new_clusters, { block: new_block });
+            } finally {
+                utils.freeCache(sub);
+            }
+
+            return output;
+        };
+
+        return markers.generateVersusResults(left, right, rank_type, feat_type, cache, generate);
+    }
+
+    /**
      * Extract markers for a pairwise comparison between two clusters, for more detailed examination of the differences between them.
      *
      * @param {number} left - Index of one cluster in which to find upregulated markers.
@@ -155,55 +216,10 @@ export class MarkerDetectionState {
      * This has the same structure as described for {@linkcode MarkerDetectionState#fetchGroupResults fetchGroupResults}.
      */
     computeVersus(left, right, rank_type, feat_type) {
-        return markers.generateVersusResults(
-            left, 
-            right, 
-            rank_type, 
-            feat_type, 
-            this.#cache,
-            (smal, bigg) => {
-                var clusters = this.#choice.fetchClustersAsWasmArray();
-
-                let new_clusters = [];
-                let keep = [];
-                let smalfound = false, biggfound = false;
-                clusters.forEach((x, i) => {
-                    if (x == smal) {
-                        new_clusters.push(0);
-                        keep.push(i);
-                        smalfound = true;
-                    } else if (x == bigg) {
-                        new_clusters.push(1);
-                        keep.push(i);
-                        biggfound = true;
-                    }
-                });
-
-                if (!smalfound || !biggfound) {
-                    throw new Error("non-zero entries should be present for both requested clusters in versus mode");
-                }
-
-                var block = this.#filter.fetchFilteredBlock();
-                let new_block = null;
-                if (block !== null) {
-                    let block_arr = block.array();
-                    new_block = keep.map(i => block_arr[i]);
-                    markers.dropUnusedBlocks(new_block);
-                }
-
-                let output;
-                var mat = this.#norm_states[feat_type].fetchNormalizedMatrix();
-                let sub;
-                try {
-                    sub = scran.subsetColumns(mat, keep);
-                    output = scran.scoreMarkers(sub, new_clusters, { block: new_block });
-                } finally {
-                    utils.freeCache(sub);
-                }
-
-                return output;
-            }
-        );
+        var clusters = this.#choice.fetchClustersAsWasmArray();
+        var mat = this.#norm_states[feat_type].fetchNormalizedMatrix();
+        var block = this.#filter.fetchFilteredBlock();
+        return this.constructor.computeVersusCustom(left, right, rank_type, feat_type, mat, clusters, { cache: this.#cache, block: block });
     }
 
     /***************************

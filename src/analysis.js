@@ -28,6 +28,9 @@ import * as cluster_markers from "./steps/marker_detection.js";
 import * as label_cells from "./steps/cell_labelling.js";
 import * as custom_markers from "./steps/custom_selections.js";
 
+export { MarkerDetectionState } from "./steps/marker_detection.js";
+export { CustomSelectionsState } from "./steps/custom_selections.js";
+
 const step_inputs = inputs.step_name;
 const step_qc = qc.step_name;
 const step_qc_adt = qcadt.step_name;
