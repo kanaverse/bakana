@@ -32,12 +32,16 @@ export class LoadedFile {
     }
 };
 
-export function realizeMatrixMarket(loaded) {
+export function realizeFile(loaded) {
     return loaded.path;
 }
 
+export function realizeMatrixMarket(loaded) {
+    return realizeFile(loaded);
+}
+
 export function realizeH5(loaded) {
-    return loaded.path;
+    return realizeFile(loaded);
 }
 
 // The default is allowed = false here; we are not allowed to delete stuff
