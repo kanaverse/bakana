@@ -27,6 +27,7 @@ download 10x-pbmc-v1.0.0/combined-barcodes.tsv.gz pbmc-combined-barcodes.tsv.gz
 
 # Download Zeisel datasets.
 download zeisel-brain-v1.0.0/csc.h5ad zeisel-brain.h5ad
+download zeisel-brain-v1.0.0/csc.rds zeisel-brain.rds
 
 # Download immune datasets.
 download 10x-immune-v1.0.0/immune_3.0.0_sub-matrix.mtx.gz immune_3.0.0-matrix.mtx.gz
