@@ -23,7 +23,7 @@ function load_listData_names(lhandle) {
         scran.free(nhandle);
     }
 
-    if (colnames.length != lhandle.length()) {
+    if (names.length != lhandle.length()) {
         throw new Error("expected names to have same length as listData");
     }
     return names;
@@ -40,7 +40,7 @@ function load_data_frame(handle) {
     }
 
     let columns = {};
-    let lhandle = lhandle.attribute(ldx);
+    let lhandle = handle.attribute(ldx);
     try {
         if (!(lhandle instanceof scran.RdsGenericVector)) {
             throw new Error("listData slot should be a generic list");
@@ -51,6 +51,7 @@ function load_data_frame(handle) {
             throw new Error("expected the listData list to be named");
         }
 
+        console.log(colnames);
         for (var i = 0; i < lhandle.length(); i++) {
             let curhandle = lhandle.load(i);
             try {
@@ -61,6 +62,7 @@ function load_data_frame(handle) {
                 scran.free(curhandle);
             }
         }
+        console.log(columns);
     } finally {
         scran.free(lhandle);
     }
@@ -72,7 +74,7 @@ function load_data_frame(handle) {
         throw new Error("expected a rownames slot in a DFrame");
     }
 
-    let rnhandle = lhandle.attribute(ldx);
+    let rnhandle = handle.attribute(rndx);
     try {
         if (rnhandle.type() instanceof scran.RdsStringVector) {
             output.row_names = rhandle.values();
@@ -111,51 +113,92 @@ function extract_annotations(handle) {
         scran.free(chandle);
     }
 
+    return output.columns;
+}
+
+function extract_NAMES(handle) {
+    let nidx = handle.findAttribute("NAMES");
+    if (nidx < 0) {
+        return null;
+    }
+
+    let nhandle = handle.attribute(nidx);
+    let output = null;
+    try {
+        if (nhandle instanceof scran.RdsStringVector) {
+            output = nhandle.values();
+        }
+    } finally {
+        scran.free(nhandle);
+    }
+
     return output;
 }
 
 function extract_features(handle) {
-    let cls = handle.className();
+    let rowdata = {};
+    let names = null;
 
-    if (cls == "SummarizedExperiment") {
-        let rdx = handle.findAttribute("rowData");
+    let rrdx = handle.findAttribute("rowRanges");
+    if (rrdx < 0) {
+        // This is a base SummarizedExperiment.
+        let rdx = handle.findAttribute("elementMetadata");
         if (rdx < 0) {
-            throw new Error("expected a rowData slot in a SummarizedExperiment");
+            throw new Error("expected a elementMetadata slot in a SummarizedExperiment");
         }
 
         let rhandle = handle.attribute(rdx);
-        let output;
         try {
-            output = load_data_frame(rhandle);
+            rowdata = load_data_frame(rhandle);
         } finally {
             scran.free(rhandle);
         }
 
-        return output;
-    }
+        names = extract_NAMES(handle);
 
-    // Everything else is assumed to be a RSE bro!
-    let rrdx = handle.findAttribute("rowRanges");
-    if (rrdx < 0) {
-        throw new Error("expected a rowRanges slot in a RangedSummarizedExperiment");
-    }
-
-    let rrhandle = handle.attribute(rrdx);
-    let output;
-    try {
-        let edx = rrhandle.findAttribute("elementMetadata");
-        if (edx < 0) {
-            throw new Error("expected an elementMetadata slot in a rowRanges object");
+    } else {
+        // Everything else is assumed to be an RSE.
+        if (rrdx < 0) {
+            throw new Error("expected a rowRanges slot in a RangedSummarizedExperiment");
         }
 
-        let ehandle = rrhandle.attribute(edx);
+        let rrhandle = handle.attribute(rrdx);
+        let output;
         try {
-            output = load_data_frame(ehandle);
+            let edx = rrhandle.findAttribute("elementMetadata");
+            if (edx < 0) {
+                throw new Error("expected an elementMetadata slot in a rowRanges object");
+            }
+
+            let ehandle = rrhandle.attribute(edx);
+            try {
+                rowdata = load_data_frame(ehandle);
+            } finally {
+                scran.free(ehandle);
+            }
+
+            let pidx = rrhandle.findAttribute("partitioning");
+            if (pidx < 0) { // if absent, we'll assume it's a GRanges.
+                names = extract_NAMES(rrhandle);
+            } else { // otherwise, it's a GRangesList.
+                let phandle = rrhandle.attribute(pidx);
+                try {
+                    names = extract_NAMES(phandle);
+                } finally {
+                    scran.free(phandle);
+                }
+            }
+
         } finally {
-            scran.free(ehandle);
+            scran.free(rrhandle);
         }
-    } finally {
-        scran.free(rrhandle);
+    }
+
+    let output = { id: names };
+    for (const [k, v] of Object.entries(rowdata.columns)) {
+        if (k.match(/^sym/)) {
+            output[k] = v;
+        }
     }
 
     return output;
@@ -175,7 +218,7 @@ function extract_counts(handle) {
             throw new Error("expected a data slot in the assays object");
         }
 
-        let dhandle = ahandle.attribtue(ddx);
+        let dhandle = ahandle.attribute(ddx);
         try {
             let ldx = dhandle.findAttribute("listData");
             if (ldx) {
@@ -226,17 +269,10 @@ async function preflight_raw(handle) {
         "SpatialExperiment": "SpatialExperiment"
     }, "SummarizedExperiment");
 
+    let output = {};
+
     // Loading the gene info.
-    let gene_info = extract_features(handle);
-    output.genes = {};
-    if ("row_names" in gene_info) {
-        output.genes.id = gene_info.row_names;
-    }
-    for (const [k, v] of Object.entries(gene_info.columns)) {
-        if (k.match(/^sym/)) {
-            output.genes[k] = v;
-        }
-    }
+    output.genes = { RNA: extract_features(handle) };
 
     // Loading the cell annotation.
     let anno = extract_annotations(handle);
@@ -262,7 +298,7 @@ export async function preflight(args) {
 
     let rdshandle = scran.readRds(rds_stuff);
     try {
-        let rhandle = rdshandle.load();
+        let rhandle = rdshandle.value();
         try {
             let rna = preflight_raw(rhandle);
             output_anno.RNA = rna.annotations;
@@ -279,8 +315,6 @@ export async function preflight(args) {
 
 export class Reader {
     #rds;
-    #genes;
-    #annotations;
 
     constructor(args, formatted = false) {
         if (!formatted) {
@@ -291,28 +325,36 @@ export class Reader {
     }
 
     load() {
-        let rds_data = rutils.formatFile(args.rds, false);
-        let rds_stuff = afile.realizeMatrixMarket(rds_data.content);
+        let rds_stuff = afile.realizeFile(this.#rds.content);
+        let output = {};
 
         let rdshandle = scran.readRds(rds_stuff);
         try {
-            let output = { matrix: new scran.MultiMatrix };
+
+            let rhandle = rdshandle.value();
             try {
-                let loaded = extract_counts(rdshandle);
 
-                let out_mat = loaded.matrix;
-                let out_ids = loaded.row_ids;
-                output.matrix.add("RNA", out_mat);
+                output.matrix = new scran.MultiMatrix;
+                try {
+                    let loaded = extract_counts(rhandle);
 
-                let raw_gene_info = extract_features(rdshandle);
-                let gene_info = rutils.reorganizeGenes(out_mat.numberOfRows(), out_ids, raw_gene_info);
-                output.genes = { RNA: gene_info };
-                output.row_ids = { RNA: out_ids };
-                output.annotations = extract_annotations(rdshandle) ;
+                    let out_mat = loaded.matrix;
+                    let out_ids = loaded.row_ids;
+                    output.matrix.add("RNA", out_mat);
 
-            } catch (e) {
-                scran.free(output.matrix);
-                throw e;
+                    let raw_gene_info = extract_features(rhandle);
+                    let gene_info = rutils.reorganizeGenes(out_mat.numberOfRows(), out_ids, raw_gene_info);
+                    output.genes = { RNA: gene_info };
+                    output.row_ids = { RNA: out_ids };
+                    output.annotations = extract_annotations(rhandle) ;
+
+                } catch (e) {
+                    scran.free(output.matrix);
+                    throw e;
+                }
+
+            } finally {
+                scran.free(rhandle);
             }
 
         } finally {

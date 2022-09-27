@@ -1,6 +1,7 @@
 import * as TENxReader from "./10x.js";
 import * as H5ADReader from "./h5ad.js";
 import * as MtxReader from "./mtx.js";
+import * as SEReader from "./se.js";
 
 export function chooseReader(format) {
     if (!(format in availableReaders)) {
@@ -17,5 +18,6 @@ export function chooseReader(format) {
 export var availableReaders = {
     "MatrixMarket": MtxReader,
     "10X": TENxReader,
-    "H5AD": H5ADReader
+    "H5AD": H5ADReader,
+    "SummarizedExperiment": SEReader
 };
