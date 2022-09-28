@@ -91,7 +91,7 @@ test("annotation preflight works correctly for H5ADs", async () => {
     expect(sex.max).toBe(3);
 })
 
-test("annotation preflight works correctly for RDS", async () => {
+test("annotation preflight works correctly for SummarizedExperiments", async () => {
     let res = await bakana.validateAnnotations(
         {
             "brain": {
