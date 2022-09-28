@@ -1,11 +1,12 @@
 import * as bakana from "../src/index.js";
+import * as inputs from "../src/steps/inputs.js";
 import * as scran from "scran.js";
 import * as utils from "./utils.js";
 
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
-test("runAnalysis works correctly (SummarizedExperiment)", async () => {
+test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async () => {
     let contents = {};
     let finished = (step, res) => {
         contents[step] = res;
@@ -34,10 +35,25 @@ test("runAnalysis works correctly (SummarizedExperiment)", async () => {
         let loaded = state.inputs.fetchCountMatrix();
         let loaded_ids = state.inputs.fetchRowIds();
         let loaded_names = state.inputs.fetchGenes().id;
+        expect(loaded_names.length).toBeGreaterThan(0);
 
-        let h5ad = "files/datasets/zeisel-brain.h5ad";
-        let simple = scran.initializeSparseMatrixFromHDF5(h5ad, "X", { layered: false });
-        let simple_names = (new scran.H5File(h5ad)).open("var").open("_index", { load: true }).values;
+        let rdshandle = scran.readRds(files.default.rds);
+        let rhandle = rdshandle.value();
+        expect(rhandle.className()).toBe("SingleCellExperiment");
+
+        let rrhandle = rhandle.attribute("rowRanges");
+        expect(rrhandle.className()).toMatch("GRangesList");
+        let nhandle = rrhandle.attribute("partitioning").attribute("NAMES"); // technically a memory leak, but finalizers should handle it.
+        let simple_names = nhandle.values();
+
+        let ahandle = rhandle.attribute("assays").attribute("data").attribute("listData").load(0); // again, technically memory leaks here.
+        let simple = scran.initializeSparseMatrixFromRds(ahandle, { layered: false, consume: true });
+
+        ahandle.free();
+        nhandle.free();
+        rrhandle.free();
+        rhandle.free();
+        rdshandle.free();
 
         utils.checkReorganization(simple.matrix, simple.row_ids, simple_names, loaded, loaded_ids, loaded_names);
         simple.matrix.free();
@@ -93,3 +109,75 @@ test("runAnalysis works correctly (SummarizedExperiment)", async () => {
     await bakana.freeAnalysis(reloaded);
 })
 
+test("RDS loaders work correctly for a base SummarizedExperiment", async () => {
+    let contents = {};
+    let finished = (step, res) => {
+        contents[step] = res;
+    };
+
+    let files = { 
+        default: {
+            format: "SummarizedExperiment",
+            rds: "files/datasets/paul-hsc.rds"
+        }
+    };
+
+    // Check we're dealing with a pure SE.
+    {
+        let rdshandle = scran.readRds(files.default.rds);
+        let rhandle = rdshandle.value();
+        expect(rhandle.className()).toBe("SummarizedExperiment");
+        rhandle.free();
+        rdshandle.free();
+    }
+
+    let fullstate = new inputs.InputsState;
+    await fullstate.compute(files, null, null);
+
+    let loaded = fullstate.fetchCountMatrix();
+    expect(loaded.numberOfColumns()).toBeGreaterThan(0);
+
+    let loaded_names = fullstate.fetchGenes().id;
+    expect(loaded_names.length).toBeGreaterThan(0);
+
+    fullstate.free();
+})
+
+test("RDS loaders work correctly for GRanges SummarizedExperiment", async () => {
+    let contents = {};
+    let finished = (step, res) => {
+        contents[step] = res;
+    };
+
+    let files = { 
+        default: {
+            format: "SummarizedExperiment",
+            rds: "files/datasets/zeisel-brain-dense.rds"
+        }
+    };
+
+    // Check we're dealing with a GRanges-containing SCE.
+    {
+        let rdshandle = scran.readRds(files.default.rds);
+        let rhandle = rdshandle.value();
+        expect(rhandle.className()).toBe("SingleCellExperiment");
+
+        let rrhandle = rhandle.attribute("rowRanges");
+        expect(rrhandle.className()).toBe("GRanges");
+
+        rrhandle.free();
+        rhandle.free();
+        rdshandle.free();
+    }
+
+    let fullstate = new inputs.InputsState;
+    await fullstate.compute(files, null, null);
+
+    let loaded = fullstate.fetchCountMatrix();
+    expect(loaded.numberOfColumns()).toBeGreaterThan(0);
+
+    let loaded_names = fullstate.fetchGenes().id;
+    expect(loaded_names.length).toBeGreaterThan(0);
+
+    fullstate.free();
+})

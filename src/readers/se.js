@@ -167,8 +167,15 @@ function extract_features(handle) {
 
             let pidx = rrhandle.findAttribute("partitioning");
             if (pidx < 0) { // if absent, we'll assume it's a GRanges.
-                names = extract_NAMES(rrhandle);
-
+                let r2handle;
+                try {
+                    r2handle = rrhandle.attribute("ranges");
+                    names = extract_NAMES(r2handle);
+                } catch(e) {
+                    throw new Error("failed to extract names from the rowRanges; " + e.message);
+                } finally {
+                    scran.free(r2handle);
+                }
             } else { // otherwise, it's a GRangesList.
                 let phandle;
                 try {
