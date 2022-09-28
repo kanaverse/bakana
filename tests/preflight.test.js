@@ -91,6 +91,32 @@ test("annotation preflight works correctly for H5ADs", async () => {
     expect(sex.max).toBe(3);
 })
 
+test("annotation preflight works correctly for RDS", async () => {
+    let res = await bakana.validateAnnotations(
+        {
+            "brain": {
+                format: "SummarizedExperiment",
+                rds: "files/datasets/zeisel-brain.rds"
+            }
+        }
+    );
+
+    expect(res.features.RNA.common).toBeGreaterThan(0);
+
+    let brain_anno = res.annotations.brain;
+    let brain_keys = Object.keys(brain_anno);
+    expect(brain_keys.length).toBeGreaterThan(0);
+
+    let cells = brain_anno["cell_id"];
+    expect(cells.values.length).toBeGreaterThan(0);
+    expect(typeof cells.values[0]).toBe("string");
+    expect(cells.truncated).toBe(true); 
+
+    let sex = brain_anno["sex"];
+    expect(sex.min).toBe(1);
+    expect(sex.max).toBe(3);
+})
+
 test("annotation preflight fails correctly (two files, wrong species)", async () => {
     let res;
     let err;

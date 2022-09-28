@@ -51,18 +51,16 @@ function load_data_frame(handle) {
             throw new Error("expected the listData list to be named");
         }
 
-        console.log(colnames);
         for (var i = 0; i < lhandle.length(); i++) {
             let curhandle = lhandle.load(i);
             try {
-                if (curhandle instanceof scran.RdsVector && curhandle instanceof scran.RdsGenericVector) {
+                if (curhandle instanceof scran.RdsVector && !(curhandle instanceof scran.RdsGenericVector)) {
                     columns[colnames[i]] = curhandle.values();
                 }
             } finally {
                 scran.free(curhandle);
             }
         }
-        console.log(columns);
     } finally {
         scran.free(lhandle);
     }
@@ -261,7 +259,7 @@ function extract_counts(handle) {
     return output;
 }
 
-async function preflight_raw(handle) {
+function preflight_raw(handle) {
     check_class(handle, { 
         "SummarizedExperiment": "SummarizedExperiment",
         "RangedSummarizedExperiment": "SummarizedExperiment",
@@ -272,15 +270,15 @@ async function preflight_raw(handle) {
     let output = {};
 
     // Loading the gene info.
-    output.genes = { RNA: extract_features(handle) };
+    output.genes = extract_features(handle);
 
     // Loading the cell annotation.
     let anno = extract_annotations(handle);
-    let akeys = Object.entries(gene_info.columns);
-    if (akeys.length) { 
+    let acols = Object.entries(anno);
+    if (acols.length) { 
         output.annotations = {};
-        for (const [k, v] of Object.entries(gene_info.columns)) {
-            output.annotations[v] = rutils.summarizeArray(v);
+        for (const [k, v] of acols) {
+            output.annotations[k] = rutils.summarizeArray(v);
         }
     } else {
         output.annotations = null;
@@ -294,14 +292,14 @@ export async function preflight(args) {
     let output_feat = {};
 
     let rds_data = rutils.formatFile(args.rds, false);
-    let rds_stuff = afile.realizeMatrixMarket(rds_data.content);
+    let rds_stuff = afile.realizeFile(rds_data.content);
 
     let rdshandle = scran.readRds(rds_stuff);
     try {
         let rhandle = rdshandle.value();
         try {
             let rna = preflight_raw(rhandle);
-            output_anno.RNA = rna.annotations;
+            output_anno = rna.annotations;
             output_feat.RNA = rna.genes;
         } finally {
             scran.free(rhandle);
