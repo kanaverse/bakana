@@ -15,10 +15,13 @@ function load_listData_names(lhandle) {
         return null;
     }
 
-    let nhandle = lhandle.attribute(ndx);
+    let nhandle;
     let names;
     try {
+        nhandle = lhandle.attribute(ndx);
         names = nhandle.values();
+    } catch(e) {
+        throw new Error("failed to load listData names; " + e.message);
     } finally {
         scran.free(nhandle);
     }
@@ -34,14 +37,10 @@ function load_data_frame(handle) {
     let output = {};
 
     // Loading the atomic columns.
-    let ldx = handle.findAttribute("listData");
-    if (ldx < 0) {
-        throw new Error("expected a listData slot in a DFrame");
-    }
-
     let columns = {};
-    let lhandle = handle.attribute(ldx);
+    let lhandle;
     try {
+        lhandle = handle.attribute("listData");
         if (!(lhandle instanceof scran.RdsGenericVector)) {
             throw new Error("listData slot should be a generic list");
         }
@@ -52,8 +51,9 @@ function load_data_frame(handle) {
         }
 
         for (var i = 0; i < lhandle.length(); i++) {
-            let curhandle = lhandle.load(i);
+            let curhandle;
             try {
+                curhandle = lhandle.load(i);
                 if (curhandle instanceof scran.RdsVector && !(curhandle instanceof scran.RdsGenericVector)) {
                     columns[colnames[i]] = curhandle.values();
                 }
@@ -61,22 +61,22 @@ function load_data_frame(handle) {
                 scran.free(curhandle);
             }
         }
+    } catch(e) {
+        throw new Error("failed to retrieve data from DataFrame's listData; " + e.message);
     } finally {
         scran.free(lhandle);
     }
     output.columns = columns;
 
     // Loading the row names.
-    let rndx = handle.findAttribute("rownames");
-    if (rndx < 0) {
-        throw new Error("expected a rownames slot in a DFrame");
-    }
-
-    let rnhandle = handle.attribute(rndx);
+    let rnhandle;
     try {
+        rnhandle = handle.attribute("rownames");
         if (rnhandle.type() instanceof scran.RdsStringVector) {
             output.row_names = rhandle.values();
         }
+    } catch(e) {
+        throw new Error("failed to retrieve row names from DataFrame; " + e.message);
     } finally {
         scran.free(rnhandle);
     }
@@ -98,19 +98,15 @@ function check_class(handle, accepted, base) {
 }
 
 function extract_annotations(handle) {
-    let cdx = handle.findAttribute("colData");
-    if (cdx < 0) {
-        throw new Error("expected a colData slot in a SummarizedExperiment");
-    }
-
-    let chandle = handle.attribute(cdx);
+    let chandle = handle.attribute("colData");
     let output;
     try {
         output = load_data_frame(chandle);
+    } catch(e) {
+        throw new Error("failed to extract colData from a SummarizedExperiment; " + e.message);
     } finally {
         scran.free(chandle);
     }
-
     return output.columns;
 }
 
@@ -120,12 +116,15 @@ function extract_NAMES(handle) {
         return null;
     }
 
-    let nhandle = handle.attribute(nidx);
+    let nhandle;
     let output = null;
     try {
+        nhandle = handle.attribute(nidx);
         if (nhandle instanceof scran.RdsStringVector) {
             output = nhandle.values();
         }
+    } catch(e) {
+        throw new Error("failed to extract NAMES; " + e.message);
     } finally {
         scran.free(nhandle);
     }
@@ -140,37 +139,28 @@ function extract_features(handle) {
     let rrdx = handle.findAttribute("rowRanges");
     if (rrdx < 0) {
         // This is a base SummarizedExperiment.
-        let rdx = handle.findAttribute("elementMetadata");
-        if (rdx < 0) {
-            throw new Error("expected a elementMetadata slot in a SummarizedExperiment");
-        }
-
-        let rhandle = handle.attribute(rdx);
+        let rhandle;
         try {
+            rhandle = handle.attribute("elementMetadata");
             rowdata = load_data_frame(rhandle);
+        } catch(e) {
+            throw new Error("failed to extract features from the rowData; " + e.message);
         } finally {
             scran.free(rhandle);
         }
-
         names = extract_NAMES(handle);
 
     } else {
         // Everything else is assumed to be an RSE.
-        if (rrdx < 0) {
-            throw new Error("expected a rowRanges slot in a RangedSummarizedExperiment");
-        }
-
-        let rrhandle = handle.attribute(rrdx);
+        let rrhandle;
         let output;
         try {
-            let edx = rrhandle.findAttribute("elementMetadata");
-            if (edx < 0) {
-                throw new Error("expected an elementMetadata slot in a rowRanges object");
-            }
-
-            let ehandle = rrhandle.attribute(edx);
+            rrhandle = handle.attribute(rrdx);
+            let ehandle = rrhandle.attribute("elementMetadata");
             try {
                 rowdata = load_data_frame(ehandle);
+            } catch(e) {
+                throw new Error("failed to extract mcols from the rowRanges; " + e.message);
             } finally {
                 scran.free(ehandle);
             }
@@ -178,15 +168,21 @@ function extract_features(handle) {
             let pidx = rrhandle.findAttribute("partitioning");
             if (pidx < 0) { // if absent, we'll assume it's a GRanges.
                 names = extract_NAMES(rrhandle);
+
             } else { // otherwise, it's a GRangesList.
-                let phandle = rrhandle.attribute(pidx);
+                let phandle;
                 try {
+                    phandle = rrhandle.attribute(pidx);
                     names = extract_NAMES(phandle);
+                } catch(e) {
+                    throw new Error("failed to extract names from the rowRanges; " + e.message);
                 } finally {
                     scran.free(phandle);
                 }
             }
 
+        } catch(e) {
+            throw new Error("failed to extract features from the rowRanges; " + e.message);
         } finally {
             scran.free(rrhandle);
         }
@@ -203,57 +199,43 @@ function extract_features(handle) {
 }
 
 function extract_counts(handle) {
-    let adx = handle.findAttribute("assays");
-    if (adx < 0) {
-        throw new Error("expected an assays slot in a SummarizedExperiment");
-    }
-
     let output;
-    let ahandle = handle.attribute(adx);
+    let ahandle;
+    let dhandle;
+    let lhandle;
+
     try {
-        let ddx = ahandle.findAttribute("data");
-        if (ddx < 0) {
-            throw new Error("expected a data slot in the assays object");
+        ahandle = handle.attribute("assays");
+        dhandle = ahandle.attribute("data");
+        lhandle = dhandle.attribute("listData");
+
+        let names = load_listData_names(lhandle);
+        let chosen = 1;
+        if (names != null) {
+            for (var n = 0; n < names.length; n++) {
+                if (names[n].match(/^count/i)) {
+                    chosen = n;
+                    break;
+                }
+            }
         }
 
-        let dhandle = ahandle.attribute(ddx);
+        let xhandle;
         try {
-            let ldx = dhandle.findAttribute("listData");
-            if (ldx) {
-                throw new Error("expected a listData slot in the SimpleList of the assays");
-            }
-
-            let lhandle = dhandle.attribute(ldx);
-            try {
-                let names = load_listData_names(lhandle);
-
-                let chosen = 1;
-                if (names != null) {
-                    for (var n = 0; n < names.length; n++) {
-                        if (names[n].match(/^count/i)) {
-                            chosen = n;
-                            break;
-                        }
-                    }
-                }
-
-                let xhandle = lhandle.load(chosen);
-                try {
-                    output = scran.initializeSparseMatrixFromRds(xhandle);
-                } finally {
-                    scran.free(xhandle);
-                }
-
-            } finally {
-                scran.free(lhandle);
-            }
-
+            xhandle = lhandle.load(chosen);
+            output = scran.initializeSparseMatrixFromRds(xhandle);
+        } catch(e) {
+            throw new Error("failed to initialize sparse matrix from assay; " + e.message);
         } finally {
-            scran.free(dhandle);
+            scran.free(xhandle);
         }
 
+    } catch(e) {
+        throw new Error("failed to extract assay data; " + e.message);
     } finally {
         scran.free(ahandle);
+        scran.free(lhandle);
+        scran.free(dhandle);
     }
 
     return output;
@@ -344,7 +326,7 @@ export class Reader {
                     let gene_info = rutils.reorganizeGenes(out_mat.numberOfRows(), out_ids, raw_gene_info);
                     output.genes = { RNA: gene_info };
                     output.row_ids = { RNA: out_ids };
-                    output.annotations = extract_annotations(rhandle) ;
+                    output.annotations = extract_annotations(rhandle);
 
                 } catch (e) {
                     scran.free(output.matrix);
