@@ -39,8 +39,12 @@ export class LoadedFile {
     }
 };
 
-export function realizeMatrixMarket(loaded) {
+export function realizeFile(loaded) {
     return new Uint8Array(loaded.buffer());
+}
+
+export function realizeMatrixMarket(loaded) {
+    return realizeFile(loaded);
 }
 
 export function realizeH5(loaded) {
