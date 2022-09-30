@@ -181,3 +181,38 @@ test("RDS loaders work correctly for GRanges SummarizedExperiment", async () => 
 
     fullstate.free();
 })
+
+test("RDS loaders work correctly for a SingleCellExperiment with altExps", async () => {
+    let contents = {};
+    let finished = (step, res) => {
+        contents[step] = res;
+    };
+
+    let files = { 
+        default: {
+            format: "SummarizedExperiment",
+            rds: "files/datasets/immune_3.0.0-tenx.rds"
+        }
+    };
+
+    let fullstate = new inputs.InputsState;
+    await fullstate.compute(files, null, null);
+
+    let loaded = fullstate.fetchCountMatrix({ type: "RNA" });
+    expect(loaded.numberOfColumns()).toBeGreaterThan(0);
+
+    let loaded_adt = fullstate.fetchCountMatrix({ type: "ADT" });
+    expect(loaded_adt.numberOfColumns()).toBeGreaterThan(0);
+
+    let loaded_names = fullstate.fetchGenes({ type: "RNA" }).id;
+    expect(loaded_names.length).toBeGreaterThan(0);
+    expect(loaded_names.length).toEqual(loaded.numberOfRows());
+    expect(loaded_names.some(x => x.match(/^ENSG/))).toBe(true);
+
+    let loaded_names_adt = fullstate.fetchGenes({ type: "ADT" }).id;
+    expect(loaded_names_adt.length).toBeGreaterThan(0);
+    expect(loaded_names_adt.length).toEqual(loaded_adt.numberOfRows());
+    expect(loaded_names_adt.some(x => x.match(/^ENSG/))).toBe(false);
+
+    fullstate.free();
+})

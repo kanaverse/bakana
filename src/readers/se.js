@@ -276,6 +276,84 @@ function preflight_raw(handle) {
     return output;
 }
 
+function extract_alt_exps(handle) {
+    let indx = handle.findAttribute("int_colData");
+    if (indx < 0) {
+        return {};
+    }
+
+    let output = {};
+    let in_handle;
+    let inld_handle;
+    let innn_handle;
+    let ae_handle;
+    let aeld_handle;
+    let aenn_handle;
+
+    try {
+        in_handle = handle.attribute(indx);
+        let inld_dx = in_handle.findAttribute("listData");
+        if (inld_dx < 0) {
+            return {};
+        }
+
+        inld_handle = in_handle.attribute(inld_dx);
+        let innn_dx = inld_handle.findAttribute("names");
+        if (innn_dx < 0) {
+            return {};
+        }
+
+        innn_handle = inld_handle.attribute(innn_dx);
+        let in_names = innn_handle.values();
+        let ae_dx = in_names.indexOf("altExps");
+        if (ae_dx < 0) {
+            return {};
+        }
+
+        ae_handle = inld_handle.load(ae_dx);
+        let aeld_dx = ae_handle.findAttribute("listData");
+        if (aeld_dx < 0) {
+            return {};
+        }
+
+        aeld_handle = ae_handle.attribute(aeld_dx);
+        let aenn_dx = aeld_handle.findAttribute("names");
+        if (aenn_dx < 0) {
+            return {};
+        }
+
+        aenn_handle = aeld_handle.attribute(aenn_dx);
+        let ae_names = aenn_handle.values();
+
+        for (var i = 0; i < ae_names.length; i++) {
+            let curhandle;
+            try {
+                curhandle = aeld_handle.load(i);
+                output[ae_names[i]] = curhandle.attribute("se");
+            } finally {
+                scran.free(curhandle);
+            }
+        }
+
+    } catch(e) {
+        for (const v of Object.values(output)) {
+            scran.free(v);
+        }
+        throw e;
+
+    } finally {
+        scran.free(aenn_handle);
+        scran.free(aeld_handle);
+        scran.free(innn_handle);
+        scran.free(inld_handle);
+        scran.free(in_handle);
+    }
+
+    return output;
+}
+
+const altexp_patterns = { "ADT": [ /^alt/i, /^hto/i, /^antibody/i ] };
+
 export async function preflight(args) {
     let output_anno = {};
     let output_feat = {};
@@ -283,17 +361,40 @@ export async function preflight(args) {
     let rds_data = rutils.formatFile(args.rds, false);
     let rds_stuff = afile.realizeFile(rds_data.content);
 
-    let rdshandle = scran.readRds(rds_stuff);
+    let rdshandle;
+    let rhandle;
+    let aehandles = {};
     try {
-        let rhandle = rdshandle.value();
-        try {
-            let rna = preflight_raw(rhandle);
-            output_anno = rna.annotations;
-            output_feat.RNA = rna.genes;
-        } finally {
-            scran.free(rhandle);
+        rdshandle = scran.readRds(rds_stuff);
+        rhandle = rdshandle.value();
+
+        let rna = preflight_raw(rhandle);
+        output_anno = rna.annotations;
+        output_feat.RNA = rna.genes;
+
+        aehandles = extract_alt_exps(rhandle);
+        for (const [name, patterns] of Object.entries(altexp_patterns)) {
+            let found_alt = false;
+            for (const pat of patterns) {
+                for (const k of Object.keys(aehandles)) {
+                    if (k.match(pat)) {
+                        found_alt = true;
+                        let alt = preflight_raw(aehandles[k]);
+                        output_feat[name] = alt.genes;
+                        break;
+                    }
+                }
+                if (found_alt) {
+                    break;
+                }
+            }
         }
+
     } finally {
+        for (const v of Object.values(aehandles)) {
+            scran.free(v);
+        }
+        scran.free(rhandle);
         scran.free(rdshandle);
     }
 
@@ -315,36 +416,61 @@ export class Reader {
         let rds_stuff = afile.realizeFile(this.#rds.content);
         let output = {};
 
-        let rdshandle = scran.readRds(rds_stuff);
+        let rdshandle;
+        let rhandle;
+        let aehandles = {};
+
         try {
+            rdshandle = scran.readRds(rds_stuff);
+            rhandle = rdshandle.value();
 
-            let rhandle = rdshandle.value();
-            try {
+            output.matrix = new scran.MultiMatrix;
+            let loaded = extract_counts(rhandle);
 
-                output.matrix = new scran.MultiMatrix;
-                try {
-                    let loaded = extract_counts(rhandle);
+            let out_mat = loaded.matrix;
+            let out_ids = loaded.row_ids;
+            output.matrix.add("RNA", out_mat);
 
-                    let out_mat = loaded.matrix;
-                    let out_ids = loaded.row_ids;
-                    output.matrix.add("RNA", out_mat);
+            let raw_gene_info = extract_features(rhandle);
+            let gene_info = rutils.reorganizeGenes(out_mat.numberOfRows(), out_ids, raw_gene_info);
+            output.genes = { RNA: gene_info };
+            output.row_ids = { RNA: out_ids };
+            output.annotations = extract_annotations(rhandle);
 
-                    let raw_gene_info = extract_features(rhandle);
-                    let gene_info = rutils.reorganizeGenes(out_mat.numberOfRows(), out_ids, raw_gene_info);
-                    output.genes = { RNA: gene_info };
-                    output.row_ids = { RNA: out_ids };
-                    output.annotations = extract_annotations(rhandle);
+            aehandles = extract_alt_exps(rhandle);
+            for (const [name, patterns] of Object.entries(altexp_patterns)) {
+                let found_alt = false;
+                for (const pat of patterns) {
+                    for (const k of Object.keys(aehandles)) {
+                        if (k.match(pat)) {
+                            found_alt = true;
+                            let curhandle = aehandles[k];
 
-                } catch (e) {
-                    scran.free(output.matrix);
-                    throw e;
+                            let alt = extract_counts(curhandle);
+                            output.matrix.add(name, alt.matrix);
+                            output.row_ids[name] = alt.row_ids;
+
+                            let raw_gene_info = extract_features(curhandle);
+                            let gene_info = rutils.reorganizeGenes(out_mat.numberOfRows(), alt.row_ids, raw_gene_info);
+                            output.genes[name] = gene_info;
+                            break;
+                        }
+                    }
+                    if (found_alt) {
+                        break;
+                    }
                 }
-
-            } finally {
-                scran.free(rhandle);
             }
 
+        } catch (e) {
+            scran.free(output.matrix);
+            throw e;
+
         } finally {
+            for (const v of Object.values(aehandles)) {
+                scran.free(v);
+            }
+            scran.free(rhandle);
             scran.free(rdshandle);
         }
 

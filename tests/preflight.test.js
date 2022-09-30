@@ -117,6 +117,27 @@ test("annotation preflight works correctly for SummarizedExperiments", async () 
     expect(sex.max).toBe(3);
 })
 
+test("annotation preflight works correctly for SingleCellExperiments with altExps", async () => {
+    let res = await bakana.validateAnnotations(
+        {
+            "immune": {
+                format: "SummarizedExperiment",
+                rds: "files/datasets/immune_3.0.0-tenx.rds"
+            }
+        }
+    );
+
+    expect(res.features.RNA.common).toBeGreaterThan(0);
+    expect(res.features.ADT.common).toBeGreaterThan(0);
+
+    let immune_anno = res.annotations.immune;
+    let immune_keys = Object.keys(immune_anno);
+
+    let samples = immune_anno['Sample'];
+    expect(samples.values.length).toBeGreaterThan(0);
+    expect(typeof samples.values[0]).toBe("string");
+})
+
 test("annotation preflight fails correctly (two files, wrong species)", async () => {
     let res;
     let err;

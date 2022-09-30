@@ -36,6 +36,7 @@ download 10x-immune-v1.0.0/immune_3.0.0_sub-features.tsv.gz immune_3.0.0-feature
 download 10x-immune-v1.0.0/immune_3.0.0_sub-barcodes.tsv.gz immune_3.0.0-barcodes.tsv.gz
 
 download 10x-immune-v1.0.0/immune_3.0.0_sub-tenx.h5 immune_3.0.0-tenx.h5
+download 10x-immune-v1.0.0/immune_3.0.0_sub-tenx.rds immune_3.0.0-tenx.rds
 
 # Download the paul dataset.
 download paul-hsc-v1.0.0/se.rds paul-hsc.rds
