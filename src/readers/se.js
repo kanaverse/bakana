@@ -352,7 +352,7 @@ function extract_alt_exps(handle) {
     return output;
 }
 
-const altexp_patterns = { "ADT": [ /^alt/i, /^hto/i, /^antibody/i ] };
+const altexp_patterns = { "ADT": [ /^adt/i, /^hto/i, /^antibody/i ] };
 
 export async function preflight(args) {
     let output_anno = {};
