@@ -72,8 +72,8 @@ function load_data_frame(handle) {
     let rnhandle;
     try {
         rnhandle = handle.attribute("rownames");
-        if (rnhandle.type() instanceof scran.RdsStringVector) {
-            output.row_names = rhandle.values();
+        if (rnhandle instanceof scran.RdsStringVector) {
+            output.row_names = rnhandle.values();
         }
     } catch(e) {
         throw new Error("failed to retrieve row names from DataFrame; " + e.message);
