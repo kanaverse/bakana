@@ -1,42 +1,126 @@
 import * as scran from "scran.js";
+import { Dataset } from "./base.js";
+import * as afile from "./abstract/file.js";
 import * as rutils from "./utils/index.js";
-import * as afile from "../abstract/file.js";
 
-export function abbreviate(args) {
-    var formatted = {
-        "format": "MatrixMarket", 
-        "mtx": rutils.formatFile(args.mtx, true)
-    };
+/**
+ * Dataset in the 10X Matrix Market format, see [here](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/advanced/matrices) for details.
+ * @augments Dataset
+ */
+class TenxMatrixMarketDataset extends Dataset {
+    this.#matrix_file;
+    this.#dimensions;
 
-    if ("genes" in args) {
-        formatted.genes = rutils.formatFile(args.genes, true);
+    this.#feature_file;
+    this.#check_features;
+    this.#raw_features;
+
+    this.#barcode_file;
+    this.#check_barcodes;
+    this.#raw_barcodes;
+
+    /**
+     * @param {SimpleFile|string|Uint8Array|File} matrixFile - A Matrix Market file.
+     * On browsers, this may be a File object.
+     * On Node.js, this may also be a string containing a file path.
+     * @param {?(SimpleFile|string|Uint8Array|File)} featureFile - Contents of a feature annotation file.
+     * If `null`, it is assumed that no file was available.
+     * @param {?(SimpleFile|string|Uint8Array|File)} barcodeFile - Contents of a barcode annotation file.
+     * If `null`, it is assumed that no file was available.
+     */
+    constructor(matrixFile, featureFile, barcodeFile) {
+        super();
+
+        if (matrixFile instanceof afile.SimpleFile) {
+            this.#matrix_file = matrixFile;
+        } else {
+            this.#matrix_file = new afile.SimpleFile(matrixFile);
+        }
+
+        var is_gz = this.#matrix_file.name().endsWith(".gz");
+        let headers = scran.extractMatrixMarketDimensions(this.#matrix_file.content(), { "compressed": is_gz });
+        this.#dimensions = [headers.rows, headers.columns];
+
+        if (featureFile instanceof afile.SimpleFile || featureFile == null) {
+            this.#feature_file = featureFile;
+        } else {
+            this.#feature_file = new afile.SimpleFile(featureFile);
+        }
+
+        if (barcodeFile instanceof afile.SimpleFile || barcodeFile == null) {
+            this.#barcode_file = barcodeFile;
+        } else {
+            this.#barcode_file = new afile.SimpleFile(barcodeFile);
+        }
+
+        this.#check_features = false;
+        this.#check_barcodes = false;
     }
 
-    if ("annotations" in args) {
-        formatted.annotations = rutils.formatFile(args.annotations, true);
+    static format() {
+        return "MatrixMarket";
     }
 
-    return formatted;
-}
+    abbreviate(args) {
+        var formatted = {
+            "matrix": {
+                name: this.#matrix_file.name(),
+                size: this.#matrix_file.size()
+            }
+        };
 
-function extract_features(gene_file, numberOfRows) {
-    const content = new Uint8Array(gene_file.content.buffer());
-    var is_gz = gene_file.name.endsWith(".gz");
-    let parsed = rutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
+        if (this.#feature_file !== null) {
+            formatted.features = {
+                name: this.#feature_file.name(),
+                size: this.#feature_file.size()
+            };
+        }
 
-    if (parsed.length == numberOfRows + 1) {
-        // If it seems to have a header, we just use that directly.
-        let output = {};
-        let headers = parsed.shift();
-        headers.forEach((x, i) => {
-            output[x] = parsed.map(y => y[i]);
-        });
-        return output;
+        if (this.#barcode_file !== null) {
+            formatted.barcodes = {
+                name: this.#barcode_file.name(),
+                size: this.#barcode_file.size()
+            };
+        }
 
-    } else {
+        return formatted;
+    }
+
+    #features() {
+        if (this.#check_features) {
+            return;
+        }
+        this.#check_features = true;
+
+        let NR = this.#dimensions[0];
+        if (this.#feature_file == null) {
+            let ids = [];
+            for (var i = 0; i < NR; i++) {
+                ids.push("Feature " + String(i));
+            }
+            this.#raw_features = { id: id };
+            return;
+        }
+
+        const content = new Uint8Array(this.#feature_file.buffer());
+        let fname = this.#feature_file.name();
+        var is_gz = fname.endsWith(".gz");
+        let parsed = rutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
+
+        if (parsed.length == NR + 1) {
+            // If it seems to have a header, we just use that directly.
+            let output = {};
+            let headers = parsed.shift();
+            headers.forEach((x, i) => {
+                output[x] = parsed.map(y => y[i]);
+            });
+            this.#raw_features = output;
+            return;
+        }
+
         // Otherwise, we assume it's standard 10X CellRanger output, without a header.
         if (parsed.length !== numberOfRows) {
-            throw new Error("number of matrix rows is not equal to the number of rows in '" + gene_file.name + "'");
+            throw new Error("number of matrix rows is not equal to the number of rows in '" + fname + "'");
         } 
 
         var ids = [], symb = [];
@@ -52,191 +136,116 @@ function extract_features(gene_file, numberOfRows) {
             output.type = types;
         }
 
-        return output;
-    }
-}
-
-function extract_annotations(annotation_file, numberOfColumns, { summary = false, summaryLimit = 50 } = {}) {
-    const content = new Uint8Array(annotation_file.content.buffer());
-    var is_gz = annotation_file.name.endsWith(".gz");
-    let parsed = rutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
-
-    // Check if a header is present or not. Standard 10X output doesn't have a 
-    // header but we'd like to support some kind of customization.
-    let headerFlag = true;
-    let diff = numberOfColumns - parsed.length;
-    if (diff === 0) {
-        headerFlag = false;
-    } else if (diff !== -1) {
-        throw "number of matrix columns is not equal to the number of rows in '" + annotation_file.name + "'";
+        this.#raw_features = output;
+        return;
     }
 
-    let headers;
-    if (headerFlag) {
-        headers = parsed.shift();
-    } else {
-        headers = parsed[0]; // whatever, just using the first row. Hope it's unique enough!
-    }
-
-    let annotations = {}
-    headers.forEach((x, i) => {
-        annotations[x] = parsed.map(y => y[i]);
-    });
-    for (const [k, v] of Object.entries(annotations)) {
-        let conv = rutils.promoteToNumber(v);
-        if (conv !== null) {
-            annotations[k] = conv;
+    #barcodes() {
+        if (this.#check_barcodes) {
+            return;
         }
-        if (summary) {
-            annotations[k] = rutils.summarizeArray(annotations[k], { limit: summaryLimit });
+        this.#check_barcodes = true;
+
+        if (this.#barcode_file == null) {
+            this.#raw_barcodes = {};
+            return;
         }
-    }
 
-    return annotations;
-}
+        const content = new Uint8Array(this.#barcode_file.buffer());
+        let bname = this.#barcode_file.name();
+        var is_gz = bname.endsWith(".gz");
+        let parsed = rutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
 
-export async function preflight(args) {
-    let output = {};
+        // Check if a header is present or not. Standard 10X output doesn't have a 
+        // header but we'd like to support some kind of customization.
+        let diff = this.#dimensions[1] - parsed.length;
+        if (diff !== -1) {
+            throw "number of matrix columns is not equal to the number of rows in '" + bname + "'";
+        }
 
-    let dims = null;
-    if ("genes" in args || "annotations" in args) {
-        let mtx_data = rutils.formatFile(args.mtx, false);
-        var is_gz = mtx_data.name.endsWith(".gz");
-        let mm = afile.realizeMatrixMarket(mtx_data.content);
-        let headers = scran.extractMatrixMarketDimensions(mm, { "compressed": is_gz });
-        dims = [headers.rows, headers.columns];
-    }
-
-    if ("genes" in args) {
-        let gene_data = rutils.formatFile(args.genes, false);
-        let gene_info = extract_features(gene_data, dims[0]);
-
-        let split_out = rutils.presplitByFeatureType(gene_info);
-        if (split_out !== null) {
-            output.genes = split_out.genes;
+        let headers;
+        if (diff == 0) {
+            headers = parsed.shift();
         } else {
-            output.genes = { "RNA": gene_info };
+            headers = parsed[0]; // whatever, just using the first row. Hope it's unique enough!
         }
-    } else {
-        output.genes = null;
-    }
 
-    if ("annotations" in args) {
-        let anno_data = rutils.formatFile(args.annotations, false);
-        output.annotations = extract_annotations(anno_data, dims[1], { summary: true });
-    } else {
-        output.annotations = null;
-    }
+        let annotations = {}
+        headers.forEach((x, i) => {
+            annotations[x] = parsed.map(y => y[i]);
+        });
 
-    return output;
-}
-
-export class Reader {
-    #mtx;
-    #genes;
-    #annotations;
-
-    constructor(args, formatted = false) {
-        if (!formatted) {
-            this.#mtx = rutils.formatFile(args.mtx, false);
-
-            if ("genes" in args) {
-                this.#genes = rutils.formatFile(args.genes, false);
-            } else {
-                this.#genes = null;
-            }
-
-            if ("annotations" in args) {
-                this.#annotations = rutils.formatFile(args.annotations, false);
-            } else {
-                this.#annotations = null;
-            }
-        } else {
-            this.#mtx = args.mtx;
-
-            if ("genes" in args) {
-                this.#genes = args.genes;
-            } else {
-                this.#genes = null;
-            }
-
-            if ("annotations" in args) {
-                this.#annotations = args.annotations;
-            } else {
-                this.#annotations = null;
+        for (const [k, v] of Object.entries(annotations)) {
+            let conv = rutils.promoteToNumber(v);
+            if (conv !== null) {
+                annotations[k] = conv;
             }
         }
+
+        this.#raw_barcodes = annotations;
+        return;
+    }
+
+    annotations() {
+        this.#features();
+        this.#barcodes();
+
+        let anno = {};
+        for (const [k, v] of Object.entries(this.#raw_barcodes)) {
+            anno[k] = rutils.summarizeArray(v);
+        }
+
+        return {
+            "features": rutils.reportFeatures(this.#raw_features, "type"),
+            "cells": anno
+        };
     }
 
     load() {
-        var ext = this.#mtx.name.split('.').pop();
-        var is_compressed = (ext == "gz");
-        let mm = afile.realizeMatrixMarket(this.#mtx.content);
-
-        let output = { matrix: new scran.MultiMatrix };
-        try {
-            let loaded = scran.initializeSparseMatrixFromMatrixMarket(mm, { "compressed": is_compressed });
-            let out_mat = loaded.matrix;
-            let out_ids = loaded.row_ids;
-            output.matrix.add("RNA", out_mat);
-
-            let raw_gene_info = null;
-            if (this.#genes !== null) {
-                raw_gene_info = extract_features(this.#genes, out_mat.numberOfRows());
-            }
-            let gene_info = rutils.reorganizeGenes(out_mat.numberOfRows(), out_ids, raw_gene_info);
-
-            let split_out = rutils.splitByFeatureType(out_mat, out_ids, gene_info);
-            if (split_out !== null) {
-                scran.free(out_mat);
-                output.matrix = split_out.matrices;
-                output.row_ids = split_out.row_ids;
-                output.genes = split_out.genes;
-            } else {
-                output.genes = { RNA: gene_info };
-                output.row_ids = { RNA: out_ids };
-            }
-
-            if (this.#annotations !== null) {
-                output.annotations = extract_annotations(this.#annotations, output.matrix.numberOfColumns());
-            } else {
-                output.annotations = null;
-            }
-
-        } catch (e) {
-            scran.free(output.matrix);
-            throw e;
-        }
-
+        var is_gz = this.#matrix_file.name().endsWith(".gz");
+        let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compressed": is_compressed });
+        let output = rutils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type");
+        output.cells = rutils.cloneArrayCollection(this.#raw_barcodes);
         return output;
     }
 
-    format() {
-        return "MatrixMarket";
-    }
-
     async serialize(embeddedSaver) {
-        let files = [await rutils.standardSerialize(this.#mtx, "mtx", embeddedSaver)];
+        let files = [ { type: "mtx", file: this.#matrix_file } ];
 
-        if (this.#genes !== null) {
-            files.push(await rutils.standardSerialize(this.#genes, "genes", embeddedSaver));
+        if (this.#feature_file !== null) {
+            files.push({ type: "genes", file: this.#feature_file });
         }
 
-        if (this.#annotations !== null) {
-            files.push(await rutils.standardSerialize(this.#annotations, "annotations", embeddedSaver));
+        if (this.#feature_file !== null) {
+            files.push({ type: "annotations", file: this.#barcode_file });
         }
 
         return files;
     }
-}
 
-export async function unserialize(values, embeddedLoader) {
-    let args = {};
+    static async function unserialize(files) {
+        let args = {};
+        for (const x of files) {
+            if (x.type in args) {
+                throw new Error("duplicate file of type '" + x.type + "' detected during MatrixMarket unserialization");
+            }
+            args[x.type] = files.file;
+        }
 
-    // This should contain 'mtx', and possibly 'genes' and/or 'annotations'.
-    for (const x of values) {
-        args[x.type] = await rutils.standardUnserialize(x, embeddedLoader);
+        if (!("mtx" in args)) {
+            throw new Error("expected file of type 'mtx' for during MatrixMarket unserialization");
+        }
+
+        let feat = null;
+        if (!("genes" in args)) {
+            feat = args.genes;
+        }
+
+        let barcode = null;
+        if (!("annotations" in args)) {
+            barcode = args.annotations;
+        }
+
+        return new TenxMatrixMarketDataset(args.mtx, feat, barcode);
     }
-
-    return new Reader(args, true);
 }
