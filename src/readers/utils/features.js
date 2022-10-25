@@ -12,32 +12,22 @@ export function reportFeatures(rawFeatures, typeField) {
     }
 }
 
-export function reorganizeGenes(rawFeatures, rowIds) {
-    let current_features;
-    if (rowIds !== null) {
-        current_features = scran.subsetArrayCollection(rawFeatures, rowIds);
-    } else {
-        current_features = scran.cloneArrayCollection(rawFeatures);
-        rowIds = new Int32Array(out_mat.numberOfRows());
-        rowIds.forEach((x, i) => { rowIds[i] = i });
-    }
-
-    return {
-        "features": current_features,
-        "row_ids": rowIds 
-    };
-}
-
 export function splitScranMatrixAndFeatures(mat, rawFeatures, typeField) {
     let output = { matrix: new scran.MultiMatrix };
+
     try {
         let out_mat = loaded.matrix;
         let out_ids = loaded.row_ids;
         output.matrix.add("default", out_mat);
 
-        let reorg = reorganizeGenes(rawFeatures, rowIds);
-        let current_features = reorg.features;
-        out_ids = reorg.row_ids;
+        let current_features;
+        if (out_ids !== null) {
+            current_features = scran.subsetArrayCollection(rawFeatures, out_ids);
+        } else {
+            current_features = scran.cloneArrayCollection(rawFeatures);
+            out_ids = new Int32Array(out_mat.numberOfRows());
+            out_ids.forEach((x, i) => { out_ids[i] = i });
+        }
 
         if (typeField !== null && !(typeField in current_features)) {
             let by_type = scran.splitByFactor(current_features[typeField]);
