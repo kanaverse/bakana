@@ -1,5 +1,3 @@
-import * as utils from "./utils/index.js";
-
 /**
  * An abstract dataset.
  * @hideconstructor

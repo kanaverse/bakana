@@ -22,11 +22,15 @@ fi
 rm -rf ${mode}
 mkdir -p ${mode}
 cp -r src/* ${mode}
-rm ${mode}/abstract/*_${toss}.js
 
-to_rename=$(ls ${mode}/abstract/*_${keep}.js)
-for x in ${to_rename[@]}
-do
-    newname=$(echo $x | sed "s/_${keep}\\.js$/.js/g")
-    mv $x $newname
+for abdirs in abstract readers/abstract
+do 
+    rm ${mode}/${abdirs}/*_${toss}.js
+
+    to_rename=$(ls ${mode}/${abdirs}/*_${keep}.js)
+    for x in ${to_rename[@]}
+    do
+        newname=$(echo $x | sed "s/_${keep}\\.js$/.js/g")
+        mv $x $newname
+    done
 done

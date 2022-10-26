@@ -1,23 +1,24 @@
 import * as scran from "scran.js";
 import { Dataset } from "./base.js";
 import * as afile from "./abstract/file.js";
-import * as rutils from "./utils/index.js";
+import * as eutils from "./utils/extract.js";
+import * as futils from "./utils/features.js";
 
 /**
  * Dataset in the 10X Matrix Market format, see [here](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/advanced/matrices) for details.
  * @augments Dataset
  */
 class TenxMatrixMarketDataset extends Dataset {
-    this.#matrix_file;
-    this.#dimensions;
+    #matrix_file;
+    #dimensions;
 
-    this.#feature_file;
-    this.#check_features;
-    this.#raw_features;
+    #feature_file;
+    #check_features;
+    #raw_features;
 
-    this.#barcode_file;
-    this.#check_barcodes;
-    this.#raw_barcodes;
+    #barcode_file;
+    #check_barcodes;
+    #raw_barcodes;
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} matrixFile - A Matrix Market file.
@@ -105,7 +106,7 @@ class TenxMatrixMarketDataset extends Dataset {
         const content = new Uint8Array(this.#feature_file.buffer());
         let fname = this.#feature_file.name();
         var is_gz = fname.endsWith(".gz");
-        let parsed = rutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
+        let parsed = eutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
 
         if (parsed.length == NR + 1) {
             // If it seems to have a header, we just use that directly.
@@ -154,7 +155,7 @@ class TenxMatrixMarketDataset extends Dataset {
         const content = new Uint8Array(this.#barcode_file.buffer());
         let bname = this.#barcode_file.name();
         var is_gz = bname.endsWith(".gz");
-        let parsed = rutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
+        let parsed = eutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
 
         // Check if a header is present or not. Standard 10X output doesn't have a 
         // header but we'd like to support some kind of customization.
@@ -176,7 +177,7 @@ class TenxMatrixMarketDataset extends Dataset {
         });
 
         for (const [k, v] of Object.entries(annotations)) {
-            let conv = rutils.promoteToNumber(v);
+            let conv = eutils.promoteToNumber(v);
             if (conv !== null) {
                 annotations[k] = conv;
             }
@@ -192,11 +193,11 @@ class TenxMatrixMarketDataset extends Dataset {
 
         let anno = {};
         for (const [k, v] of Object.entries(this.#raw_barcodes)) {
-            anno[k] = rutils.summarizeArray(v);
+            anno[k] = eutils.summarizeArray(v);
         }
 
         return {
-            "features": rutils.reportFeatures(this.#raw_features, "type"),
+            "features": futils.reportFeatures(this.#raw_features, "type"),
             "cells": anno
         };
     }
@@ -204,8 +205,8 @@ class TenxMatrixMarketDataset extends Dataset {
     load() {
         var is_gz = this.#matrix_file.name().endsWith(".gz");
         let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compressed": is_compressed });
-        let output = rutils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type");
-        output.cells = rutils.cloneArrayCollection(this.#raw_barcodes);
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type");
+        output.cells = scran.cloneArrayCollection(this.#raw_barcodes);
         return output;
     }
 

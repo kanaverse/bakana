@@ -1,19 +1,20 @@
 import * as scran from "scran.js";
 import { Dataset } from "./base.js";
 import * as afile from "./abstract/file.js";
-import * as rutils from "./utils/index.js";
+import * as eutils from "./utils/extract.js";
+import * as futils from "./utils/features.js";
 
 /**
  * Dataset in the 10X HDF5 feature-barcode matrix format, see [here](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/output/matrices) for details.
  * @augments Dataset
  */
 export class TenxHdf5Dataset extends Dataset {
-    this.#h5_file;
-    this.#h5_path;
-    this.#h5_flush;
+    #h5_file;
+    #h5_path;
+    #h5_flush;
 
-    this.#check_features;
-    this.#raw_features;
+    #check_features;
+    #raw_features;
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a HDF5 file.
@@ -65,18 +66,18 @@ export class TenxHdf5Dataset extends Dataset {
         }
         let fhandle = mhandle.open("features");
 
-        let ids = rutils.extractHDF5Strings(fhandle, "id");
+        let ids = eutils.extractHDF5Strings(fhandle, "id");
         if (ids == null) {
             throw new Error("expected a 'matrix/features/id' string dataset containing the feature IDs");
         }
         this.#raw_features = { id: ids };
 
-        let names = rutils.extractHDF5Strings(fhandle, "name");
+        let names = eutils.extractHDF5Strings(fhandle, "name");
         if (names !== null) {
             this.#raw_features.name = nhandle.load();
         }
 
-        let ftype = rutils.extractHDF5Strings(fhandle, "feature_type");
+        let ftype = eutils.extractHDF5Strings(fhandle, "feature_type");
         if (ftypes !== null) {
             this.#raw_features.type = ftype;
         }
@@ -85,7 +86,7 @@ export class TenxHdf5Dataset extends Dataset {
     annotations() {
         this.#features();
         return {
-            "features": rutils.reportFeatures(this.#raw_features, "type"),
+            "features": futils.reportFeatures(this.#raw_features, "type"),
             "cells": {}
         }
     }
@@ -93,7 +94,7 @@ export class TenxHdf5Dataset extends Dataset {
     load() {
         this.#features();
         let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, "matrix"); // collection gets handled inside splitScranMatrixAndFeatures.
-        let output = rutils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type");
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type");
         output.cells = {};
         return output;
     }

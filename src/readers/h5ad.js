@@ -1,6 +1,7 @@
 import * as scran from "scran.js";
 import { Dataset } from "./base.js";
-import * as rutils from "./utils/index.js";
+import * as eutils from "./utils/extract.js";
+import * as futils from "./utils/features.js";
 import * as afile from "../abstract/file.js";
 
 /**
@@ -8,18 +9,18 @@ import * as afile from "../abstract/file.js";
  * @augments Dataset
  */
 export class H5adDataset extends Dataset {
-    this.#h5_file;
-    this.#h5_path;
-    this.#h5_flush;
+    #h5_file;
+    #h5_path;
+    #h5_flush;
 
-    this.#check_features;
-    this.#raw_features;
-    this.#check_cells;
-    this.#raw_cells;
-    this.#raw_cell_factors;
+    #check_features;
+    #raw_features;
+    #check_cells;
+    #raw_cells;
+    #raw_cell_factors;
 
-    this.#handle;
-    this.#counts_details;
+    #handle;
+    #counts_details;
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a HDF5 file.
@@ -112,7 +113,7 @@ export class H5adDataset extends Dataset {
         let handle = this.#handle;
         if ("var" in handle.children && handle.children["var"] == "Group") {
             let vhandle = handle.open("var");
-            let index = rutils.extractHDF5Strings(vhandle, "_index");
+            let index = eutils.extractHDF5Strings(vhandle, "_index");
             if (index !== null) {
                 genes = { "_index": index };
 
@@ -154,7 +155,7 @@ export class H5adDataset extends Dataset {
             let ohandle = handle.open("obs");
 
             // Maybe it has names, maybe not, who knows; let's just add what's there.
-            let index = rutils.extractHDF5Strings(ohandle, "_index");
+            let index = eutils.extractHDF5Strings(ohandle, "_index");
             if (index !== null) {
                 annotations["_index"] = index;
             }
@@ -172,7 +173,7 @@ export class H5adDataset extends Dataset {
 
                 for (const [key, val] of Object.entries(chandle.children)) {
                     if (key in annotations) {
-                        factors[key] = rutils.extractHDF5Strings(chandle, key);
+                        factors[key] = eutils.extractHDF5Strings(chandle, key);
                     }
                 }
             }
@@ -190,9 +191,9 @@ export class H5adDataset extends Dataset {
         let summaries = {};
         for (const [k, v] of Object.entries(this.#raw_cells)) {
             if (k in this.#raw_cell_factors) {
-                summaries[k] = rutils.summarizeArray(this.#raw_cell_factors[k]);
+                summaries[k] = eutils.summarizeArray(this.#raw_cell_factors[k]);
             } else {
-                summaries[k] = rutils.summarizeArray(v);
+                summaries[k] = eutils.summarizeArray(v);
             }
         }
 
@@ -224,8 +225,8 @@ export class H5adDataset extends Dataset {
 
         let output = { matrix: new scran.MultiMatrix };
         let loaded = scran.initializeSparseMatrixFromHDF5(tmppath, this.#counts_details.name);
-        let output = rutils.splitScranMatrixAndFeatures(loaded, this.#raw_features, null);
-        output.cells = rutils.cloneArrayCollection(this.#raw_cells);
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, null);
+        output.cells = scran.cloneArrayCollection(this.#raw_cells);
         return output;
     }
 

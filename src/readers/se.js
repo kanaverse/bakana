@@ -1,6 +1,5 @@
 import * as scran from "scran.js";
 import { Dataset } from "./base.js";
-import * as rutils from "./utils/index.js";
 import * as afile from "../abstract/file.js";
 
 function load_listData_names(lhandle) {
@@ -319,15 +318,15 @@ function check_for_se(handle) {
 }
 
 class SummarizedExperimentDataset extends Dataset {
-    this.#rds_file;
-    this.#rds_handle;
-    this.#se_handle;
-    this.#alt_handles;
+    #rds_file;
+    #rds_handle;
+    #se_handle;
+    #alt_handles;
 
-    this.#check_features;
-    this.#raw_features;
-    this.#check_cells;
-    this.#raw_cells;
+    #check_features;
+    #raw_features;
+    #check_cells;
+    #raw_cells;
 
     constructor(rdsFile) {
         super();
