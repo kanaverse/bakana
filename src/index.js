@@ -3,10 +3,8 @@ export * from "./analysis.js";
 export * from "./serialize.js";
 
 export { validateAnnotations } from "./preflight.js";
-export { availableReaders } from "./readers/index.js";
 export { setVisualizationAnimate } from "./steps/utils/viz_parent.js";
 export { formatMarkerResults } from "./steps/utils/markers.js";
-export { setCreateLink, setResolveLink, unpackText, readLines, readTable, promoteToNumber, summarizeArray } from "./readers/utils/index.js";
 export { setCellLabellingDownload } from "./steps/cell_labelling.js";
 
 import * as scran from "scran.js";

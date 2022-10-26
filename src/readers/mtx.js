@@ -224,7 +224,7 @@ class TenxMatrixMarketDataset extends Dataset {
         return files;
     }
 
-    static async function unserialize(files) {
+    static async unserialize(files) {
         let args = {};
         for (const x of files) {
             if (x.type in args) {

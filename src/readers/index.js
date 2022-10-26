@@ -1,4 +1,4 @@
-export * from "./10x.js":
+export * from "./10x.js";
 export * from "./h5ad.js";
 export * from "./mtx.js"
 export * from "./se.js";

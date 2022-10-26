@@ -43,8 +43,8 @@ export class TenxHdf5Dataset extends Dataset {
     abbreviate() {
         return { 
             "h5": {
-                "name": this.#h5.name(),
-                "size": this.#h5.size()
+                "name": this.#h5_file.name(),
+                "size": this.#h5_file.size()
             }
         };
     }
@@ -107,7 +107,7 @@ export class TenxHdf5Dataset extends Dataset {
         return [ { type: "h5", file: this.#h5_file } ];
     }
 
-    static async function unserialize(files) {
+    static async unserialize(files) {
         if (files.length != 1 || files[0].type != "h5") {
             throw new Error("expected exactly one file of type 'h5' for 10X HDF5 unserialization");
         }

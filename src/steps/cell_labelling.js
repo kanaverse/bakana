@@ -1,6 +1,6 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
-import * as rutils from "../readers/utils/index.js";
+import * as rutils from "../readers/index.js";
 import * as inputs_module from "./inputs.js";
 import * as markers_module from "./marker_detection.js";
 

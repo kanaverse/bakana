@@ -379,7 +379,7 @@ class SummarizedExperimentDataset extends Dataset {
         this.#check_features = true;
 
         this.#initialize();
-        this.#raw_features = { default: extract_features(this.#handle) };
+        this.#raw_features = { default: extract_features(this.#se_handle) };
 
         for (const [k, v] of Object.keys(this.#alt_handles)) {
             try {
@@ -399,7 +399,7 @@ class SummarizedExperimentDataset extends Dataset {
         this.#check_cells = true;
 
         this.#initialize();
-        let chandle = this.#handle.attribute("colData");
+        let chandle = this.#se_handle.attribute("colData");
         try {
             this.#raw_cells = load_data_frame(chandle).columns;
         } catch(e) {
@@ -472,7 +472,7 @@ class SummarizedExperimentDataset extends Dataset {
         return [ { type: "rds", file: this.#rds_file } ];
     }
 
-    static async function unserialize(files) {
+    static async unserialize(files) {
         if (files.length != 1 || files[0].type != "rds") {
             throw new Error("expected exactly one file of type 'rds' for SummarizedExperiment unserialization");
         }

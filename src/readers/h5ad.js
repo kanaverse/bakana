@@ -49,7 +49,7 @@ export class H5adDataset extends Dataset {
             throw e;
         }
 
-        this.#counts_name = null;
+        this.#counts_details = null;
     }
 
     static format() {
@@ -223,7 +223,6 @@ export class H5adDataset extends Dataset {
             cells[k] = temp;
         }
 
-        let output = { matrix: new scran.MultiMatrix };
         let loaded = scran.initializeSparseMatrixFromHDF5(tmppath, this.#counts_details.name);
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, null);
         output.cells = scran.cloneArrayCollection(this.#raw_cells);
@@ -238,7 +237,7 @@ export class H5adDataset extends Dataset {
         return [ { type: "h5", file: this.#h5_file } ];
     }
 
-    static async function unserialize(files) {
+    static async unserialize(files) {
         if (files.length != 1 || files[0].type != "h5") {
             throw new Error("expected exactly one file of type 'h5' for H5AD unserialization");
         }
