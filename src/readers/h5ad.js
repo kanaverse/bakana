@@ -229,6 +229,10 @@ export class H5adDataset extends Dataset {
         return output;
     }
 
+    free() {
+        this.#h5_flush();
+    }
+
     serialize() {
         return [ { type: "h5", file: this.#h5_file } ];
     }
