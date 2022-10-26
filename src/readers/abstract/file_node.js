@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as path from "path";
 
 /**
  * Simple wrapper to represent a file in both Node.js and the browser.
@@ -16,12 +17,17 @@ export class SimpleFile {
      * for Node.js, this may be a string containing a file path.
      * @param {object} [options={}] - Optional parameters.
      * @param {?string} [options.name=null] - Name of the file.
-     * Only required if `x` is a Uint8Array.
+     * If `null`, it is determined automatically from `x` where possible (i.e., basename of the file path or extracted from the File object).
+     * If `x` is a Uint8Array, an explicit name is required.
      */
     constructor(x, { name = null } = {}) {
         if (typeof x == "string") {
             this.#mode = "path";
             this.#path = x;
+            if (name === null) {
+                name = path.basename(x);
+            }
+            this.#name = name;
         } else {
             this.#mode = "buffer";
             this.#buffer = x;
@@ -60,11 +66,7 @@ export class SimpleFile {
      * @return {string} Name of the file, for disambiguation purposes.
      */
     name() {
-        if (this.#mode == "string") {
-            return this.#path;
-        } else {
-            return this.#name;
-        }
+        return this.#name;
     }
 
     /**
@@ -72,7 +74,7 @@ export class SimpleFile {
      */
     size() {
         if (this.#mode == "path") {
-            return fs.statSync(this.path).size;
+            return fs.statSync(this.#path).size;
         } else {
             return this.#buffer.length;
         }
@@ -85,7 +87,7 @@ export class SimpleFile {
      * @return {Uint8Array|string} Contents of the file, as in {@linkcode SimpleFile#buffer SimpleFile.buffer}.
      * For Node.js, a string may also be returned containing the path to the original file.
      */
-    contents({ copy = false } = {}) {
+    content({ copy = false } = {}) {
         if (this.#mode == "path") {
             return this.#path;
         } else {

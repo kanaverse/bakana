@@ -1,14 +1,19 @@
 export class SimpleFile {
+    #mode;
     #buffer;
+    #file;
     #name;
 
     constructor(x, { name = null } = {}) {
         if (x instanceof File) {
-            let reader = new FileReaderSync();
-            let b = reader.readAsArrayBuffer(x);
-            this.#buffer = new Uint8Array(b);
-            this.#name = x.name;
+            this.#mode = "file";
+            this.#file = x;
+            if (name === null) {
+                name = x.name;
+            }
+            this.#name = name;
         } else if (x instanceof Uint8Array) {
+            this.#mode = "buffer";
             this.#buffer = x; 
             if (name === null) {
                 throw new Error("'name' must be provided for Uint8Array inputs in SimpleFile constructor");
@@ -20,10 +25,16 @@ export class SimpleFile {
     }
 
     buffer({ copy = false } = {}) {
-        if (copy) {
-            return this.#buffer.slice();
+        if (this.#mode == "file") {
+            let reader = new FileReaderSync();
+            let b = await reader.readAsArrayBuffer(x);
+            return new Uint8Array(b);
         } else {
-            return this.#buffer;
+            if (copy) {
+                return this.#buffer.slice();
+            } else {
+                return this.#buffer;
+            }
         }
     }
 
@@ -35,7 +46,7 @@ export class SimpleFile {
         return this.#name;
     }
 
-    contents({ copy = false } = {}) {
+    content({ copy = false } = {}) {
         return this.buffer({ copy: copy });
     }
 }
