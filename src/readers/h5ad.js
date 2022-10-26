@@ -198,7 +198,7 @@ export class H5adDataset extends Dataset {
         }
 
         return {
-            features: { default: scran.cloneArrayCollection(this.#raw_features) },
+            features: { "": scran.cloneArrayCollection(this.#raw_features) },
             cells: summaries
         };
     }

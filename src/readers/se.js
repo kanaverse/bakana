@@ -379,7 +379,7 @@ class SummarizedExperimentDataset extends Dataset {
         this.#check_features = true;
 
         this.#initialize();
-        this.#raw_features = { default: extract_features(this.#se_handle) };
+        this.#raw_features = { "": extract_features(this.#se_handle) };
 
         for (const [k, v] of Object.keys(this.#alt_handles)) {
             try {
@@ -442,8 +442,8 @@ class SummarizedExperimentDataset extends Dataset {
             let loaded = extract_counts(this.#se_handle);
             let out_mat = loaded.matrix;
             let out_ids = loaded.row_ids;
-            output.matrix.add("default", out_mat);
-            output.features["default"] = scran.subsetArrayCollection(this.#raw_features.default, out_ids);
+            output.matrix.add("", out_mat);
+            output.features[""] = scran.subsetArrayCollection(this.#raw_features[""], out_ids);
 
             for (const [k, v] of Object.entries(this.#raw_features)) {
                 let alt = extract_counts(alt_handles[k]);

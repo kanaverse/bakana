@@ -18,7 +18,7 @@ export function splitScranMatrixAndFeatures(mat, rawFeatures, typeField) {
     try {
         let out_mat = loaded.matrix;
         let out_ids = loaded.row_ids;
-        output.matrix.add("default", out_mat);
+        output.matrix.add("", out_mat);
 
         let current_features;
         if (out_ids !== null) {
@@ -38,7 +38,7 @@ export function splitScranMatrixAndFeatures(mat, rawFeatures, typeField) {
                 scran.free(output.matrix);
                 output.matrix = replacement;
             } else {
-                output.matrix.rename("default", type_keys[0]);
+                output.matrix.rename("", type_keys[0]);
             }
 
             delete current_features[typeField];
@@ -46,8 +46,8 @@ export function splitScranMatrixAndFeatures(mat, rawFeatures, typeField) {
             output.row_ids = scran.splitArray(row_ids, by_type);
 
         } else {
-            output.row_ids = { default: out_ids };
-            output.features = { default: current_features };
+            output.row_ids = { "": out_ids };
+            output.features = { "": current_features };
         }
     } catch (e) {
         scran.free(output.matrix);
