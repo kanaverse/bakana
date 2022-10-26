@@ -12,7 +12,7 @@ export function reportFeatures(rawFeatures, typeField) {
     }
 }
 
-export function splitScranMatrixAndFeatures(mat, rawFeatures, typeField) {
+export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField) {
     let output = { matrix: new scran.MultiMatrix };
 
     try {
@@ -29,7 +29,7 @@ export function splitScranMatrixAndFeatures(mat, rawFeatures, typeField) {
             out_ids.forEach((x, i) => { out_ids[i] = i });
         }
 
-        if (typeField !== null && !(typeField in current_features)) {
+        if (typeField !== null && typeField in current_features) {
             let by_type = scran.splitByFactor(current_features[typeField]);
             let type_keys = Object.keys(by_type);
 
@@ -43,7 +43,7 @@ export function splitScranMatrixAndFeatures(mat, rawFeatures, typeField) {
 
             delete current_features[typeField];
             output.features = scran.splitArrayCollection(current_features, by_type);
-            output.row_ids = scran.splitArray(row_ids, by_type);
+            output.row_ids = scran.splitArray(out_ids, by_type);
 
         } else {
             output.row_ids = { "": out_ids };

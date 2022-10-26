@@ -8,7 +8,7 @@ import * as futils from "./utils/features.js";
  * Dataset in the 10X Matrix Market format, see [here](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/advanced/matrices) for details.
  * @augments Dataset
  */
-class TenxMatrixMarketDataset extends Dataset {
+export class TenxMatrixMarketDataset extends Dataset {
     #matrix_file;
     #dimensions;
 
@@ -99,7 +99,7 @@ class TenxMatrixMarketDataset extends Dataset {
             for (var i = 0; i < NR; i++) {
                 ids.push("Feature " + String(i));
             }
-            this.#raw_features = { id: id };
+            this.#raw_features = { id: ids };
             return;
         }
 
@@ -120,7 +120,7 @@ class TenxMatrixMarketDataset extends Dataset {
         }
 
         // Otherwise, we assume it's standard 10X CellRanger output, without a header.
-        if (parsed.length !== numberOfRows) {
+        if (parsed.length !== NR) {
             throw new Error("number of matrix rows is not equal to the number of rows in '" + fname + "'");
         } 
 
@@ -160,15 +160,13 @@ class TenxMatrixMarketDataset extends Dataset {
         // Check if a header is present or not. Standard 10X output doesn't have a 
         // header but we'd like to support some kind of customization.
         let diff = this.#dimensions[1] - parsed.length;
-        if (diff !== -1) {
-            throw "number of matrix columns is not equal to the number of rows in '" + bname + "'";
-        }
-
         let headers;
         if (diff == 0) {
+            headers = parsed[0]; // whatever, just using the first row. Hope it's unique enough!
+        } else if (diff == -1) {
             headers = parsed.shift();
         } else {
-            headers = parsed[0]; // whatever, just using the first row. Hope it's unique enough!
+            throw new Error("number of matrix columns is not equal to the number of rows in '" + bname + "'");
         }
 
         let annotations = {}
@@ -203,13 +201,17 @@ class TenxMatrixMarketDataset extends Dataset {
     }
 
     load() {
+        this.#features();
+        this.#barcodes();
+
         var is_gz = this.#matrix_file.name().endsWith(".gz");
-        let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compressed": is_compressed });
+        let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compressed": is_gz });
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type");
         output.cells = scran.cloneArrayCollection(this.#raw_barcodes);
         return output;
     }
 
+    // These 'type's are largely retained for back-compatibility.
     async serialize(embeddedSaver) {
         let files = [ { type: "mtx", file: this.#matrix_file } ];
 
@@ -230,7 +232,7 @@ class TenxMatrixMarketDataset extends Dataset {
             if (x.type in args) {
                 throw new Error("duplicate file of type '" + x.type + "' detected during MatrixMarket unserialization");
             }
-            args[x.type] = files.file;
+            args[x.type] = x.file;
         }
 
         if (!("mtx" in args)) {
@@ -238,12 +240,12 @@ class TenxMatrixMarketDataset extends Dataset {
         }
 
         let feat = null;
-        if (!("genes" in args)) {
+        if ("genes" in args) {
             feat = args.genes;
         }
 
         let barcode = null;
-        if (!("annotations" in args)) {
+        if ("annotations" in args) {
             barcode = args.annotations;
         }
 

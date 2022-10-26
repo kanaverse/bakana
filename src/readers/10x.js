@@ -30,7 +30,7 @@ export class TenxHdf5Dataset extends Dataset {
             this.#h5_file = new afile.SimpleFile(h5);
         }
 
-        let info = scran.realizeFile(this.#h5_file.contents());
+        let info = scran.realizeFile(this.#h5_file.content());
         this.#h5_path = info.path;
         this.#h5_flush = info.flush;
         this.#check_features = false;

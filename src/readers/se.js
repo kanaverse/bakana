@@ -317,7 +317,7 @@ function check_for_se(handle) {
     }, "SummarizedExperiment");
 }
 
-class SummarizedExperimentDataset extends Dataset {
+export class SummarizedExperimentDataset extends Dataset {
     #rds_file;
     #rds_handle;
     #se_handle;

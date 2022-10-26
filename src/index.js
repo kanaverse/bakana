@@ -1,6 +1,7 @@
 export * from "./defaults.js";
 export * from "./analysis.js";
 export * from "./serialize.js";
+export * from "./readers/index.js";
 
 export { validateAnnotations } from "./preflight.js";
 export { setVisualizationAnimate } from "./steps/utils/viz_parent.js";

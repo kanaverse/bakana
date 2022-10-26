@@ -17,13 +17,10 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         contents[step] = res;
     };
 
+    let mtx_file = "files/datasets/pbmc3k-matrix.mtx.gz";
+    let feat_file = "files/datasets/pbmc3k-features.tsv.gz";
     let files = { 
-        default: {
-            format: "MatrixMarket",
-            mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
-            genes: "files/datasets/pbmc3k-features.tsv.gz",
-            annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
-        }
+        default: new bakana.TenxMatrixMarketDataset(mtx_file, feat_file, "files/datasets/pbmc3k-barcodes.tsv.gz")
     };
 
     let state = await bakana.createAnalysis();
@@ -41,8 +38,8 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         let loaded_names = state.inputs.fetchGenes().id;
         let loaded_ids = state.inputs.fetchRowIds();
 
-        let simple = scran.initializeSparseMatrixFromMatrixMarket(files.default.mtx, { layered: false });
-        let parsed = bakana.readTable(files.default.genes, { compression: "gz" });
+        let simple = scran.initializeSparseMatrixFromMatrixMarket(mtx_file, { layered: false });
+        let parsed = bakana.readTable((new bakana.SimpleFile(feat_file)).buffer(), { compression: "gz" });
         let simple_names = parsed.map(x => x[0]);
 
         utils.checkReorganization(simple.matrix, simple.row_ids, simple_names, loaded, loaded_ids, loaded_names);
@@ -216,10 +213,7 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
     let params = utils.baseParams();
     let res = await bakana.runAnalysis(state, 
         { 
-            default: {
-                format: "MatrixMarket",
-                mtx: "files/datasets/pbmc3k-matrix.mtx.gz"
-            }
+            default: new bakana.TenxMatrixMarketDataset("files/datasets/pbmc3k-matrix.mtx.gz", null, null)
         },
         params,
         {
