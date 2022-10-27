@@ -2,7 +2,7 @@ import * as scran from "scran.js";
 import { Dataset } from "./base.js";
 import * as eutils from "./utils/extract.js";
 import * as futils from "./utils/features.js";
-import * as afile from "../abstract/file.js";
+import * as afile from "./abstract/file.js";
 
 /**
  * Dataset in the H5AD format, see [here](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/advanced/matrices) for details.
@@ -27,15 +27,16 @@ export class H5adDataset extends Dataset {
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
      */
-    constructor(h5_file) {
+    constructor(h5File) {
         super();
 
-        if (h5_file instanceof afile.SimpleFile) {
-            this.#h5_file = h5_file;
+        if (h5File instanceof afile.SimpleFile) {
+            this.#h5_file = h5File;
         } else {
-            this.#h5_file = new afile.SimpleFile(h5);
+            this.#h5_file = new afile.SimpleFile(h5File);
         }
 
+        let info = scran.realizeFile(this.#h5_file.content());
         this.#h5_path = info.path;
         this.#h5_flush = info.flush;
 
@@ -71,11 +72,11 @@ export class H5adDataset extends Dataset {
         }
 
         if ("X" in this.#handle.children) {
-            let shape = this.#handle.open("X").shape;
+            let details = scran.extractHDF5MatrixDetails(this.#h5_path, "X");
             this.#counts_details = {
                 name: "X",
-                cells: shape[0],
-                features: shape[1]
+                cells: details.columns,
+                features: details.rows
             };
             return;
         } 
@@ -91,11 +92,12 @@ export class H5adDataset extends Dataset {
 
         for (const k of Object.keys(lhandle.children)) {
             if (k.match(/^count/i)) {
-                let shape = lhandle.open(k);
+                let full = "layers/" + k;
+                let details = scran.extractHDF5MatrixDetails(this.#h5_path, full);
                 this.#counts_details = {
-                    name: "layers/" + k,
-                    cells: shape[0],
-                    features: shape[1]
+                    name: full,
+                    cells: details.columns,
+                    features: details.rows
                 };
                 return;
             }
@@ -115,7 +117,7 @@ export class H5adDataset extends Dataset {
             let vhandle = handle.open("var");
             let index = eutils.extractHDF5Strings(vhandle, "_index");
             if (index !== null) {
-                genes = { "_index": index };
+                let genes = { "_index": index };
 
                 for (const [key, val] of Object.entries(vhandle.children)) {
                     if (val === "DataSet" && (key.match(/name/i) || key.match(/symb/i))) {
@@ -223,7 +225,7 @@ export class H5adDataset extends Dataset {
             cells[k] = temp;
         }
 
-        let loaded = scran.initializeSparseMatrixFromHDF5(tmppath, this.#counts_details.name);
+        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, this.#counts_details.name);
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, null);
         output.cells = scran.cloneArrayCollection(this.#raw_cells);
         return output;
