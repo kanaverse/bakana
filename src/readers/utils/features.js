@@ -1,5 +1,13 @@
 import * as scran from "scran.js";
 
+export function createMockIds(n) {
+    let ids = [];
+    for (var i = 0; i < n; i++) {
+        ids.push("Feature " + String(i));
+    }
+    return ids;
+}
+
 export function reportFeatures(rawFeatures, typeField) {
     if (typeField in rawFeatures) {
         let by_type = scran.splitByFactor(featureType[typeField]);

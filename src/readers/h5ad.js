@@ -20,7 +20,7 @@ export class H5adDataset extends Dataset {
     #raw_cell_factors;
 
     #handle;
-    #counts_details;
+    #chosen_assay;
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a HDF5 file.
@@ -50,7 +50,7 @@ export class H5adDataset extends Dataset {
             throw e;
         }
 
-        this.#counts_details = null;
+        this.#chosen_assay = null;
     }
 
     static format() {
@@ -66,18 +66,13 @@ export class H5adDataset extends Dataset {
         };
     }
 
-    #fetch_counts_details() {
-        if (this.#counts_details !== null) {
+    #choose_assay() {
+        if (this.#chosen_assay !== null) {
             return;
         }
 
         if ("X" in this.#handle.children) {
-            let details = scran.extractHDF5MatrixDetails(this.#h5_path, "X");
-            this.#counts_details = {
-                name: "X",
-                cells: details.columns,
-                features: details.rows
-            };
+            this.#chosen_assay = "X";
             return;
         } 
 
@@ -92,13 +87,7 @@ export class H5adDataset extends Dataset {
 
         for (const k of Object.keys(lhandle.children)) {
             if (k.match(/^count/i)) {
-                let full = "layers/" + k;
-                let details = scran.extractHDF5MatrixDetails(this.#h5_path, full);
-                this.#counts_details = {
-                    name: full,
-                    cells: details.columns,
-                    features: details.rows
-                };
+                this.#chosen_assay = "layers/" + k;
                 return;
             }
         }
@@ -133,13 +122,9 @@ export class H5adDataset extends Dataset {
             }
         }
 
-        this.#fetch_counts_details();
-        let NR = this.#counts_details.features;
-        let ids = [];
-        for (var i = 0; i < NR; i++) {
-            ids.push("Feature " + String(i));
-        }
-        this.#raw_features = { id: id };
+        this.#choose_assay();
+        let details = scran.extractHDF5MatrixDetails(this.#h5_path, this.#chosen_assay);
+        this.#raw_features = { id: futils.createMockIds(details.rows) };
         return;
     }
 
@@ -208,7 +193,7 @@ export class H5adDataset extends Dataset {
     load() {
         this.#features();
         this.#cells();
-        this.#fetch_counts_details();
+        this.#choose_assay();
 
         let cells = {};
         for (const [k, v] of Object.entries(this.#raw_cells)) {
@@ -225,7 +210,7 @@ export class H5adDataset extends Dataset {
             cells[k] = temp;
         }
 
-        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, this.#counts_details.name);
+        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, this.#chosen_assay);
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, null);
         output.cells = scran.cloneArrayCollection(this.#raw_cells);
         return output;

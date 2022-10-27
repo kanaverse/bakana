@@ -95,11 +95,7 @@ export class TenxMatrixMarketDataset extends Dataset {
 
         let NR = this.#dimensions[0];
         if (this.#feature_file == null) {
-            let ids = [];
-            for (var i = 0; i < NR; i++) {
-                ids.push("Feature " + String(i));
-            }
-            this.#raw_features = { id: ids };
+            this.#raw_features = { id: futils.createMockIds(NR) };
             return;
         }
 

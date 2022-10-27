@@ -1,6 +1,7 @@
 import * as scran from "scran.js";
 import { Dataset } from "./base.js";
 import * as afile from "./abstract/file.js";
+import * as futils from "./utils/features.js";
 
 function load_listData_names(lhandle) {
     let ndx = lhandle.findAttribute("names");
@@ -48,7 +49,9 @@ function load_data_frame(handle) {
             try {
                 curhandle = lhandle.load(i);
                 if (curhandle instanceof scran.RdsVector && !(curhandle instanceof scran.RdsGenericVector)) {
-                    columns[colnames[i]] = curhandle.values();
+                    let curcol = curhandle.values();
+                    columns[colnames[i]] = curcol;
+                    output.nrow = curcol.length;
                 }
             } finally {
                 scran.free(curhandle);
@@ -67,11 +70,32 @@ function load_data_frame(handle) {
         rnhandle = handle.attribute("rownames");
         if (rnhandle instanceof scran.RdsStringVector) {
             output.row_names = rnhandle.values();
+            output.nrow = output.row_names.length;
         }
     } catch(e) {
         throw new Error("failed to retrieve row names from DataFrame; " + e.message);
     } finally {
         scran.free(rnhandle);
+    }
+
+    // Loading the number of rows.
+    if (!("nrow" in output)) {
+        let nrhandle;
+        try {
+            nrhandle = handle.attribute("nrows");
+            if (!(nrhandle instanceof scran.RdsIntegerVector)) {
+                throw new Error("expected an integer vector as the 'nrows' slot");
+            }
+            let NR = nrhandle.values();
+            if (NR.length != 1) {
+                throw new Error("expected an integer vector of length 1 as the 'nrows' slot");
+            }
+            output.nrow = NR[0];
+        } catch (e) {
+            throw new Error("failed to retrieve nrows from DataFrame; " + e.message);
+        } finally {
+            scran.free(nrhandle);
+        }
     }
 
     return output;
@@ -173,6 +197,10 @@ function extract_features(handle) {
         } finally {
             scran.free(rrhandle);
         }
+    }
+
+    if (names == null) {
+        names = futils.createMockIds(rowdata.nrow);
     }
 
     let output = { id: names };
