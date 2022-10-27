@@ -27,7 +27,7 @@ export class TenxHdf5Dataset extends Dataset {
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
         } else {
-            this.#h5_file = new afile.SimpleFile(h5);
+            this.#h5_file = new afile.SimpleFile(h5File);
         }
 
         let info = scran.realizeFile(this.#h5_file.content());
@@ -74,11 +74,11 @@ export class TenxHdf5Dataset extends Dataset {
 
         let names = eutils.extractHDF5Strings(fhandle, "name");
         if (names !== null) {
-            this.#raw_features.name = nhandle.load();
+            this.#raw_features.name = names;
         }
 
         let ftype = eutils.extractHDF5Strings(fhandle, "feature_type");
-        if (ftypes !== null) {
+        if (ftype !== null) {
             this.#raw_features.type = ftype;
         }
     }

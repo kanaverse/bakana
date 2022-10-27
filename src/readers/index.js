@@ -16,7 +16,7 @@ import { SummarizedExperimentDataset } from "./se.js";
  * Each entry contains a {@linkplain Dataset} class with the key defined as the {@linkcode Dataset#format format} return value.
  */
 export const availableReaders = {
-    "1OX": TenxHdf5Dataset,
+    "10X": TenxHdf5Dataset,
     "MatrixMarket": TenxMatrixMarketDataset,
     "H5AD": H5adDataset,
     "SummarizedExperiment": SummarizedExperimentDataset
