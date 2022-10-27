@@ -15,12 +15,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     let feats = "files/datasets/immune_3.0.0-features.tsv.gz";
     let res = await bakana.runAnalysis(state, 
         { 
-            default: {
-                format: "MatrixMarket",
-                mtx: mtx,
-                genes: feats,
-                annotations: "files/datasets/immune_3.0.0-barcodes.tsv.gz"
-            }
+            default: new bakana.TenxMatrixMarketDataset(mtx, feats, "files/datasets/immune_3.0.0-barcodes.tsv.gz")
         },
         params
     );
@@ -32,7 +27,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     // Input reorganization is done correctly. 
     {
         let simple = scran.initializeSparseMatrixFromMatrixMarket(mtx, { layered: false });
-        let parsed = bakana.readTable(feats, { compression: "gz" });
+        let parsed = bakana.readTable((new bakana.SimpleFile(feats)).buffer(), { compression: "gz" });
         let simple_names = parsed.map(x => x[0]);
         let simple_types = parsed.map(x => x[2]);
 
@@ -175,10 +170,7 @@ test("runAnalysis works correctly (10X)", async () => {
     let params = utils.baseParams();
     let res = await bakana.runAnalysis(state, 
         { 
-            default: {
-                format: "10X",
-                h5: "files/datasets/immune_3.0.0-tenx.h5"
-            }
+            default: new bakana.TenxHdf5Dataset("files/datasets/immune_3.0.0-tenx.h5")
         },
         params
     );
@@ -242,12 +234,7 @@ test("runAnalysis works for ADTs with blocking", async () => {
 
     let res = await bakana.runAnalysis(state, 
         {
-            "combined": {
-                format: "MatrixMarket",
-                mtx: "files/datasets/immune_3.0.0-matrix.mtx.gz",
-                genes: "files/datasets/immune_3.0.0-features.tsv.gz",
-                annotations: exfile
-            }
+            "combined": new bakana.TenxMatrixMarketDataset("files/datasets/immune_3.0.0-matrix.mtx.gz", "files/datasets/immune_3.0.0-features.tsv.gz", exfile)
         },
         params
     );

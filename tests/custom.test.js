@@ -6,10 +6,7 @@ beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 let files = {
-    default: {
-        format: "10X",
-        h5: "files/datasets/pbmc4k-tenx.h5"
-    }
+    default: new bakana.TenxHdf5Dataset("files/datasets/pbmc4k-tenx.h5")
 };
 
 test("addition, fetching and removal of custom selections works correctly", async () => {

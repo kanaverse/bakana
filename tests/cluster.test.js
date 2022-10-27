@@ -7,10 +7,7 @@ afterAll(async () => await bakana.terminate());
 
 test("switching between clustering methods (SNN first)", async () => {
     let files = {
-        default: {
-            format: "10X",
-            h5: "files/datasets/pbmc4k-tenx.h5"
-        }
+        default: new bakana.TenxHdf5Dataset("files/datasets/pbmc4k-tenx.h5")
     };
 
     // First running the analysis with SNN graph,
@@ -98,11 +95,7 @@ test("switching between clustering methods (SNN first)", async () => {
 
 test("switching between clustering methods (k-means first)", async () => {
     let files = {
-        default: {
-            format: "MatrixMarket",
-            mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
-            genes: "files/datasets/pbmc3k-features.tsv.gz"
-        }
+        default: new bakana.TenxMatrixMarketDataset("files/datasets/pbmc3k-matrix.mtx.gz", "files/datasets/pbmc3k-features.tsv.gz", null)
     };
 
     let contents = {};

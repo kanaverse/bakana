@@ -38,10 +38,6 @@ export class TenxMatrixMarketDataset extends Dataset {
             this.#matrix_file = new afile.SimpleFile(matrixFile);
         }
 
-        var is_gz = this.#matrix_file.name().endsWith(".gz");
-        let headers = scran.extractMatrixMarketDimensions(this.#matrix_file.content(), { "compressed": is_gz });
-        this.#dimensions = [headers.rows, headers.columns];
-
         if (featureFile instanceof afile.SimpleFile || featureFile == null) {
             this.#feature_file = featureFile;
         } else {
@@ -87,12 +83,19 @@ export class TenxMatrixMarketDataset extends Dataset {
         return formatted;
     }
 
+    #fetch_dimensions() {
+        var is_gz = this.#matrix_file.name().endsWith(".gz");
+        let headers = scran.extractMatrixMarketDimensions(this.#matrix_file.content(), { "compressed": is_gz });
+        this.#dimensions = [headers.rows, headers.columns];
+    }
+
     #features() {
         if (this.#check_features) {
             return;
         }
         this.#check_features = true;
 
+        this.#fetch_dimensions();
         let NR = this.#dimensions[0];
         if (this.#feature_file == null) {
             this.#raw_features = { id: futils.createMockIds(NR) };
@@ -155,6 +158,7 @@ export class TenxMatrixMarketDataset extends Dataset {
 
         // Check if a header is present or not. Standard 10X output doesn't have a 
         // header but we'd like to support some kind of customization.
+        this.#fetch_dimensions();
         let diff = this.#dimensions[1] - parsed.length;
         let headers;
         if (diff == 0) {
@@ -215,7 +219,7 @@ export class TenxMatrixMarketDataset extends Dataset {
             files.push({ type: "genes", file: this.#feature_file });
         }
 
-        if (this.#feature_file !== null) {
+        if (this.#barcode_file !== null) {
             files.push({ type: "annotations", file: this.#barcode_file });
         }
 

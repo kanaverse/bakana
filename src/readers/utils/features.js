@@ -18,13 +18,13 @@ function create_solo_default_object(value) {
 
 export function reportFeatures(rawFeatures, typeField) {
     if (typeField in rawFeatures) {
-        let by_type = scran.splitByFactor(featureType[typeField]);
+        let by_type = scran.splitByFactor(rawFeatures[typeField]);
         let copy = { ...rawFeatures };
         delete copy[typeField];
         return scran.splitArrayCollection(copy, by_type);
     } else {
         // Cloning this instance to avoid complications if the caller modifies the return value.
-        return create_solo_default_object(scran.cloneArrayCollection(raw_features));
+        return create_solo_default_object(scran.cloneArrayCollection(rawFeatures));
     }
 }
 

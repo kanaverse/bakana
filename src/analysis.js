@@ -28,6 +28,7 @@ import * as cluster_markers from "./steps/marker_detection.js";
 import * as label_cells from "./steps/cell_labelling.js";
 import * as custom_markers from "./steps/custom_selections.js";
 
+export { setCreateLink, setResolveLink } from "./steps/inputs.js";
 export { MarkerDetectionState } from "./steps/marker_detection.js";
 export { CustomSelectionsState } from "./steps/custom_selections.js";
 

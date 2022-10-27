@@ -1,6 +1,7 @@
 import * as scran from "scran.js";
 import { Dataset } from "./base.js";
 import * as afile from "./abstract/file.js";
+import * as eutils from "./utils/extract.js";
 import * as futils from "./utils/features.js";
 
 function load_listData_names(lhandle) {
@@ -448,9 +449,15 @@ export class SummarizedExperimentDataset extends Dataset {
         for (const [k, v] of Object.entries(this.#raw_features)) {
             copy[k] = scran.cloneArrayCollection(v);
         }
+
+        let anno = {};
+        for (const [k, v] of Object.entries(this.#raw_cells)) {
+            anno[k] = eutils.summarizeArray(v);
+        }
+
         return {
             features: copy,
-            cells: scran.cloneArrayCollection(this.#raw_cells)
+            cells: anno
         };
     }
 

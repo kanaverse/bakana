@@ -11,17 +11,12 @@ test("multi-matrix analyses work correctly", async () => {
         contents[step] = res;
     };
 
+    let fpath4k = "files/datasets/pbmc4k-tenx.h5";
+    let fpath3k_mat = "files/datasets/pbmc3k-matrix.mtx.gz";
+    let fpath3k_feat = "files/datasets/pbmc3k-features.tsv.gz";
     let files = { 
-        "4K": {
-            format: "10X",
-            h5: "files/datasets/pbmc4k-tenx.h5"
-        },
-        "3K": {
-            format: "MatrixMarket",
-            mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
-            genes: "files/datasets/pbmc3k-features.tsv.gz",
-            annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
-        }
+        "4K": new bakana.TenxHdf5Dataset(fpath4k),
+        "3K": new bakana.TenxMatrixMarketDataset(fpath3k_mat, fpath3k_feat, "files/datasets/pbmc3k-barcodes.tsv.gz")
     };
 
     let paramcopy = utils.baseParams();
@@ -41,13 +36,13 @@ test("multi-matrix analyses work correctly", async () => {
 
     {
         // Checking that the matrix was correctly loaded.
-        let loaded3k = scran.initializeSparseMatrixFromMatrixMarket(files["3K"].mtx, { layered: false });
-        let parsed3k = bakana.readTable(files["3K"].genes, { compression: "gz" });
+        let loaded3k = scran.initializeSparseMatrixFromMatrixMarket(fpath3k_mat, { layered: false });
+        let parsed3k = bakana.readTable((new bakana.SimpleFile(fpath3k_feat)).buffer(), { compression: "gz" });
         let names3k = {};
         parsed3k.forEach((x, i) => { names3k[x[0]] = i; })
 
-        let loaded4k = scran.initializeSparseMatrixFromHDF5(files["4K"].h5, "matrix", { layered: false });
-        let info4k = (new scran.H5File(files["4K"].h5)).open("matrix").open("features").open("id", { load: true }).values;
+        let loaded4k = scran.initializeSparseMatrixFromHDF5(fpath4k, "matrix", { layered: false });
+        let info4k = (new scran.H5File(fpath4k)).open("matrix").open("features").open("id", { load: true }).values;
         let names4k = {};
         info4k.forEach((x, i) => { names4k[x] = i; }); 
 
@@ -65,6 +60,7 @@ test("multi-matrix analyses work correctly", async () => {
             expected.set(x4, x3.length);
 
             expect(com).toEqual(expected);
+            break
         }
 
         // IDs should be the same as the first matrix.
@@ -178,12 +174,11 @@ test("single-matrix multi-sample analyses work correctly", async () => {
     let res = await bakana.runAnalysis(
         state,
         { 
-            "combined": {
-                format: "MatrixMarket",
-                mtx: "files/datasets/pbmc-combined-matrix.mtx.gz",
-                genes: "files/datasets/pbmc-combined-features.tsv.gz",
-                annotations: "files/datasets/pbmc-combined-barcodes.tsv.gz"
-            }
+            "combined": new bakana.TenxMatrixMarketDataset(
+                    "files/datasets/pbmc-combined-matrix.mtx.gz", 
+                    "files/datasets/pbmc-combined-features.tsv.gz", 
+                    "files/datasets/pbmc-combined-barcodes.tsv.gz"
+                )
         },
         paramcopy,
         {

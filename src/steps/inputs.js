@@ -372,14 +372,19 @@ export class InputsState {
                     curhandle.writeDataSet("type", "String", [], obj.type);
                     curhandle.writeDataSet("name", "String", [], obj.file.name());
 
-                    let saved = embeddedSaver(obj.file.content(), obj.file.size());
-                    if ("id" in saved) {
-                        curhandle.writeDataSet("id", "String", [], saved.id);
-                    } else if (typeof saved.offset == "number" && typeof saved.size == "number") {
+                    if (embeddedSaver === null) {
+                        if (file2link == null) {
+                            throw new Error("no valid linking function from 'setCreateLink'");
+                        }
+                        let id = await file2link(obj.file.content());
+                        curhandle.writeDataSet("id", "String", [], id);
+                    } else {
+                        let saved = await embeddedSaver(obj.file.content(), obj.file.size());
+                        if (!(typeof saved.offset == "number") || !(typeof saved.size == "number")) {
+                            throw new Error("output of 'embeddedSaver' should contain 'offset' and 'size' numbers");
+                        }
                         curhandle.writeDataSet("offset", "Uint32", [], saved.offset);
                         curhandle.writeDataSet("size", "Uint32", [], saved.size);
-                    } else {
-                        throw new Error("output of 'embeddedSaver' should contain either an 'id' string or 'offset' and 'size' numbers"); 
                     }
 
                     sofar++;
@@ -489,6 +494,7 @@ export function commonFeatureTypes(genes) {
 
     let best_score = -1000;
     let best_type = null;
+    console.log(scores);
 
     for (const [k, v] of Object.entries(scores)) {
         if (v.length == genes.length) { // skipping if not represented in all entries.
@@ -500,7 +506,7 @@ export function commonFeatureTypes(genes) {
         }
     }
 
-    let best_fields = {};
+    let best_fields = [];
     let best_features = null;
 
     if (best_type !== null) {
@@ -511,7 +517,7 @@ export function commonFeatureTypes(genes) {
             species: best_features_sub[1]
         };
         for (var i = 0; i < genes.length; i++) {
-            best_fields[names[i]] = best_type_cols[i];
+            best_fields.push(best_type_cols[i]);
         }
     }
 
@@ -525,7 +531,7 @@ export function guessDefaultModalities(loaded) {
     // Checking which modalities are available across all datasets.
     let available = {};
     for (var i = 0; i < loaded.length; i++) {
-        let current = loaded[i].matrix.available();
+        let current = Object.keys(loaded[i].features);
 
         for (const modality of current) {
             let chosen = null;
@@ -583,10 +589,11 @@ function bind_single_modality(modality, mapping, loaded) {
         // Identify the gene columns to use.
         let genes = [];
         for (var i = 0; i < mapping.length; i++) {
-            let info = loaded[i].genes[mapping[i]];
+            let info = loaded[i].features[mapping[i]];
             if (!info) {
                 throw new Error("no features available for '" + modality + "' in dataset " + String(i + 1))
             }
+            genes.push(info);
         }
 
         let result = commonFeatureTypes(genes);
@@ -606,7 +613,7 @@ function bind_single_modality(modality, mapping, loaded) {
 
         // Extracting gene information from the first object. We won't make
         // any attempt at merging and deduplication across objects.
-        output.genes = scran.subsetArrayCollection(genes[0], merged.indices);
+        output.features = scran.subsetArrayCollection(genes[0], merged.indices);
         output.row_ids = scran.sliceArray(loaded[0].row_ids[mapping[0]], merged.indices);
 
     } catch (e) {
@@ -632,7 +639,7 @@ function bind_datasets(names, loaded) {
 
     try {
         for (const [k, v] of Object.entries(common_modes)) {
-            let current = bind_single_modality(v, datasets, k);
+            let current = bind_single_modality(k, v, loaded);
             output.matrix.add(k, current.matrix);
             output.features[k] = current.features;
             output.row_ids[k] = current.row_ids;
@@ -700,14 +707,17 @@ function rename_dataset(single) {
 }
 
 async function load_datasets(datasets) {
+    // Ensure we have a reproducible order; otherwise the batch
+    // order becomes dependent on the JS engine's ordering.
+    let names = Object.keys(datasets);
+    names.sort();
+
     let loaded = [];
-    let names = [];
     try {
-        for (const [key, val] of Object.entries(datasets)) {
-            names.push(key);
+        for (const key of names) {
             // Too much hassle to convert this into a Promise.all(), because we
             // need to make sure it gets freed properly on failure.
-            loaded.push(await val.load());
+            loaded.push(await datasets[key].load());
         }
     } catch (e) {
         // If any one fails, we free the rest.
@@ -716,10 +726,6 @@ async function load_datasets(datasets) {
         }
         throw e;
     }
-
-    // Ensure we have a reproducible order; otherwise the batch
-    // order becomes dependent on the JS engine's ordering.
-    names.sort();
 
     let output;
     if (names.length == 1) {
@@ -942,7 +948,10 @@ async function unserialize_Dataset(format, all_files, loader) {
     for (const f of all_files) {
         let b;
         if (loader == null) {
-            // TODO: handle links!
+            if (link2file == null) {
+                throw new Error("no valid linking function from 'setResolveLink'");
+            }
+            b = await link2file(f.id);
         } else {
             b = await loader(f.offset, f.size);
         }
@@ -1139,4 +1148,50 @@ export async function unserialize(handle, embeddedLoader) {
         state: new InputsState(parameters, cache),
         permuters: permuters
     };
+}
+
+/**************************
+ ******** Linking *********
+ **************************/
+
+var file2link = null;
+var link2file = null;
+
+/**
+ * Specify a function to create links for data files.
+ * By default, this only affects files for the MatrixMarket, H5AD and 10X formats, and is only used when linking is requested.
+ *
+ * @param {function} fun - Function that returns a linking idenfier to a data file.
+ * The function should accept the following arguments:
+ *
+ * - A string specifying the type of the file, e.g., `"mtx"`, `"h5"`.
+ * - A string containing the name of the file.
+ * - An ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
+ *
+ * The function is expected to return a string containing some unique identifier to the file.
+ * This is most typically used to register the file with some user-specified database system for later retrieval.
+ *
+ * @return `fun` is set as the global link creator for this step. 
+ * The _previous_ value of the creator is returned.
+ */
+export function setCreateLink(fun) {
+    let previous = file2link;
+    file2link = fun;
+    return previous;
+}
+
+/**
+ * Specify a function to resolve links for data files.
+ * By default, this only affects files for the MatrixMarket, H5AD and 10X formats, and is only used when links are detected.
+ *
+ * @param {function} fun - Function that accepts a string containing a linking idenfier and returns an ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
+ * This is most typically used to retrieve a file from some user-specified database system.
+ *
+ * @return `fun` is set as the global resolver for this step. 
+ * The _previous_ value of the resolver is returned.
+ */
+export function setResolveLink(fun) {
+    let previous = link2file;
+    link2file = fun;
+    return previous;
 }

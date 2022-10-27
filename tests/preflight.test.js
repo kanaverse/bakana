@@ -8,16 +8,16 @@ afterAll(async () => await bakana.terminate());
 test("annotation preflight works correctly (one file)", async () => {
     let res = await bakana.validateAnnotations(
         {
-            default: {
-                format: "MatrixMarket",
-                mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
-                genes: "files/datasets/pbmc3k-features.tsv.gz",
-                annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
-            }
+            default: new bakana.TenxMatrixMarketDataset(
+                    "files/datasets/pbmc3k-matrix.mtx.gz",
+                    "files/datasets/pbmc3k-features.tsv.gz",
+                    "files/datasets/pbmc3k-barcodes.tsv.gz"
+                )
         }
     );
 
     expect(res.features.RNA.common).toBeGreaterThan(0);
+    console.log(res.features.RNA.fields);
     expect(typeof res.features.RNA.fields.default).toBe("string");
 
     let default_anno = res.annotations.default;
@@ -31,30 +31,23 @@ test("annotation preflight works correctly (one file)", async () => {
     // still works without any annotations.
     let res2 = await bakana.validateAnnotations(
         {
-            default: {
-                format: "MatrixMarket",
-                mtx: "files/datasets/pbmc3k-matrix.mtx.gz"
-            }
+            default: new bakana.TenxMatrixMarketDataset("files/datasets/pbmc3k-matrix.mtx.gz", null, null)
         }
     );
 
-    expect(res2.annotations.default).toBeNull();
-    expect(res2.features.RNA.common).toBeNull();
+    expect(res2.annotations.default).toEqual({});
+    expect(res2.features.RNA.common).toBeGreaterThan(0);
 })
 
 test("annotation preflight works correctly (two files)", async () => {
     let res = await bakana.validateAnnotations(
         {
-            "3k": {
-                format: "MatrixMarket",
-                mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
-                genes: "files/datasets/pbmc3k-features.tsv.gz",
-                annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
-            },
-            "4k": {
-                format: "10X",
-                h5: "files/datasets/pbmc4k-tenx.h5"
-            }
+            "3k": new bakana.TenxMatrixMarketDataset(
+                    "files/datasets/pbmc3k-matrix.mtx.gz",
+                    "files/datasets/pbmc3k-features.tsv.gz",
+                    "files/datasets/pbmc3k-barcodes.tsv.gz"
+                ),
+            "4k": new bakana.TenxHdf5Dataset("files/datasets/pbmc4k-tenx.h5")
         }
     );
 
@@ -64,16 +57,13 @@ test("annotation preflight works correctly (two files)", async () => {
 
     // Checking the annotations while we're here.
     expect(Object.keys(res.annotations["3k"]).length).toBeGreaterThan(0);
-    expect(res.annotations["4k"]).toBeNull();
+    expect(res.annotations["4k"]).toEqual({});
 })
 
 test("annotation preflight works correctly for H5ADs", async () => {
     let res = await bakana.validateAnnotations(
         {
-            "brain": {
-                format: "H5AD",
-                h5: "files/datasets/zeisel-brain.h5ad"
-            }
+            "brain": new bakana.H5adDataset("files/datasets/zeisel-brain.h5ad")
         }
     );
 
@@ -94,10 +84,7 @@ test("annotation preflight works correctly for H5ADs", async () => {
 test("annotation preflight works correctly for SummarizedExperiments", async () => {
     let res = await bakana.validateAnnotations(
         {
-            "brain": {
-                format: "SummarizedExperiment",
-                rds: "files/datasets/zeisel-brain.rds"
-            }
+            "brain": new bakana.SummarizedExperimentDataset("files/datasets/zeisel-brain.rds")
         }
     );
 
@@ -107,7 +94,9 @@ test("annotation preflight works correctly for SummarizedExperiments", async () 
     let brain_keys = Object.keys(brain_anno);
     expect(brain_keys.length).toBeGreaterThan(0);
 
+    console.log(brain_anno);
     let cells = brain_anno["cell_id"];
+    console.log(cells);
     expect(cells.values.length).toBeGreaterThan(0);
     expect(typeof cells.values[0]).toBe("string");
     expect(cells.truncated).toBe(true); 
@@ -120,10 +109,7 @@ test("annotation preflight works correctly for SummarizedExperiments", async () 
 test("annotation preflight works correctly for SingleCellExperiments with altExps", async () => {
     let res = await bakana.validateAnnotations(
         {
-            "immune": {
-                format: "SummarizedExperiment",
-                rds: "files/datasets/immune_3.0.0-tenx.rds"
-            }
+            "immune": new bakana.SummarizedExperimentDataset("files/datasets/immune_3.0.0-tenx.rds")
         }
     );
 
@@ -144,14 +130,8 @@ test("annotation preflight fails correctly (two files, wrong species)", async ()
     try {
         res = await bakana.validateAnnotations(
             {
-                "brain": {
-                    format: "H5AD",
-                    h5: "files/datasets/zeisel-brain.h5ad"
-                },
-                "4k": {
-                    format: "10X",
-                    h5: "files/datasets/pbmc4k-tenx.h5"
-                }
+                "brain": new bakana.H5adDataset("files/datasets/zeisel-brain.h5ad"),
+                "4k": new bakana.TenxHdf5Dataset("files/datasets/pbmc4k-tenx.h5")
             }
         );
     } catch (e) {
@@ -168,14 +148,8 @@ test("annotation preflight fails correctly (two files, no genes)", async () => {
     try {
         res = await bakana.validateAnnotations(
             {
-                "brain": {
-                    format: "H5AD",
-                    h5: "files/datasets/zeisel-brain.h5ad"
-                },
-                "3k": {
-                    format: "MatrixMarket",
-                    mtx: "files/datasets/pbmc3k-matrix.mtx.gz"
-                }
+                "brain": new bakana.H5adDataset("files/datasets/zeisel-brain.h5ad"),
+                "3k": new bakana.TenxMatrixMarketDataset("files/datasets/pbmc3k-matrix.mtx.gz")
             }
         );
     } catch (e) {
@@ -189,12 +163,11 @@ test("annotation preflight fails correctly (two files, no genes)", async () => {
 test("annotation preflight works correctly (ADTs)", async () => {
     let res = await bakana.validateAnnotations(
         {
-            default: {
-                format: "MatrixMarket",
-                mtx: "files/datasets/immune_3.0.0-matrix.mtx.gz",
-                genes: "files/datasets/immune_3.0.0-features.tsv.gz",
-                annotations: "files/datasets/immune_3.0.0-barcodes.tsv.gz"
-            }
+            default: new bakana.TenxMatrixMarketDataset(
+                    "files/datasets/immune_3.0.0-matrix.mtx.gz",
+                    "files/datasets/immune_3.0.0-features.tsv.gz",
+                    "files/datasets/immune_3.0.0-barcodes.tsv.gz"
+                ) 
         }
     );
 
@@ -205,16 +178,12 @@ test("annotation preflight works correctly (ADTs)", async () => {
     // still works with multiple hits.
     let res2 = await bakana.validateAnnotations(
         {
-            mtx: {
-                format: "MatrixMarket",
-                mtx: "files/datasets/immune_3.0.0-matrix.mtx.gz",
-                genes: "files/datasets/immune_3.0.0-features.tsv.gz",
-                annotations: "files/datasets/immune_3.0.0-barcodes.tsv.gz"
-            },
-            tenx: {
-                format: "10X",
-                h5: "files/datasets/immune_3.0.0-tenx.h5"
-            }
+            mtx: new bakana.TenxMatrixMarketDataset(
+                    "files/datasets/immune_3.0.0-matrix.mtx.gz",
+                    "files/datasets/immune_3.0.0-features.tsv.gz",
+                    "files/datasets/immune_3.0.0-barcodes.tsv.gz"
+                ),
+            tenx: new bakana.TenxHdf5Dataset("files/datasets/immune_3.0.0-tenx.h5")
         }
     );
 
