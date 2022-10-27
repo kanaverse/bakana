@@ -1,6 +1,6 @@
 import * as scran from "scran.js";
 import { Dataset } from "./base.js";
-import * as afile from "../abstract/file.js";
+import * as afile from "./abstract/file.js";
 
 function load_listData_names(lhandle) {
     let ndx = lhandle.findAttribute("names");
@@ -334,7 +334,7 @@ export class SummarizedExperimentDataset extends Dataset {
         if (rdsFile instanceof afile.SimpleFile) {
             this.#rds_file = rdsFile;
         } else {
-            this.#rds_file = new afile.SimpleFile(rds);
+            this.#rds_file = new afile.SimpleFile(rdsFile);
         }
 
         this.#check_features = false;
@@ -360,8 +360,8 @@ export class SummarizedExperimentDataset extends Dataset {
             return;
         }
 
-        this.#rds_handle = scran.readRds(rds_stuff);
-        this.#se_handle = rdshandle.value();
+        this.#rds_handle = scran.readRds(this.#rds_file.content());
+        this.#se_handle = this.#rds_handle.value();
         try {
             check_for_se(this.#se_handle);
             this.#alt_handles = extract_alt_exps(this.#se_handle);
@@ -381,7 +381,7 @@ export class SummarizedExperimentDataset extends Dataset {
         this.#initialize();
         this.#raw_features = { "": extract_features(this.#se_handle) };
 
-        for (const [k, v] of Object.keys(this.#alt_handles)) {
+        for (const [k, v] of Object.entries(this.#alt_handles)) {
             try {
                 this.#raw_features[k] = extract_features(v);
             } catch (e) {
@@ -443,13 +443,14 @@ export class SummarizedExperimentDataset extends Dataset {
             let out_mat = loaded.matrix;
             let out_ids = loaded.row_ids;
             output.matrix.add("", out_mat);
+            output.row_ids[""] = out_ids;
             output.features[""] = scran.subsetArrayCollection(this.#raw_features[""], out_ids);
 
-            for (const [k, v] of Object.entries(this.#raw_features)) {
-                let alt = extract_counts(alt_handles[k]);
-                output.matrix.add(name, alt.matrix);
+            for (const [k, v] of Object.entries(this.#alt_handles)) {
+                let alt = extract_counts(v);
+                output.matrix.add(k, alt.matrix);
                 output.row_ids[k] = alt.row_ids;
-                output.features[k] = scran.subsetArrayCollection(v, alt.row_ids);
+                output.features[k] = scran.subsetArrayCollection(this.#raw_features[k], alt.row_ids);
             }
 
         } catch (e) {
