@@ -8,6 +8,14 @@ export function createMockIds(n) {
     return ids;
 }
 
+const default_modality = "";
+
+function create_solo_default_object(value) {
+    let output = {};
+    output[default_modality] = value;
+    return output;
+}
+
 export function reportFeatures(rawFeatures, typeField) {
     if (typeField in rawFeatures) {
         let by_type = scran.splitByFactor(featureType[typeField]);
@@ -16,7 +24,7 @@ export function reportFeatures(rawFeatures, typeField) {
         return scran.splitArrayCollection(copy, by_type);
     } else {
         // Cloning this instance to avoid complications if the caller modifies the return value.
-        return { default: scran.cloneArrayCollection(raw_features) };
+        return create_solo_default_object(scran.cloneArrayCollection(raw_features));
     }
 }
 
@@ -26,7 +34,7 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField) {
     try {
         let out_mat = loaded.matrix;
         let out_ids = loaded.row_ids;
-        output.matrix.add("", out_mat);
+        output.matrix.add(default_modality, out_mat);
 
         let current_features;
         if (out_ids !== null) {
@@ -46,7 +54,7 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField) {
                 scran.free(output.matrix);
                 output.matrix = replacement;
             } else {
-                output.matrix.rename("", type_keys[0]);
+                output.matrix.rename(default_modality, type_keys[0]);
             }
 
             delete current_features[typeField];
@@ -54,8 +62,8 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField) {
             output.row_ids = scran.splitArray(out_ids, by_type);
 
         } else {
-            output.row_ids = { "": out_ids };
-            output.features = { "": current_features };
+            output.row_ids = create_solo_default_object(out_ids);
+            output.features = create_solo_default_object(current_features);
         }
     } catch (e) {
         scran.free(output.matrix);
