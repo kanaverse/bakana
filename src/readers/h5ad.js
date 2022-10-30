@@ -21,7 +21,7 @@ export class H5adDataset {
     #assay_details;
 
     /**
-     * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a HDF5 file.
+     * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a H5AD file.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
      */

@@ -27,7 +27,7 @@ export class SimpleFile {
     buffer({ copy = false } = {}) {
         if (this.#mode == "file") {
             let reader = new FileReaderSync();
-            let b = await reader.readAsArrayBuffer(x);
+            let b = reader.readAsArrayBuffer(x);
             return new Uint8Array(b);
         } else {
             if (copy) {

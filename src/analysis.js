@@ -123,21 +123,12 @@ export function freeAnalysis(state) {
  * This will cache the results from each step so that, if the parameters change, only the affected steps will be rerun.
  *
  * @param {object} state - Object containing the analysis state, produced by {@linkcode createAnalysis} or {@linkcode loadAnalysis}.
- * @param {Array} matrices - Object where each (arbitrarily named) property corresponds to an input matrix. 
- * Each matrix should be an object with `type` string property and any number of additional properties referring to individual data files.
+ * @param {object} datasets - Object where each (arbitrarily named) property corresponds to an input dataset.
+ * Each dataset should be a object that satisfies the [`Dataset` interface](https://github.com/LTLA/bakana/blob/master/docs/related/custom_readers.md).
+ * By default, we support {@linkplain TenxHdf5Dataset}, {@linkplain TenxMatrixMarketDataset}, {@linkplain H5adDataset} and {@linkplain SummarizedExperimentDataset} instances.
  *
- * - If `type: "MatrixMarket"`, the object should contain an `mtx` property, referring to a (possibly Gzipped) Matrix Market file containing a count matrix.
- *   The object may contain a `genes` property, referring to a (possibly Gzipped) tab-separated file with the gene ID and symbols for each row of the count matrix.
- *   The object may contain a `annotation` property, referring to a (possibly Gzipped) tab-separated file with the gene ID and symbols for each row of the count matrix.
- * - If `type: "10X"`, the object should contain an `h5` property, referring to a HDF5 file following the 10X Genomics feature-barcode matrix format.
- *   It is assumed that the matrix has already been filtered to contain only the cell barcodes.
- * - If `type: "H5AD"`, the object should contain an `h5` property, referring to a H5AD file.
- *
- * The representation of each reference to a data file depends on the runtime.
- * In the browser, each data file manifests as a `File` object; for Node.js, each data file should be represented as a string containing a file path.
- *
- * Alternatively, `matrices` may be `null`, in which case the count matrices are extracted from `state`.
- * This assumes that the data matrices were already cached in `state`, either from a previous call to {@linkcode runAnalysis} or from @{linkcode loadAnalysis}.
+ * Alternatively, `datasets` may be `null` if the input datasets were already loaded and cached in `state`.
+ * This avoids the need to respecify the inputs after a previous call to {@linkcode runAnalysis} or from {@linkcode loadAnalysis}.
  * @param {object} params - An object containing parameters for all steps.
  * See {@linkcode analysisDefaults} for more details.
  * @param {object} [options] - Optional parameters.
@@ -152,7 +143,7 @@ export function freeAnalysis(state) {
  * @return A promise that resolves to `null` when all asynchronous analysis steps are complete.
  * The contents of `state` are modified by reference to reflect the latest state of the analysis with the supplied parameters.
  */
-export async function runAnalysis(state, matrices, params, { startFun = null, finishFun = null } = {}) {
+export async function runAnalysis(state, datasets, params, { startFun = null, finishFun = null } = {}) {
     let quickStart = step => {
         if (startFun !== null) {
             startFun(step);
@@ -184,7 +175,7 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
     /*** Loading ***/
     quickStart(step_inputs);
     await state[step_inputs].compute(
-        matrices, 
+        datasets,
         params[step_inputs]["sample_factor"],
         params[step_inputs]["subset"]
     );

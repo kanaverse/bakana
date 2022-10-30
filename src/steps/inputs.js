@@ -7,9 +7,9 @@ export const step_name = "inputs";
 const RAW_SUBSET_OVERRIDE = "raw_subset_indices";
 
 /**
- * This step handles the loading of the input count matrices into memory.
+ * This step handles the loading of all datasets into memory.
  * This wraps various matrix initialization functions in [**scran.js**](https://github.com/jkanche/scran.js),
- * depending on the format of the supplied matrices.
+ * depending on the format of the supplied datasets.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -115,7 +115,7 @@ export class InputsState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * `datasets` is taken from the `matrices` argument in {@linkcode runAnalysis},
+     * `datasets` is taken from the argument of the same name in {@linkcode runAnalysis},
      * while `sample_factor` is taken from the property of the same name in the `inputs` property of the `parameters`.
      *
      * @param {object} datasets - An object containing data for one or more datasets.
@@ -1146,16 +1146,8 @@ var link2file = null;
 
 /**
  * Specify a function to create links for data files.
- * By default, this only affects files for the MatrixMarket, H5AD and 10X formats, and is only used when linking is requested.
  *
- * @param {function} fun - Function that returns a linking idenfier to a data file.
- * The function should accept the following arguments:
- *
- * - A string specifying the type of the file, e.g., `"mtx"`, `"h5"`.
- * - A string containing the name of the file.
- * - An ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
- *
- * The function is expected to return a string containing some unique identifier to the file.
+ * @param {function} fun - Function that accepts a {@linkplain SimpleFile} and returns a string containing some unique identifier to the file.
  * This is most typically used to register the file with some user-specified database system for later retrieval.
  *
  * @return `fun` is set as the global link creator for this step. 
@@ -1169,9 +1161,9 @@ export function setCreateLink(fun) {
 
 /**
  * Specify a function to resolve links for data files.
- * By default, this only affects files for the MatrixMarket, H5AD and 10X formats, and is only used when links are detected.
  *
- * @param {function} fun - Function that accepts a string containing a linking idenfier and returns an ArrayBuffer containing the file content (for browsers) or a string containing the file path (for Node.js),
+ * @param {function} fun - Function that accepts a string containing a linking idenfier and returns any value that can be used in the {@linkplain SimpleFile} constructor
+ * i.e., a Uint8Array, File (on browser) or string containing a file path (on Node.js).
  * This is most typically used to retrieve a file from some user-specified database system.
  *
  * @return `fun` is set as the global resolver for this step. 
