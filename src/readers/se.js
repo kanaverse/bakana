@@ -363,8 +363,6 @@ export class SummarizedExperimentDataset {
      * On Node.js, this may also be a string containing a file path.
      */
     constructor(rdsFile) {
-        super();
-
         if (rdsFile instanceof afile.SimpleFile) {
             this.#rds_file = rdsFile;
         } else {

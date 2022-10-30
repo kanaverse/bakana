@@ -21,8 +21,6 @@ export class TenxHdf5Dataset {
      * On Node.js, this may also be a string containing a file path.
      */
     constructor(h5File) {
-        super();
-
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
         } else {

@@ -26,8 +26,6 @@ export class TenxMatrixMarketDataset {
      * If `null`, it is assumed that no file was available.
      */
     constructor(matrixFile, featureFile, barcodeFile) {
-        super();
-
         if (matrixFile instanceof afile.SimpleFile) {
             this.#matrix_file = matrixFile;
         } else {

@@ -1,6 +1,5 @@
 import * as rutils from "./readers/index.js";
 import * as iutils from "./steps/inputs.js";
-import * as f from "./abstract/file.js";
 
 /**
  * Perform preflight validation of the annotations in the input datasets.
