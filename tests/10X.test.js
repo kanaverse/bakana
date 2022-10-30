@@ -37,7 +37,7 @@ test("runAnalysis works correctly (10X)", async () => {
     {
         let loaded = state.inputs.fetchCountMatrix();
         let loaded_ids = state.inputs.fetchRowIds();
-        let loaded_names = state.inputs.fetchGenes().id;
+        let loaded_names = state.inputs.fetchGenes().column("id");
 
         let simple = scran.initializeSparseMatrixFromHDF5(h5path, "matrix", { layered: false });
         let simple_names = (new scran.H5File(h5path)).open("matrix").open("features").open("id", { load: true }).values;

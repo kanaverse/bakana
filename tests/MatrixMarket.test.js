@@ -35,7 +35,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     // Input reorganization is done correctly.
     {
         let loaded = state.inputs.fetchCountMatrix();
-        let loaded_names = state.inputs.fetchGenes().id;
+        let loaded_names = state.inputs.fetchGenes().column("id");
         let loaded_ids = state.inputs.fetchRowIds();
 
         let simple = scran.initializeSparseMatrixFromMatrixMarket(mtx_file, { layered: false });

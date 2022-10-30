@@ -47,7 +47,7 @@ test("multi-matrix analyses work correctly", async () => {
         info4k.forEach((x, i) => { names4k[x] = i; }); 
 
         // Randomly picking every 100th gene and checking we get the same results.
-        let combined_names = state.inputs.fetchGenes()["id"];
+        let combined_names = state.inputs.fetchGenes().column("id");
         for (var i = 0; i < combined_names.length; i+=100) {
             let i3 = names3k[combined_names[i]];
             let x3 = loaded3k.matrix.row(i3);
