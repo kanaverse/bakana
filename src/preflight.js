@@ -44,21 +44,21 @@ export async function validateAnnotations(datasets) {
     }
     let collected = await Promise.all(promises);
 
+    let annotations = {};
+    for (const [i, key] of Object.entries(mkeys)) {
+        annotations[key] = collected[i].cells.summary;
+    }
+
     let modal_mappings = iutils.guessDefaultModalities(collected);
     if (Object.keys(modal_mappings).length == 0) {
         throw new Error("failed to find any common modalities");
-    }
-
-    let annotations = {};
-    for (const [i, key] of Object.entries(mkeys)) {
-        annotations[key] = collected[i].cells;
     }
 
     // For each modality, intersect the features.
     let feature_info = {};
     
     for (const [m, chosen] of Object.entries(modal_mappings)) {
-        feature_info[m] = {};
+        feature_info[m] = { fields: {} };
 
         let genes2 = [];
         for (var i = 0; i < collected.length; i++) {
@@ -66,18 +66,18 @@ export async function validateAnnotations(datasets) {
         }
 
         let results = iutils.commonFeatureTypes(genes2);
-        if (results.best_type === null) {
-            throw new Error("cannot find common feature types across all datasets");
-        }
-        feature_info[m].fields = {};
-        for (var i = 0; i < collected.length; i++) {
-            feature_info[m].fields[mkeys[i]] = results.best_fields[i];
-        }
 
         if (multi) {
+            if (results.best_type === null) {
+                throw new Error("cannot find common feature types across all datasets");
+            }
+            for (var i = 0; i < collected.length; i++) {
+                feature_info[m].fields[mkeys[i]] = results.best_fields[i];
+            }
+
             let intersection = null;
             for (const [k, v] of Object.entries(results.best_fields)) {
-                let curgenes = genes2[k][v];
+                let curgenes = genes2[k].column(v);
                 if (intersection === null) {
                     intersection = curgenes;
                 } else {
@@ -87,7 +87,9 @@ export async function validateAnnotations(datasets) {
             }
             feature_info[m].common = intersection.length;
         } else {
-            feature_info[m].common = Object.values(Object.values(genes2)[0])[0].length;
+            let cn = genes2[0].columnNames();
+            feature_info[m].fields[mkeys[0]] = (cn.length ? cn[0] : "");
+            feature_info[m].common = genes2[0].numberOfRows();
         }
     }
 

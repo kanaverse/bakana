@@ -1,4 +1,5 @@
 import * as scran from "scran.js";
+import * as bioc from "bioconductor";
 import { Dataset } from "./base.js";
 import * as afile from "./abstract/file.js";
 import * as eutils from "./utils/extract.js";
@@ -10,15 +11,12 @@ import * as futils from "./utils/features.js";
  */
 export class TenxMatrixMarketDataset extends Dataset {
     #matrix_file;
-    #dimensions;
-
     #feature_file;
-    #check_features;
-    #raw_features;
-
     #barcode_file;
-    #check_barcodes;
-    #raw_barcodes;
+
+    #dimensions;
+    #raw_features;
+    #raw_cells;
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} matrixFile - A Matrix Market file.
@@ -50,8 +48,9 @@ export class TenxMatrixMarketDataset extends Dataset {
             this.#barcode_file = new afile.SimpleFile(barcodeFile);
         }
 
-        this.#check_features = false;
-        this.#check_barcodes = false;
+        this.#dimensions = null;
+        this.#raw_features = null;
+        this.#raw_cells = null;
     }
 
     static format() {
@@ -84,21 +83,23 @@ export class TenxMatrixMarketDataset extends Dataset {
     }
 
     #fetch_dimensions() {
+        if (this.#dimensions !== null) {
+            return;
+        }
         var is_gz = this.#matrix_file.name().endsWith(".gz");
         let headers = scran.extractMatrixMarketDimensions(this.#matrix_file.content(), { "compressed": is_gz });
         this.#dimensions = [headers.rows, headers.columns];
     }
 
     #features() {
-        if (this.#check_features) {
+        if (this.#raw_features !== null) {
             return;
         }
-        this.#check_features = true;
 
         this.#fetch_dimensions();
         let NR = this.#dimensions[0];
         if (this.#feature_file == null) {
-            this.#raw_features = { id: futils.createMockIds(NR) };
+            this.#raw_features = new bioc.DataFrame({}, { numberOfRows: NR });
             return;
         }
 
@@ -136,18 +137,18 @@ export class TenxMatrixMarketDataset extends Dataset {
             output.type = types;
         }
 
-        this.#raw_features = output;
+        this.#raw_features = new bioc.DataFrame(output);
         return;
     }
 
-    #barcodes() {
-        if (this.#check_barcodes) {
+    #cells() {
+        if (this.#raw_cells !== null) {
             return;
         }
-        this.#check_barcodes = true;
 
+        this.#fetch_dimensions();
         if (this.#barcode_file == null) {
-            this.#raw_barcodes = {};
+            this.#raw_cells = new bioc.DataFrame({}, { numberOfRows: this.#dimensions[1] });
             return;
         }
 
@@ -158,7 +159,6 @@ export class TenxMatrixMarketDataset extends Dataset {
 
         // Check if a header is present or not. Standard 10X output doesn't have a 
         // header but we'd like to support some kind of customization.
-        this.#fetch_dimensions();
         let diff = this.#dimensions[1] - parsed.length;
         let headers;
         if (diff == 0) {
@@ -181,38 +181,41 @@ export class TenxMatrixMarketDataset extends Dataset {
             }
         }
 
-        this.#raw_barcodes = annotations;
+        this.#raw_cells = new bioc.DataFrame(annotations);
         return;
     }
 
     annotations() {
         this.#features();
-        this.#barcodes();
+        this.#cells();
 
         let anno = {};
-        for (const [k, v] of Object.entries(this.#raw_barcodes)) {
-            anno[k] = eutils.summarizeArray(v);
+        for (const k of this.#raw_cells.columnNames()) {
+            anno[k] = eutils.summarizeArray(this.#raw_cells.column(k));
         }
 
         return {
             "features": futils.reportFeatures(this.#raw_features, "type"),
-            "cells": anno
+            "cells": {
+                "number": this.#raw_cells.numberOfRows(),
+                "summary": anno
+            }
         };
     }
 
     load() {
         this.#features();
-        this.#barcodes();
+        this.#cells();
 
         var is_gz = this.#matrix_file.name().endsWith(".gz");
         let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compressed": is_gz });
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type");
-        output.cells = scran.cloneArrayCollection(this.#raw_barcodes);
+        output.cells = bioc.CLONE(this.#raw_cells);
         return output;
     }
 
     // These 'type's are largely retained for back-compatibility.
-    async serialize(embeddedSaver) {
+    async serialize() {
         let files = [ { type: "mtx", file: this.#matrix_file } ];
 
         if (this.#feature_file !== null) {

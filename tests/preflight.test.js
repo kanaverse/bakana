@@ -17,7 +17,6 @@ test("annotation preflight works correctly (one file)", async () => {
     );
 
     expect(res.features.RNA.common).toBeGreaterThan(0);
-    console.log(res.features.RNA.fields);
     expect(typeof res.features.RNA.fields.default).toBe("string");
 
     let default_anno = res.annotations.default;
@@ -94,9 +93,7 @@ test("annotation preflight works correctly for SummarizedExperiments", async () 
     let brain_keys = Object.keys(brain_anno);
     expect(brain_keys.length).toBeGreaterThan(0);
 
-    console.log(brain_anno);
     let cells = brain_anno["cell_id"];
-    console.log(cells);
     expect(cells.values.length).toBeGreaterThan(0);
     expect(typeof cells.values[0]).toBe("string");
     expect(cells.truncated).toBe(true); 
@@ -157,7 +154,7 @@ test("annotation preflight fails correctly (two files, no genes)", async () => {
     }
 
     expect(res).toBeUndefined();
-    expect(err).toMatch("gene annotations");
+    expect(err).toMatch("common feature type");
 })
 
 test("annotation preflight works correctly (ADTs)", async () => {

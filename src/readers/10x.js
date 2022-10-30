@@ -1,4 +1,5 @@
 import * as scran from "scran.js";
+import * as bioc from "bioconductor";
 import { Dataset } from "./base.js";
 import * as afile from "./abstract/file.js";
 import * as eutils from "./utils/extract.js";
@@ -13,8 +14,8 @@ export class TenxHdf5Dataset extends Dataset {
     #h5_path;
     #h5_flush;
 
-    #check_features;
     #raw_features;
+    #raw_cells;
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a HDF5 file.
@@ -31,9 +32,12 @@ export class TenxHdf5Dataset extends Dataset {
         }
 
         let info = scran.realizeFile(this.#h5_file.content());
+
         this.#h5_path = info.path;
         this.#h5_flush = info.flush;
-        this.#check_features = false;
+
+        this.#raw_features = null;
+        this.#raw_cells = null;
     }
 
     static format() {
@@ -50,10 +54,9 @@ export class TenxHdf5Dataset extends Dataset {
     }
 
     #features() {
-        if (this.#check_features) {
+        if (this.#raw_features !== null) {
             return;
         }
-        this.#check_features = true;
 
         let handle = new scran.H5File(this.#h5_path);
         if (!("matrix" in handle.children) || handle.children["matrix"] != "Group") {
@@ -70,32 +73,49 @@ export class TenxHdf5Dataset extends Dataset {
         if (ids == null) {
             throw new Error("expected a 'matrix/features/id' string dataset containing the feature IDs");
         }
-        this.#raw_features = { id: ids };
+        let feats = { id: ids };
 
         let names = eutils.extractHDF5Strings(fhandle, "name");
         if (names !== null) {
-            this.#raw_features.name = names;
+            feats.name = names;
         }
 
         let ftype = eutils.extractHDF5Strings(fhandle, "feature_type");
         if (ftype !== null) {
-            this.#raw_features.type = ftype;
+            feats.type = ftype;
         }
+
+        this.#raw_features = new bioc.DataFrame(feats);
+    }
+
+    #cells() {
+        if (this.#raw_cells !== null) {
+            return;
+        }
+        let details = scran.extractHDF5MatrixDetails(this.#h5_path, "matrix");
+        this.#raw_cells = new bioc.DataFrame({}, { numberOfRows: details.columns });
     }
 
     annotations() {
         this.#features();
+        this.#cells();
+
         return {
             "features": futils.reportFeatures(this.#raw_features, "type"),
-            "cells": {}
+            "cells": {
+                "number": this.#raw_cells.numberOfColumns(),
+                "summary": {}
+            }
         }
     }
 
     load() {
         this.#features();
+        this.#cells();
+
         let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, "matrix"); // collection gets handled inside splitScranMatrixAndFeatures.
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type");
-        output.cells = {};
+        output.cells = bioc.CLONE(this.#raw_cells);
         return output;
     }
 

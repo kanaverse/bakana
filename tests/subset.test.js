@@ -20,13 +20,10 @@ function createSaver(saved) {
     };
 }
 
+let h5path = "files/datasets/zeisel-brain.h5ad";
+
 test("subsetting behaves correctly with indices", async () => {
-    let files = {
-        default: {
-            format: "H5AD",
-            h5: "files/datasets/zeisel-brain.h5ad"
-        }
-    };
+    let files = { default: new bakana.H5adDataset(h5path) };
 
     let fullstate = new inputs.InputsState;
     await fullstate.compute(files, null, null);
@@ -110,12 +107,7 @@ test("subsetting behaves correctly with indices", async () => {
 })
 
 test("subsetting behaves correctly with a factor", async () => {
-    let files = {
-        default: {
-            format: "H5AD",
-            h5: "files/datasets/zeisel-brain.h5ad"
-        }
-    };
+    let files = { default: new bakana.H5adDataset(h5path) };
 
     let istate = new inputs.InputsState;
     await istate.compute(files, null, {
@@ -125,7 +117,7 @@ test("subsetting behaves correctly with a factor", async () => {
 
     let expected_num = 0;
     {
-        let handle = new scran.H5File(files.default.h5);
+        let handle = new scran.H5File(h5path);
         let anno = handle.open("obs").open("level1class", { load: true }).values;
         let levels = handle.open("obs").open("__categories").open("level1class", { load: true }).values;
         for (const x of anno) {
@@ -194,12 +186,7 @@ test("subsetting behaves correctly with a factor", async () => {
 })
 
 test("subsetting behaves correctly with ranges", async () => {
-    let files = {
-        default: {
-            format: "H5AD",
-            h5: "files/datasets/zeisel-brain.h5ad"
-        }
-    };
+    let files = { default: new bakana.H5adDataset(h5path) };
 
     let istate = new inputs.InputsState;
     await istate.compute(files, null, {
@@ -209,7 +196,7 @@ test("subsetting behaves correctly with ranges", async () => {
 
     let expected_num = 0;
     {
-        let handle = new scran.H5File(files.default.h5);
+        let handle = new scran.H5File(h5path);
         let diameter = handle.open("obs").open("diameter", { load: true }).values;
         diameter.forEach((x, i) => {
             if ((x >= 5 && x <= 10) || (x >= 20 && x <= 25) || (x >= 100 && x <= 200)) {
@@ -260,12 +247,7 @@ test("subsetting behaves correctly with ranges", async () => {
 })
 
 test("subsetting behaves correctly with infinite ranges", async () => {
-    let files = {
-        default: {
-            format: "H5AD",
-            h5: "files/datasets/zeisel-brain.h5ad"
-        }
-    };
+    let files = { default: new bakana.H5adDataset(h5path) };
 
     let istate = new inputs.InputsState;
     await istate.compute(files, null, {
@@ -277,7 +259,7 @@ test("subsetting behaves correctly with infinite ranges", async () => {
 
     let expected_num = 0;
     {
-        let handle = new scran.H5File(files.default.h5);
+        let handle = new scran.H5File(h5path);
         let diameter = handle.open("obs").open("diameter", { load: true }).values;
         diameter.forEach((x, i) => {
             if (x >= 100 || x <= 10) {
@@ -317,16 +299,12 @@ test("subsetting behaves correctly with infinite ranges", async () => {
 
 test("subsetting processes the blocking factors", async () => {
     let files = { 
-        "4K": {
-            format: "10X",
-            h5: "files/datasets/pbmc4k-tenx.h5"
-        },
-        "3K": {
-            format: "MatrixMarket",
-            mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
-            genes: "files/datasets/pbmc3k-features.tsv.gz",
-            annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
-        }
+        "4K": new bakana.TenxHdf5Dataset("files/datasets/pbmc4k-tenx.h5"),
+        "3K": new bakana.TenxMatrixMarketDataset(
+                "files/datasets/pbmc3k-matrix.mtx.gz",
+                "files/datasets/pbmc3k-features.tsv.gz",
+                "files/datasets/pbmc3k-barcodes.tsv.gz"
+            )
     };
 
     let fullstate = new inputs.InputsState;
@@ -370,16 +348,16 @@ test("subsetting processes the blocking factors", async () => {
 })
 
 test("end-to-end run works with subsetting", async () => {
+    let annopath = "files/datasets/pbmc-combined-barcodes.tsv.gz";
     let files = { 
-        "default": {
-            format: "MatrixMarket",
-            mtx: "files/datasets/pbmc-combined-matrix.mtx.gz",
-            genes: "files/datasets/pbmc-combined-features.tsv.gz",
-            annotations: "files/datasets/pbmc-combined-barcodes.tsv.gz"
-        }
+        "default": new bakana.TenxMatrixMarketDataset(
+                "files/datasets/pbmc-combined-matrix.mtx.gz",
+                "files/datasets/pbmc-combined-features.tsv.gz",
+                annopath
+            )
     };
 
-    let anno_buffer = fs.readFileSync(files.default.annotations);
+    let anno_buffer = fs.readFileSync(annopath);
     let offset = anno_buffer.byteOffset;
     let buf = anno_buffer.buffer.slice(offset, offset + anno_buffer.byteLength);
     let ncells = bakana.readTable(new Uint8Array(buf), { compression: "gz" }).length - 1;

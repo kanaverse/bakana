@@ -201,7 +201,9 @@ export class CellLabellingState {
             this.#cache.features = feat_out.features;
             this.#cache.feature_details = feat_out.details;
         }
-        let species = this.#cache.feature_details.species;
+
+        // null species results in empty 'valid' and no further ops downstream.
+        let species = (this.#cache.feature_details !== null ? this.#cache.feature_details.species : null);
 
         // Take ownership to avoid pass-by-reference shenanigans.
         human_references = human_references.slice();
@@ -222,24 +224,27 @@ export class CellLabellingState {
 
         // Creating a column-major array of mean vectors for each cluster.
         let cluster_means = this.#cache.buffer;
-        let ngenes = this.#cache.features.length;
-        let ngroups = this.#markers.numberOfGroups(); 
+        let ngenes;
+        let ngroups;
+        if (this.#cache.features !== null) {
+            ngenes = this.#cache.features.length;
+            ngroups = this.#markers.numberOfGroups(); 
 
-        if (this.#markers.changed || typeof cluster_means === "undefined") {
-            cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", this.#cache);
+            if (this.#markers.changed || typeof cluster_means === "undefined") {
+                cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", this.#cache);
 
-            for (var g = 0; g < ngroups; g++) {
-                let means = this.#markers.fetchGroupMeans(g, "RNA", { copy: false }); // Warning: direct view in wasm space - be careful.
-                let cluster_array = cluster_means.array();
-                cluster_array.set(means, g * ngenes);
+                for (var g = 0; g < ngroups; g++) {
+                    let means = this.#markers.fetchGroupMeans(g, "RNA", { copy: false }); // Warning: direct view in wasm space - be careful.
+                    let cluster_array = cluster_means.array();
+                    cluster_array.set(means, g * ngenes);
+                }
             }
         }
-
-        let promises = [];
 
         // Running classifications on the cluster means. Note that compute() itself
         // cannot be async, as we need to make sure 'changed' is set and available for
         // downstream steps; hence the explicit then().
+        let promises = [];
         this.#cache.results = {};
         for (const [key, val] of Object.entries(valid)) {
             let p = val.then(ref => {
@@ -383,9 +388,9 @@ function choose_features(inputs) {
         }
     }
 
-    return {
-        features: genes[best_feature],
-        details: best 
+    return { 
+        details: best,
+        features: best_feature == null ? null : genes[best_feature]
     };
 }
 

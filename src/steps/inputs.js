@@ -1,4 +1,5 @@
 import * as scran from "scran.js";
+import * as bioc from "bioconductor";
 import * as utils from "./utils/general.js";
 import * as iutils from "../readers/index.js";
 export const step_name = "inputs";
@@ -51,7 +52,9 @@ export class InputsState {
     }
 
     fetchGenes({ type = "RNA" } = {}) {
-        return this.#cache.genes[type];
+        // Just returning the entire object for the time being,
+        // until downstream code is adjusted for the use of DFs.
+        return this.#cache.genes[type]._columns;
     }
 
     fetchRowIds({ type = "RNA" } = {}) {
@@ -73,12 +76,12 @@ export class InputsState {
      */
     fetchAnnotations(col) {
         let annots = this.#cache.annotations;
-        if (annots === null || !(col in annots)) {
+        if (annots === null || !annots.hasColumn(col)) {
             throw new Error(`${col} does not exist in the column annotations`);
         }
 
         // Make a copy, avoid accidental writes or transfers. 
-        return annots[col].slice();
+        return bioc.CLONE(annots.column(col));
     }
 
     fetchBlock() {
@@ -327,11 +330,20 @@ export class InputsState {
         for (const a of this.#cache.matrix.available()) {
             ngenes[a] = this.#cache.matrix.get(a).numberOfRows();
         }
+
+        let gene_info = {};
+        for (const [k, v] of Object.entries(this.#cache.genes)) {
+            let info = {};
+            for (const c of v.columnNames()) {
+                info[c] = bioc.CLONE(v.column(c));
+            }
+            gene_info[k] = info;
+        }
         
         var output = {
             "num_cells": this.#cache.matrix.numberOfColumns(),
             "num_genes": ngenes,
-            "genes": { ...(this.#cache.genes) }
+            "genes": gene_info 
         };
         if (this.#cache.annotations !== null) {
             output.annotations = Object.keys(this.#cache.annotations);
@@ -467,17 +479,15 @@ export function commonFeatureTypes(genes) {
         "ensembl-mouse": [],
         "ensembl-human": []
     };
-
-    // Manually making a copy, until structuredClone becomes widely available.
-    let fields = {};
-    Object.keys(scores).forEach(x => { fields[x] = []; });
+    let fields = bioc.CLONE(scores);
 
     for (var i = 0; i < genes.length; i++) {
         let curgenes = genes[i];
-
         let best_scores = {};
         let best_fields = {};
-        for (const [k, v] of Object.entries(curgenes)) {
+
+        for (const k of curgenes.columnNames()) {
+            let v = curgenes.column(k);
             let fscore = scran.guessFeatures(v);
             let curname = fscore.type + "-" + fscore.species;
             if (!(curname in best_scores) || fscore.confidence > best_scores[curname]) {
@@ -494,7 +504,6 @@ export function commonFeatureTypes(genes) {
 
     let best_score = -1000;
     let best_type = null;
-    console.log(scores);
 
     for (const [k, v] of Object.entries(scores)) {
         if (v.length == genes.length) { // skipping if not represented in all entries.
@@ -586,14 +595,10 @@ function bind_single_modality(modality, mapping, loaded) {
     let output = {};
 
     try {
-        // Identify the gene columns to use.
         let genes = [];
         for (var i = 0; i < mapping.length; i++) {
-            let info = loaded[i].features[mapping[i]];
-            if (!info) {
-                throw new Error("no features available for '" + modality + "' in dataset " + String(i + 1))
-            }
-            genes.push(info);
+            let mod_name = mapping[i];
+            genes.push(loaded[i].features[mod_name]);
         }
 
         let result = commonFeatureTypes(genes);
@@ -604,7 +609,7 @@ function bind_single_modality(modality, mapping, loaded) {
         let gnames = [];
         let mats = [];
         for (var i = 0; i < mapping.length; i++) {
-            gnames.push(genes[i][result.best_fields[i]]);
+            gnames.push(genes[i].column(result.best_fields[i]));
             mats.push(loaded[i].matrix.get(mapping[i]));
         }
 
@@ -613,8 +618,8 @@ function bind_single_modality(modality, mapping, loaded) {
 
         // Extracting gene information from the first object. We won't make
         // any attempt at merging and deduplication across objects.
-        output.features = scran.subsetArrayCollection(genes[0], merged.indices);
-        output.row_ids = scran.sliceArray(loaded[0].row_ids[mapping[0]], merged.indices);
+        output.features = bioc.SLICE(genes[0], merged.indices);
+        output.row_ids = bioc.SLICE(loaded[0].row_ids[mapping[0]], merged.indices);
 
     } catch (e) {
         utils.freeCache(output.matrix);
@@ -645,15 +650,8 @@ function bind_datasets(names, loaded) {
             output.row_ids[k] = current.row_ids;
         }
 
-        // Get all annotations keys across datasets; we then concatenate
-        // columns with the same name, or we just fill them with missings.
-        let lengths = [];
-        let annos = [];
-        for (const x of loaded) {
-            annos.push(x.cells);
-            lengths.push(x.matrix.numberOfColumns());
-        }
-        output.cells = scran.combineArrayCollections(annos, { lengths: lengths });
+        let annos = loaded.map(x => x.cells);
+        output.cells = bioc.flexibleCombineRows(annos);
 
         // Generating a block vector.
         let ncells = new Array(loaded.length);
@@ -664,7 +662,7 @@ function bind_datasets(names, loaded) {
 
         let nice_barr = new Array(blocks.length);
         blocks.forEach((x, i) => { nice_barr[i] = names[x]; })
-        output.cells["__batch__"] = nice_barr;
+        output.cells.$setColumn("__batch__", nice_barr);
 
     } catch (e) {
         utils.freeCache(blocks);
@@ -755,38 +753,40 @@ async function load_datasets(datasets) {
  ******************************************/
 
 function harvest_subset_indices(subset, cache) {
-    let keep = null;
-
     if (RAW_SUBSET_OVERRIDE in cache) {
-        keep = cache[RAW_SUBSET_OVERRIDE];
-    } else if (subset !== null) {
-        if (!(subset.field in cache.raw_annotations)) {
-            throw new Error("failed to find 'subset.field' in the column annotations");
-        }
-        let anno = cache.raw_annotations[subset.field];
+        return cache[RAW_SUBSET_OVERRIDE];
+    }
 
-        keep = [];
+    if (subset == null) {
+        return null;
+    }
 
-        if ("values" in subset) {
-            let allowed = new Set(subset.values);
-            anno.forEach((x, i) => {
-                if (allowed.has(x)) {
+    if (!cache.raw_annotations.hasColumn(subset.field)) {
+        throw new Error("failed to find '" + subset.field + "' in the column annotations");
+    }
+
+    let anno = cache.raw_annotations.column(subset.field);
+    let keep = [];
+
+    if ("values" in subset) {
+        let allowed = new Set(subset.values);
+        anno.forEach((x, i) => {
+            if (allowed.has(x)) {
+                keep.push(i);
+            }
+        });
+    } else {
+        // Check each entry to see whether it belongs to the range.
+        // This is cheaper than sorting anything, assuming there 
+        // aren't that many ranges.
+        anno.forEach((x, i) => {
+            for (const r of subset.ranges) {
+                if (x >= r[0] && x <= r[1]) {
                     keep.push(i);
+                    return;
                 }
-            });
-        } else {
-            // Check each entry to see whether it belongs to the range.
-            // This is cheaper than sorting anything, assuming there 
-            // aren't that many ranges.
-            anno.forEach((x, i) => {
-                for (const r of subset.ranges) {
-                    if (x >= r[0] && x <= r[1]) {
-                        keep.push(i);
-                        return;
-                    }
-                }
-            });
-        }
+            }
+        });
     }
 
     return keep;
@@ -822,8 +822,9 @@ async function load_and_cache(new_datasets, cache) {
     cache.genes = res.features;
     var gene_info_type = {};
     var gene_info = cache.genes["RNA"];
-    for (const [key, val] of Object.entries(gene_info)) {
-        gene_info_type[key] = scran.guessFeatures(val);
+    for (const k of gene_info.columnNames()) {
+        let v = gene_info.column(k);
+        gene_info_type[k] = scran.guessFeatures(v);
     }
     cache.gene_types = gene_info_type;
 }
@@ -837,7 +838,7 @@ function block_and_cache(sample_factor, cache) {
     if (sample_factor !== null) {
         // Single matrix with a batch factor.
         try {
-            let anno_batch = cache.raw_annotations[sample_factor];
+            let anno_batch = cache.raw_annotations.column(sample_factor);
             if (anno_batch.length != cache.raw_matrix.numberOfColumns()) {
                 throw new Error("length of sample factor '" + sample_factor + "' should be equal to the number of cells"); 
             }
@@ -895,7 +896,7 @@ function subset_and_cache(subset, cache) {
             }
 
         } else {
-            new_annotations = scran.subsetArrayCollection(cache.raw_annotations, keep);
+            new_annotations = bioc.SLICE(cache.raw_annotations, keep);
 
             if (cache.raw_block_ids !== null) {
                 new_block_ids = scran.subsetBlock(cache.raw_block_ids, keep);

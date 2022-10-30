@@ -1,4 +1,5 @@
 import * as scran from "scran.js";
+import * as bioc from "bioconductor";
 import { Dataset } from "./base.js";
 import * as eutils from "./utils/extract.js";
 import * as futils from "./utils/features.js";
@@ -12,15 +13,14 @@ export class H5adDataset extends Dataset {
     #h5_file;
     #h5_path;
     #h5_flush;
+    #h5_handle;
 
-    #check_features;
     #raw_features;
-    #check_cells;
     #raw_cells;
     #raw_cell_factors;
 
-    #handle;
     #chosen_assay;
+    #assay_details;
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a HDF5 file.
@@ -40,17 +40,17 @@ export class H5adDataset extends Dataset {
         this.#h5_path = info.path;
         this.#h5_flush = info.flush;
 
-        this.#check_features = false;
-        this.#check_cells = false;
-
         try {
-            this.#handle = new scran.H5File(this.#h5_path);
+            this.#h5_handle = new scran.H5File(this.#h5_path);
         } catch (e) {
             this.#h5_flush();
             throw e;
         }
 
+        this.#raw_features = null;
+        this.#raw_cells = null;
         this.#chosen_assay = null;
+        this.#assay_details = null;
     }
 
     static format() {
@@ -71,16 +71,16 @@ export class H5adDataset extends Dataset {
             return;
         }
 
-        if ("X" in this.#handle.children) {
+        if ("X" in this.#h5_handle.children) {
             this.#chosen_assay = "X";
             return;
         } 
 
-        if (!("layers" in this.#handle.children)) {
+        if (!("layers" in this.#h5_handle.children)) {
             throw new Error("expected 'X' or 'layers' in a H5AD file");
         }
 
-        let lhandle = this.#handle.open("layers");
+        let lhandle = this.#h5_handle.open("layers");
         if (!(lhandle instanceof scran.H5Group)) {
             throw new Error("expected a 'layers' group in a H5AD file");
         }
@@ -95,13 +95,22 @@ export class H5adDataset extends Dataset {
         throw new Error("failed to find any count-like layer in a H5AD file");
     }
 
-    #features() {
-        if (this.#check_features) {
+    #fetch_assay_details() {
+        if (this.#assay_details !== null) {
             return;
         }
-        this.#check_features = true;
 
-        let handle = this.#handle;
+        this.#choose_assay();
+        this.#assay_details = scran.extractHDF5MatrixDetails(this.#h5_path, this.#chosen_assay);
+        return;
+    }
+
+    #features() {
+        if (this.#raw_features !== null) {
+            return;
+        }
+
+        let handle = this.#h5_handle;
         if ("var" in handle.children && handle.children["var"] == "Group") {
             let vhandle = handle.open("var");
             let index = eutils.extractHDF5Strings(vhandle, "_index");
@@ -117,24 +126,22 @@ export class H5adDataset extends Dataset {
                     }
                 }
                 
-                this.#raw_features = genes;
+                this.#raw_features = new bioc.DataFrame(genes);
                 return;
             }
         }
 
-        this.#choose_assay();
-        let details = scran.extractHDF5MatrixDetails(this.#h5_path, this.#chosen_assay);
-        this.#raw_features = { id: futils.createMockIds(details.rows) };
+        this.#fetch_assay_details();
+        this.#raw_features = new bioc.DataFrame({}, { numberOfRows: this.#assay_details.rows });
         return;
     }
 
     #cells() {
-        if (this.#check_cells) {
+        if (this.#raw_cells !== null) {
             return;
         }
-        this.#check_cells = true;
 
-        let handle = this.#handle;
+        let handle = this.#h5_handle;
         let annotations = {};
         let factors = {};
 
@@ -166,7 +173,12 @@ export class H5adDataset extends Dataset {
             }
         }
 
-        this.#raw_cells = annotations;
+        if (Object.keys(annotations).length == 0) {
+            this.#fetch_assay_details();
+            this.#raw_cells = new bioc.DataFrame({}, { numberOfRows: this.#assay_details.columns })
+        } else {
+            this.#raw_cells = new bioc.DataFrame(annotations);
+        }
         this.#raw_cell_factors = factors;
         return;
     }
@@ -176,17 +188,22 @@ export class H5adDataset extends Dataset {
         this.#cells();
 
         let summaries = {};
-        for (const [k, v] of Object.entries(this.#raw_cells)) {
+        for (const k of this.#raw_cells.columnNames()) {
+            let x;
             if (k in this.#raw_cell_factors) {
-                summaries[k] = eutils.summarizeArray(this.#raw_cell_factors[k]);
+                x = this.#raw_cell_factors[k];
             } else {
-                summaries[k] = eutils.summarizeArray(v);
+                x = this.#raw_cells.column(k);
             }
+            summaries[k] = eutils.summarizeArray(x);
         }
-
+        
         return {
-            features: { "": scran.cloneArrayCollection(this.#raw_features) },
-            cells: summaries
+            features: { "": bioc.CLONE(this.#raw_features) },
+            cells: {
+                number: this.#raw_cells.numberOfColumns(),
+                summary: summaries
+            }
         };
     }
 
@@ -195,24 +212,24 @@ export class H5adDataset extends Dataset {
         this.#cells();
         this.#choose_assay();
 
-        let cells = {};
-        for (const [k, v] of Object.entries(this.#raw_cells)) {
+        let cells = new bioc.DataFrame({}, { numberOfRows: this.#raw_cells.numberOfRows(), metadata: bioc.CLONE(this.#raw_cells.metadata()) });
+        for (const k of this.#raw_cells.columnNames()) {
+            let v = this.#raw_cells.column(k);
             if (!(k in this.#raw_cell_factors)) {
-                cells[k] = v.slice();
-                continue;
+                cells.$setColumn(k, bioc.CLONE(v));
+            } else {
+                let cats = this.#raw_cell_factors[k];
+                let temp = new Array(v.length);
+                v.forEach((x, i) => {
+                    temp[i] = cats[x]
+                }); 
+                cells.$setColumn(k, temp);
             }
-
-            let cats = this.#raw_cell_factors[k];
-            let temp = new Array(v.length);
-            v.forEach((x, i) => {
-                temp[i] = cats[x]
-            }); 
-            cells[k] = temp;
         }
 
         let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, this.#chosen_assay);
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, null);
-        output.cells = scran.cloneArrayCollection(this.#raw_cells);
+        output.cells = cells;
         return output;
     }
 

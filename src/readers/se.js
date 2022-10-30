@@ -1,4 +1,5 @@
 import * as scran from "scran.js";
+import * as bioc from "bioconductor";
 import { Dataset } from "./base.js";
 import * as afile from "./abstract/file.js";
 import * as eutils from "./utils/extract.js";
@@ -201,17 +202,16 @@ function extract_features(handle) {
     }
 
     if (names == null) {
-        names = futils.createMockIds(rowdata.nrow);
-    }
-
-    let output = { id: names };
-    for (const [k, v] of Object.entries(rowdata.columns)) {
-        if (k.match(/^sym/)) {
-            output[k] = v;
+        return new bioc.DataFrame({}, { numberOfRows: rowdata.nrow });
+    } else {
+        let output = { id: names };
+        for (const [k, v] of Object.entries(rowdata.columns)) {
+            if (k.match(/^sym/)) {
+                output[k] = v;
+            }
         }
+        return new bioc.DataFrame(output);
     }
-
-    return output;
 }
 
 function extract_counts(handle) {
@@ -352,9 +352,7 @@ export class SummarizedExperimentDataset extends Dataset {
     #se_handle;
     #alt_handles;
 
-    #check_features;
     #raw_features;
-    #check_cells;
     #raw_cells;
 
     constructor(rdsFile) {
@@ -366,8 +364,8 @@ export class SummarizedExperimentDataset extends Dataset {
             this.#rds_file = new afile.SimpleFile(rdsFile);
         }
 
-        this.#check_features = false;
-        this.#check_cells = false;
+        this.#raw_features = null;
+        this.#raw_cells = null;
         this.#rds_handle = null;
     }
 
@@ -402,10 +400,9 @@ export class SummarizedExperimentDataset extends Dataset {
     }
 
     #features() {
-        if (this.#check_features) {
+        if (this.#raw_features !== null) {
             return;
         }
-        this.#check_features = true;
 
         this.#initialize();
         this.#raw_features = { "": extract_features(this.#se_handle) };
@@ -422,21 +419,22 @@ export class SummarizedExperimentDataset extends Dataset {
     }
 
     #cells() {
-        if (this.#check_cells) {
+        if (this.#raw_cells !== null) {
             return;
         }
-        this.#check_cells = true;
 
         this.#initialize();
+        let info;
         let chandle = this.#se_handle.attribute("colData");
         try {
-            this.#raw_cells = load_data_frame(chandle).columns;
+            info = load_data_frame(chandle);
         } catch(e) {
             throw new Error("failed to extract colData from a SummarizedExperiment; " + e.message);
         } finally {
             scran.free(chandle);
         }
 
+        this.#raw_cells = new bioc.DataFrame(info.columns, { numberOfRows: info.nrow });
         return;
     }
 
@@ -447,17 +445,20 @@ export class SummarizedExperimentDataset extends Dataset {
 
         let copy = {};
         for (const [k, v] of Object.entries(this.#raw_features)) {
-            copy[k] = scran.cloneArrayCollection(v);
+            copy[k] = bioc.CLONE(v);
         }
 
         let anno = {};
-        for (const [k, v] of Object.entries(this.#raw_cells)) {
-            anno[k] = eutils.summarizeArray(v);
+        for (const k of this.#raw_cells.columnNames()) {
+            anno[k] = eutils.summarizeArray(this.#raw_cells.column(k));
         }
 
         return {
             features: copy,
-            cells: anno
+            cells: {
+                number: this.#raw_cells.numberOfColumns(),
+                summary: anno
+            }
         };
     }
 
@@ -470,7 +471,7 @@ export class SummarizedExperimentDataset extends Dataset {
             matrix: new scran.MultiMatrix,
             row_ids: {},
             features: {},
-            cells: scran.cloneArrayCollection(this.#raw_cells)
+            cells: bioc.CLONE(this.#raw_cells)
         };
 
         try {
@@ -479,13 +480,13 @@ export class SummarizedExperimentDataset extends Dataset {
             let out_ids = loaded.row_ids;
             output.matrix.add("", out_mat);
             output.row_ids[""] = out_ids;
-            output.features[""] = scran.subsetArrayCollection(this.#raw_features[""], out_ids);
+            output.features[""] = bioc.SLICE(this.#raw_features[""], out_ids);
 
             for (const [k, v] of Object.entries(this.#alt_handles)) {
                 let alt = extract_counts(v);
                 output.matrix.add(k, alt.matrix);
                 output.row_ids[k] = alt.row_ids;
-                output.features[k] = scran.subsetArrayCollection(this.#raw_features[k], alt.row_ids);
+                output.features[k] = bioc.SLICE(this.#raw_features[k], alt.row_ids);
             }
 
         } catch (e) {
