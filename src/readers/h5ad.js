@@ -1,15 +1,13 @@
 import * as scran from "scran.js";
 import * as bioc from "bioconductor";
-import { Dataset } from "./base.js";
 import * as eutils from "./utils/extract.js";
 import * as futils from "./utils/features.js";
 import * as afile from "./abstract/file.js";
 
 /**
  * Dataset in the H5AD format, see [here](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/advanced/matrices) for details.
- * @augments Dataset
  */
-export class H5adDataset extends Dataset {
+export class H5adDataset {
     #h5_file;
     #h5_path;
     #h5_flush;

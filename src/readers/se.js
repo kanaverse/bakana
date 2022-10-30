@@ -1,6 +1,5 @@
 import * as scran from "scran.js";
 import * as bioc from "bioconductor";
-import { Dataset } from "./base.js";
 import * as afile from "./abstract/file.js";
 import * as eutils from "./utils/extract.js";
 import * as futils from "./utils/features.js";
@@ -346,7 +345,10 @@ function check_for_se(handle) {
     }, "SummarizedExperiment");
 }
 
-export class SummarizedExperimentDataset extends Dataset {
+/**
+ * Dataset stored as a `SummarizedExperiment` object (or one of its subclasses) inside an RDS file.
+ */
+export class SummarizedExperimentDataset {
     #rds_file;
     #rds_handle;
     #se_handle;
@@ -355,6 +357,11 @@ export class SummarizedExperimentDataset extends Dataset {
     #raw_features;
     #raw_cells;
 
+    /**
+     * @param {SimpleFile|string|Uint8Array|File} rdsFile - Contents of a RDS file.
+     * On browsers, this may be a File object.
+     * On Node.js, this may also be a string containing a file path.
+     */
     constructor(rdsFile) {
         super();
 

@@ -1,15 +1,13 @@
 import * as scran from "scran.js";
 import * as bioc from "bioconductor";
-import { Dataset } from "./base.js";
 import * as afile from "./abstract/file.js";
 import * as eutils from "./utils/extract.js";
 import * as futils from "./utils/features.js";
 
 /**
  * Dataset in the 10X Matrix Market format, see [here](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/advanced/matrices) for details.
- * @augments Dataset
  */
-export class TenxMatrixMarketDataset extends Dataset {
+export class TenxMatrixMarketDataset {
     #matrix_file;
     #feature_file;
     #barcode_file;

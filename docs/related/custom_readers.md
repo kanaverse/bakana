@@ -3,127 +3,102 @@
 ## Overview
 
 Developers can add new data readers to supplement the defaults in `src/readers`.
-This is most useful for pulling data from external databases for entry into the _bakana_ workflow.
-A new reader should be implemented as an ES6 module with the required exports below.
+This is most useful for pulling data from external databases for entry into the **bakana** workflow.
+A new reader should be implemented as an ES6 class that satisfies the `Dataset` interface requirements below.
 
-## Exports
+## `Dataset` interface
 
-### `abbreviate(args)`
+### Constructor
 
-_Generate a summary of the matrix to check whether the inputs have changed on re-analysis._
+This is called by users before entry into the **bakana** workflow, and so is not subject to any particular requirements.
+For consistency with the existing `Dataset` readers, developers of new file-based readers should consider accepting [`SimpleFile`](https://ltla.github.io/bakana/SimpleFile.html) objects.
+This provides a convenient abstraction for files in Node.js and browser contexts.
 
-This function should accept an object `args` containing information about a single count matrix in the reader's desired format.
-`args` may contain an arbitrary number of properties - their specification is left to the reader.
-By convention, properties referring to files should be `File` objects in the browser and strings containing file paths for Node.js.
+### `format()` (static)
 
-This function should _quickly_ return an object that summarizes the information about the count matrix.
-The returned object should be easily stringified for quick comparison,
-while still being unique enough to distinguish between most other values of `args`.
+This is a static method that returns a string containing the name of the dataset format.
+It is used to differentiate between different `Dataset` classes.
+The formats implemented in _bakana_ itself are listed below:
+
+- `10X`: for the 10X HDF5 format in `TenxHdf5Dataset`.
+- `MatrixMarket`: for the 10X Matrix Market format in `TenxMatrixMarketDataset`.
+- `H5AD`: for the H5AD format `H5adDataset`.
+- `SummarizedExperiment`: for SummarizedExperiments saved as RDS files in `SummarizedExperimentDataset`.
+
+### `abbreviate()`
+
+This method should _quickly_ return an object containing some unique-ish summary of the files in this dataset.
+The object will be used for comparisons between states in the `InputsState.compute()` function.
+It should be easily stringified while still being unique enough to distinguish between most other instances of the same class. 
 We generally recommend generating a summary based on the file name and size, which is fast and unique enough for most comparisons.
+(Note that this only needs to be reasonably unique compared to other instances of the same `Dataset` class.)
 
-### `preflight(args)`
+### `annotations()`
 
-_Fetch annotations from the matrix before the analysis begins._
+This method should return an object containing a summary of the annotations in this dataset.
+The object should contain:
 
-This function should accept an object `args` containing information about a single count matrix in the reader's desired format.
-The expected structure of `args` is identical to that described for `abbreviate()`.
-
-It should return an object containing the `genes` and `annotations` properties:
-
-- `genes` should be an object where each key is a modality, typically `"RNA"` or `"ADT"`.
-  Each modality-specific value should itself be an object where each key is a gene annotation field name and each value is an array of per-gene information.
-  The latter usually contains strings with Ensembl identifiers or symbols.
-- `annotations` should be an object describing the per-cell annotation fields.
-  Each key should be the name of a field, and each value should be an object summarizing the contents of the field.
-  Specifically, each inner object should contain:
-
-  - a `type` property, indicating whether the annotation is `"categorical"` or "`continuous"`.
-  - for categorical annotations, a `values` array containing the unique values.
-    This may be truncated for brevity, in which case the `truncated` property is `true`.
-  - for continuous annotations, the `min` and `max` properties containing the minimum and maximum values.
-
-  For preflight purposes, not all annotation columns need to be listed here.
+- `features`: an object where each key is the name of a modality (e.g., RNA, ADT) and each value is a [`DataFrame`](https://ltla.github.io/bioconductor.js/DataFrame.html).
+  Each `DataFrame` should contain one row per feature in that modality, along with any number of columns containing the per-feature annotation fields.
+- `cells`: an object containing:
+  - `number`: the number of cells in the dataset.
+  - `summary`: an object where each key is the name of a per-cell annotation field and each value is an object containing a summary of that field.
+    Each summary object should contain:
+    - a `type` property, indicating whether the annotation is `"categorical"` or "`continuous"`.
+    - for categorical annotations, a `values` array containing the unique values.
+      This may be truncated for brevity, in which case the `truncated` property is `true`.
+    - for continuous annotations, the `min` and `max` properties containing the minimum and maximum values.
 
 Alternatively, this method may return a promise that resolves to such an object.
 
-### The `Reader` class
+### `load()`
 
-#### `new Reader(args)`
+This method should return an object containing:
 
-_Represent all information about a single count matrix._
-
-This constructor should accept an object `args` containing information about a single count matrix in the reader's desired format.
-The expected structure of `args` is identical to that described for `abbreviate()`.
-
-The class should provide the methods listed below.
-
-#### `Reader.prototype.format()`
-
-_Specify the format of the count matrix._
-
-This should return a string specifying the format of the count matrix corresponding to this reader.
-The value of the string is defined by the reader's developer.
-
-#### `Reader.protoype.load()`
-
-_Load the count matrix into memory._
-
-This should return an object containing:
-
-- `matrix`, a `MultiMatrix` object containing submatrices for at least one modality.
-  Each modality-specific submatrix should be a `ScranMatrix` containing any number of rows.
+- `matrix`, a [`MultiMatrix`](https://jkanche.github.io/scran.js/MultiMatrix.html) object containing submatrices for at least one modality.
+  Each modality-specific submatrix should be a [`ScranMatrix`](https://jkanche.github.io/scran.js/ScranMatrix.html) containing any number of rows.
   All modalities should contain data for the same number of columns.
 - `row_ids`, an object specifying the row identities for each submatrix in `matrix`.
   Keys should correspond to the modality names in `matrix` and each value should be an integer array containing the identities of the submatrix rows.
   Feature identities should be encoded as non-negative integers that are unique within each submatrix.
   Developers should endeavor to keep identities consistent across different versions of the reader (i.e., the same feature gets the same integer identity),
   as **bakana** will automatically use this information to transform old results to match the row order in the current version of the application.
-- The object may also contain `gene`, an object where each key is the name of a modality in `matrix`.
-  Each modality-specific value is another object where each key is a gene annotation field name and each value is an array of per-gene information.
-  Each array corresponds to the submatrix of the corresponding modality in `matrix` and contains annotation for its rows.
-  (Thus, if the rows of `matrix.get(<modality>)` were reorganized in any way, e.g., subsetting or permutation, the same reorganization should be applied to each array in `genes[<modality>]`.)
-- The object may also contain `annotations`, an object where each key is a cell annotation field name and each value is an array of per-cell information.
-  Each array should correspond to a column in `matrix`.
+- `features`, an object where each key is the name of a modality in `matrix`.
+  Each modality-specific value is a `DataFrame` with one row per feature in the corresponding entry of `matrix`.
+  Columns should be per-feature annotation fields, as described for `annotations()`.
+  If the rows of `matrix.get(<modality>)` were reorganized in any way, e.g., subsetting or permutation, the same reorganization should be applied to the rows of `features[<modality>]`.
+- `cells`, a `DataFrame` containing one row per cell.   
+  Each column should contain an array of per-cell information, corresponding to the same order of columns in each entry of `matrix`.
 
 Alternatively, this method may return a promise that resolves to such an object.
 
-#### `Reader.prototype.serialize(embeddedSaver)`
+### `serialize()`
 
-_Register the count matrix in the state file._
+This method should return an array of objects, where each object represents a data file used to create the count matrix.
+Each object should contain:
 
-This should return an array of objects where each object represents a data file used to create the count matrix.
-Each object should contain `type`, a string specifying the type of file; and `name`, the name of the file.
-Alternatively, this method may return a promise that resolves to this array.
+- `type`, a string specifying the type of file.
+  This is used to disambiguate multiple files for a single dataset.
+- `file`, a `SimpleFile` object containing the contents of (or a reference to) the underlying data file.
+  For database-based datasets, developers may wish to mock up a file containing the database identifier, e.g., as a JSON string. 
 
-If `embeddedSaver` is a function, it should be called on each file, in the same order as they occur in the returned array.
-`embeddedSaver` will accept two arguments - a file and its size - and will return a Promise that resolves to an object containing `offset` and `size`.
-(Here, a "file" is defined as an `ArrayBuffer` containing the contents of the file in the browser, or a path to a file in Node.js.)
-The reported `offset` and `size` should then be included in the properties of the corresponding object in the returned array.
+### `unserialize(files)` (static)
 
-If `embeddedSaver = null`, each object in the returned array should instead contain `id`.
-This should be a unique string, typically containing a link to some external database system that holds the corresponding file.
-The interpretation of `id` is left to the reader, as long as it can be used to meaningfully recover the same file in `unserialize()` below.
+This is a static method that creates a new instance of the `Dataset`.
 
-### `unserialize(values, embeddedLoader)`
+`files` will be an array of objects where object represents a data file used to create the dataset.
+Each object will contain `type` and `file` as described for the `serialize()` method.
 
-_Load the count matrix from the state file._
-
-`values` should be an array of objects where object represents a data file used to create the count matrix.
-Each object should contain `type` and `name`, as described in the `Reader.serialize()` method.
-
-If `embeddedLoader` is a function, each object in `values` will additionally contain `offset` and `size` integers.
-`embeddedLoader` will accept two arguments - the offset and size - and will return the corresponding file.
-(Again, a "file" is defined as an `ArrayBuffer` containing the contents of the file in the browser, or a path to a file in Node.js.)
-`embeddedLoader` should be called on each entry of `values` in order - note, this should be done even if not all files are used.
-
-If `embeddedLoader = null`, each object in `values` will additionally contain an `id` string.
-This usually contains a link to some external database system as defined by `Reader.serialize()`.
-
-This method should return an instance of the `Reader` class containing all information related to the count matrix represented by `values`.
-Presumably this is done using the file contents returned by `embeddedLoader` or the linked files from the `id` values.
+This method should return an instance of the `Dataset` class.
+Presumably this is done using the file contents in `files`.
 Alternatively, this method may return a promise that resolves to a `Reader` instance.
 
 ## Registering new readers
 
 Applications can register custom readers by assigning to the `bakana.availableReaders` object.
-The property name should be the name of the reader format (i.e., the value of `Reader.prototype.format()`) and the value should be the ES6 module object implementing the reader.
+The property name should be the name of the dataset format (i.e., the value of `format()`) and the value should be the class definition.
+For example, one could re-register the 10X HDF5 reader:
+
+```js
+bakana.availableReaders[bakana.TenxHdf5Dataset.format()] = bakana.TenxHdf5Dataset;
+```

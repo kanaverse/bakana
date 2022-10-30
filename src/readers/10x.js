@@ -1,15 +1,13 @@
 import * as scran from "scran.js";
 import * as bioc from "bioconductor";
-import { Dataset } from "./base.js";
 import * as afile from "./abstract/file.js";
 import * as eutils from "./utils/extract.js";
 import * as futils from "./utils/features.js";
 
 /**
  * Dataset in the 10X HDF5 feature-barcode matrix format, see [here](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/output/matrices) for details.
- * @augments Dataset
  */
-export class TenxHdf5Dataset extends Dataset {
+export class TenxHdf5Dataset { 
     #h5_file;
     #h5_path;
     #h5_flush;
