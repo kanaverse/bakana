@@ -14,7 +14,7 @@ export const kanaFormatVersion = aserialize.FORMAT_VERSION;
  * This should be the same as the `path` used in {@linkcode saveAnalysis}.
  * On browsers, the path should exist inside the virtual file system of the **scran.js** module.
  * @param {Array} inputFiles - Array of files to be embedded into the `*.kana` file.
- * On Node.js, this should be an array of file paths; on browsers, this should be an array of ArrayBuffers.
+ * Each entry may be a Uint8Array or, on Node.js, a path to a file.
  * Typically this is obtained as the resolved return value of {@linkcode saveAnalysis}.
  *
  * If `null`, it is assumed that files are linked instead of embedded.
@@ -25,7 +25,7 @@ export const kanaFormatVersion = aserialize.FORMAT_VERSION;
  * For Node.js, a promise is returned that resolves to a path to a new `*.kana` file. 
  * This is equal to `outputPath` if supplied, otherwise a path to a file in a temporary directory is returned.
  *
- * In browsers, an ArrayBuffer is returned containing the full contents of the new `*.kana` file.
+ * In browsers, a Uint8Array is returned containing the full contents of the new `*.kana` file.
  */
 export function createKanaFile(statePath, inputFiles, options = {}) {
     return aserialize.createKanaFileInternal(statePath, inputFiles, options);
@@ -34,9 +34,9 @@ export function createKanaFile(statePath, inputFiles, options = {}) {
 /**
  * Parse a `*.kana` file by extracting the HDF5 state file and returning a function to extract embeddded data files.
  *
- * @param {string|ArrayBuffer} input - The input `*.kana` file.
+ * @param {string|Uint8Array} input - The input `*.kana` file.
  * For Node.js, this should be a string containing a path to the file.
- * On browsers, this should be an ArrayBuffer containing the full file contents.
+ * On browsers, this should be a Uint8Array containing the full file contents.
  * @param {string} statePath - String containing a file path to save the HDF5 state file.
  * This will also be the path supplied to {@linkcode loadAnalysis} to load the state into memory.
  * On browsers, this will exist inside the virtual file system of the **scran.js** module.

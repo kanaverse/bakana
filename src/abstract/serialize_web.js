@@ -35,7 +35,7 @@ export function createKanaFileInternal(statePath, inputFiles) {
         }
     }
 
-    return output;
+    return arr;
 }
 
 export function parseKanaFileInternal(input, statePath) {
@@ -44,11 +44,11 @@ export function parseKanaFileInternal(input, statePath) {
     let statebuffer = input.slice(parsed.offset, delta);
 
     if (parsed.version < 1000000) {
-        var contents = pako.ungzip(new Uint8Array(statebuffer), { "to": "string" });
+        var contents = pako.ungzip(statebuffer, { "to": "string" });
         let state = JSON.parse(contents);
         v0.convertFromVersion0(state, statePath);
     } else {
-        scran.writeFile(statePath, new Uint8Array(statebuffer));
+        scran.writeFile(statePath, statebuffer);
     }
 
     if (parsed.embedded) {
