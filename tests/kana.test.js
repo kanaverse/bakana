@@ -50,9 +50,9 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
     await bakana.freeAnalysis(reloaded);
 
     // Deleting the files.
-    bakana.removeHDF5File(path);
+    scran.removeFile(path);
     expect(fs.existsSync(path)).toBe(false); // properly removed.
-    bakana.removeHDF5File(round_trip);
+    scran.removeFile(round_trip);
     expect(fs.existsSync(round_trip)).toBe(false); // properly removed.
 })
 
@@ -74,7 +74,7 @@ test("saving to and loading from a kana file works with links", async () => {
     let res = await bakana.createKanaFile(path, null, { outputPath: kpath });
     expect(fs.statSync(res).size).toBe(24 + fs.statSync(path).size);
 
-    bakana.removeHDF5File(path);
+    scran.removeFile(path);
     expect(fs.existsSync(path)).toBe(false); // properly removed.
 
     // Alright - trying to unpack everything.
@@ -95,6 +95,6 @@ test("saving to and loading from a kana file works with links", async () => {
     await bakana.freeAnalysis(reloaded);
 
     // Deleting the files.
-    bakana.removeHDF5File(path);
-    bakana.removeHDF5File(round_trip);
+    scran.removeFile(path);
+    scran.removeFile(round_trip);
 })
