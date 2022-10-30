@@ -52,17 +52,11 @@ export class InputsState {
     }
 
     fetchGenes({ type = "RNA" } = {}) {
-        // Just returning the entire object for the time being,
-        // until downstream code is adjusted for the use of DFs.
-        return this.#cache.genes[type]._columns;
+        return this.#cache.genes[type];
     }
 
     fetchRowIds({ type = "RNA" } = {}) {
         return this.#cache.row_ids[type];
-    }
-
-    fetchGeneTypes() {
-        return this.#cache.gene_types;
     }
 
     /**
@@ -295,7 +289,7 @@ export class InputsState {
         // These can probably be copied directly, given that they are always
         // replaced wholesale in the various *_and_cache functions, rather than
         // being modified in-place.
-        for (const x of [ "raw_annotations", "genes", "gene_types", "multi_block_levels", "raw_block_levels" ]) {
+        for (const x of [ "raw_annotations", "genes", "multi_block_levels", "raw_block_levels" ]) {
             if (x in this.#cache) {
                 new_cache[x] = this.#cache[x];
             }
@@ -818,15 +812,7 @@ async function load_and_cache(new_datasets, cache) {
     cache.raw_annotations = res.cells;
     cache.multi_block_ids = res.block_ids;
     cache.multi_block_levels = res.block_levels;
-
     cache.genes = res.features;
-    var gene_info_type = {};
-    var gene_info = cache.genes["RNA"];
-    for (const k of gene_info.columnNames()) {
-        let v = gene_info.column(k);
-        gene_info_type[k] = scran.guessFeatures(v);
-    }
-    cache.gene_types = gene_info_type;
 }
 
 function block_and_cache(sample_factor, cache) {

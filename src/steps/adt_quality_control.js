@@ -123,7 +123,8 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
                 subsets.fill(0);
                 var sub_arr = subsets.array();
                 var lower_igg = igg_prefix.toLowerCase();
-                for (const [key, val] of Object.entries(gene_info)) {
+                for (const key of gene_info.columnNames()) {
+                    let val = gene_info.column(key);
                     val.forEach((x, i) => { 
                         if (x.toLowerCase().startsWith(lower_igg)) {
                             sub_arr[i] = 1;                        

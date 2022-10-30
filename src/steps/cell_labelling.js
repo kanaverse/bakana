@@ -373,12 +373,13 @@ export class CellLabellingState {
 // Try to figure out the best feature identifiers to use,
 // based on the highest confidence annotation.
 function choose_features(inputs) {
-    let genes = inputs.fetchGenes();
-    let types = inputs.fetchGeneTypes();
+    let genes = inputs.fetchGenes("RNA");
 
     let best_feature = null;
     let best = null;
-    for (const [key, val] of Object.entries(types)) {
+    for (const key of genes.columnNames()) {
+        let col = genes.column(key);
+        let val = scran.guessFeatures(col);
         if (best === null) {
             best_feature = key;
             best = val;
@@ -390,7 +391,7 @@ function choose_features(inputs) {
 
     return { 
         details: best,
-        features: best_feature == null ? null : genes[best_feature]
+        features: best_feature == null ? null : genes.column(best_feature)
     };
 }
 

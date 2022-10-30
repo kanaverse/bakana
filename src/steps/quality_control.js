@@ -116,7 +116,8 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
                 // TODO: use the guessed features to narrow the Ensembl/symbol search.
                 var gene_info = this.#inputs.fetchGenes();
                 var sub_arr = subsets.array();
-                for (const [key, val] of Object.entries(gene_info)) {
+                for (const key of gene_info.columnNames()) {
+                    let val = gene_info.column(key);
                     if (use_mito_default) {
                         val.forEach((x, i) => {
                             if (mito.symbol.has(x) || mito.ensembl.has(x)) {
