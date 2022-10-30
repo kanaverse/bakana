@@ -1,4 +1,3 @@
-import * as afile from "./abstract/file.js";
 import * as aserialize from "./abstract/serialize.js";
 
 /**
@@ -67,6 +66,6 @@ export function parseKanaFile(input, statePath, options = {}) {
  * If the file does not exist, this function is a no-op.
  */
 export function removeHDF5File(path) {
-    afile.removeH5(path, { allowed: true });
+    aserialize.removeHdf5StateFile(path);
     return;
 }
