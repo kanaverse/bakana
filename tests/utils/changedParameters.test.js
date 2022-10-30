@@ -1,5 +1,8 @@
+import * as bakana from "../../src/index.js";
 import * as utils from "../../src/steps/utils/general.js";
-import * as readers from "./../../src/readers/index.js";
+
+beforeAll(async () => await bakana.initialize({ localFile: true }));
+afterAll(async () => await bakana.terminate());
 
 test("changedParameters works as expected for primitive types", () => {
     expect(utils.changedParameters(null, null)).toBe(false);
@@ -67,25 +70,18 @@ test("changedParameters works as expected for weights", () => {
 
 test("changedParameters works as expected for input abbreviations", () => {
     let dump = {
-        MatrixMarket: {
-            format: "MatrixMarket",
-            mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
-            genes: "files/datasets/pbmc3k-features.tsv.gz",
-            annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
-        },
-        tenx: {
-            format: "10X",
-            h5: "files/datasets/pbmc4k-tenx.h5"
-        },
-        h5ad: {
-            format: "H5AD",
-            h5: "files/datasets/zeisel-brain.h5ad"
-        }
+        MatrixMarket: new bakana.TenxMatrixMarketDataset(
+                "files/datasets/pbmc3k-matrix.mtx.gz",
+                "files/datasets/pbmc3k-features.tsv.gz",
+                "files/datasets/pbmc3k-barcodes.tsv.gz"
+            ),
+        tenx: new bakana.TenxHdf5Dataset("files/datasets/pbmc4k-tenx.h5"),
+        h5ad: new bakana.H5adDataset("files/datasets/zeisel-brain.h5ad")
     };
 
     let abbreviations = {};
     for (const [k, v] of Object.entries(dump)) {
-        abbreviations[k] = readers.chooseReader(v.format).abbreviate(v);
+        abbreviations[k] = v.abbreviate();
     }
 
     expect(utils.changedParameters(abbreviations.MatrixMarket, abbreviations.MatrixMarket)).toBe(false);
