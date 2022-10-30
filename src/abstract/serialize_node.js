@@ -106,8 +106,3 @@ export async function parseKanaFileInternal(input, statePath, { stageDir = null 
         return null;
     }
 }
-
-export function removeHdf5StateFile(path) {
-    fs.unlinkSync(path);
-    return;
-}

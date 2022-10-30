@@ -57,10 +57,3 @@ export function parseKanaFileInternal(input, statePath) {
         return null;
     }
 }
-
-export function removeHdf5StateFile(path) {
-    if (scran.existsVirtualFile(path)) {
-        scran.removeVirtualFile(path);
-    }
-    return;
-}

@@ -54,18 +54,3 @@ export function createKanaFile(statePath, inputFiles, options = {}) {
 export function parseKanaFile(input, statePath, options = {}) {
     return aserialize.parseKanaFileInternal(input, statePath, options);
 }
-
-/**
- * Remove a HDF5 file at the specified path, typically corresponding to the value of `statePath` in {@linkcode saveAnalysis} or {@linkcode loadAnalysis}.
- * Such files are typically temporary intermediates that are generated from or used to generate a `*.kana` file.
- *
- * @param {string} path Path to a HDF5 file.
- * On browsers, this path will exist inside the **scran.js** virtual filesystem.
- *
- * @return The specified file is removed.
- * If the file does not exist, this function is a no-op.
- */
-export function removeHDF5File(path) {
-    aserialize.removeHdf5StateFile(path);
-    return;
-}
