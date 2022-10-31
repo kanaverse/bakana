@@ -1,167 +1,246 @@
 import * as scran from "scran.js";
-import * as rutils from "./utils/index.js";
-import * as afile from "../abstract/file.js";
+import * as bioc from "bioconductor";
+import * as eutils from "./utils/extract.js";
+import * as futils from "./utils/features.js";
+import * as afile from "./abstract/file.js";
 
-export function abbreviate(args) {
-    return { 
-        "format": "H5AD", 
-        "h5": rutils.formatFile(args.h5, true)
-    };
-}
+/**
+ * Dataset in the H5AD format, see [here](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/advanced/matrices) for details.
+ */
+export class H5adDataset {
+    #h5_file;
+    #h5_path;
+    #h5_flush;
+    #h5_handle;
 
-function extract_features(handle) {
-    let genes = null;
+    #raw_features;
+    #raw_cells;
+    #raw_cell_factors;
 
-    if ("var" in handle.children && handle.children["var"] == "Group") {
-        let vhandle = handle.open("var");
-        let index = rutils.extractHDF5Strings(vhandle, "_index");
-        if (index !== null) {
-            genes = { "_index": index };
+    #chosen_assay;
+    #assay_details;
 
-            for (const [key, val] of Object.entries(vhandle.children)) {
-                if (val === "DataSet" && (key.match(/name/i) || key.match(/symb/i))) {
-                    let dhandle2 = vhandle.open(key);
-                    if (dhandle2.type == "String") {
-                        genes[key] = dhandle2.load();
-                    }
-                }
-            }
-        }
-    }
-
-    return genes;
-}
-
-function extract_annotations(handle, { summary = false, summaryLimit = 50 } = {}) {
-    let annotations = null;
-
-    if ("obs" in handle.children && handle.children["obs"] == "Group") {
-        let ohandle = handle.open("obs");
-        annotations = {};
-
-        // Maybe it has names, maybe not, who knows; let's just add what's there.
-        let index = rutils.extractHDF5Strings(ohandle, "_index");
-        if (index !== null) {
-            annotations["_index"] = index;
-        }
-
-        for (const [key, val] of Object.entries(ohandle.children)) {
-            if (val != "DataSet") {
-                continue;
-            }
-            let dhandle = ohandle.open(key);
-
-            if (dhandle.type != "Other") {
-                let values = dhandle.load();
-                if (summary) {
-                    annotations[key] = rutils.summarizeArray(values, { limit: summaryLimit });
-                } else {
-                    annotations[key] = values;
-                }
-            }
-        }
-
-        if ("__categories" in ohandle.children && ohandle.children["__categories"] == "Group") {
-            let chandle = ohandle.open("__categories");
-
-            for (const [key, val] of Object.entries(chandle.children)) {
-                if (key in annotations) {
-                    let cats = rutils.extractHDF5Strings(chandle, key);
-                    if (cats !== null) {
-                        if (summary) {
-                            annotations[key] = rutils.summarizeArray(cats, { limit: summaryLimit });
-                        } else {
-                            let old = annotations[key];
-
-                            // don't use map() as we need to handle IntArray values in 'old'.
-                            let temp = new Array(old.length);
-                            old.forEach((x, i) => {
-                                temp[i] = cats[x]
-                            }); 
-
-                            annotations[key] = temp;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    return annotations;
-}
-
-export function preflight(args) {
-    let output = {};
-    let formatted = rutils.formatFile(args.h5, false)
-
-    const tmppath = afile.realizeH5(formatted.content);
-    try {
-        let handle = new scran.H5File(tmppath);
-        let raw_gene_info = extract_features(handle);
-
-        let split_out = rutils.presplitByFeatureType(raw_gene_info);
-        if (split_out !== null) {
-            output.genes = split_out.genes;
+    /**
+     * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a H5AD file.
+     * On browsers, this may be a File object.
+     * On Node.js, this may also be a string containing a file path.
+     */
+    constructor(h5File) {
+        if (h5File instanceof afile.SimpleFile) {
+            this.#h5_file = h5File;
         } else {
-            output.genes = { RNA: raw_gene_info };
+            this.#h5_file = new afile.SimpleFile(h5File);
         }
 
-        output.annotations = extract_annotations(handle, { summary: true });
-    } finally {
-        afile.removeH5(tmppath);
-    }
+        let info = scran.realizeFile(this.#h5_file.content());
+        this.#h5_path = info.path;
+        this.#h5_flush = info.flush;
 
-    return output;
-}
-
-export class Reader {
-    #h5;
-
-    constructor(args, formatted = false) {
-        if (formatted) {
-            this.#h5 = args;
-        } else {
-            this.#h5 = rutils.formatFile(args.h5, false);
-        }
-        return;
-    }
-
-    load() {
-        let output = { matrix: new scran.MultiMatrix };
-
-        const tmppath = afile.realizeH5(this.#h5.content);
         try {
-            let loaded = scran.initializeSparseMatrixFromHDF5(tmppath, "X");
-            let out_mat = loaded.matrix;
-            let out_ids = loaded.row_ids;
-            output.matrix.add("RNA", out_mat);
-
-            let handle = new scran.H5File(tmppath);
-            let raw_gene_info = extract_features(handle); 
-            output.genes = { RNA: rutils.reorganizeGenes(out_mat, out_ids, raw_gene_info) };
-
-            output.row_ids = { RNA: out_ids };
-            output.annotations = extract_annotations(handle);
-
+            this.#h5_handle = new scran.H5File(this.#h5_path);
         } catch (e) {
-            scran.free(output.matrix);
+            this.#h5_flush();
             throw e;
-        } finally {
-            afile.removeH5(tmppath);
         }
 
-        return output;
+        this.#raw_features = null;
+        this.#raw_cells = null;
+        this.#chosen_assay = null;
+        this.#assay_details = null;
     }
 
-    format() {
+    static format() {
         return "H5AD";
     }
 
-    async serialize(embeddedSaver) {
-        return [await rutils.standardSerialize(this.#h5, "h5", embeddedSaver)];
+    abbreviate() {
+        return { 
+            "h5": {
+                "name": this.#h5_file.name(),
+                "size": this.#h5_file.size()
+            }
+        };
     }
-}
 
-export async function unserialize(values, embeddedLoader) {
-    return new Reader(await rutils.standardUnserialize(values[0], embeddedLoader), true);
+    #choose_assay() {
+        if (this.#chosen_assay !== null) {
+            return;
+        }
+
+        if ("X" in this.#h5_handle.children) {
+            this.#chosen_assay = "X";
+            return;
+        } 
+
+        if (!("layers" in this.#h5_handle.children)) {
+            throw new Error("expected 'X' or 'layers' in a H5AD file");
+        }
+
+        let lhandle = this.#h5_handle.open("layers");
+        if (!(lhandle instanceof scran.H5Group)) {
+            throw new Error("expected a 'layers' group in a H5AD file");
+        }
+
+        for (const k of Object.keys(lhandle.children)) {
+            if (k.match(/^count/i)) {
+                this.#chosen_assay = "layers/" + k;
+                return;
+            }
+        }
+
+        throw new Error("failed to find any count-like layer in a H5AD file");
+    }
+
+    #fetch_assay_details() {
+        if (this.#assay_details !== null) {
+            return;
+        }
+
+        this.#choose_assay();
+        this.#assay_details = scran.extractHDF5MatrixDetails(this.#h5_path, this.#chosen_assay);
+        return;
+    }
+
+    #features() {
+        if (this.#raw_features !== null) {
+            return;
+        }
+
+        let handle = this.#h5_handle;
+        if ("var" in handle.children && handle.children["var"] == "Group") {
+            let vhandle = handle.open("var");
+            let index = eutils.extractHDF5Strings(vhandle, "_index");
+            if (index !== null) {
+                let genes = { "_index": index };
+
+                for (const [key, val] of Object.entries(vhandle.children)) {
+                    if (val === "DataSet" && (key.match(/name/i) || key.match(/symb/i))) {
+                        let dhandle2 = vhandle.open(key);
+                        if (dhandle2.type == "String") {
+                            genes[key] = dhandle2.load();
+                        }
+                    }
+                }
+                
+                this.#raw_features = new bioc.DataFrame(genes);
+                return;
+            }
+        }
+
+        this.#fetch_assay_details();
+        this.#raw_features = new bioc.DataFrame({}, { numberOfRows: this.#assay_details.rows });
+        return;
+    }
+
+    #cells() {
+        if (this.#raw_cells !== null) {
+            return;
+        }
+
+        let handle = this.#h5_handle;
+        let annotations = {};
+        let factors = {};
+
+        if ("obs" in handle.children && handle.children["obs"] == "Group") {
+            let ohandle = handle.open("obs");
+
+            // Maybe it has names, maybe not, who knows; let's just add what's there.
+            let index = eutils.extractHDF5Strings(ohandle, "_index");
+            if (index !== null) {
+                annotations["_index"] = index;
+            }
+
+            for (const [key, val] of Object.entries(ohandle.children)) {
+                if (val != "DataSet") {
+                    continue;
+                }
+                let dhandle = ohandle.open(key, { load: true });
+                annotations[key] = dhandle.values;
+            }
+
+            if ("__categories" in ohandle.children && ohandle.children["__categories"] == "Group") {
+                let chandle = ohandle.open("__categories");
+
+                for (const [key, val] of Object.entries(chandle.children)) {
+                    if (key in annotations) {
+                        factors[key] = eutils.extractHDF5Strings(chandle, key);
+                    }
+                }
+            }
+        }
+
+        if (Object.keys(annotations).length == 0) {
+            this.#fetch_assay_details();
+            this.#raw_cells = new bioc.DataFrame({}, { numberOfRows: this.#assay_details.columns })
+        } else {
+            this.#raw_cells = new bioc.DataFrame(annotations);
+        }
+        this.#raw_cell_factors = factors;
+        return;
+    }
+
+    annotations() {
+        this.#features();
+        this.#cells();
+
+        let summaries = {};
+        for (const k of this.#raw_cells.columnNames()) {
+            let x;
+            if (k in this.#raw_cell_factors) {
+                x = this.#raw_cell_factors[k];
+            } else {
+                x = this.#raw_cells.column(k);
+            }
+            summaries[k] = eutils.summarizeArray(x);
+        }
+        
+        return {
+            features: { "": bioc.CLONE(this.#raw_features) },
+            cells: {
+                number: this.#raw_cells.numberOfColumns(),
+                summary: summaries
+            }
+        };
+    }
+
+    load() {
+        this.#features();
+        this.#cells();
+        this.#choose_assay();
+
+        let cells = new bioc.DataFrame({}, { numberOfRows: this.#raw_cells.numberOfRows(), metadata: bioc.CLONE(this.#raw_cells.metadata()) });
+        for (const k of this.#raw_cells.columnNames()) {
+            let v = this.#raw_cells.column(k);
+            if (!(k in this.#raw_cell_factors)) {
+                cells.$setColumn(k, bioc.CLONE(v));
+            } else {
+                let cats = this.#raw_cell_factors[k];
+                let temp = new Array(v.length);
+                v.forEach((x, i) => {
+                    temp[i] = cats[x]
+                }); 
+                cells.$setColumn(k, temp);
+            }
+        }
+
+        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, this.#chosen_assay);
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, null);
+        output.cells = cells;
+        return output;
+    }
+
+    free() {
+        this.#h5_flush();
+    }
+
+    serialize() {
+        return [ { type: "h5", file: this.#h5_file } ];
+    }
+
+    static async unserialize(files) {
+        if (files.length != 1 || files[0].type != "h5") {
+            throw new Error("expected exactly one file of type 'h5' for H5AD unserialization");
+        }
+        return new H5adDataset(files[0].file);
+    }
 }

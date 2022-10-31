@@ -16,11 +16,9 @@ test("runAnalysis works correctly (10X)", async () => {
         contents[step] = res;
     };
 
+    let h5path = "files/datasets/pbmc4k-tenx.h5";
     let files = {
-        default: {
-            format: "10X",
-            h5: "files/datasets/pbmc4k-tenx.h5"
-        }
+        default: new bakana.TenxHdf5Dataset(h5path)
     };
 
     let state = await bakana.createAnalysis();
@@ -39,10 +37,10 @@ test("runAnalysis works correctly (10X)", async () => {
     {
         let loaded = state.inputs.fetchCountMatrix();
         let loaded_ids = state.inputs.fetchRowIds();
-        let loaded_names = state.inputs.fetchGenes().id;
+        let loaded_names = state.inputs.fetchGenes().column("id");
 
-        let simple = scran.initializeSparseMatrixFromHDF5(files.default.h5, "matrix", { layered: false });
-        let simple_names = (new scran.H5File(files.default.h5)).open("matrix").open("features").open("id", { load: true }).values;
+        let simple = scran.initializeSparseMatrixFromHDF5(h5path, "matrix", { layered: false });
+        let simple_names = (new scran.H5File(h5path)).open("matrix").open("features").open("id", { load: true }).values;
 
         utils.checkReorganization(simple.matrix, simple.row_ids, simple_names, loaded, loaded_ids, loaded_names);
         simple.matrix.free();

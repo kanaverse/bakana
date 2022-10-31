@@ -1,4 +1,5 @@
 import * as scran from "scran.js";
+import * as bioc from "bioconductor";
 import * as utils from "./utils/general.js";
 import * as iutils from "../readers/index.js";
 export const step_name = "inputs";
@@ -6,9 +7,9 @@ export const step_name = "inputs";
 const RAW_SUBSET_OVERRIDE = "raw_subset_indices";
 
 /**
- * This step handles the loading of the input count matrices into memory.
+ * This step handles the loading of all datasets into memory.
  * This wraps various matrix initialization functions in [**scran.js**](https://github.com/jkanche/scran.js),
- * depending on the format of the supplied matrices.
+ * depending on the format of the supplied datasets.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -58,10 +59,6 @@ export class InputsState {
         return this.#cache.row_ids[type];
     }
 
-    fetchGeneTypes() {
-        return this.#cache.gene_types;
-    }
-
     /**
      * Fetch an annotation for all cells in the dataset.
      * This considers all cells in the dataset before QC filtering - 
@@ -73,12 +70,12 @@ export class InputsState {
      */
     fetchAnnotations(col) {
         let annots = this.#cache.annotations;
-        if (annots === null || !(col in annots)) {
+        if (annots === null || !annots.hasColumn(col)) {
             throw new Error(`${col} does not exist in the column annotations`);
         }
 
         // Make a copy, avoid accidental writes or transfers. 
-        return annots[col].slice();
+        return bioc.CLONE(annots.column(col));
     }
 
     fetchBlock() {
@@ -118,11 +115,11 @@ export class InputsState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * `matrices` is taken from the argument of the same name in {@linkcode runAnalysis},
+     * `datasets` is taken from the argument of the same name in {@linkcode runAnalysis},
      * while `sample_factor` is taken from the property of the same name in the `inputs` property of the `parameters`.
      *
-     * @param {object} matrices - An object containing data for one or more count matrices.
-     * Each property corresponds to a single matrix and should contain a `format` string property along with any number of File objects (browser) or file paths (Node.js).
+     * @param {object} datasets - An object containing data for one or more datasets.
+     * Each property corresponds to a single dataset and its value should satisfy the {@linkplain Dataset} contract.
      * See the description of the argument of the same name in {@linkcode runAnalysis}.
      * @param {?string} sample_factor - Name of the column of the cell annotations specifying the sample of origin for each cell.
      * This is only used if a single count matrix is supplied.
@@ -142,29 +139,21 @@ export class InputsState {
      * @return The object is updated with the new results.
      * A promise is returned that resolves to `null` once input loading is complete - this should be resolved before any downstream steps are run.
      */
-    async compute(matrices, sample_factor, subset) {
+    async compute(datasets, sample_factor, subset) {
         this.changed = false;
 
         // Don't bother proceeding with any of the below
         // if we're operating from a reloaded state.
-        if (matrices !== null) {
-            let entries = Object.entries(matrices);
+        if (datasets !== null) {
             let tmp_abbreviated = {};
-            for (const [key, val] of entries) {
-                let namespace = iutils.chooseReader(val.format);
-                tmp_abbreviated[key] = namespace.abbreviate(val);
+            for (const [key, val] of Object.entries(datasets)) {
+                tmp_abbreviated[key] = { format: val.constructor.format(), details: val.abbreviate() };
             }
 
             if (utils.changedParameters(tmp_abbreviated, this.#abbreviated)) {
-                let new_readers = {};
-                for (const [key, val] of entries) {
-                    let namespace = iutils.chooseReader(val.format);
-                    new_readers[key] = new namespace.Reader(val);
-                }
-                await load_and_cache(new_readers, this.#cache);
-
+                await load_and_cache(datasets, this.#cache);
                 this.#abbreviated = tmp_abbreviated;
-                this.#cache.readers = new_readers;
+                this.#cache.datasets = datasets;
                 this.changed = true;
             }
         }
@@ -286,7 +275,7 @@ export class InputsState {
         new_cache[RAW_SUBSET_OVERRIDE] = this.#configureIndices(indices, copy, onOriginal);
 
         // Making explicit clones to take ownership.
-        new_cache.raw_matrix = clone_MultiMatrix(this.#cache.raw_matrix);
+        new_cache.raw_matrix = this.#cache.raw_matrix.clone();
         for (const x of [ "multi_block_ids", "raw_block_ids" ]) {
             if (x in this.#cache) {
                 if (this.#cache[x] === null) {
@@ -300,7 +289,7 @@ export class InputsState {
         // These can probably be copied directly, given that they are always
         // replaced wholesale in the various *_and_cache functions, rather than
         // being modified in-place.
-        for (const x of [ "raw_annotations", "genes", "gene_types", "multi_block_levels", "raw_block_levels" ]) {
+        for (const x of [ "raw_annotations", "genes", "multi_block_levels", "raw_block_levels" ]) {
             if (x in this.#cache) {
                 new_cache[x] = this.#cache[x];
             }
@@ -324,7 +313,7 @@ export class InputsState {
      * @return An object containing:
      *
      * - `dimensions`: an object containing `num_genes` and `num_cells`, the number of genes and cells respectively.
-     *   For multiple matrices, the number of cells is the total number across all matrices.
+     *   For multiple datasets, the number of cells is defined as the sum across all datasets.
      * - `genes`: an object containing the per-gene annotation.
      *   Each property is an array of length equal to the number of genes, usually containing strings with gene identifiers or symbols.
      *   Property names are arbitrary.
@@ -335,11 +324,20 @@ export class InputsState {
         for (const a of this.#cache.matrix.available()) {
             ngenes[a] = this.#cache.matrix.get(a).numberOfRows();
         }
+
+        let gene_info = {};
+        for (const [k, v] of Object.entries(this.#cache.genes)) {
+            let info = {};
+            for (const c of v.columnNames()) {
+                info[c] = bioc.CLONE(v.column(c));
+            }
+            gene_info[k] = info;
+        }
         
         var output = {
             "num_cells": this.#cache.matrix.numberOfColumns(),
             "num_genes": ngenes,
-            "genes": { ...(this.#cache.genes) }
+            "genes": gene_info 
         };
         if (this.#cache.annotations !== null) {
             output.annotations = Object.keys(this.#cache.annotations);
@@ -360,7 +358,7 @@ export class InputsState {
 
             // Make sure we're in sorted order, for consistency with
             // how the merge is done.
-            let names = Object.keys(this.#cache.readers);
+            let names = Object.keys(this.#cache.datasets);
             names.sort();
 
             let formats = [];
@@ -369,24 +367,30 @@ export class InputsState {
             let sofar = 0;
 
             for (const key of names) {
-                let val = this.#cache.readers[key];
-                formats.push(val.format());
+                let val = this.#cache.datasets[key];
+                formats.push(val.constructor.format());
 
-                let files = await val.serialize(embeddedSaver);
+                let files = await val.serialize();
                 numbers.push(files.length);
 
                 for (const obj of files) {
                     let curhandle = fihandle.createGroup(String(sofar));
                     curhandle.writeDataSet("type", "String", [], obj.type);
-                    curhandle.writeDataSet("name", "String", [], obj.name);
+                    curhandle.writeDataSet("name", "String", [], obj.file.name());
 
-                    if (typeof obj.id == "string") {
-                        curhandle.writeDataSet("id", "String", [], obj.id);
-                    } else if (typeof obj.offset == "number" && typeof obj.size == "number") {
-                        curhandle.writeDataSet("offset", "Uint32", [], obj.offset);
-                        curhandle.writeDataSet("size", "Uint32", [], obj.size);
+                    if (embeddedSaver === null) {
+                        if (file2link == null) {
+                            throw new Error("no valid linking function from 'setCreateLink'");
+                        }
+                        let id = await file2link(obj.file.content());
+                        curhandle.writeDataSet("id", "String", [], id);
                     } else {
-                        throw new Error("object should contain either an 'id' string or 'offset' and 'size' numbers"); 
+                        let saved = await embeddedSaver(obj.file.content(), obj.file.size());
+                        if (!(typeof saved.offset == "number") || !(typeof saved.size == "number")) {
+                            throw new Error("output of 'embeddedSaver' should contain 'offset' and 'size' numbers");
+                        }
+                        curhandle.writeDataSet("offset", "Uint32", [], saved.offset);
+                        curhandle.writeDataSet("size", "Uint32", [], saved.size);
                     }
 
                     sofar++;
@@ -444,7 +448,7 @@ export class InputsState {
                 rhandle.writeDataSet("num_samples", "Int32", [], this.#cache.block_levels.length); 
             }
 
-            // Looping through all available matrices.
+            // Looping through all available modalities.
             let ihandle = rhandle.createGroup("identities");
             for (const a of this.#cache.matrix.available()) {
                 ihandle.writeDataSet(a, "Int32", null, this.#cache.row_ids[a]);
@@ -456,8 +460,10 @@ export class InputsState {
 }
 
 /************************************
- ******* Internals - loading ********
+ ******* Internals - guessing *******
  ************************************/
+
+// TODO: remove all of this and require explicit mention of which features are which.
 
 // Exported for testing only.
 export function commonFeatureTypes(genes) {
@@ -467,18 +473,15 @@ export function commonFeatureTypes(genes) {
         "ensembl-mouse": [],
         "ensembl-human": []
     };
+    let fields = bioc.CLONE(scores);
 
-    // Manually making a copy, until structuredClone becomes widely available.
-    let fields = {};
-    Object.keys(scores).forEach(x => { fields[x] = []; });
-
-    let names = Object.keys(genes);
-    for (const name of names) {
-        let curgenes = genes[name];
-
+    for (var i = 0; i < genes.length; i++) {
+        let curgenes = genes[i];
         let best_scores = {};
         let best_fields = {};
-        for (const [k, v] of Object.entries(curgenes)) {
+
+        for (const k of curgenes.columnNames()) {
+            let v = curgenes.column(k);
             let fscore = scran.guessFeatures(v);
             let curname = fscore.type + "-" + fscore.species;
             if (!(curname in best_scores) || fscore.confidence > best_scores[curname]) {
@@ -497,7 +500,7 @@ export function commonFeatureTypes(genes) {
     let best_type = null;
 
     for (const [k, v] of Object.entries(scores)) {
-        if (v.length == names.length) { // skipping if not represented in all entries.
+        if (v.length == genes.length) { // skipping if not represented in all entries.
             let nscore = v.reduce((a, b) => a * b);
             if (nscore > best_score) {
                 best_score = nscore;
@@ -506,7 +509,7 @@ export function commonFeatureTypes(genes) {
         }
     }
 
-    let best_fields = {};
+    let best_fields = [];
     let best_features = null;
 
     if (best_type !== null) {
@@ -516,8 +519,8 @@ export function commonFeatureTypes(genes) {
             type: best_features_sub[0],
             species: best_features_sub[1]
         };
-        for (var i = 0; i < names.length; i++) {
-            best_fields[names[i]] = best_type_cols[i];
+        for (var i = 0; i < genes.length; i++) {
+            best_fields.push(best_type_cols[i]);
         }
     }
 
@@ -527,30 +530,81 @@ export function commonFeatureTypes(genes) {
     };
 }
 
-function bind_single_modality(dkeys, datasets, type) {
+export function guessDefaultModalities(loaded) {
+    // Checking which modalities are available across all datasets.
+    let available = {};
+    for (var i = 0; i < loaded.length; i++) {
+        let current = Object.keys(loaded[i].features);
+
+        for (const modality of current) {
+            let chosen = null;
+            if (modality == "") {
+                chosen = "RNA";
+            } else if (modality.match(/gene expression/i)) {
+                chosen = "RNA";
+            } else if (modality.match(/^rna/i)) {
+                chosen = "RNA";
+            } else if (modality.match(/^gex/i)) {
+                chosen = "RNA";
+            } else if (modality.match(/^adt/i)) {
+                chosen = "ADT";
+            } else if (modality.match(/antibody capture/i)) {
+                chosen = "ADT";
+            }
+
+            if (chosen !== null) {
+                if (!(chosen in available)) {
+                    available[chosen] = new Array(loaded.length);
+                    available[chosen].fill(null);
+                }
+                if (available[chosen][i] == null) {
+                    available[chosen][i] = modality;
+                }
+            }
+        }
+    }
+
+    let choices = {};
+    for (const [k, v] of Object.entries(available)) {
+        let failed = false;
+        for (const v2 of v) {
+            if (v2 == null) {
+                failed = true;
+                break;
+            }
+        }
+        if (!failed) {
+            choices[k] = v;
+        }
+    }
+
+    return choices;
+}
+
+/************************************
+ ******* Internals - loading ********
+ ************************************/
+
+function bind_single_modality(modality, mapping, loaded) {
     let output = {};
 
     try {
-        // Identify the gene columns to use.
-        let genes = {};
-        for (const k of dkeys) {
-            genes[k] = datasets[k].genes[type];
-            if (genes[k] === null) {
-                throw new Error("no gene annotations found in matrix '" + k + "'");
-            }
+        let genes = [];
+        for (var i = 0; i < mapping.length; i++) {
+            let mod_name = mapping[i];
+            genes.push(loaded[i].features[mod_name]);
         }
 
         let result = commonFeatureTypes(genes);
         if (result.best_type === null) {
-            throw new Error("no common feature types available across all matrices");
+            throw new Error("no common feature types available across all datasets for '" + modality + "'");
         }
-        let best_fields = result.best_fields;
 
         let gnames = [];
         let mats = [];
-        for (const k of dkeys) {
-            gnames.push(genes[k][best_fields[k]]);
-            mats.push(datasets[k].matrix.get(type));
+        for (var i = 0; i < mapping.length; i++) {
+            gnames.push(genes[i].column(result.best_fields[i]));
+            mats.push(loaded[i].matrix.get(mapping[i]));
         }
 
         let merged = scran.cbindWithNames(mats, gnames);
@@ -558,9 +612,8 @@ function bind_single_modality(dkeys, datasets, type) {
 
         // Extracting gene information from the first object. We won't make
         // any attempt at merging and deduplication across objects.
-        let first = dkeys[0];
-        output.genes = scran.subsetArrayCollection(genes[first], merged.indices);
-        output.row_ids = scran.quickSliceArray(merged.indices, datasets[first].row_ids[type]);
+        output.features = bioc.SLICE(genes[0], merged.indices);
+        output.row_ids = bioc.SLICE(loaded[0].row_ids[mapping[0]], merged.indices);
 
     } catch (e) {
         utils.freeCache(output.matrix);
@@ -570,58 +623,40 @@ function bind_single_modality(dkeys, datasets, type) {
     return output;
 }
 
-function bind_datasets(dkeys, datasets) {
-    // Checking which feature types are available across all datasets.
-    let available = null;
-    for (const k of dkeys) {
-        if (available === null) {
-            available = datasets[k].matrix.available();
-        } else {
-            let present = new Set(datasets[k].matrix.available());
-            available = available.filter(x => present.has(x));
-        }
+function bind_datasets(names, loaded) {
+    let common_modes = guessDefaultModalities(loaded);
+    if (Object.keys(common_modes).length == 0) {
+        throw new Error("failed to guess common modalities across all datasets");
     }
 
     let blocks;
     let output = { 
         matrix: new scran.MultiMatrix, 
-        genes: {},
+        features: {},
         row_ids: {}
     };
 
     try {
-        for (const a of available) {
-            let current = bind_single_modality(dkeys, datasets, a);
-            output.matrix.add(a, current.matrix);
-            output.genes[a] = current.genes;
-            output.row_ids[a] = current.row_ids;
+        for (const [k, v] of Object.entries(common_modes)) {
+            let current = bind_single_modality(k, v, loaded);
+            output.matrix.add(k, current.matrix);
+            output.features[k] = current.features;
+            output.row_ids[k] = current.row_ids;
         }
 
-        // Get all annotations keys across datasets; we then concatenate
-        // columns with the same name, or we just fill them with missings.
-        let lengths = [];
-        let annos = [];
-        for (const d of dkeys) {
-            let current = datasets[d];
-            if (current.annotations !== null) {
-                annos.push(current.annotations);
-            } else {
-                annos.push({});
-            }
-            lengths.push(current.matrix.numberOfColumns());
-        }
-        output.annotations = scran.combineArrayCollections(annos, { lengths: lengths });
+        let annos = loaded.map(x => x.cells);
+        output.cells = bioc.flexibleCombineRows(annos);
 
         // Generating a block vector.
-        let ncells = new Array(dkeys.length);
-        dkeys.forEach((x, i) => { ncells[i] = datasets[x].matrix.numberOfColumns(); });
+        let ncells = new Array(loaded.length);
+        loaded.forEach((x, i) => { ncells[i] = x.matrix.numberOfColumns(); });
         blocks = scran.createBlock(ncells);
         output.block_ids = blocks;
-        output.block_levels = dkeys;
+        output.block_levels = names;
 
         let nice_barr = new Array(blocks.length);
-        blocks.forEach((x, i) => { nice_barr[i] = dkeys[x]; })
-        output.annotations["__batch__"] = nice_barr;
+        blocks.forEach((x, i) => { nice_barr[i] = names[x]; })
+        output.cells.$setColumn("__batch__", nice_barr);
 
     } catch (e) {
         utils.freeCache(blocks);
@@ -632,41 +667,74 @@ function bind_datasets(dkeys, datasets) {
     return output;
 }
 
-async function load_datasets(matrices) {
-    // Loading all of the individual matrices. 
-    let datasets = {};
+function rename_dataset(single) {
+    let common_modes = guessDefaultModalities([single]);
+    if (Object.keys(common_modes).length == 0) {
+        throw new Error("failed to guess common modalities across all datasets");
+    }
+
+    let output = { 
+        matrix: new scran.MultiMatrix, 
+        features: {},
+        row_ids: {}
+    };
+
     try {
-        for (const [key, val] of Object.entries(matrices)) {
+        for (const [k, v] of Object.entries(common_modes)) {
+            let current = v[0];
+            output.matrix.add(k, single.matrix.get(current));
+            output.features[k] = single.features[current];
+            output.row_ids[k] = single.row_ids[current];
+        }
+    } catch (e) {
+        scran.free(output.matrix);
+        throw e;
+    }
+
+    output.cells = single.cells;
+    output.block_ids = null;
+    output.block_levels = null;
+
+    return output;
+}
+
+async function load_datasets(datasets) {
+    // Ensure we have a reproducible order; otherwise the batch
+    // order becomes dependent on the JS engine's ordering.
+    let names = Object.keys(datasets);
+    names.sort();
+
+    let loaded = [];
+    try {
+        for (const key of names) {
             // Too much hassle to convert this into a Promise.all(), because we
             // need to make sure it gets freed properly on failure.
-            datasets[key] = await val.load();
+            loaded.push(await datasets[key].load());
         }
     } catch (e) {
         // If any one fails, we free the rest.
-        for (const [key, val] of Object.entries(datasets)){
-            utils.freeCache(val.matrix);
+        for (const x of loaded) {
+            scran.free(x.matrix);
         }
         throw e;
     }
 
-    // Ensure we have a reproducible order; otherwise the batch
-    // order becomes dependent on the JS engine's ordering.
-    let dkeys = Object.keys(datasets);
-    dkeys.sort();
-
     let output;
-    if (dkeys.length == 1) {
-        output = datasets[dkeys[0]];
-        output.block_ids = null;
-        output.block_levels = null;
+    if (names.length == 1) {
+        try {
+            output = rename_dataset(loaded[0]);
+        } catch (e) {
+            scran.free(loaded[0].matrix);
+            throw e;
+        }
     } else {
         try {
-            output = bind_datasets(dkeys, datasets);
+            output = bind_datasets(names, loaded);
         } finally {
-            // No need to hold references to the individual matrices
-            // once the full matrix is loaded.
-            for (const [k, v] of Object.entries(datasets)) {
-                utils.freeCache(v.matrix);
+            // No need to hold references to the individual matrices once the
+            // binding is complete, so we release them.
+             for (const x of loaded) {
+                scran.free(x.matrix);
             }
         }
     }
@@ -679,55 +747,43 @@ async function load_datasets(matrices) {
  ******************************************/
 
 function harvest_subset_indices(subset, cache) {
-    let keep = null;
-
     if (RAW_SUBSET_OVERRIDE in cache) {
-        keep = cache[RAW_SUBSET_OVERRIDE];
-    } else if (subset !== null) {
-        if (!(subset.field in cache.raw_annotations)) {
-            throw new Error("failed to find 'subset.field' in the column annotations");
-        }
-        let anno = cache.raw_annotations[subset.field];
+        return cache[RAW_SUBSET_OVERRIDE];
+    }
 
-        keep = [];
+    if (subset == null) {
+        return null;
+    }
 
-        if ("values" in subset) {
-            let allowed = new Set(subset.values);
-            anno.forEach((x, i) => {
-                if (allowed.has(x)) {
+    if (!cache.raw_annotations.hasColumn(subset.field)) {
+        throw new Error("failed to find '" + subset.field + "' in the column annotations");
+    }
+
+    let anno = cache.raw_annotations.column(subset.field);
+    let keep = [];
+
+    if ("values" in subset) {
+        let allowed = new Set(subset.values);
+        anno.forEach((x, i) => {
+            if (allowed.has(x)) {
+                keep.push(i);
+            }
+        });
+    } else {
+        // Check each entry to see whether it belongs to the range.
+        // This is cheaper than sorting anything, assuming there 
+        // aren't that many ranges.
+        anno.forEach((x, i) => {
+            for (const r of subset.ranges) {
+                if (x >= r[0] && x <= r[1]) {
                     keep.push(i);
+                    return;
                 }
-            });
-        } else {
-            // Check each entry to see whether it belongs to the range.
-            // This is cheaper than sorting anything, assuming there 
-            // aren't that many ranges.
-            anno.forEach((x, i) => {
-                for (const r of subset.ranges) {
-                    if (x >= r[0] && x <= r[1]) {
-                        keep.push(i);
-                        return;
-                    }
-                }
-            });
-        }
+            }
+        });
     }
 
     return keep;
-}
-
-function clone_MultiMatrix(x) {
-    let new_matrix = new scran.MultiMatrix;
-    try {
-        for (const key of x.available()) {
-            let current = x.get(key);
-            new_matrix.add(key, current.clone());
-        }
-    } catch (e) {
-        new_matrix.free();
-        throw e;
-    }
-    return new_matrix;
 }
 
 function check_subset_ranges(ranges) { 
@@ -745,25 +801,18 @@ function check_subset_ranges(ranges) {
  ******* Internals - caching ********
  ************************************/
 
-async function load_and_cache(new_readers, cache) {
+async function load_and_cache(new_datasets, cache) {
     utils.freeCache(cache.raw_matrix);
     utils.freeCache(cache.matrix); // freeing this as well, to release all references and potentially release memory.
     utils.freeCache(cache.multi_block_ids);
 
-    let res = await load_datasets(new_readers);
+    let res = await load_datasets(new_datasets);
     cache.raw_matrix = res.matrix;
     cache.row_ids = res.row_ids;
-    cache.raw_annotations = res.annotations;
+    cache.raw_annotations = res.cells;
     cache.multi_block_ids = res.block_ids;
     cache.multi_block_levels = res.block_levels;
-
-    cache.genes = res.genes;
-    var gene_info_type = {};
-    var gene_info = cache.genes["RNA"];
-    for (const [key, val] of Object.entries(gene_info)) {
-        gene_info_type[key] = scran.guessFeatures(val);
-    }
-    cache.gene_types = gene_info_type;
+    cache.genes = res.features;
 }
 
 function block_and_cache(sample_factor, cache) {
@@ -775,7 +824,7 @@ function block_and_cache(sample_factor, cache) {
     if (sample_factor !== null) {
         // Single matrix with a batch factor.
         try {
-            let anno_batch = cache.raw_annotations[sample_factor];
+            let anno_batch = cache.raw_annotations.column(sample_factor);
             if (anno_batch.length != cache.raw_matrix.numberOfColumns()) {
                 throw new Error("length of sample factor '" + sample_factor + "' should be equal to the number of cells"); 
             }
@@ -820,7 +869,7 @@ function subset_and_cache(subset, cache) {
 
             // Need to make a clone so that it can be freed independently of the original.
             // This is cheap as only the shared pointer is cloned, not the underlying data.
-            new_matrix = clone_MultiMatrix(cache.raw_matrix);
+            new_matrix = cache.raw_matrix.clone();
 
             if (cache.raw_block_ids !== null) {
                 // A view also works, given that we're downstream of the generating
@@ -833,7 +882,7 @@ function subset_and_cache(subset, cache) {
             }
 
         } else {
-            new_annotations = scran.subsetArrayCollection(cache.raw_annotations, keep);
+            new_annotations = bioc.SLICE(cache.raw_annotations, keep);
 
             if (cache.raw_block_ids !== null) {
                 new_block_ids = scran.subsetBlock(cache.raw_block_ids, keep);
@@ -876,6 +925,30 @@ function createPermuter(perm) {
     };
 }
 
+async function unserialize_Dataset(format, all_files, loader) {
+    if (!(format in iutils.availableReaders)) {
+        throw new Error("unknown format '" + format + "' during unserialization");
+    }
+    let cls = iutils.availableReaders[format];
+
+    let handles = [];
+    for (const f of all_files) {
+        let b;
+        if (loader == null) {
+            if (link2file == null) {
+                throw new Error("no valid linking function from 'setResolveLink'");
+            }
+            b = await link2file(f.id);
+        } else {
+            b = await loader(f.offset, f.size);
+        }
+        let handle = new iutils.SimpleFile(b, { name: f.name }) 
+        handles.push({ type: f.type, file: handle });
+    }
+
+    return await cls.unserialize(handles);
+}
+
 export async function unserialize(handle, embeddedLoader) {
     let ghandle = handle.open("inputs");
     let phandle = ghandle.open("parameters");
@@ -914,8 +987,7 @@ export async function unserialize(handle, embeddedLoader) {
 
     if (solofile) {
         let format = fohandle.values[0];
-        let namespace = iutils.chooseReader(format);
-        readers["default"] = await namespace.unserialize(all_files, embeddedLoader);
+        readers["default"] = await unserialize_Dataset(format, all_files, embeddedLoader);
         if ("sample_factor" in phandle.children) {
             parameters.sample_factor = phandle.open("sample_factor", { load: true }).values[0];
         } else {
@@ -932,8 +1004,8 @@ export async function unserialize(handle, embeddedLoader) {
             let start = sofar;
             sofar += sample_groups[i];
             let curfiles = all_files.slice(start, sofar);
-            let namespace = iutils.chooseReader(formats[i]);
-            readers[sample_names[i]] = await namespace.unserialize(curfiles, embeddedLoader);
+            let format = formats[i];
+            readers[sample_names[i]] = await unserialize_Dataset(format, curfiles, embeddedLoader);
         }
     }
 
@@ -1054,7 +1126,7 @@ export async function unserialize(handle, embeddedLoader) {
 
     /*
      * We could try to construct 'abbreviated', but there isn't really
-     * any point because callers are expected to set 'matrices = null'
+     * any point because callers are expected to set 'datasets = null'
      * in their calls to 'compute()' on an unserialized analysis, so 
      * any setting of '#abbreviated' wouldn't even get used.
      */
@@ -1063,4 +1135,42 @@ export async function unserialize(handle, embeddedLoader) {
         state: new InputsState(parameters, cache),
         permuters: permuters
     };
+}
+
+/**************************
+ ******** Linking *********
+ **************************/
+
+var file2link = null;
+var link2file = null;
+
+/**
+ * Specify a function to create links for data files.
+ *
+ * @param {function} fun - Function that accepts a {@linkplain SimpleFile} and returns a string containing some unique identifier to the file.
+ * This is most typically used to register the file with some user-specified database system for later retrieval.
+ *
+ * @return `fun` is set as the global link creator for this step. 
+ * The _previous_ value of the creator is returned.
+ */
+export function setCreateLink(fun) {
+    let previous = file2link;
+    file2link = fun;
+    return previous;
+}
+
+/**
+ * Specify a function to resolve links for data files.
+ *
+ * @param {function} fun - Function that accepts a string containing a linking idenfier and returns any value that can be used in the {@linkplain SimpleFile} constructor
+ * i.e., a Uint8Array, File (on browser) or string containing a file path (on Node.js).
+ * This is most typically used to retrieve a file from some user-specified database system.
+ *
+ * @return `fun` is set as the global resolver for this step. 
+ * The _previous_ value of the resolver is returned.
+ */
+export function setResolveLink(fun) {
+    let previous = link2file;
+    link2file = fun;
+    return previous;
 }

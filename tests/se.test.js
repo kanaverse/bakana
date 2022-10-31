@@ -12,11 +12,9 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
         contents[step] = res;
     };
 
+    let fpath = "files/datasets/zeisel-brain.rds";
     let files = { 
-        default: {
-            format: "SummarizedExperiment",
-            rds: "files/datasets/zeisel-brain.rds"
-        }
+        default: new bakana.SummarizedExperimentDataset(fpath)
     };
 
     let state = await bakana.createAnalysis();
@@ -29,15 +27,14 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
     expect(contents.cell_labelling instanceof Object).toBe(true);
     expect(contents.marker_detection instanceof Object).toBe(true);
 
-    // Input reorganization is done correctly. We compare it against the 
-    // H5AD file, to avoid having to regurgitate the RDS loading code.
+    // Input reorganization is done correctly. 
     {
         let loaded = state.inputs.fetchCountMatrix();
         let loaded_ids = state.inputs.fetchRowIds();
-        let loaded_names = state.inputs.fetchGenes().id;
+        let loaded_names = state.inputs.fetchGenes().column("id");
         expect(loaded_names.length).toBeGreaterThan(0);
 
-        let rdshandle = scran.readRds(files.default.rds);
+        let rdshandle = scran.readRds(fpath);
         let rhandle = rdshandle.value();
         expect(rhandle.className()).toBe("SingleCellExperiment");
 
@@ -115,16 +112,14 @@ test("RDS loaders work correctly for a base SummarizedExperiment", async () => {
         contents[step] = res;
     };
 
+    let fpath = "files/datasets/paul-hsc.rds";
     let files = { 
-        default: {
-            format: "SummarizedExperiment",
-            rds: "files/datasets/paul-hsc.rds"
-        }
+        default: new bakana.SummarizedExperimentDataset(fpath)
     };
 
     // Check we're dealing with a pure SE.
     {
-        let rdshandle = scran.readRds(files.default.rds);
+        let rdshandle = scran.readRds(fpath);
         let rhandle = rdshandle.value();
         expect(rhandle.className()).toBe("SummarizedExperiment");
         rhandle.free();
@@ -137,7 +132,7 @@ test("RDS loaders work correctly for a base SummarizedExperiment", async () => {
     let loaded = fullstate.fetchCountMatrix();
     expect(loaded.numberOfColumns()).toBeGreaterThan(0);
 
-    let loaded_names = fullstate.fetchGenes().id;
+    let loaded_names = fullstate.fetchGenes().column("id");
     expect(loaded_names.length).toBeGreaterThan(0);
 
     fullstate.free();
@@ -149,16 +144,14 @@ test("RDS loaders work correctly for GRanges SummarizedExperiment", async () => 
         contents[step] = res;
     };
 
+    let fpath = "files/datasets/zeisel-brain-dense.rds";
     let files = { 
-        default: {
-            format: "SummarizedExperiment",
-            rds: "files/datasets/zeisel-brain-dense.rds"
-        }
+        default: new bakana.SummarizedExperimentDataset(fpath)
     };
 
     // Check we're dealing with a GRanges-containing SCE.
     {
-        let rdshandle = scran.readRds(files.default.rds);
+        let rdshandle = scran.readRds(fpath);
         let rhandle = rdshandle.value();
         expect(rhandle.className()).toBe("SingleCellExperiment");
 
@@ -176,7 +169,7 @@ test("RDS loaders work correctly for GRanges SummarizedExperiment", async () => 
     let loaded = fullstate.fetchCountMatrix();
     expect(loaded.numberOfColumns()).toBeGreaterThan(0);
 
-    let loaded_names = fullstate.fetchGenes().id;
+    let loaded_names = fullstate.fetchGenes().column("id");
     expect(loaded_names.length).toBeGreaterThan(0);
 
     fullstate.free();
@@ -188,11 +181,9 @@ test("RDS loaders work correctly for a SingleCellExperiment with altExps", async
         contents[step] = res;
     };
 
+    let fpath = "files/datasets/immune_3.0.0-tenx.rds";
     let files = { 
-        default: {
-            format: "SummarizedExperiment",
-            rds: "files/datasets/immune_3.0.0-tenx.rds"
-        }
+        default: new bakana.SummarizedExperimentDataset(fpath)
     };
 
     let fullstate = new inputs.InputsState;
@@ -204,12 +195,12 @@ test("RDS loaders work correctly for a SingleCellExperiment with altExps", async
     let loaded_adt = fullstate.fetchCountMatrix({ type: "ADT" });
     expect(loaded_adt.numberOfColumns()).toBeGreaterThan(0);
 
-    let loaded_names = fullstate.fetchGenes({ type: "RNA" }).id;
+    let loaded_names = fullstate.fetchGenes({ type: "RNA" }).column("id");
     expect(loaded_names.length).toBeGreaterThan(0);
     expect(loaded_names.length).toEqual(loaded.numberOfRows());
     expect(loaded_names.some(x => x.match(/^ENSG/))).toBe(true);
 
-    let loaded_names_adt = fullstate.fetchGenes({ type: "ADT" }).id;
+    let loaded_names_adt = fullstate.fetchGenes({ type: "ADT" }).column("id");
     expect(loaded_names_adt.length).toBeGreaterThan(0);
     expect(loaded_names_adt.length).toEqual(loaded_adt.numberOfRows());
     expect(loaded_names_adt.some(x => x.match(/^ENSG/))).toBe(false);

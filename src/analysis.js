@@ -28,6 +28,7 @@ import * as cluster_markers from "./steps/marker_detection.js";
 import * as label_cells from "./steps/cell_labelling.js";
 import * as custom_markers from "./steps/custom_selections.js";
 
+export { setCreateLink, setResolveLink } from "./steps/inputs.js";
 export { MarkerDetectionState } from "./steps/marker_detection.js";
 export { CustomSelectionsState } from "./steps/custom_selections.js";
 
@@ -122,21 +123,11 @@ export function freeAnalysis(state) {
  * This will cache the results from each step so that, if the parameters change, only the affected steps will be rerun.
  *
  * @param {object} state - Object containing the analysis state, produced by {@linkcode createAnalysis} or {@linkcode loadAnalysis}.
- * @param {Array} matrices - Object where each (arbitrarily named) property corresponds to an input matrix. 
- * Each matrix should be an object with `type` string property and any number of additional properties referring to individual data files.
+ * @param {object} datasets - Object where each (arbitrarily named) property corresponds to an input dataset.
+ * Each dataset should be a object that satisfies the {@linkplain Dataset} contract.
  *
- * - If `type: "MatrixMarket"`, the object should contain an `mtx` property, referring to a (possibly Gzipped) Matrix Market file containing a count matrix.
- *   The object may contain a `genes` property, referring to a (possibly Gzipped) tab-separated file with the gene ID and symbols for each row of the count matrix.
- *   The object may contain a `annotation` property, referring to a (possibly Gzipped) tab-separated file with the gene ID and symbols for each row of the count matrix.
- * - If `type: "10X"`, the object should contain an `h5` property, referring to a HDF5 file following the 10X Genomics feature-barcode matrix format.
- *   It is assumed that the matrix has already been filtered to contain only the cell barcodes.
- * - If `type: "H5AD"`, the object should contain an `h5` property, referring to a H5AD file.
- *
- * The representation of each reference to a data file depends on the runtime.
- * In the browser, each data file manifests as a `File` object; for Node.js, each data file should be represented as a string containing a file path.
- *
- * Alternatively, `matrices` may be `null`, in which case the count matrices are extracted from `state`.
- * This assumes that the data matrices were already cached in `state`, either from a previous call to {@linkcode runAnalysis} or from @{linkcode loadAnalysis}.
+ * Alternatively, `datasets` may be `null` if the input datasets were already loaded and cached in `state`.
+ * This avoids the need to respecify the inputs after a previous call to {@linkcode runAnalysis} or from {@linkcode loadAnalysis}.
  * @param {object} params - An object containing parameters for all steps.
  * See {@linkcode analysisDefaults} for more details.
  * @param {object} [options] - Optional parameters.
@@ -151,7 +142,7 @@ export function freeAnalysis(state) {
  * @return A promise that resolves to `null` when all asynchronous analysis steps are complete.
  * The contents of `state` are modified by reference to reflect the latest state of the analysis with the supplied parameters.
  */
-export async function runAnalysis(state, matrices, params, { startFun = null, finishFun = null } = {}) {
+export async function runAnalysis(state, datasets, params, { startFun = null, finishFun = null } = {}) {
     let quickStart = step => {
         if (startFun !== null) {
             startFun(step);
@@ -183,7 +174,7 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
     /*** Loading ***/
     quickStart(step_inputs);
     await state[step_inputs].compute(
-        matrices, 
+        datasets,
         params[step_inputs]["sample_factor"],
         params[step_inputs]["subset"]
     );
@@ -350,13 +341,13 @@ export async function runAnalysis(state, matrices, params, { startFun = null, fi
  * If `false`, links to data files are stored instead, see {@linkcode setCreateLink}.
  * 
  * @return A HDF5 file is created at `path` containing the analysis parameters and results - see https://ltla.github.io/kanaval for more details on the structure.
+ *
  * If `embedded = false`, a promise is returned that resolves to `null` when the saving is complete.
  * Otherwise, an object is returned containing:
  * - `collected`: an array of length equal to the number of data files.
- *   If `linkFun: null`, each element is an ArrayBuffer containing the file contents, which can be used to assemble an embedded `*.kana` file.
- *   Otherwise, if `linkFun` is supplied, each element is a string containing the linking identifier to the corresponding file.
- * - `total`: an integer containing the total length of all ArrayBuffers in `collected`.
- *   This will only be present if `linkFun` is not supplied.
+ *   Each element is a Uint8Array containing the file contents, which can be used to assemble an embedded `*.kana` file.
+ *   On Node.js, each element may instead be a path to a file. 
+ * - `total`: an integer containing the total length in bytes of all concatenated files in `collected`.
  */
 export async function saveAnalysis(state, path, { embedded = true } = {}) {
     let saver = null;
@@ -424,11 +415,14 @@ export async function saveAnalysis(state, path, { embedded = true } = {}) {
  * @param {string} path - Path to the HDF5 file containing the analysis state.
  * On browsers, this should lie inside the virtual file system of the **scran.js** module.
  * @param {function} loadFun - Function to load each embedded data file.
- * This should accept two arguments - an offset to the start of the file in the embedded file buffer, and the size of the file.
+ * This function is typically generated by {@linkcode parseKanaFile} and has the following characteristics:
  *
- * In the browser, the function should return an ArrayBuffer containing the contents of the file.
- * For Node.js, the function should return a string containing a path to the file.
- * In both cases, the function may instead return a promise that resolves to the expected values.
+ * - It should accept two arguments, `offset` and `size`.
+ *   `offset` is a number containing the offset to the start of any given file in the embedded file buffer.
+ *   `size` is, of course, the size of the file.
+ * - It should return any argument that can be used in the {@linkplain SimpleFile} constructor.
+ *   This may be a Uint8Array, a File (on browsers) or a string containing a file path (on Node.js).
+ *   Alternatively, the function may return a promise that resolves to the expected values.
  *
  * Note that this function is only used if the state file at `path` contains information for embedded files; 
  * otherwise, links are resolved using reader-specific functions (see {@linkcode setResolveLink} for the common use cases).

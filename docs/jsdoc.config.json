@@ -26,5 +26,8 @@
         "default": {
             "useLongnameInNav": true
         }
+    },
+    "source": {
+        "excludePattern": ".*_(node|web).js"
     }
 }

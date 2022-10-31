@@ -1,13 +1,8 @@
 import * as scran from "scran.js";
-import * as rutils from "./utils/index.js";
-import * as afile from "../abstract/file.js";
-
-export function abbreviate(args) {
-    return {
-        "format": "SummarizedExperiment", 
-        "rds": rutils.formatFile(args.rds, true)
-    };
-}
+import * as bioc from "bioconductor";
+import * as afile from "./abstract/file.js";
+import * as eutils from "./utils/extract.js";
+import * as futils from "./utils/features.js";
 
 function load_listData_names(lhandle) {
     let ndx = lhandle.findAttribute("names");
@@ -55,7 +50,9 @@ function load_data_frame(handle) {
             try {
                 curhandle = lhandle.load(i);
                 if (curhandle instanceof scran.RdsVector && !(curhandle instanceof scran.RdsGenericVector)) {
-                    columns[colnames[i]] = curhandle.values();
+                    let curcol = curhandle.values();
+                    columns[colnames[i]] = curcol;
+                    output.nrow = curcol.length;
                 }
             } finally {
                 scran.free(curhandle);
@@ -74,11 +71,32 @@ function load_data_frame(handle) {
         rnhandle = handle.attribute("rownames");
         if (rnhandle instanceof scran.RdsStringVector) {
             output.row_names = rnhandle.values();
+            output.nrow = output.row_names.length;
         }
     } catch(e) {
         throw new Error("failed to retrieve row names from DataFrame; " + e.message);
     } finally {
         scran.free(rnhandle);
+    }
+
+    // Loading the number of rows.
+    if (!("nrow" in output)) {
+        let nrhandle;
+        try {
+            nrhandle = handle.attribute("nrows");
+            if (!(nrhandle instanceof scran.RdsIntegerVector)) {
+                throw new Error("expected an integer vector as the 'nrows' slot");
+            }
+            let NR = nrhandle.values();
+            if (NR.length != 1) {
+                throw new Error("expected an integer vector of length 1 as the 'nrows' slot");
+            }
+            output.nrow = NR[0];
+        } catch (e) {
+            throw new Error("failed to retrieve nrows from DataFrame; " + e.message);
+        } finally {
+            scran.free(nrhandle);
+        }
     }
 
     return output;
@@ -95,19 +113,6 @@ function check_class(handle, accepted, base) {
         }
     }
     throw new Error("object is not a " + base + " or one of its recognized subclasses");
-}
-
-function extract_annotations(handle) {
-    let chandle = handle.attribute("colData");
-    let output;
-    try {
-        output = load_data_frame(chandle);
-    } catch(e) {
-        throw new Error("failed to extract colData from a SummarizedExperiment; " + e.message);
-    } finally {
-        scran.free(chandle);
-    }
-    return output.columns;
 }
 
 function extract_NAMES(handle) {
@@ -195,14 +200,17 @@ function extract_features(handle) {
         }
     }
 
-    let output = { id: names };
-    for (const [k, v] of Object.entries(rowdata.columns)) {
-        if (k.match(/^sym/)) {
-            output[k] = v;
+    if (names == null) {
+        return new bioc.DataFrame({}, { numberOfRows: rowdata.nrow });
+    } else {
+        let output = { id: names };
+        for (const [k, v] of Object.entries(rowdata.columns)) {
+            if (k.match(/^sym/)) {
+                output[k] = v;
+            }
         }
+        return new bioc.DataFrame(output);
     }
-
-    return output;
 }
 
 function extract_counts(handle) {
@@ -243,34 +251,6 @@ function extract_counts(handle) {
         scran.free(ahandle);
         scran.free(lhandle);
         scran.free(dhandle);
-    }
-
-    return output;
-}
-
-function preflight_raw(handle) {
-    check_class(handle, { 
-        "SummarizedExperiment": "SummarizedExperiment",
-        "RangedSummarizedExperiment": "SummarizedExperiment",
-        "SingleCellExperiment": "SingleCellExperiment",
-        "SpatialExperiment": "SpatialExperiment"
-    }, "SummarizedExperiment");
-
-    let output = {};
-
-    // Loading the gene info.
-    output.genes = extract_features(handle);
-
-    // Loading the cell annotation.
-    let anno = extract_annotations(handle);
-    let acols = Object.entries(anno);
-    if (acols.length) { 
-        output.annotations = {};
-        for (const [k, v] of acols) {
-            output.annotations[k] = rutils.summarizeArray(v);
-        }
-    } else {
-        output.annotations = null;
     }
 
     return output;
@@ -329,7 +309,11 @@ function extract_alt_exps(handle) {
             let curhandle;
             try {
                 curhandle = aeld_handle.load(i);
-                output[ae_names[i]] = curhandle.attribute("se");
+                let asehandle = curhandle.attribute("se");
+                output[ae_names[i]] = asehandle;
+                check_for_se(asehandle);
+            } catch (e) {
+                throw new Error("failed to load alternative Experiment '" + ae_names[i] + "'; " + e.message);
             } finally {
                 scran.free(curhandle);
             }
@@ -352,147 +336,188 @@ function extract_alt_exps(handle) {
     return output;
 }
 
-const altexp_patterns = { "ADT": [ /^adt/i, /^hto/i, /^antibody/i ] };
+function check_for_se(handle) {
+    check_class(handle, { 
+        "SummarizedExperiment": "SummarizedExperiment",
+        "RangedSummarizedExperiment": "SummarizedExperiment",
+        "SingleCellExperiment": "SingleCellExperiment",
+        "SpatialExperiment": "SpatialExperiment"
+    }, "SummarizedExperiment");
+}
 
-export async function preflight(args) {
-    let output_anno = {};
-    let output_feat = {};
+/**
+ * Dataset stored as a `SummarizedExperiment` object (or one of its subclasses) inside an RDS file.
+ */
+export class SummarizedExperimentDataset {
+    #rds_file;
+    #rds_handle;
+    #se_handle;
+    #alt_handles;
 
-    let rds_data = rutils.formatFile(args.rds, false);
-    let rds_stuff = afile.realizeFile(rds_data.content);
+    #raw_features;
+    #raw_cells;
 
-    let rdshandle;
-    let rhandle;
-    let aehandles = {};
-    try {
-        rdshandle = scran.readRds(rds_stuff);
-        rhandle = rdshandle.value();
+    /**
+     * @param {SimpleFile|string|Uint8Array|File} rdsFile - Contents of a RDS file.
+     * On browsers, this may be a File object.
+     * On Node.js, this may also be a string containing a file path.
+     */
+    constructor(rdsFile) {
+        if (rdsFile instanceof afile.SimpleFile) {
+            this.#rds_file = rdsFile;
+        } else {
+            this.#rds_file = new afile.SimpleFile(rdsFile);
+        }
 
-        let rna = preflight_raw(rhandle);
-        output_anno = rna.annotations;
-        output_feat.RNA = rna.genes;
+        this.#raw_features = null;
+        this.#raw_cells = null;
+        this.#rds_handle = null;
+    }
 
-        aehandles = extract_alt_exps(rhandle);
-        for (const [name, patterns] of Object.entries(altexp_patterns)) {
-            let found_alt = false;
-            for (const pat of patterns) {
-                for (const k of Object.keys(aehandles)) {
-                    if (k.match(pat)) {
-                        found_alt = true;
-                        let alt = preflight_raw(aehandles[k]);
-                        output_feat[name] = alt.genes;
-                        break;
-                    }
-                }
-                if (found_alt) {
-                    break;
-                }
+    static format() {
+        return "SummarizedExperiment";
+    }
+
+    abbreviate() {
+        return {
+            "rds": {
+                name: this.#rds_file.name(),
+                size: this.#rds_file.size()
+            }
+        };
+    }
+
+    #initialize() {
+        if (this.#rds_handle !== null) {
+            return;
+        }
+
+        this.#rds_handle = scran.readRds(this.#rds_file.content());
+        this.#se_handle = this.#rds_handle.value();
+        try {
+            check_for_se(this.#se_handle);
+            this.#alt_handles = extract_alt_exps(this.#se_handle);
+        } catch (e) {
+            this.#se_handle.free();
+            this.#rds_handle.free();
+            throw e;
+        }
+    }
+
+    #features() {
+        if (this.#raw_features !== null) {
+            return;
+        }
+
+        this.#initialize();
+        this.#raw_features = { "": extract_features(this.#se_handle) };
+
+        for (const [k, v] of Object.entries(this.#alt_handles)) {
+            try {
+                this.#raw_features[k] = extract_features(v);
+            } catch (e) {
+                console.warn("failed to extract features for alternative Experiment '" + k + "'; " + e.message);
             }
         }
 
-    } finally {
-        for (const v of Object.values(aehandles)) {
-            scran.free(v);
-        }
-        scran.free(rhandle);
-        scran.free(rdshandle);
+        return;
     }
 
-    return { annotations: output_anno, genes: output_feat };
-}
-
-export class Reader {
-    #rds;
-
-    constructor(args, formatted = false) {
-        if (!formatted) {
-            this.#rds = rutils.formatFile(args.rds, false);
-        } else {
-            this.#rds = args.rds;
+    #cells() {
+        if (this.#raw_cells !== null) {
+            return;
         }
+
+        this.#initialize();
+        let info;
+        let chandle = this.#se_handle.attribute("colData");
+        try {
+            info = load_data_frame(chandle);
+        } catch(e) {
+            throw new Error("failed to extract colData from a SummarizedExperiment; " + e.message);
+        } finally {
+            scran.free(chandle);
+        }
+
+        this.#raw_cells = new bioc.DataFrame(info.columns, { numberOfRows: info.nrow });
+        return;
+    }
+
+    annotations() {
+        this.#initialize();
+        this.#features();
+        this.#cells();
+
+        let copy = {};
+        for (const [k, v] of Object.entries(this.#raw_features)) {
+            copy[k] = bioc.CLONE(v);
+        }
+
+        let anno = {};
+        for (const k of this.#raw_cells.columnNames()) {
+            anno[k] = eutils.summarizeArray(this.#raw_cells.column(k));
+        }
+
+        return {
+            features: copy,
+            cells: {
+                number: this.#raw_cells.numberOfColumns(),
+                summary: anno
+            }
+        };
     }
 
     load() {
-        let rds_stuff = afile.realizeFile(this.#rds.content);
-        let output = {};
+        this.#initialize();
+        this.#features();
+        this.#cells();
 
-        let rdshandle;
-        let rhandle;
-        let aehandles = {};
+        let output = { 
+            matrix: new scran.MultiMatrix,
+            row_ids: {},
+            features: {},
+            cells: bioc.CLONE(this.#raw_cells)
+        };
 
         try {
-            rdshandle = scran.readRds(rds_stuff);
-            rhandle = rdshandle.value();
-
-            output.matrix = new scran.MultiMatrix;
-            let loaded = extract_counts(rhandle);
-
+            let loaded = extract_counts(this.#se_handle);
             let out_mat = loaded.matrix;
             let out_ids = loaded.row_ids;
-            output.matrix.add("RNA", out_mat);
+            output.matrix.add("", out_mat);
+            output.row_ids[""] = out_ids;
+            output.features[""] = bioc.SLICE(this.#raw_features[""], out_ids);
 
-            let raw_gene_info = extract_features(rhandle);
-            let gene_info = rutils.reorganizeGenes(out_mat.numberOfRows(), out_ids, raw_gene_info);
-            output.genes = { RNA: gene_info };
-            output.row_ids = { RNA: out_ids };
-            output.annotations = extract_annotations(rhandle);
-
-            aehandles = extract_alt_exps(rhandle);
-            for (const [name, patterns] of Object.entries(altexp_patterns)) {
-                let found_alt = false;
-                for (const pat of patterns) {
-                    for (const k of Object.keys(aehandles)) {
-                        if (k.match(pat)) {
-                            found_alt = true;
-                            let curhandle = aehandles[k];
-
-                            let alt = extract_counts(curhandle);
-                            output.matrix.add(name, alt.matrix);
-                            output.row_ids[name] = alt.row_ids;
-
-                            let raw_gene_info = extract_features(curhandle);
-                            let gene_info = rutils.reorganizeGenes(out_mat.numberOfRows(), alt.row_ids, raw_gene_info);
-                            output.genes[name] = gene_info;
-                            break;
-                        }
-                    }
-                    if (found_alt) {
-                        break;
-                    }
-                }
+            for (const [k, v] of Object.entries(this.#alt_handles)) {
+                let alt = extract_counts(v);
+                output.matrix.add(k, alt.matrix);
+                output.row_ids[k] = alt.row_ids;
+                output.features[k] = bioc.SLICE(this.#raw_features[k], alt.row_ids);
             }
 
         } catch (e) {
             scran.free(output.matrix);
             throw e;
-
-        } finally {
-            for (const v of Object.values(aehandles)) {
-                scran.free(v);
-            }
-            scran.free(rhandle);
-            scran.free(rdshandle);
         }
 
         return output;
     }
 
-    format() {
-        return "SummarizedExperiment";
+    free() {
+        this.#se_handle.free();
+        for (const v of Object.values(this.#alt_handles)) {
+            v.free();
+        }
+        this.#rds_handle.free();
     }
 
-    async serialize(embeddedSaver) {
-        return [await rutils.standardSerialize(this.#rds, "rds", embeddedSaver)];
-    }
-}
-
-export async function unserialize(values, embeddedLoader) {
-    let args = {};
-
-    // This should contain 'rds'.
-    for (const x of values) {
-        args[x.type] = await rutils.standardUnserialize(x, embeddedLoader);
+    serialize() {
+        return [ { type: "rds", file: this.#rds_file } ];
     }
 
-    return new Reader(args, true);
+    static async unserialize(files) {
+        if (files.length != 1 || files[0].type != "rds") {
+            throw new Error("expected exactly one file of type 'rds' for SummarizedExperiment unserialization");
+        }
+        return new SummarizedExperimentDataset(files[0].file);
+    }
 }

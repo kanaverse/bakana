@@ -7,12 +7,11 @@ afterAll(async () => await bakana.terminate());
 
 test("reanalysis from a reloaded analysis works correctly", async () => {
     let files = { 
-        default: {
-            format: "MatrixMarket",
-            mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
-            genes: "files/datasets/pbmc3k-features.tsv.gz",
-            annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
-        }
+        default: new bakana.TenxMatrixMarketDataset(
+                "files/datasets/pbmc3k-matrix.mtx.gz",
+                "files/datasets/pbmc3k-features.tsv.gz",
+                "files/datasets/pbmc3k-barcodes.tsv.gz"
+            )
     }
 
     let params = utils.baseParams();

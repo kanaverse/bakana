@@ -6,14 +6,13 @@ import * as fs from "fs";
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
-let files = { 
-    default: {
-        format: "MatrixMarket",
-        mtx: "files/datasets/pbmc3k-matrix.mtx.gz",
-        genes: "files/datasets/pbmc3k-features.tsv.gz",
-        annotations: "files/datasets/pbmc3k-barcodes.tsv.gz"
-    }
-}
+let files = {
+    default: new bakana.TenxMatrixMarketDataset(
+            "files/datasets/pbmc3k-matrix.mtx.gz",
+            "files/datasets/pbmc3k-features.tsv.gz",
+            "files/datasets/pbmc3k-barcodes.tsv.gz"
+        )
+};
 
 test("saving to and loading from a kana file works correctly (embedded)", async () => {
     let params = utils.baseParams();
@@ -51,9 +50,9 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
     await bakana.freeAnalysis(reloaded);
 
     // Deleting the files.
-    bakana.removeHDF5File(path);
+    scran.removeFile(path);
     expect(fs.existsSync(path)).toBe(false); // properly removed.
-    bakana.removeHDF5File(round_trip);
+    scran.removeFile(round_trip);
     expect(fs.existsSync(round_trip)).toBe(false); // properly removed.
 })
 
@@ -64,8 +63,8 @@ test("saving to and loading from a kana file works with links", async () => {
     let ref_pca = state.pca.summary();
 
     // Links just re-use the file path for our Node tests, which is unique enough!
-    let old_create = bakana.setCreateLink((type, name, path) => path);
-    let old_resolve = bakana.setResolveLink(x => x)
+    let old_create = bakana.setCreateLink(path => path);
+    let old_resolve = bakana.setResolveLink(id => id)
 
     // Saving to a kana file.
     const path = "TEST_kana_state2.h5";
@@ -75,7 +74,7 @@ test("saving to and loading from a kana file works with links", async () => {
     let res = await bakana.createKanaFile(path, null, { outputPath: kpath });
     expect(fs.statSync(res).size).toBe(24 + fs.statSync(path).size);
 
-    bakana.removeHDF5File(path);
+    scran.removeFile(path);
     expect(fs.existsSync(path)).toBe(false); // properly removed.
 
     // Alright - trying to unpack everything.
@@ -96,6 +95,6 @@ test("saving to and loading from a kana file works with links", async () => {
     await bakana.freeAnalysis(reloaded);
 
     // Deleting the files.
-    bakana.removeHDF5File(path);
-    bakana.removeHDF5File(round_trip);
+    scran.removeFile(path);
+    scran.removeFile(round_trip);
 })

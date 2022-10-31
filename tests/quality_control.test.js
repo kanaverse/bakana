@@ -10,10 +10,7 @@ afterAll(async () => await bakana.terminate());
 
 test("analysis works when we skip the QC steps", async () => {
     let files = {
-        default: {
-            format: "10X",
-            h5: "files/datasets/immune_3.0.0-tenx.h5"
-        }
+        default: new bakana.TenxHdf5Dataset("files/datasets/immune_3.0.0-tenx.h5")
     };
 
     let contents = {};

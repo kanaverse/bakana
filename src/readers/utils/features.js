@@ -1,95 +1,66 @@
 import * as scran from "scran.js";
+import * as bioc from "bioconductor";
 
-export function reorganizeGenes(nrows, ids, geneInfo) {
-    if (geneInfo === null) {
-        let genes = [];
-        if (ids !== null) {
-            for (const i of ids) {
-                genes.push(`Gene ${i + 1}`);
-            }
-        } else {
-            for (let i = 0; i < nrows; i++) {
-                genes.push(`Gene ${i + 1}`);
-            }
-        }
-        geneInfo = { "id": genes };
+const default_modality = "";
+
+function create_solo_default_object(value) {
+    let output = {};
+    output[default_modality] = value;
+    return output;
+}
+
+export function reportFeatures(rawFeatures, typeField) {
+    if (rawFeatures.hasColumn(typeField)) {
+        let by_type = bioc.presplitFactor(rawFeatures.column(typeField));
+        let copy = bioc.CLONE(rawFeatures, { deepCopy: false }); // SPLIT will make a copy anyway.
+        copy.$removeColumn(typeField);
+        return bioc.SPLIT(copy, by_type);
     } else {
-        if (ids != null ){
-            for (const [k, v] of Object.entries(geneInfo)) {
-                geneInfo[k] = scran.quickSliceArray(ids, v);
-            }
-        }
+        // Cloning this instance to avoid complications if the caller modifies the return value.
+        return create_solo_default_object(bioc.CLONE(rawFeatures));
     }
-    return geneInfo;
 }
 
-function rawSplitByFeatureType(genes) { 
-    if (!("type" in genes)) {
-        return null;
-    }
+export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField) {
+    let output = { matrix: new scran.MultiMatrix };
 
-    let types0 = scran.splitByFactor(genes.type);
-    if (Object.keys(types0).length == 1) {
-        return null;
-    }
-
-    // Standardizing the names to something the rest of the pipeline
-    // will recognize. By default, we check the 10X vocabulary here.
-    let types = {};
-    for (const [k, v] of Object.entries(types0)) {
-        if (k.match(/gene expression/i)) {
-            types["RNA"] = v;
-        } else if (k.match(/antibody capture/i)) {
-            types["ADT"] = v;
-        }
-    }
-
-    let output = { types: types };
-
-    // Skipping 'type', as it's done its purpose now.
-    let gene_deets = { ...genes };
-    delete gene_deets.type;
-    output.genes = scran.splitArrayCollection(gene_deets, types);
-
-    return output;
-}
-
-export function presplitByFeatureType(genes) { 
-    let output = rawSplitByFeatureType(genes);
-    if (output === null) {
-        return null;
-    }
-    delete output.types;
-    return output;
-}
-
-export function splitByFeatureType(matrix, row_ids, genes) { 
-    let output = rawSplitByFeatureType(genes);
-    if (output === null) {
-        return null;
-    }
-
-    let types = output.types;
-    delete output.types;
-
-    // Allocating the split matrices. 
-    let out_mats;
     try {
-        out_mats = new scran.MultiMatrix({ store: scran.splitRows(matrix, types) });
-        output.matrices = out_mats;
-    } catch (e) {
-        scran.free(out_mats);
-        throw e;
-    }
+        let out_mat = loaded.matrix;
+        let out_ids = loaded.row_ids;
+        output.matrix.add(default_modality, out_mat);
 
-    // Also saving the fragmented ids.
-    if (row_ids === null) {
-        output.row_ids = types;
-    } else {
-        output.row_ids = {};
-        for (const [k, v] of Object.entries(types)) {
-            output.row_ids[k] = scran.quickSliceArray(v, row_ids);
+        let current_features;
+        if (out_ids !== null) {
+            current_features = bioc.SLICE(rawFeatures, out_ids);
+        } else {
+            current_features = bioc.CLONE(rawFeatures);
+            out_ids = new Int32Array(out_mat.numberOfRows());
+            out_ids.forEach((x, i) => { out_ids[i] = i });
         }
+
+        if (typeField !== null && current_features.hasColumn(typeField)) {
+            let by_type = bioc.presplitFactor(current_features.column(typeField));
+            let type_keys = Object.keys(by_type);
+
+            if (type_keys.length > 1) {
+                let replacement = new scran.MultiMatrix({ store: scran.splitRows(out_mat, by_type) });
+                scran.free(output.matrix);
+                output.matrix = replacement;
+            } else {
+                output.matrix.rename(default_modality, type_keys[0]);
+            }
+
+            delete current_features[typeField];
+            output.features = bioc.SPLIT(current_features, by_type);
+            output.row_ids = bioc.SPLIT(out_ids, by_type);
+
+        } else {
+            output.row_ids = create_solo_default_object(out_ids);
+            output.features = create_solo_default_object(current_features);
+        }
+    } catch (e) {
+        scran.free(output.matrix);
+        throw e;
     }
 
     return output;
