@@ -32,7 +32,7 @@ let params = bakana.analysisDefaults();
 
 await bakana.runAnalysis(state, 
     // Specify files using paths (Node.js) or File objects (browser).
-    { my_data: { format: "10X", h5: "/some/file/path" } },
+    { my_data: new bakana.TenxHdf5Dataset("/some/file/path.h5") }
     params
 );
 ```
@@ -77,8 +77,7 @@ function finisher(step, results) {
 }
 
 await bakana.runAnalysis(state, 
-    // Specify files using paths (Node.js) or File objects (browser).
-    { my_data: { format: "10X", h5: "/some/file/path" } },
+    { my_data: new bakana.TenxHdf5Dataset("/some/file/path.h5") }
     params,
     { finishFun: finisher }
 );
@@ -99,8 +98,7 @@ This includes all steps downstream of any step with changed parameters.
 params.pca.num_pcs = 15;
 
 await bakana.runAnalysis(state, 
-    // Specify files using paths (Node.js) or File objects (browser).
-    { my_data: { format: "10X", h5: "/some/file/path" } },
+    { my_data: new bakana.TenxHdf5Dataset("/some/file/path.h5") }
     params,
     { finishFun: finisher }
 );
