@@ -124,8 +124,7 @@ export function freeAnalysis(state) {
  *
  * @param {object} state - Object containing the analysis state, produced by {@linkcode createAnalysis} or {@linkcode loadAnalysis}.
  * @param {object} datasets - Object where each (arbitrarily named) property corresponds to an input dataset.
- * Each dataset should be a object that satisfies the [`Dataset` interface](https://github.com/LTLA/bakana/blob/master/docs/related/custom_readers.md).
- * By default, we support {@linkplain TenxHdf5Dataset}, {@linkplain TenxMatrixMarketDataset}, {@linkplain H5adDataset} and {@linkplain SummarizedExperimentDataset} instances.
+ * Each dataset should be a object that satisfies the {@linkplain Dataset} contract.
  *
  * Alternatively, `datasets` may be `null` if the input datasets were already loaded and cached in `state`.
  * This avoids the need to respecify the inputs after a previous call to {@linkcode runAnalysis} or from {@linkcode loadAnalysis}.

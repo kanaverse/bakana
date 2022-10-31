@@ -119,7 +119,7 @@ export class InputsState {
      * while `sample_factor` is taken from the property of the same name in the `inputs` property of the `parameters`.
      *
      * @param {object} datasets - An object containing data for one or more datasets.
-     * Each property corresponds to a single dataset and its value should be a {@linkplain Dataset} object.
+     * Each property corresponds to a single dataset and its value should satisfy the {@linkplain Dataset} contract.
      * See the description of the argument of the same name in {@linkcode runAnalysis}.
      * @param {?string} sample_factor - Name of the column of the cell annotations specifying the sample of origin for each cell.
      * This is only used if a single count matrix is supplied.
