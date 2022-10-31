@@ -34,20 +34,19 @@ function bufferToNumber(buffer) {
 }
 
 export function createPreamble(embedded, stateSize) {
-    var combined = new ArrayBuffer(24);
-    var combined_arr = new Uint8Array(combined);
+    var combined = new Uint8Array(24);
     var offset = 0;
 
     let format = numberToBuffer(embedded ? FORMAT_EMBEDDED : FORMAT_LINKED);
-    combined_arr.set(format, offset); 
+    combined.set(format, offset); 
     offset += format.length;
 
     let version = numberToBuffer(FORMAT_VERSION);
-    combined_arr.set(version, offset); 
+    combined.set(version, offset); 
     offset += version.length;
 
     let state_len = numberToBuffer(stateSize);
-    combined_arr.set(state_len, offset); 
+    combined.set(state_len, offset); 
     offset += state_len.length;
 
     if (offset != 24) {
@@ -59,13 +58,13 @@ export function createPreamble(embedded, stateSize) {
 
 export function parsePreamble(buffer) {
     var offset = 0;
-    var format = bufferToNumber(new Uint8Array(buffer, offset, 8));
+    var format = bufferToNumber(buffer.subarray(offset, offset + 8));
     offset += 8;
 
-    var version = bufferToNumber(new Uint8Array(buffer, offset, 8));
+    var version = bufferToNumber(buffer.subarray(offset, offset + 8));
     offset += 8;
 
-    var state_len = bufferToNumber(new Uint8Array(buffer, offset, 8));
+    var state_len = bufferToNumber(buffer.subarray(offset, offset + 8));
     offset += 8;
 
     return {
@@ -74,4 +73,26 @@ export function parsePreamble(buffer) {
         "state": state_len,
         "offset": offset
     };
+}
+
+export function parseKanaFileFromBuffer(input, statePath) {
+    let parsed = parsePreamble(input);
+    let delta = parsed.offset + parsed.state;
+    let statebuffer = input.subarray(parsed.offset, parsed.offset + delta);
+
+    if (parsed.version < 1000000) {
+        var contents = pako.ungzip(statebuffer, { "to": "string" });
+        let state = JSON.parse(contents);
+        from_v0.convertFromVersion0(state, statePath);
+    } else {
+        scran.writeFile(statePath, statebuffer);
+    }
+
+    if (parsed.embedded) {
+        // The buffer takes ownership of the embedded file to allow eventual
+        // garbage collection of the input buffer.
+        return (offset, size) => input.slice(delta + offset, delta + offset + size);
+    } else {
+        return null;
+    }
 }

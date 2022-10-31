@@ -6,9 +6,6 @@ import * as pako from "pako";
 import * as os from "os";
 export { FORMAT_VERSION } from "./utils/serialize.js";
 
-/**
- * This contains a function to create and load a kana file with Node.
- */
 export async function createKanaFileInternal(statePath, inputFiles, { outputPath = null } = {}) {
     if (outputPath === null) {
         let dir = fs.mkdtempSync(Path.join(os.tmpdir(), "kana-"));
@@ -16,14 +13,13 @@ export async function createKanaFileInternal(statePath, inputFiles, { outputPath
     }
 
     let stream = fs.createWriteStream(outputPath, { flags: 'w' });
-
     let embedded = (inputFiles !== null);
+
     let preamble = sutils.createPreamble(embedded, fs.statSync(statePath).size);
-    stream.write(Buffer.from(preamble));
+    await new Promise(resolve => stream.write(Buffer.from(preamble), () => resolve(null)));
 
     let stateStream = fs.createReadStream(statePath);
     let piped = stateStream.pipe(stream, { end: false });
-
     await new Promise((resolve, reject) => {
         piped.on("unpipe", () => resolve(true));
         piped.on("error", e => reject(e));
@@ -31,13 +27,18 @@ export async function createKanaFileInternal(statePath, inputFiles, { outputPath
 
     if (embedded) {
         for (const ipath of inputFiles) {
-            let istream = fs.createReadStream(ipath);
-            let piped = istream.pipe(stream, { end: false });
-
-            await new Promise((resolve, reject) => {
-                piped.on("unpipe", () => resolve(true));
-                piped.on("error", e => reject(e));
-            });
+            if (typeof ipath == "string") {
+                let istream = fs.createReadStream(ipath);
+                let piped = istream.pipe(stream, { end: false });
+                await new Promise((resolve, reject) => {
+                    piped.on("unpipe", () => resolve(true));
+                    piped.on("error", e => reject(e));
+                });
+            } else if (ipath instanceof Uint8Array) {
+                await new Promise(resolve => stream.write(ipath, () => resolve(null)));
+            } else {
+                throw new Error("expected file paths or Uint8Arrays for file contents");
+            }
         }
     }
 
@@ -50,6 +51,10 @@ export async function createKanaFileInternal(statePath, inputFiles, { outputPath
 }
 
 export async function parseKanaFileInternal(input, statePath, { stageDir = null } = {}) {
+    if (input instanceof Uint8Array) {
+        return sutils.parseKanaFileFromBuffer(input, statePath);
+    }
+
     if (stageDir === null) {
         stageDir = fs.mkdtempSync(Path.join(os.tmpdir(), "kana-"));
     }
@@ -59,7 +64,7 @@ export async function parseKanaFileInternal(input, statePath, { stageDir = null 
     fs.readSync(fd, prebuffer, 0, prebuffer.length, null);
     fs.closeSync(fd);
 
-    let parsed = sutils.parsePreamble(prebuffer.buffer);
+    let parsed = sutils.parsePreamble(prebuffer);
     let state_len = parsed.state;
     let delta = parsed.offset + state_len;
 
@@ -69,7 +74,7 @@ export async function parseKanaFileInternal(input, statePath, { stageDir = null 
         fs.readSync(fd, statebuffer, 0, state_len, parsed.offset);
         fs.closeSync(fd);
 
-        var contents = pako.ungzip(new Uint8Array(statebuffer), { "to": "string" });
+        var contents = pako.ungzip(statebuffer, { "to": "string" });
         let state = JSON.parse(contents);
         v0.convertFromVersion0(state, statePath);
 

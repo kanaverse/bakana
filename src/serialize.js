@@ -35,8 +35,8 @@ export function createKanaFile(statePath, inputFiles, options = {}) {
  * Parse a `*.kana` file by extracting the HDF5 state file and returning a function to extract embeddded data files.
  *
  * @param {string|Uint8Array} input - The input `*.kana` file.
- * For Node.js, this should be a string containing a path to the file.
- * On browsers, this should be a Uint8Array containing the full file contents.
+ * In general, this should be a Uint8Array containing the full file contents.
+ * For Node.js, this may also be a string containing a path to the file.
  * @param {string} statePath - String containing a file path to save the HDF5 state file.
  * This will also be the path supplied to {@linkcode loadAnalysis} to load the state into memory.
  * On browsers, this will exist inside the virtual file system of the **scran.js** module.
