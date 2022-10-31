@@ -32,8 +32,7 @@ export function baseParams() {
 
 bakana.setCellLabellingDownload(url => {
     let fpath = path.basename(decodeURIComponent(url));
-    let obj = fs.readFileSync("files/references/" + fpath);
-    return obj.buffer.slice(obj.byteOffset, obj.byteOffset + obj.byteLength);
+    return "files/references/" + fpath;
 });
 
 export function mockOffsets(paths) {

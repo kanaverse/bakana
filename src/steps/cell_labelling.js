@@ -9,10 +9,9 @@ var downloadFun = async (url) => {
     if (!resp.ok) {
         throw new Error("failed to fetch content at " + url + "(" + resp.status + ")");
     }
-    return await resp.arrayBuffer();
+    return new Uint8Array(await resp.arrayBuffer());
 };
 
-const proxy = "https://cors-proxy.aaron-lun.workers.dev";
 const hs_base = "https://github.com/clusterfork/singlepp-references/releases/download/hs-latest";
 const mm_base = "https://github.com/clusterfork/singlepp-references/releases/download/mm-latest";
 
@@ -103,21 +102,23 @@ export class CellLabellingState {
 
         if (!(name in all_loaded)) {
             let buffers = await Promise.all([
-                downloadFun(proxy + "/" + encodeURIComponent(base + "/" + name + "_genes.csv.gz")),
-                downloadFun(proxy + "/" + encodeURIComponent(base + "/" + name + "_labels_fine.csv.gz")),
-                downloadFun(proxy + "/" + encodeURIComponent(base + "/" + name + "_label_names_fine.csv.gz")),
-                downloadFun(proxy + "/" + encodeURIComponent(base + "/" + name + "_markers_fine.gmt.gz")),
-                downloadFun(proxy + "/" + encodeURIComponent(base + "/" + name + "_matrix.csv.gz"))
+                downloadFun(base + "/" + name + "_genes.csv.gz"),
+                downloadFun(base + "/" + name + "_labels_fine.csv.gz"),
+                downloadFun(base + "/" + name + "_label_names_fine.csv.gz"),
+                downloadFun(base + "/" + name + "_markers_fine.gmt.gz"),
+                downloadFun(base + "/" + name + "_matrix.csv.gz")
             ]);
+            let contents = buffers.map(b => new rutils.SimpleFile(b));
 
             let loaded;
             try {
                 loaded = scran.loadLabelledReferenceFromBuffers(
-                    new Uint8Array(buffers[4]), // rank matrix
-                    new Uint8Array(buffers[3]), // markers
-                    new Uint8Array(buffers[1])) // label per sample
+                    contents[4].buffer(), // rank matrix
+                    contents[3].buffer(), // markers
+                    contents[1].buffer()  // label per sample
+                );
 
-                let gene_lines = rutils.readLines(new Uint8Array(buffers[0]), { compression: "gz" }); // gene names
+                let gene_lines = rutils.readLines(contents[0].buffer(), { compression: "gz" }); // gene names
                 let ensembl = [];
                 let symbol = [];
                 gene_lines.forEach(x => {
@@ -126,7 +127,7 @@ export class CellLabellingState {
                     symbol.push(fields[1]);
                 });
 
-                let labels = rutils.readLines(new Uint8Array(buffers[2]), { compression: "gz" }); // full label names
+                let labels = rutils.readLines(contents[2].buffer(), { compression: "gz" }); // full label names
                 all_loaded[name] = { 
                     "raw": loaded, 
                     "genes": {
@@ -453,8 +454,8 @@ export function unserialize(handle, inputs, markers) {
 /**
  * Specify a function to download references for the cell labelling step.
  *
- * @param {function} fun - Function that accepts a single string containing a URL,
- * and returns an ArrayBuffer of that URL's contents.
+ * @param {function} fun - Function that accepts a single string containing a URL and returns any value that can be used in the {@linkplain SimpleFile} constructor.
+ * This is most typically a Uint8Array of that URL's contents, but it can also be a path to a locally cached file on Node.js.
  *
  * @return `fun` is set as the global downloader for this step. 
  * The _previous_ value of the downloader is returned.
