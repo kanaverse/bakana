@@ -44,15 +44,30 @@ export class TenxMatrixMarketDataset {
             this.#barcode_file = new afile.SimpleFile(barcodeFile);
         }
 
+        this.clear();
+    }
+
+    /**
+     * Destroy caches if present, releasing the associated memory.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode TenxMatrixMarketDataset#load load} or {@linkcodeTenxMatrixMarketDataset#annotations annotations}. 
+     */
+    clear() {
         this.#dimensions = null;
         this.#raw_features = null;
         this.#raw_cells = null;
     }
 
+    /**
+     * @return {string} Format of this dataset class.
+     * @static
+     */
     static format() {
         return "MatrixMarket";
     }
 
+    /**
+     * @return {object} Object containing the abbreviated details of this dataset.
+     */
     abbreviate(args) {
         var formatted = {
             "matrix": {
@@ -181,7 +196,21 @@ export class TenxMatrixMarketDataset {
         return;
     }
 
-    annotations() {
+    /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxMatrixMarketDataset#load load}.
+     * If `true`, users should consider calling {@linkcode TenxMatrixMarketDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     *
+     * @return {object} Object containing the per-feature and per-cell annotations.
+     * This has the following properties:
+     *
+     * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
+     * - `cells`: an object containing:
+     *   - `number`: the number of cells in this dataset.
+     *   - `summary`: an object where each key is the name of a per-cell annotation field and its value is a summary of that annotation field,
+     *     following the same structure as returned by {@linkcode summarizeArray}.
+     */
+    annotations({ cache = false } = {}) {
         this.#features();
         this.#cells();
 
@@ -190,28 +219,56 @@ export class TenxMatrixMarketDataset {
             anno[k] = eutils.summarizeArray(this.#raw_cells.column(k));
         }
 
-        return {
-            "features": futils.reportFeatures(this.#raw_features, "type"),
+        let output = {
+            "features": futils.reportFeatures(this.#raw_features, "type", cache),
             "cells": {
                 "number": this.#raw_cells.numberOfRows(),
                 "summary": anno
             }
         };
+
+        if (!cache) {
+            this.clear();
+        }
+        return output;
     }
 
-    load() {
+    /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxMatrixMarketDataset#annotations annotations}.
+     * If `true`, users should consider calling {@linkcode TenxMatrixMarketDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     *
+     * @return {object} Object containing the per-feature and per-cell annotations.
+     * This has the following properties:
+     *
+     * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
+     * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
+     * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
+     * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
+     */
+    load({ cache = false } = {}) {
         this.#features();
         this.#cells();
 
         var is_gz = this.#matrix_file.name().endsWith(".gz");
         let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compressed": is_gz });
-        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type");
-        output.cells = bioc.CLONE(this.#raw_cells);
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", cache);
+        output.cells = futils.cloneCached(this.#raw_cells, cache);
+
+        if (!cache) {
+            this.clear();
+        }
         return output;
     }
 
-    // These 'type's are largely retained for back-compatibility.
+    /**
+     * @return {Array} Array of objects representing the files used in this dataset.
+     * Each object corresponds to a single file and contains:
+     * - `type`: a string denoting the type.
+     * - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     */
     async serialize() {
+        // These 'type's are largely retained for back-compatibility.
         let files = [ { type: "mtx", file: this.#matrix_file } ];
 
         if (this.#feature_file !== null) {
@@ -225,6 +282,11 @@ export class TenxMatrixMarketDataset {
         return files;
     }
 
+    /**
+     * @param {Array} files - Array of objects like that produced by {@linkcode TenxMatrixMarketDataset#serialize serialize}.
+     * @return {TenxMatrixMarketDataset} A new instance of this class.
+     * @static
+     */
     static async unserialize(files) {
         let args = {};
         for (const x of files) {

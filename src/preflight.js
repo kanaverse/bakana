@@ -11,6 +11,10 @@ import * as iutils from "./steps/inputs.js";
  *
  * @param {object} datasets - An object where each key is the name of a dataset and each property is a {@linkplain Dataset}.
  * See the argument of the same name in {@linkcode runAnalysis} for more details.
+ * @param {object} [options={}] - Optional parameters.
+ * @param {boolean} [options.cache=false] - Whether each {@linkplain Dataset} isntance should store the loaded annotations in its cache.
+ * This avoids redundant work in the subsequent call to {@linkcode InputsState#compute InputsState.compute}.
+ * If `true`, the user is responsible for releasing cached resources via each instance's `clear()` method once they are no longer needed.
  *
  * @return {object} An object containing preflight check information for the `annotations` and `features`.
  *
@@ -33,13 +37,13 @@ import * as iutils from "./steps/inputs.js";
  *
  * @async
  */
-export async function validateAnnotations(datasets) {
+export async function validateAnnotations(datasets, { cache = false } = {}) {
     let mkeys = Object.keys(datasets);
     let multi = mkeys.length > 1;
 
     let promises = [];
     for (const key of mkeys) {
-        promises.push(datasets[key].annotations());
+        promises.push(datasets[key].annotations({ cache }));
     }
     let collected = await Promise.all(promises);
 

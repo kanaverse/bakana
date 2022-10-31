@@ -350,6 +350,7 @@ function check_for_se(handle) {
  */
 export class SummarizedExperimentDataset {
     #rds_file;
+
     #rds_handle;
     #se_handle;
     #alt_handles;
@@ -369,15 +370,41 @@ export class SummarizedExperimentDataset {
             this.#rds_file = new afile.SimpleFile(rdsFile);
         }
 
-        this.#raw_features = null;
-        this.#raw_cells = null;
-        this.#rds_handle = null;
+        this.clear();
     }
 
+    /**
+     * Destroy caches if present, releasing the associated memory.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode SummarizedExperimentDataset#load load} or {@linkcodeSummarizedExperimentDataset#annotations annotations}.
+     */
+    clear() {
+        scran.free(this.#se_handle);
+        if (typeof this.#alt_handles != 'undefined' && this.#alt_handles !== null) {
+            for (const v of Object.values(this.#alt_handles)) {
+                scran.free(v);
+            }
+        }
+        scran.free(this.#rds_handle);
+
+        this.#se_handle = null;
+        this.#alt_handles = null;
+        this.#rds_handle = null;
+
+        this.#raw_features = null;
+        this.#raw_cells = null;
+    }
+
+    /**
+     * @return {string} Format of this dataset class.
+     * @static
+     */
     static format() {
         return "SummarizedExperiment";
     }
 
+    /**
+     * @return {object} Object containing the abbreviated details of this dataset.
+     */
     abbreviate() {
         return {
             "rds": {
@@ -443,31 +470,58 @@ export class SummarizedExperimentDataset {
         return;
     }
 
-    annotations() {
+    /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#load load}.
+     * If `true`, users should consider calling {@linkcode SummarizedExperimentDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     * 
+     * @return {object} Object containing the per-feature and per-cell annotations.
+     * This has the following properties:
+     *
+     * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
+     * - `cells`: an object containing:
+     *   - `number`: the number of cells in this dataset.
+     *   - `summary`: an object where each key is the name of a per-cell annotation field and its value is a summary of that annotation field,
+     *     following the same structure as returned by {@linkcode summarizeArray}.
+     */
+    annotations({ cache = false } = {}) {
         this.#initialize();
         this.#features();
         this.#cells();
-
-        let copy = {};
-        for (const [k, v] of Object.entries(this.#raw_features)) {
-            copy[k] = bioc.CLONE(v);
-        }
 
         let anno = {};
         for (const k of this.#raw_cells.columnNames()) {
             anno[k] = eutils.summarizeArray(this.#raw_cells.column(k));
         }
 
-        return {
-            features: copy,
+        let output = {
+            features: futils.cloneCached(this.#raw_features, cache),
             cells: {
                 number: this.#raw_cells.numberOfColumns(),
                 summary: anno
             }
         };
+
+        if (!cache) {
+            this.clear();
+        }
+        return output;
     }
 
-    load() {
+    /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#annotations annotations}.
+     * If `true`, users should consider calling {@linkcode SummarizedExperimentDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     *
+     * @return {object} Object containing the per-feature and per-cell annotations.
+     * This has the following properties:
+     *
+     * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
+     * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
+     * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
+     * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
+     */
+    load({ cache = false } = {}) {
         this.#initialize();
         this.#features();
         this.#cells();
@@ -476,7 +530,7 @@ export class SummarizedExperimentDataset {
             matrix: new scran.MultiMatrix,
             row_ids: {},
             features: {},
-            cells: bioc.CLONE(this.#raw_cells)
+            cells: futils.cloneCached(this.#raw_cells, cache)
         };
 
         try {
@@ -499,21 +553,27 @@ export class SummarizedExperimentDataset {
             throw e;
         }
 
+        if (!cache) {
+            this.clear();
+        }
         return output;
     }
 
-    free() {
-        this.#se_handle.free();
-        for (const v of Object.values(this.#alt_handles)) {
-            v.free();
-        }
-        this.#rds_handle.free();
-    }
-
+    /**
+     * @return {Array} Array of objects representing the files used in this dataset.
+     * Each object corresponds to a single file and contains:
+     * - `type`: a string denoting the type.
+     * - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     */
     serialize() {
         return [ { type: "rds", file: this.#rds_file } ];
     }
 
+    /**
+     * @param {Array} files - Array of objects like that produced by {@linkcode SummarizedExperimentDataset#serialize serialize}.
+     * @return {SummarizedExperimentDataset} A new instance of this class.
+     * @static
+     */
     static async unserialize(files) {
         if (files.length != 1 || files[0].type != "rds") {
             throw new Error("expected exactly one file of type 'rds' for SummarizedExperiment unserialization");

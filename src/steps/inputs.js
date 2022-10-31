@@ -18,11 +18,13 @@ export class InputsState {
     #parameters;
     #cache;
     #abbreviated;
+    #preserve_dataset_cache;
 
     constructor(parameters = null, cache = null, abbreviated = null) {
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
         this.#abbreviated = (abbreviated === null ? {} : abbreviated);
+        this.#preserve_dataset_cache = false;
         this.changed = false;
         return;
     }
@@ -114,6 +116,21 @@ export class InputsState {
     }
 
     /**
+     * Allow each {@linkplain Dataset} reader (i.e., the `datasets` in {@linkcode InputsState#compute compute}) to cache any intermediate results during loading.
+     * By default, this is disabled as caching increases memory usage of the analysis without any major runtime improvements to `compute` when the `datasets` do not change.
+     *
+     * Setting `cache = true` is only useful if the instances in `datasets` are to be re-used outside of **bakana**, or if they are to be re-used in `compute()` in different combinations. 
+     * In such cases, there may be a runtime improvement that warrants the increase in memory usage.
+     * If caching is used, the user is responsible for releasing cached resources via each instance's `clear()` method once they are no longer needed.
+     *
+     * @param {boolean} cache - Whether to allow {@linkplain Dataset} instances to cache their results.
+     */
+    enableDatasetCache(cache) {
+        this.#preserve_dataset_cache = cache;
+        return;
+    }
+
+    /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * `datasets` is taken from the argument of the same name in {@linkcode runAnalysis},
      * while `sample_factor` is taken from the property of the same name in the `inputs` property of the `parameters`.
@@ -151,7 +168,7 @@ export class InputsState {
             }
 
             if (utils.changedParameters(tmp_abbreviated, this.#abbreviated)) {
-                await load_and_cache(datasets, this.#cache);
+                await load_and_cache(datasets, this.#cache, this.#preserve_dataset_cache);
                 this.#abbreviated = tmp_abbreviated;
                 this.#cache.datasets = datasets;
                 this.changed = true;
@@ -698,7 +715,7 @@ function rename_dataset(single) {
     return output;
 }
 
-async function load_datasets(datasets) {
+async function load_datasets(datasets, preserve_dataset_cache) {
     // Ensure we have a reproducible order; otherwise the batch
     // order becomes dependent on the JS engine's ordering.
     let names = Object.keys(datasets);
@@ -709,7 +726,7 @@ async function load_datasets(datasets) {
         for (const key of names) {
             // Too much hassle to convert this into a Promise.all(), because we
             // need to make sure it gets freed properly on failure.
-            loaded.push(await datasets[key].load());
+            loaded.push(await datasets[key].load({ cache: preserve_dataset_cache }));
         }
     } catch (e) {
         // If any one fails, we free the rest.
@@ -801,12 +818,12 @@ function check_subset_ranges(ranges) {
  ******* Internals - caching ********
  ************************************/
 
-async function load_and_cache(new_datasets, cache) {
+async function load_and_cache(new_datasets, cache, preserve_dataset_cache) {
     utils.freeCache(cache.raw_matrix);
     utils.freeCache(cache.matrix); // freeing this as well, to release all references and potentially release memory.
     utils.freeCache(cache.multi_block_ids);
 
-    let res = await load_datasets(new_datasets);
+    let res = await load_datasets(new_datasets, preserve_dataset_cache);
     cache.raw_matrix = res.matrix;
     cache.row_ids = res.row_ids;
     cache.raw_annotations = res.cells;

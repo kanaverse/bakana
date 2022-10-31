@@ -9,7 +9,11 @@ function create_solo_default_object(value) {
     return output;
 }
 
-export function reportFeatures(rawFeatures, typeField) {
+export function cloneCached(x, cached) {
+    return (cached ? bioc.CLONE(x) : x);
+}
+
+export function reportFeatures(rawFeatures, typeField, cached) {
     if (rawFeatures.hasColumn(typeField)) {
         let by_type = bioc.presplitFactor(rawFeatures.column(typeField));
         let copy = bioc.CLONE(rawFeatures, { deepCopy: false }); // SPLIT will make a copy anyway.
@@ -17,11 +21,11 @@ export function reportFeatures(rawFeatures, typeField) {
         return bioc.SPLIT(copy, by_type);
     } else {
         // Cloning this instance to avoid complications if the caller modifies the return value.
-        return create_solo_default_object(bioc.CLONE(rawFeatures));
+        return create_solo_default_object(cloneCached(rawFeatures, cached));
     }
 }
 
-export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField) {
+export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, cached) {
     let output = { matrix: new scran.MultiMatrix };
 
     try {
@@ -33,7 +37,7 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField) {
         if (out_ids !== null) {
             current_features = bioc.SLICE(rawFeatures, out_ids);
         } else {
-            current_features = bioc.CLONE(rawFeatures);
+            current_features = cloneCached(rawFeatures, cached);
             out_ids = new Int32Array(out_mat.numberOfRows());
             out_ids.forEach((x, i) => { out_ids[i] = i });
         }
