@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>QualityControlState - Documentation</title>
+    <title>readers/h5ad.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -34,402 +34,265 @@
 
 <div id="main">
     
-    <h1 class="page-title">QualityControlState</h1>
+    <h1 class="page-title">readers/h5ad.js</h1>
     
 
     
 
 
 
-
-<section>
-
-<header>
     
-        <h2>
-        QualityControlState
-        </h2>
-        
-            <div class="class-description usertext"><p>This step applies quality control on the RNA count matrix.
-Specifically, it computes the QC metrics and filtering thresholds, wrapping <code>computePerCellQCMetrics</code> and <code>computePerCellQCFilters</code> from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.
-Note that the actual filtering is done by <a href="CellFilteringState.html"><code>CellFilteringState</code></a>.</p>
-<p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
-        
-    
-</header>
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import * as scran from "scran.js";
+import * as bioc from "bioconductor";
+import * as eutils from "./utils/extract.js";
+import * as futils from "./utils/features.js";
+import * as afile from "./abstract/file.js";
 
-<article>
-    
+/**
+ * Dataset in the H5AD format, see [here](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/advanced/matrices) for details.
+ */
+export class H5adDataset {
+    #h5_file;
+    #h5_path;
+    #h5_flush;
+    #h5_handle;
 
-    
+    #raw_features;
+    #raw_cells;
+    #raw_cell_factors;
 
-    
+    #chosen_assay;
+    #assay_details;
 
-    
-        <h3 class="subsection-title">Classes</h3>
+    /**
+     * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a H5AD file.
+     * On browsers, this may be a File object.
+     * On Node.js, this may also be a string containing a file path.
+     */
+    constructor(h5File) {
+        if (h5File instanceof afile.SimpleFile) {
+            this.#h5_file = h5File;
+        } else {
+            this.#h5_file = new afile.SimpleFile(h5File);
+        }
 
-        <dl>
-            <dt><a href="QualityControlState.html">QualityControlState</a></dt>
-            <dd></dd>
-        </dl>
-    
-    
-    
+        let info = scran.realizeFile(this.#h5_file.content());
+        this.#h5_path = info.path;
+        this.#h5_flush = info.flush;
 
-     
+        try {
+            this.#h5_handle = new scran.H5File(this.#h5_path);
+        } catch (e) {
+            this.#h5_flush();
+            throw e;
+        }
 
-    
+        this.#raw_features = null;
+        this.#raw_cells = null;
+        this.#chosen_assay = null;
+        this.#assay_details = null;
+    }
 
-    
+    static format() {
+        return "H5AD";
+    }
 
-    
-        <h3 class="subsection-title">Methods</h3>
+    abbreviate() {
+        return { 
+            "h5": {
+                "name": this.#h5_file.name(),
+                "size": this.#h5_file.size()
+            }
+        };
+    }
 
-        
-            
+    #choose_assay() {
+        if (this.#chosen_assay !== null) {
+            return;
+        }
 
-    
+        if ("X" in this.#h5_handle.children) {
+            this.#chosen_assay = "X";
+            return;
+        } 
 
-    <h4 class="name" id="compute"><span class="type-signature"></span>compute<span class="signature">(skip, use_mito_default, mito_prefix, nmads)</span><span class="type-signature"></span></h4>
+        if (!("layers" in this.#h5_handle.children)) {
+            throw new Error("expected 'X' or 'layers' in a H5AD file");
+        }
 
-    
+        let lhandle = this.#h5_handle.open("layers");
+        if (!(lhandle instanceof scran.H5Group)) {
+            throw new Error("expected a 'layers' group in a H5AD file");
+        }
 
+        for (const k of Object.keys(lhandle.children)) {
+            if (k.match(/^count/i)) {
+                this.#chosen_assay = "layers/" + k;
+                return;
+            }
+        }
 
+        throw new Error("failed to find any count-like layer in a H5AD file");
+    }
 
+    #fetch_assay_details() {
+        if (this.#assay_details !== null) {
+            return;
+        }
 
-<dl class="details">
+        this.#choose_assay();
+        this.#assay_details = scran.extractHDF5MatrixDetails(this.#h5_path, this.#chosen_assay);
+        return;
+    }
 
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_quality_control.js.html">steps/quality_control.js</a>, <a href="steps_quality_control.js.html#line91">line 91</a>
-    </li></ul></dd>
-    
+    #features() {
+        if (this.#raw_features !== null) {
+            return;
+        }
 
-    
+        let handle = this.#h5_handle;
+        if ("var" in handle.children &amp;&amp; handle.children["var"] == "Group") {
+            let vhandle = handle.open("var");
+            let index = eutils.extractHDF5Strings(vhandle, "_index");
+            if (index !== null) {
+                let genes = { "_index": index };
 
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-<div class="description usertext">
-    <p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.
-Each argument is taken from the property of the same name in the <code>quality_control</code> property of the <code>parameters</code> of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
-</div>
-
-
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>skip</code></td>
-            
-
-            <td class="type">
-            
+                for (const [key, val] of Object.entries(vhandle.children)) {
+                    if (val === "DataSet" &amp;&amp; (key.match(/name/i) || key.match(/symb/i))) {
+                        let dhandle2 = vhandle.open(key);
+                        if (dhandle2.type == "String") {
+                            genes[key] = dhandle2.load();
+                        }
+                    }
+                }
                 
-<span class="param-type">boolean</span>
+                this.#raw_features = new bioc.DataFrame(genes);
+                return;
+            }
+        }
 
+        this.#fetch_assay_details();
+        this.#raw_features = new bioc.DataFrame({}, { numberOfRows: this.#assay_details.rows });
+        return;
+    }
 
-            
-            </td>
+    #cells() {
+        if (this.#raw_cells !== null) {
+            return;
+        }
 
-            
+        let handle = this.#h5_handle;
+        let annotations = {};
+        let factors = {};
 
-            
+        if ("obs" in handle.children &amp;&amp; handle.children["obs"] == "Group") {
+            let ohandle = handle.open("obs");
 
-            <td class="description last"><p>Whether to skip the calculation of quality control statistics.</p></td>
-        </tr>
+            // Maybe it has names, maybe not, who knows; let's just add what's there.
+            let index = eutils.extractHDF5Strings(ohandle, "_index");
+            if (index !== null) {
+                annotations["_index"] = index;
+            }
 
-    
+            for (const [key, val] of Object.entries(ohandle.children)) {
+                if (val != "DataSet") {
+                    continue;
+                }
+                let dhandle = ohandle.open(key, { load: true });
+                annotations[key] = dhandle.values;
+            }
 
-        <tr>
-            
-                <td class="name"><code>use_mito_default</code></td>
-            
+            if ("__categories" in ohandle.children &amp;&amp; ohandle.children["__categories"] == "Group") {
+                let chandle = ohandle.open("__categories");
 
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
+                for (const [key, val] of Object.entries(chandle.children)) {
+                    if (key in annotations) {
+                        factors[key] = eutils.extractHDF5Strings(chandle, key);
+                    }
+                }
+            }
+        }
 
+        if (Object.keys(annotations).length == 0) {
+            this.#fetch_assay_details();
+            this.#raw_cells = new bioc.DataFrame({}, { numberOfRows: this.#assay_details.columns })
+        } else {
+            this.#raw_cells = new bioc.DataFrame(annotations);
+        }
+        this.#raw_cell_factors = factors;
+        return;
+    }
 
-            
-            </td>
+    annotations() {
+        this.#features();
+        this.#cells();
 
-            
-
-            
-
-            <td class="description last"><p>Whether the internal mitochondrial gene lists should be used.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>mito_prefix</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>Prefix of the identifiers for mitochondrial genes, when <code>use_mito_default = false</code>.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>nmads</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>Number of MADs to use for automatically selecting the filter threshold for each metric.</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
+        let summaries = {};
+        for (const k of this.#raw_cells.columnNames()) {
+            let x;
+            if (k in this.#raw_cell_factors) {
+                x = this.#raw_cell_factors[k];
+            } else {
+                x = this.#raw_cells.column(k);
+            }
+            summaries[k] = eutils.summarizeArray(x);
+        }
         
-<div class="param-desc">
-    <p>The object is updated with the new results.</p>
-</div>
-
-
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="summary"><span class="type-signature"></span>summary<span class="signature">()</span><span class="type-signature"> &rarr; (nullable) {object}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_quality_control.js.html">steps/quality_control.js</a>, <a href="steps_quality_control.js.html#line207">line 207</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-<div class="description usertext">
-    <p>Obtain a summary of the state, typically for display on a UI like <strong>kana</strong>.</p>
-</div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>An object is returned containing:</p>
-<ul>
-<li><code>data</code>: an object containing one property for each sample.
-Each property is itself an object containing <code>sums</code>, <code>detected</code> and <code>proportion</code>,
-which are TypedArrays containing the relevant QC metrics for all cells in that sample.</li>
-<li><code>thresholds</code>: an object containing one property for each sample.
-Each property is itself an object containing <code>sums</code>, <code>detected</code> and <code>proportion</code>,
-which are numbers containing the thresholds on the corresponding QC metrics for that sample.</li>
-<li><code>retained</code>: the number of cells remaining after QC filtering.</li>
-</ul>
-<p>Alternatively, <code>null</code> may be returned instead if there are no RNA features in the data,
-or if the QC was skipped (<code>skip = true</code> in <a href="QualityControlState.html#compute"><code>compute</code></a>).</p>
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">object</span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-    
-
-    
-
-    
-</article>
-
-</section>
+        return {
+            features: { "": bioc.CLONE(this.#raw_features) },
+            cells: {
+                number: this.#raw_cells.numberOfColumns(),
+                summary: summaries
+            }
+        };
+    }
+
+    load() {
+        this.#features();
+        this.#cells();
+        this.#choose_assay();
+
+        let cells = new bioc.DataFrame({}, { numberOfRows: this.#raw_cells.numberOfRows(), metadata: bioc.CLONE(this.#raw_cells.metadata()) });
+        for (const k of this.#raw_cells.columnNames()) {
+            let v = this.#raw_cells.column(k);
+            if (!(k in this.#raw_cell_factors)) {
+                cells.$setColumn(k, bioc.CLONE(v));
+            } else {
+                let cats = this.#raw_cell_factors[k];
+                let temp = new Array(v.length);
+                v.forEach((x, i) => {
+                    temp[i] = cats[x]
+                }); 
+                cells.$setColumn(k, temp);
+            }
+        }
+
+        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, this.#chosen_assay);
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, null);
+        output.cells = cells;
+        return output;
+    }
+
+    free() {
+        this.#h5_flush();
+    }
+
+    serialize() {
+        return [ { type: "h5", file: this.#h5_file } ];
+    }
+
+    static async unserialize(files) {
+        if (files.length != 1 || files[0].type != "h5") {
+            throw new Error("expected exactly one file of type 'h5' for H5AD unserialization");
+        }
+        return new H5adDataset(files[0].file);
+    }
+}
+</code></pre>
+        </article>
+    </section>
 
 
 
