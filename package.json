@@ -1,18 +1,10 @@
 {
   "name": "bakana",
-  "version": "0.6.2",
+  "version": "1.0.0",
   "description": "Backend for kana's single-cell analyses. This supports single or multiple samples, execution in Node.js or the browser, in-memory caching of results for iterative analyses, and serialization to/from file for redistribution.",
   "type": "module",
-  "exports": {
-    ".": {
-      "node": "main/index.js",
-      "default": "browser/index.js"
-    },
-    "readers": {
-      "node": "main/readers/index.js",
-      "default": "browser/readers/index.js"
-    }
-  },
+  "main": "main/index.js",
+  "browser": "browser/index.js",
   "scripts": {
     "test": "node --experimental-vm-modules --experimental-wasm-threads node_modules/jest/bin/jest.js --testTimeout=1000000 --runInBand --detectOpenHandles --forceExit",
     "jsdoc": "npx jsdoc -r src README.md -d docs/built -c docs/jsdoc.config.json"
@@ -35,7 +27,7 @@
     "bioconductor": "^0.1.1",
     "pako": "^2.0.4",
     "papaparse": "^5.3.2",
-    "scran.js": "^1.0.1"
+    "scran.js": "^1.0.2"
   },
   "devDependencies": {
     "docdash": "^1.2.0",
