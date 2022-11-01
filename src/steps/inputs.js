@@ -385,7 +385,8 @@ export class InputsState {
 
             for (const key of names) {
                 let val = this.#cache.datasets[key];
-                formats.push(val.constructor.format());
+                let dformat = val.constructor.format();
+                formats.push(dformat);
 
                 let files = await val.serialize();
                 numbers.push(files.length);
@@ -399,7 +400,7 @@ export class InputsState {
                         if (file2link == null) {
                             throw new Error("no valid linking function from 'setCreateLink'");
                         }
-                        let id = await file2link(obj.file.content());
+                        let id = await file2link(dformat, obj.file);
                         curhandle.writeDataSet("id", "String", [], id);
                     } else {
                         let saved = await embeddedSaver(obj.file.content(), obj.file.size());
@@ -1164,7 +1165,12 @@ var link2file = null;
 /**
  * Specify a function to create links for data files.
  *
- * @param {function} fun - Function that accepts a {@linkplain SimpleFile} and returns a string containing some unique identifier to the file.
+ * @param {function} fun - Function that accepts:
+ *
+ * - `format`: the string containing the format of the dataset that owns the file.
+ * - `file`: a {@linkplain SimpleFile} representing the file contents.
+ *
+ * It should return a string containing some unique identifier to the file.
  * This is most typically used to register the file with some user-specified database system for later retrieval.
  *
  * @return `fun` is set as the global link creator for this step. 
