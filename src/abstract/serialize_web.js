@@ -14,7 +14,7 @@ export function createKanaFileInternal(statePath, inputFiles) {
         }
     }
 
-    let output = new Uint8Array(output);
+    let output = new Uint8Array(total);
     output.set(preamble);
 
     let offset = preamble.length;
@@ -23,12 +23,12 @@ export function createKanaFileInternal(statePath, inputFiles) {
 
     if (embedded) {
         for (const ibuf of inputFiles) {
-            arr.set(ibuf, offset);
+            output.set(ibuf, offset);
             offset += ibuf.length;
         }
     }
 
-    return arr;
+    return output;
 }
 
 export function parseKanaFileInternal(input, statePath) {

@@ -27,7 +27,7 @@ export class SimpleFile {
     buffer({ copy = false } = {}) {
         if (this.#mode == "file") {
             let reader = new FileReaderSync();
-            let b = reader.readAsArrayBuffer(x);
+            let b = reader.readAsArrayBuffer(this.#file);
             return new Uint8Array(b);
         } else {
             if (copy) {
@@ -39,7 +39,11 @@ export class SimpleFile {
     }
 
     size() {
-        return this.#buffer.length;
+        if (this.#mode == "file") {
+            return this.#file.size;
+        } else {
+            return this.#buffer.length;
+        }
     }
 
     name() {
