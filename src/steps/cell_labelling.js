@@ -101,14 +101,23 @@ export class CellLabellingState {
         }
 
         if (!(name in all_loaded)) {
-            let buffers = await Promise.all([
-                downloadFun(base + "/" + name + "_genes.csv.gz"),
-                downloadFun(base + "/" + name + "_labels_fine.csv.gz"),
-                downloadFun(base + "/" + name + "_label_names_fine.csv.gz"),
-                downloadFun(base + "/" + name + "_markers_fine.gmt.gz"),
-                downloadFun(base + "/" + name + "_matrix.csv.gz")
-            ]);
-            let contents = buffers.map(b => new rutils.SimpleFile(b));
+            let suffixes = [ 
+                "genes.csv.gz",
+                "labels_fine.csv.gz",
+                "label_names_fine.csv.gz",
+                "markers_fine.gmt.gz",
+                "matrix.csv.gz"
+            ];
+
+            let contents = await Promise.all(
+                suffixes.map(
+                    async suffix => {
+                        let full = name + "_" + suffix;
+                        let b = await downloadFun(base + "/" + full);
+                        return new rutils.SimpleFile(b, { name: full })
+                    }
+                )
+            );
 
             let loaded;
             try {

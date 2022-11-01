@@ -31,8 +31,8 @@ export function baseParams() {
 }
 
 bakana.setCellLabellingDownload(url => {
-    let fpath = path.basename(decodeURIComponent(url));
-    return "files/references/" + fpath;
+    let fpath = path.basename(url);
+    return fs.readFileSync("files/references/" + fpath).slice(); // Mimic a buffer from fetch().
 });
 
 export function mockOffsets(paths) {
