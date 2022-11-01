@@ -28,7 +28,14 @@ import { SummarizedExperimentDataset } from "./se.js";
  */ 
 
 /**
- * A DataFrame from the [**bioconductor**](https://github.com/LTLA/bioconductor.js) package, where each colum is represented by some arbitrary vector-like object.
+ * A representation of multiple {@linkplain external:ScranMatrix ScranMatrix} objects, where each object contains data for the same cells but across a different feature space, e.g., for different data modalities.
+ * See [here](https://jkanche.github.io/scran.js/MultiMatrix.html) for more details.
+ *
+ * @external MultiMatrix
+ */ 
+
+/**
+ * A DataFrame from the [**bioconductor**](https://github.com/LTLA/bioconductor.js) package, where each column is represented by some arbitrary vector-like object.
  * See [here](https://ltla.github.io/bioconductor.js/DataFrame.html) for more details.
  *
  * @external DataFrame
