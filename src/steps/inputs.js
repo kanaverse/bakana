@@ -72,7 +72,7 @@ export class InputsState {
      */
     fetchAnnotations(col) {
         let annots = this.#cache.annotations;
-        if (annots === null || !annots.hasColumn(col)) {
+        if (!annots.hasColumn(col)) {
             throw new Error(`${col} does not exist in the column annotations`);
         }
 
@@ -354,11 +354,9 @@ export class InputsState {
         var output = {
             "num_cells": this.#cache.matrix.numberOfColumns(),
             "num_genes": ngenes,
-            "genes": gene_info 
+            "genes": gene_info,
+            "annotations": this.#cache.annotations.columnNames()
         };
-        if (this.#cache.annotations !== null) {
-            output.annotations = Object.keys(this.#cache.annotations);
-        }
         return output;
     }
 

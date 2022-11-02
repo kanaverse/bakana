@@ -25,6 +25,7 @@ test("runAnalysis works correctly (H5AD)", async () => {
     expect(contents.feature_selection instanceof Object).toBe(true);
     expect(contents.cell_labelling instanceof Object).toBe(true);
     expect(contents.marker_detection instanceof Object).toBe(true);
+    expect(contents.inputs["annotations"].indexOf("level1class")).toBeGreaterThan(0);
 
     // Input reorganization is done correctly.
     {

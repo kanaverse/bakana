@@ -33,6 +33,7 @@ test("multi-matrix analyses work correctly", async () => {
     expect(contents.quality_control instanceof Object).toBe(true);
     expect("3K" in contents.quality_control.thresholds).toBe(true);
     expect("4K" in contents.quality_control.thresholds).toBe(true);
+    expect(contents.inputs["annotations"].indexOf("__batch__")).toBeGreaterThan(0);
 
     {
         // Checking that the matrix was correctly loaded.
