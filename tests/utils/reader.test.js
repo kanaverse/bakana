@@ -1,5 +1,6 @@
 import * as bakana from "../../src/index.js";
 import * as pako from "pako";
+import * as fs from "fs";
 
 test("unpacking text lines works as expected", async () => {
     let arr = ["Aaron was here", "FOOBLE", "BAR"];
@@ -24,7 +25,7 @@ test("unpacking text lines works as expected", async () => {
     expect(resgz2).toEqual(arr);
 })
 
-test("unpacking text lines works with several chunk sizes", async () => {
+test("unpacking Gzipped text lines works with several chunk sizes", async () => {
     let arr = [
         "Kimi dake o kimi dake o", "Suki de ita yo", "Kaze de me ga nijinde", "Tooku naru yo",
         "Itsu made mo oboeteru", "Nani mo ka mo kawatte mo", "Hitotsu dake hitotsu dake", 
@@ -42,6 +43,29 @@ test("unpacking text lines works with several chunk sizes", async () => {
 
     let resgz50 = await bakana.readLines2(new Uint8Array(outgz), { chunkSize: 50 });
     expect(resgz50).toEqual(arr);
+})
+
+test("unpacking text lines works from file", async () => {
+    let lines = [];
+    for (var i = 0; i < 100000; i++) {
+        lines.push(String(Math.random()));
+    }
+    let target = lines.join("\n");
+
+    {
+        let path = "TEST_unpack_lines.txt";
+        fs.writeFileSync(path, target);
+        let res = await bakana.readLines2(path);
+        expect(res).toEqual(lines);
+    }
+
+    // Trying again with gzip.
+    {
+        let path = "TEST_unpack_lines.txt.gz";
+        fs.writeFileSync(path, pako.gzip(target));
+        let res = await bakana.readLines2(path);
+        expect(res).toEqual(lines);
+    }
 })
 
 test("unpacking DSV files works as expected", async () => {

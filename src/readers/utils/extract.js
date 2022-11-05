@@ -1,5 +1,7 @@
 import * as pako from "pako";
 import ppp from "papaparse";
+import * as astream from "./abstract/stream.js";
+import * as afile from "../abstract/file.js";
 
 export function extractHDF5Strings(handle, name) {
     if (!(name in handle.children)) {
@@ -69,9 +71,16 @@ export function summarizeArray(array, { limit = 50 } = {}) {
     }
 }
 
-function guess_compression(buffer, compression) {
+function guess_compression(x, compression) {
     if (compression !== null) {
         return compression;
+    }
+
+    let buffer;
+    if (x instanceof Uint8Array) {
+        buffer = x;
+    } else {
+        buffer = astream.peek(x, 3);
     }
 
     // Compare against magic words for auto-detection.
@@ -115,21 +124,66 @@ function merge_bytes(leftovers, decoder) {
     return decoder.decode(combined);
 }
 
+async function stream_callback(x, compression, chunkSize, callback) {
+    // Force the input to be either a Uint8Array or a file path string.
+    if (typeof x == "string") {
+        ;
+    } else if (x instanceof Uint8Array) {
+        ;
+    } else if (x instanceof afile.SimpleFile) {
+        x = x.content();
+    } else {
+        x = (new afile.SimpleFile(y, { name: "dummy" })).content();
+    }
+
+    if (guess_compression(x, compression) == "gz") {
+        await (new Promise((resolve, reject) => {
+            let gz = new pako.Inflate({ chunkSize: chunkSize });
+            gz.onData = callback;
+            gz.onEnd = status => {
+                if (status) {
+                    reject("gzip decompression failed; " + gz.msg);
+                } else {
+                    resolve(null);
+                }
+            };
+
+            if (typeof x == "string") {
+                astream.stream(x, chunkSize, chunk => gz.push(chunk), null, reject);
+            } else {
+                gz.push(x);
+            }
+        }));
+        return;
+    }
+
+    // Remaining possibilities are uncompressed.
+    if (typeof x == "string") {
+        await (new Promise((resolve, reject) => astream.stream(x, chunkSize, callback, resolve, reject)));
+        return;
+    }
+
+    callback(x);
+    return;
+}
+
 /**
- * Read lines of text from a buffer, possibly with decompression.
+ * Read lines of text from a file, possibly with decompression.
  *
- * @param {Uint8Array} buffer - Content to be read.
+ * @param {string|Uint8Array|SimpleFile|File} x - Contents of the file to be read.
+ * On Node.js, this may be a string containing a path to a file;
+ * on browsers, this may be a File object.
  * @param {object} [options={}] - Optional parameters.
  * @param {?string} [options.compression=null] - Compression of `buffer`, either `"gz"` or `"none"`.
  * If `null`, it is determined automatically from the `buffer` header.
- * @param {number} [options.chunkSize=65536] - Chunk size in bytes to use for decompression when `compression="gz"`.
+ * @param {number} [options.chunkSize=65536] - Chunk size in bytes to use for file reading (if `x` is a file path) and decompression (if `compression="gz"`).
  * Larger values improve speed at the cost of memory.
  *
  * @return {Array} Array of strings where each entry contains a line in `buffer`.
  * The newline itself is not included in each string.
  * @async 
  */
-export async function readLines2(buffer, { compression = null, chunkSize = 65536 } = {}) {
+export async function readLines2(x, { compression = null, chunkSize = 65536 } = {}) {
     const dec = new TextDecoder;
     let leftovers = [];
     let lines = [];
@@ -155,23 +209,7 @@ export async function readLines2(buffer, { compression = null, chunkSize = 65536
         }
     };
 
-    compression = guess_compression(buffer, compression);
-    if (compression == "gz") {
-        await (new Promise((resolve, reject) => {
-            let gz = new pako.Inflate({ chunkSize: chunkSize });
-            gz.onData = callback;
-            gz.onEnd = status => {
-                if (status) {
-                    reject("gzip decompression failed; " + gz.msg);
-                } else {
-                    resolve(null);
-                }
-            };
-            gz.push(buffer);
-        }));
-    } else {
-        callback(buffer);
-    }
+    await stream_callback(x, compression, chunkSize, callback);
 
     if (leftovers.length) {
         lines.push(merge_bytes(leftovers, dec));
@@ -198,12 +236,14 @@ export function readTable(buffer, { compression = null, delim = "\t", firstOnly 
  * Read a delimiter-separated table from a buffer, possibly with decompression.
  * This assumes that newlines represent the end of each row of the table, i.e., there cannot be newlines inside quoted strings.
  *
- * @param {Uint8Array} buffer - Buffer containing the table as a delimited text file, possibly Gzip-compressed.
+ * @param {string|Uint8Array|SimpleFile|File} x - Contents of the file to be read.
+ * On Node.js, this may be a string containing a path to a file;
+ * on browsers, this may be a File object.
  * @param {object} [options={}] - Optional parameters.
  * @param {?string} [options.compression=null] - Compression of `buffer`, either `"gz"` or `"none"`.
  * If `null`, it is determined automatically from the `buffer` header.
  * @param {string} [options.delim="\t"] - Delimiter between fields.
- * @param {number} [options.chunkSize=1048576] - Chunk size in bytes to use for parsing (and decompression, when `compression="gz"`).
+ * @param {number} [options.chunkSize=1048576] - Chunk size in bytes to use for file reading (if `x` is a path), parsing of rows, and decompression (if `compression="gz"`).
  * Larger values improve speed at the cost of memory.
  *
  * @return {Array} Array of length equal to the number of lines in `buffer`.
@@ -211,7 +251,7 @@ export function readTable(buffer, { compression = null, delim = "\t", firstOnly 
  *
  * @async
  */
-export async function readTable2(buffer, { compression = null, delim = "\t", chunkSize = 65536 } = {}) {
+export async function readTable2(x, { compression = null, delim = "\t", chunkSize = 65536 } = {}) {
     const dec = new TextDecoder;
 
     let rows = [];
@@ -260,23 +300,7 @@ export async function readTable2(buffer, { compression = null, delim = "\t", chu
         }
     };
 
-    compression = guess_compression(buffer, compression);
-    if (compression == "gz") {
-        await (new Promise((resolve, reject) => {
-            let gz = new pako.Inflate({ chunkSize: chunkSize });
-            gz.onData = callback;
-            gz.onEnd = status => {
-                if (status) {
-                    reject("gzip decompression failed; " + gz.msg);
-                } else {
-                    resolve(null);
-                }
-            };
-            gz.push(buffer);
-        }));
-    } else {
-        callback(buffer);
-    }
+    await stream_callback(x, compression, chunkSize, callback);
 
     if (leftovers.length) {
         let combined = merge_bytes(leftovers, dec);
