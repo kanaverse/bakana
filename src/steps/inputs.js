@@ -546,37 +546,51 @@ export function commonFeatureTypes(genes) {
     };
 }
 
+// Patterns are ordered by priority, e.g., if we see one modality named 'adt'
+// and another modality named 'hto', the former is used to represent ADTs.
+const guess_patterns = {
+    RNA: [
+        modality => modality.match(/gene expression/i),
+        modality => modality.match(/^rna/i),
+        modality => modality.match(/^gex/i),
+        modality => modality == ""
+    ],
+    ADT: [
+        modality => modality.match(/^adt/i),
+        modality => modality.match(/antibody capture/i),
+        modality => modality.match(/^hto/i)
+    ]
+};
+
 export function guessDefaultModalities(loaded) {
-    // Checking which modalities are available across all datasets.
     let available = {};
+    for (const chosen of Object.keys(guess_patterns)) {
+        available[chosen] = new Array(loaded.length);
+        available[chosen].fill(null);
+    }
+
     for (var i = 0; i < loaded.length; i++) {
-        let current = Object.keys(loaded[i].features);
+        let curmodalities = Object.keys(loaded[i].features);
+        for (const [chosen, patfuns] of Object.entries(guess_patterns)) {
+            let curavail = available[chosen];
+            (() => {
+                for (const pfun of patfuns) {
+                    for (const modality of curmodalities) {
+                        if (pfun(modality)) {
+                            curavail[i] = modality;
 
-        for (const modality of current) {
-            let chosen = null;
-            if (modality == "") {
-                chosen = "RNA";
-            } else if (modality.match(/gene expression/i)) {
-                chosen = "RNA";
-            } else if (modality.match(/^rna/i)) {
-                chosen = "RNA";
-            } else if (modality.match(/^gex/i)) {
-                chosen = "RNA";
-            } else if (modality.match(/^adt/i)) {
-                chosen = "ADT";
-            } else if (modality.match(/antibody capture/i)) {
-                chosen = "ADT";
-            }
-
-            if (chosen !== null) {
-                if (!(chosen in available)) {
-                    available[chosen] = new Array(loaded.length);
-                    available[chosen].fill(null);
+                            // Quitting on the first match to the given order
+                            // of 'patfuns'. This ensures that the choice is
+                            // well-defined if there are multiple matches to
+                            // different patterns. Note that nothing is
+                            // guaranteed about the order of 'curmodalities',
+                            // so if there were multiple matches to the same
+                            // pattern, the choice is undefined.
+                            return;
+                        }
+                    }
                 }
-                if (available[chosen][i] == null) {
-                    available[chosen][i] = modality;
-                }
-            }
+            })();
         }
     }
 
