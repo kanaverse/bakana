@@ -101,6 +101,14 @@ test("unpacking DSV file works as expected", async () => {
         expect(res).toEqual(expected);
     }
 
+    // With a smaller buffer
+    {
+        let path = "TEST_unpack_lines.txt";
+        fs.writeFileSync(path, target);
+        let res = await bakana.readTable2(path, { chunkSize: 65536 });
+        expect(res).toEqual(expected);
+    }
+
     // Trying again with gzip.
     {
         let path = "TEST_unpack_lines.txt.gz";

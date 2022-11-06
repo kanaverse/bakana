@@ -251,7 +251,7 @@ export function readTable(buffer, { compression = null, delim = "\t", firstOnly 
  *
  * @async
  */
-export async function readTable2(x, { compression = null, delim = "\t", chunkSize = 65536 } = {}) {
+export async function readTable2(x, { compression = null, delim = "\t", chunkSize = 1048576 } = {}) {
     const dec = new TextDecoder;
 
     let rows = [];
