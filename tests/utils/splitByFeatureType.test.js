@@ -6,14 +6,14 @@ afterAll(async () => await bakana.terminate());
 const rna = "Gene Expression";
 const adt = "Antibody Capture";
 
-test("splitting by feature type works as expected with ADTs", () => {
+test("splitting by feature type works as expected with ADTs", async () => {
     let reader = new bakana.TenxMatrixMarketDataset(
         "files/datasets/immune_3.0.0-matrix.mtx.gz",
         "files/datasets/immune_3.0.0-features.tsv.gz",
         "files/datasets/immune_3.0.0-barcodes.tsv.gz"
     );
 
-    let deets = reader.load();
+    let deets = await reader.load();
     expect(deets.matrix.get(rna).numberOfRows()).toBe(deets.features[rna].numberOfRows());
     expect(deets.matrix.get(adt).numberOfRows()).toBe(deets.features[adt].numberOfRows());
 
@@ -29,14 +29,14 @@ test("splitting by feature type works as expected with ADTs", () => {
     expect(alt_guessed.type).toBe("symbol");
 })
 
-test("splitting by feature type works as expected when there are no ADTs", () => {
+test("splitting by feature type works as expected when there are no ADTs", async () => {
     let reader = new bakana.TenxMatrixMarketDataset(
         "files/datasets/pbmc3k-matrix.mtx.gz",
         "files/datasets/pbmc3k-features.tsv.gz",
         "files/datasets/pbmc3k-barcodes.tsv.gz"
     );
 
-    let deets = reader.load();
+    let deets = await reader.load();
     expect(deets.matrix.get(rna).numberOfRows()).toBe(deets.features[rna].numberOfRows());
     expect(deets.matrix.has(adt)).toBe(false);
 })
