@@ -68,7 +68,7 @@ test("unpacking text lines works from file", async () => {
     }
 })
 
-test("unpacking DSV files works as expected", async () => {
+test("unpacking DSV buffer works as expected", async () => {
     let target = "a,b,c\n1,2,3\n\"x\",\"y\",\"z\""; 
     let expected = [["a","b","c"],["1","2","3"],["x","y","z"]];
 
@@ -81,6 +81,33 @@ test("unpacking DSV files works as expected", async () => {
     let out2 = foo.encode(target + "\n");
     let res2 = await bakana.readTable2(new Uint8Array(out2), {delim:","});
     expect(res2).toEqual(expected);
+})
+
+test("unpacking DSV file works as expected", async () => {
+    let lines = [];
+    let expected = [];
+    for (var i = 0; i < 100000; i++) {
+        let current = [ Math.random(), Math.random(), Math.random() ];
+        expected.push(current.map(String));
+        lines.push(current.join("\t"));
+    }
+
+    let target = lines.join("\n");
+
+    {
+        let path = "TEST_unpack_lines.txt";
+        fs.writeFileSync(path, target);
+        let res = await bakana.readTable2(path);
+        expect(res).toEqual(expected);
+    }
+
+    // Trying again with gzip.
+    {
+        let path = "TEST_unpack_lines.txt.gz";
+        fs.writeFileSync(path, pako.gzip(target));
+        let res = await bakana.readTable2(path);
+        expect(res).toEqual(expected);
+    }
 })
 
 test("promoting numbers works as expected", () => {

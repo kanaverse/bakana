@@ -133,7 +133,7 @@ async function stream_callback(x, compression, chunkSize, callback) {
     } else if (x instanceof afile.SimpleFile) {
         x = x.content();
     } else {
-        x = (new afile.SimpleFile(y, { name: "dummy" })).content();
+        x = (new afile.SimpleFile(x, { name: "dummy" })).content();
     }
 
     if (guess_compression(x, compression) == "gz") {
@@ -280,7 +280,7 @@ export async function readTable2(x, { compression = null, delim = "\t", chunkSiz
             // chunk, and then combine the parsing results together. To avoid
             // too many parsing calls, we accumulate buffers until we hit 
             // the chunkSize and then we decode + parse them altogether.
-            if (chunk[i] == 10 && (last - i) + size_left >= chunkSize) {
+            if (chunk[i] == 10 && (i - last) + size_left >= chunkSize) {
                 let current = chunk.subarray(last, i);
                 if (leftovers.length) {
                     leftovers.push(current);
@@ -296,7 +296,7 @@ export async function readTable2(x, { compression = null, delim = "\t", chunkSiz
 
         if (last != chunk.length) {
             leftovers.push(chunk.slice(last)); // copy to avoid problems with ownership as chunk gets deref'd.
-            size_left += chunk.size - last;
+            size_left += chunk.length - last;
         }
     };
 
