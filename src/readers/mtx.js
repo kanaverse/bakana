@@ -102,7 +102,7 @@ export class TenxMatrixMarketDataset {
         this.#dimensions = [headers.rows, headers.columns];
     }
 
-    #features() {
+    async #features() {
         if (this.#raw_features !== null) {
             return;
         }
@@ -114,10 +114,9 @@ export class TenxMatrixMarketDataset {
             return;
         }
 
-        const content = new Uint8Array(this.#feature_file.buffer());
         let fname = this.#feature_file.name();
         var is_gz = fname.endsWith(".gz");
-        let parsed = eutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
+        let parsed = await eutils.readTable2(this.#feature_file.content(), { compression: (is_gz ? "gz" : "none") });
 
         if (parsed.length == NR + 1) {
             // If it seems to have a header, we just use that directly.
@@ -152,7 +151,7 @@ export class TenxMatrixMarketDataset {
         return;
     }
 
-    #cells() {
+    async #cells() {
         if (this.#raw_cells !== null) {
             return;
         }
@@ -163,10 +162,9 @@ export class TenxMatrixMarketDataset {
             return;
         }
 
-        const content = new Uint8Array(this.#barcode_file.buffer());
         let bname = this.#barcode_file.name();
         var is_gz = bname.endsWith(".gz");
-        let parsed = eutils.readTable(content, { compression: (is_gz ? "gz" : "none") });
+        let parsed = await eutils.readTable2(this.#barcode_file.content(), { compression: (is_gz ? "gz" : "none") });
 
         // Check if a header is present or not. Standard 10X output doesn't have a 
         // header but we'd like to support some kind of customization.
@@ -209,10 +207,12 @@ export class TenxMatrixMarketDataset {
      *   - `number`: the number of cells in this dataset.
      *   - `summary`: an object where each key is the name of a per-cell annotation field and its value is a summary of that annotation field,
      *     following the same structure as returned by {@linkcode summarizeArray}.
+     *
+     * @async
      */
-    annotations({ cache = false } = {}) {
-        this.#features();
-        this.#cells();
+    async annotations({ cache = false } = {}) {
+        await this.#features();
+        await this.#cells();
 
         let anno = {};
         for (const k of this.#raw_cells.columnNames()) {
@@ -245,10 +245,12 @@ export class TenxMatrixMarketDataset {
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
      * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
+     *
+     * @async
      */
-    load({ cache = false } = {}) {
-        this.#features();
-        this.#cells();
+    async load({ cache = false } = {}) {
+        await this.#features();
+        await this.#cells();
 
         var is_gz = this.#matrix_file.name().endsWith(".gz");
         let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compressed": is_gz });

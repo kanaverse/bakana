@@ -1,5 +1,7 @@
 import * as pako from "pako";
 import ppp from "papaparse";
+import * as astream from "./abstract/stream.js";
+import * as afile from "../abstract/file.js";
 
 export function extractHDF5Strings(handle, name) {
     if (!(name in handle.children)) {
@@ -69,45 +71,34 @@ export function summarizeArray(array, { limit = 50 } = {}) {
     }
 }
 
-/**
- * Unpack a buffer to text, possibly with decompression.
- *
- * @param {Uint8Array} buffer - Contents to be unpacked.
- * @param {object} [options] - Optional parameters.
- * @param {?string} [options.compression] - Compression mode used for `buffer`.
- * This can be `"none"` or `"gz"`, with `null` performing automatic detection based on the magic words.
- *
- * @return {string} Text encoded by `buffer`.
- */
-export function unpackText(buffer, { compression = null } = {}) {
-    let txt = buffer;
-    
-    // Compare against magic words for auto-detection.
-    if (compression === null) {
-        if (buffer.length >= 3 && buffer[0] == 0x1F && buffer[1] == 0x8B && buffer[2] == 0x08) {
-            compression = 'gz';
-        }
+function guess_compression(x, compression) {
+    if (compression !== null) {
+        return compression;
     }
 
-    if (compression === "gz") {
-        txt = pako.ungzip(buffer);
+    let buffer;
+    if (x instanceof Uint8Array) {
+        buffer = x;
+    } else {
+        buffer = astream.peek(x, 3);
     }
-    
+
+    // Compare against magic words for auto-detection.
+    if (buffer.length >= 3 && buffer[0] == 0x1F && buffer[1] == 0x8B && buffer[2] == 0x08) {
+        return 'gz';
+    }
+
+    return 'none';
+}
+
+export function unpackText(buffer, { compression = null } = {}) {
+    compression = guess_compression(buffer, compression);
+    let txt = (compression === "gz" ? pako.ungzip(buffer) : buffer);
     const dec = new TextDecoder();
     return dec.decode(txt);
 }
 
-/**
- * Read lines of text from a buffer, possibly with decompression.
- *
- * @param {Uint8Array} buffer - Content to be read.
- * @param {object} [options] - Optional parameters.
- * @param {?string} [options.compression] - See {@linkcode unpackText} for details.
- *
- * @return {Array} Array of strings where each entry contains a line in `buffer`.
- * The newline itself is not included in each string. 
- * A trailing newline at the end of each file is removed.
- */
+// Soft-deprecated as of 1.1.0.
 export function readLines(buffer, { compression = null } = {}) {
     let decoded = unpackText(buffer, { compression: compression });
     let lines = decoded.split("\n");
@@ -117,18 +108,117 @@ export function readLines(buffer, { compression = null } = {}) {
     return lines;    
 }
 
+function merge_bytes(leftovers, decoder) {
+    let total = 0;
+    for (const x of leftovers) {
+        total += x.length;
+    }
+
+    let combined = new Uint8Array(total);
+    total = 0;
+    for (const x of leftovers) {
+        combined.set(x, total);
+        total += x.length;
+    }
+
+    return decoder.decode(combined);
+}
+
+async function stream_callback(x, compression, chunkSize, callback) {
+    // Force the input to be either a Uint8Array or a file path string.
+    if (typeof x == "string") {
+        ;
+    } else if (x instanceof Uint8Array) {
+        ;
+    } else if (x instanceof afile.SimpleFile) {
+        x = x.content();
+    } else {
+        x = (new afile.SimpleFile(x, { name: "dummy" })).content();
+    }
+
+    if (guess_compression(x, compression) == "gz") {
+        await (new Promise((resolve, reject) => {
+            let gz = new pako.Inflate({ chunkSize: chunkSize });
+            gz.onData = callback;
+            gz.onEnd = status => {
+                if (status) {
+                    reject("gzip decompression failed; " + gz.msg);
+                } else {
+                    resolve(null);
+                }
+            };
+
+            if (typeof x == "string") {
+                astream.stream(x, chunkSize, chunk => gz.push(chunk), null, reject);
+            } else {
+                gz.push(x);
+            }
+        }));
+        return;
+    }
+
+    // Remaining possibilities are uncompressed.
+    if (typeof x == "string") {
+        await (new Promise((resolve, reject) => astream.stream(x, chunkSize, callback, resolve, reject)));
+        return;
+    }
+
+    callback(x);
+    return;
+}
+
 /**
- * Read a delimiter-separated table from a buffer, possibly with decompression.
+ * Read lines of text from a file, possibly with decompression.
  *
- * @param {Uint8Array} buffer - Buffer containing the table as a delimited text file, possibly Gzip-compressed.
- * @param {object} [options] - Optional parameters.
- * @param {?string} [options.compression] - See {@linkcode unpackText} for details.
- * @param {string} [options.delim] - Delimiter between fields.
- * @param {boolean} [options.firstOnly] - Whether to only read the first line, presumably containing the header.
+ * @param {string|Uint8Array|SimpleFile|File} x - Contents of the file to be read.
+ * On Node.js, this may be a string containing a path to a file;
+ * on browsers, this may be a File object.
+ * @param {object} [options={}] - Optional parameters.
+ * @param {?string} [options.compression=null] - Compression of `buffer`, either `"gz"` or `"none"`.
+ * If `null`, it is determined automatically from the `buffer` header.
+ * @param {number} [options.chunkSize=65536] - Chunk size in bytes to use for file reading (if `x` is a file path) and decompression (if `compression="gz"`).
+ * Larger values improve speed at the cost of memory.
  *
- * @return {Array} Array of arrays where each entry corresponds to a line in `buffer` and contains the `delim`-separated fields.
- * If `firstOnly = true`, the output array only contains one element corresponding to the contents of the first line.
+ * @return {Array} Array of strings where each entry contains a line in `buffer`.
+ * The newline itself is not included in each string.
+ * @async 
  */
+export async function readLines2(x, { compression = null, chunkSize = 65536 } = {}) {
+    const dec = new TextDecoder;
+    let leftovers = [];
+    let lines = [];
+
+    let callback = (chunk) => {
+        let last = 0;
+        for (var i = 0; i < chunk.length; i++) {
+            if (chunk[i] == 10) { // i.e., ASCII newline.
+                let current = chunk.subarray(last, i);
+                if (leftovers.length) {
+                    leftovers.push(current);
+                    lines.push(merge_bytes(leftovers, dec));
+                    leftovers = [];
+                } else {
+                    lines.push(dec.decode(current));
+                }
+                last = i + 1; // skip past the newline.
+            }
+        }
+
+        if (last != chunk.length) {
+            leftovers.push(chunk.slice(last)); // copy to avoid problems with ownership as chunk gets deref'd.
+        }
+    };
+
+    await stream_callback(x, compression, chunkSize, callback);
+
+    if (leftovers.length) {
+        lines.push(merge_bytes(leftovers, dec));
+    }
+
+    return lines;    
+}
+
+// Soft-deprecated as of 1.1.0.
 export function readTable(buffer, { compression = null, delim = "\t", firstOnly = false } = {}) {
     let decoded = unpackText(buffer, { compression: compression });
     let res = ppp.parse(decoded, { delimiter: delim, preview: (firstOnly ? 1 : 0) });
@@ -140,6 +230,87 @@ export function readTable(buffer, { compression = null, delim = "\t", firstOnly 
     }
 
     return res.data;
+}
+
+/**
+ * Read a delimiter-separated table from a buffer, possibly with decompression.
+ * This assumes that newlines represent the end of each row of the table, i.e., there cannot be newlines inside quoted strings.
+ *
+ * @param {string|Uint8Array|SimpleFile|File} x - Contents of the file to be read.
+ * On Node.js, this may be a string containing a path to a file;
+ * on browsers, this may be a File object.
+ * @param {object} [options={}] - Optional parameters.
+ * @param {?string} [options.compression=null] - Compression of `buffer`, either `"gz"` or `"none"`.
+ * If `null`, it is determined automatically from the `buffer` header.
+ * @param {string} [options.delim="\t"] - Delimiter between fields.
+ * @param {number} [options.chunkSize=1048576] - Chunk size in bytes to use for file reading (if `x` is a path), parsing of rows, and decompression (if `compression="gz"`).
+ * Larger values improve speed at the cost of memory.
+ *
+ * @return {Array} Array of length equal to the number of lines in `buffer`.
+ * Each entry is an array of strings, containing the `delim`-separated fields for its corresponding line.
+ *
+ * @async
+ */
+export async function readTable2(x, { compression = null, delim = "\t", chunkSize = 1048576 } = {}) {
+    const dec = new TextDecoder;
+
+    let rows = [];
+    let parse = (str) => {
+        let out = ppp.parse(str, { delimiter: delim });
+        if (out.meta.aborted) {
+            let msg = "failed to parse delimited file";
+            for (const e of out.errors) {
+                msg += "; " + e.message;
+            }
+            throw new Error(msg);
+        }
+        for (const x of out.data) {
+            rows.push(x);
+        }
+    };
+
+    let leftovers = [];
+    let size_left = 0;
+    let callback = (chunk) => {
+        let last = 0;
+        for (var i = 0; i < chunk.length; i++) {
+            // We assume that all newlines are end-of-rows, i.e., there are no
+            // newlines inside quoted strings. Under this assumption, we can
+            // safely chunk the input stream based on newlines, parse each
+            // chunk, and then combine the parsing results together. To avoid
+            // too many parsing calls, we accumulate buffers until we hit 
+            // the chunkSize and then we decode + parse them altogether.
+            if (chunk[i] == 10 && (i - last) + size_left >= chunkSize) {
+                let current = chunk.subarray(last, i);
+                if (leftovers.length) {
+                    leftovers.push(current);
+                    parse(merge_bytes(leftovers, dec));
+                    leftovers = [];
+                } else {
+                    parse(dec.decode(current));
+                }
+                last = i + 1; // skip past the newline.
+                size_left = 0;
+            }
+        }
+
+        if (last != chunk.length) {
+            leftovers.push(chunk.slice(last)); // copy to avoid problems with ownership as chunk gets deref'd.
+            size_left += chunk.length - last;
+        }
+    };
+
+    await stream_callback(x, compression, chunkSize, callback);
+
+    if (leftovers.length) {
+        let combined = merge_bytes(leftovers, dec);
+        parse(combined);
+        if (combined[combined.length - 1] == "\n") { // guaranteed to have non-zero length, by virtue of how 'leftovers' is filled.
+            rows.pop();            
+        }
+    }
+
+    return rows;    
 }
 
 /**

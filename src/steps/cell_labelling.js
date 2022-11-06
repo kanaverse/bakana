@@ -127,7 +127,7 @@ export class CellLabellingState {
                     contents[1].buffer()  // label per sample
                 );
 
-                let gene_lines = rutils.readLines(contents[0].buffer(), { compression: "gz" }); // gene names
+                let gene_lines = await rutils.readLines2(contents[0].content(), { compression: "gz" }); // gene names
                 let ensembl = [];
                 let symbol = [];
                 gene_lines.forEach(x => {
@@ -136,7 +136,7 @@ export class CellLabellingState {
                     symbol.push(fields[1]);
                 });
 
-                let labels = rutils.readLines(contents[2].buffer(), { compression: "gz" }); // full label names
+                let labels = await rutils.readLines2(contents[2].content(), { compression: "gz" }); // full label names
                 all_loaded[name] = { 
                     "raw": loaded, 
                     "genes": {
