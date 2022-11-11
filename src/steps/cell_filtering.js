@@ -250,16 +250,19 @@ export class CellFilteringState {
      * @return {Object} An object containing:
      *
      * - `retained`: the number of cells retained after filtering out low-quality cells.
+     * - `discard`: a Uint8Array specifying the cells to be discarded.
+     *   Alternatively, this may be `null` if no quality control was requested.
      */
     summary() {
-        let remaining = 0;
+        let remaining = 0, discard_vec = null;
         if ("discard_buffer" in this.#cache) {
             this.#cache.discard_buffer.forEach(x => { remaining += (x == 0); });
+            discard_vec = this.#cache.discard_buffer.slice();
         } else {
             let available = this.#inputs.hasAvailable();
             remaining = this.#inputs.fetchCountMatrix(available[0]).numberOfColumns();
         }
-        return { "retained": remaining };
+        return { "retained": remaining, "discard": discard_vec};
     }
 
     /*************************
