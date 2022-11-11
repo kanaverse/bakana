@@ -59,6 +59,12 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         expect(idx[1]).toBeGreaterThan(last_filtered);
         expect(state.inputs.fetchCountMatrix().column(idx[0])).toEqual(state.cell_filtering.fetchFilteredMatrix().column(0));
         expect(state.inputs.fetchCountMatrix().column(idx[1])).toEqual(state.cell_filtering.fetchFilteredMatrix().column(last_filtered));
+
+        for (const metric of Object.keys(contents.quality_control.data.default)) { 
+            let metvec = state.cell_filtering.fetchFilteredQualityMetric(metric, "RNA");
+            expect(metvec instanceof Float64Array || metvec instanceof Int32Array).toBe(true);
+            expect(metvec.length).toEqual(contents.cell_filtering.retained);
+        }
     }
 
     // Markers.
