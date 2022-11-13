@@ -90,6 +90,13 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         expect(positive_total).toBeGreaterThan(0);
         expect(summ.thresholds.default.detected).toBeGreaterThan(0);
         expect(summ.thresholds.default.igg_total).toBeGreaterThan(0);
+
+        let retained = state.cell_filtering.summary().retained;
+        for (const metric of Object.keys(summ.data.default)) { 
+            let metvec = state.cell_filtering.fetchFilteredQualityMetric(metric, "ADT");
+            expect(metvec instanceof Float64Array || metvec instanceof Int32Array).toBe(true);
+            expect(metvec.length).toEqual(retained);
+        }
     }
 
     {

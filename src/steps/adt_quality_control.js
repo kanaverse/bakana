@@ -67,6 +67,30 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
         return output;
     }
 
+    /**
+     * Fetch one type of metric used for evaluating per-cell quality from the ADT count matrix.
+     *
+     * @param {string} metric - Type of statistic.
+     * This may be any of `"sums"`, `"detected"` or `"igg_total"`.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.unsafe=false] - Whether to return the view on the Wasm heap directly.
+     * By default, a copy is created.
+     *
+     * @return {Float64Array} Array of QC statistics for each cell in the dataset.
+     * If `unsafe = true`, this may be a view on the Wasm heap and may be invalidated on the next allocation.
+     */
+    fetchQualityMetric(metric, { unsafe = false } = {}) {
+        if (metric == "sums") {
+            return this.fetchSums({ unsafe });
+        } else if (metric == "detected") {
+            return this.#cache.metrics.detected({ copy: !unsafe });
+        } else if (metric == "igg_total") {
+            return this.#cache.metrics.subsetTotals(0, { copy: !unsafe });
+        } else {
+            throw new Error("unknown QC statistic '" + metric + "'");
+        }
+    }
+
     /***************************
      ******** Compute **********
      ***************************/

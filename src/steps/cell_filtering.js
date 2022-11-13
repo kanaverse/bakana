@@ -96,11 +96,30 @@ export class CellFilteringState {
     }
 
     /**
+     * Fetch the filtered quality control metrics.
+     *
+     * @param {string} metric - Type of quality metric.
+     * This may be `"sums"`, `"detected"` and `"proportion"` (for RNA) or `"igg_total"` (for ADT).
+     * @param {string} modality - Modality of interest, e.g., `"RNA"` or `"ADT"`.
+     *
+     * @return {TypedArray} Array of length equal to the number of cells after filtering, containing the metrics of interest.
+     */
+    fetchFilteredQualityMetric(metric, modality) {
+        let vec = this.#qc_states[modality].fetchQualityMetric(metric, { unsafe: true });
+        if ("discard_buffer" in this.#cache) {
+            var discard = this.#cache.discard_buffer.array();
+            return vec.filter((x, i) => !discard[i]);
+        } else {
+            return vec.slice(); // making a copy.
+        }
+    }
+
+    /**
      * Fetch an annotation for the cells remaining after QC filtering.
      *
      * @param {string} col - Name of the annotation field of interest.
      *
-     * @return {Array|TypedArray} Array of length equal to the number of filtered cells, containing the requested annotations.
+     * @return {Array|TypedArray} Array of length equal to the number of cells after filtering, containing the requested annotations.
      */
     fetchFilteredAnnotations(col) { 
         let vec = this.#inputs.fetchAnnotations(col);
