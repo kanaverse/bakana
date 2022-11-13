@@ -36,7 +36,7 @@ test("analysis works when we skip the QC steps", async () => {
     let ncells = state.inputs.fetchCountMatrix().numberOfColumns();
     expect(state.cell_filtering.fetchFilteredMatrix().numberOfColumns()).toBe(ncells);
 
-    let sums = state.inputs.fetchFilteredQualityMetric("sums", "RNA");
+    let sums = state.cell_filtering.fetchFilteredQualityMetric("sums", "RNA");
     expect(sums.length).toBe(ncells);
 
     const path = "TEST_state_qc-skip.h5";
