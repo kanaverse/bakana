@@ -35,6 +35,10 @@ export class NeighborIndexState {
      ******** Getters **********
      ***************************/
 
+    /**
+     * @return {BuildNeighborSearchIndexResults} Index for a nearest-neighbor search,
+     * available after running {@linkcode NeighborIndexState#compute compute}.
+     */
     fetchIndex() {
         if (!("raw" in this.#cache)) {
             this.#raw_compute(this.#parameters.approximate);
@@ -42,6 +46,9 @@ export class NeighborIndexState {
         return this.#cache.raw;
     }
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
@@ -82,20 +89,6 @@ export class NeighborIndexState {
         }
 
         return;
-    }
-
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return An empty object.
-     * This is just provided for consistency with the other classes.
-     */
-    summary() {
-        return {};
     }
 
     /*************************

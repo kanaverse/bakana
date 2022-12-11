@@ -58,26 +58,21 @@ export class CellFilteringState {
      ******** Getters **********
      ***************************/
 
-    hasAvailable(type) {
-        if ("matrix" in this.#cache) {
-            return this.#cache.matrix.has(type);
-        } else {
-            return this.#inputs.hasAvailable(type);
-        }
-    }
-
-    fetchFilteredMatrix({ type = "RNA" } = {}) {
+    /**
+     * @return {MultiMatrix} A MultiMatrix object containing the filtered and normalized matrices for all modalities,
+     * available after running {@linkcode CellFilteringState#compute compute}.
+     */
+    fetchFilteredMatrix() {
         if (!("matrix" in this.#cache)) {
             this.#raw_compute_matrix();
         }
-        return this.#cache.matrix.get(type);
+        return this.#cache.matrix;
     }
 
     /**
-     * Fetch the filtered vector of block assignments.
-     *
-     * @return An Int32WasmArray of length equal to the number of cells after filtering, containing the block assignment for each cell.
-     *
+     * @return {Int32WasmArray} Array of length equal to the number of cells after filtering, 
+     * containing the block assignment for each cell.
+     * This is available after running {@linkcode CellFilteringState#compute compute}.
      * Alternatively `null` if no blocks are present in the dataset.
      */
     fetchFilteredBlock() {
@@ -87,6 +82,12 @@ export class CellFilteringState {
         return this.#cache.block_buffer;
     }
 
+    /**
+     * @return {?Uint8WasmArray} Combined discard vector, i.e., an array of length equal to the number of cells in the dataset,
+     * indicating whether each cell should be removed.
+     * This is available after running {@linkcode CellFilteringState#compute compute}.
+     * Alternatively `null`, if no upstream filtering steps were performed.
+     */
     fetchDiscards() {
         if ("discard_buffer" in this.#cache) {
             return this.#cache.discard_buffer;
@@ -96,41 +97,26 @@ export class CellFilteringState {
     }
 
     /**
-     * Fetch the filtered quality control metrics.
+     * Apply the same filter to an array of data for each cell in the unfiltered dataset.
+     * Any calls to this method should be done after running {@linkcode CellFilteringState#compute compute}.
      *
-     * @param {string} metric - Type of quality metric.
-     * This may be `"sums"`, `"detected"` and `"proportion"` (for RNA) or `"igg_total"` (for ADT).
-     * @param {string} modality - Modality of interest, e.g., `"RNA"` or `"ADT"`.
-     *
-     * @return {TypedArray} Array of length equal to the number of cells after filtering, containing the metrics of interest.
+     * @param {Array|TypedArray} Any array-like object of length equal to the number of cells in the unfiltered dataset.
+     * 
+     * @return {Array|TypedArray} An array-like object of the same type as `x`,
+     * where all elements corresponding to low-quality cells have been discarded.
+     * This will have number of columns equal to that of {@linkcode CellFilteringState#fetchFilteredMatrix fetchFilteredMatrix}.
      */
-    fetchFilteredQualityMetric(metric, modality) {
-        let vec = this.#qc_states[modality].fetchQualityMetric(metric, { unsafe: true });
+    applyFilter(x) {
         if ("discard_buffer" in this.#cache) {
-            var discard = this.#cache.discard_buffer.array();
-            return vec.filter((x, i) => !discard[i]);
+            return x.filter((y, i) => !discard[i]);
         } else {
-            return vec.slice(); // making a copy.
+            return x.slice(); // making a copy.
         }
     }
 
     /**
-     * Fetch an annotation for the cells remaining after QC filtering.
-     *
-     * @param {string} col - Name of the annotation field of interest.
-     *
-     * @return {Array|TypedArray} Array of length equal to the number of cells after filtering, containing the requested annotations.
+     * @return {object} Object containing the parameters.
      */
-    fetchFilteredAnnotations(col) { 
-        let vec = this.#inputs.fetchAnnotations(col);
-        if ("discard_buffer" in this.#cache) {
-            var discard = this.#cache.discard_buffer.array();
-            return vec.filter((x, i) => !discard[i]);
-        } else {
-            return vec;
-        }
-    }
-
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
@@ -200,7 +186,7 @@ export class CellFilteringState {
 
             if (to_use.length > 0) {
                 let disc_buffer;
-                let first = this.#qc_states[to_use[0]].fetchDiscards();
+                let first = this.#qc_states[to_use[0]].fetchDiscards({ unsafe: "view" });
 
                 if (to_use.length > 1) {
                     // A discard signal in any modality causes the cell to be removed. 
@@ -209,7 +195,7 @@ export class CellFilteringState {
                     disc_arr.fill(0);
 
                     for (const u of to_use) {
-                        this.#qc_states[u].fetchDiscards().forEach((y, i) => { disc_arr[i] |= y; });
+                        this.#qc_states[u].fetchDiscards({ unsafe: "view" }).forEach((y, i) => { disc_arr[i] |= y; });
                     }
                 } else {
                     // If there's only one valid modality, we just create a view on it
@@ -245,7 +231,7 @@ export class CellFilteringState {
      * @return Entries of `indices` are replaced with indices to the pre-filtered matrix.
      */
     undoFiltering(indices) {
-        let discards = this.fetchDiscards();
+        let discards = this.fetchDiscards({ unsafe: "view" });
         if (discards !== null) {
             let keep = [];
             discards.forEach((x, i) => {
@@ -257,31 +243,6 @@ export class CellFilteringState {
                 indices[i] = keep[x];
             });
         } 
-    }
-
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return {Object} An object containing:
-     *
-     * - `retained`: the number of cells retained after filtering out low-quality cells.
-     * - `discard`: a Uint8Array specifying the cells to be discarded.
-     *   Alternatively, this may be `null` if no quality control was requested.
-     */
-    summary() {
-        let remaining = 0, discard_vec = null;
-        if ("discard_buffer" in this.#cache) {
-            this.#cache.discard_buffer.forEach(x => { remaining += (x == 0); });
-            discard_vec = this.#cache.discard_buffer.slice();
-        } else {
-            let available = this.#inputs.hasAvailable();
-            remaining = this.#inputs.fetchCountMatrix(available[0]).numberOfColumns();
-        }
-        return { "retained": remaining, "discard": discard_vec};
     }
 
     /*************************
@@ -335,7 +296,7 @@ export function unserialize(handle, inputs, qc_states) {
                 // and create a view on it so that our discard_buffer checks work properly.
                 // (v1 and earlier also implicitly falls in this category.)
                 let use_state = qc_states[to_use[0]];
-                cache.discard_buffer = use_state.fetchDiscards().view();
+                cache.discard_buffer = use_state.fetchDiscards({ unsafe: "view" }).view();
             } else if (to_use.length == 0) {
                 // No-op; we don't need to define discard_buffer.
                 ;

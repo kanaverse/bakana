@@ -125,23 +125,14 @@ export class CustomSelectionsState {
      ***************************/
 
     /**
-     * Fetch the marker results for a custom selection.
-     * 
      * @param {string} id - An identifier for the desired selection.
-     * @param {string} rank_type - Effect size to use for ranking markers.
-     * This should be one of `lfc`, `cohen`, `auc` or `delta_detected`.
      * @param {string} feat_type - The feature type of interest, usually `"RNA"` or `"ADT"`.
      *
-     * @return An object containing the marker statistics for the selection, sorted by the specified effect and summary size from `rank_type`.
-     * This contains:
-     * - `means`: a `Float64Array` of length equal to the number of genes, containing the mean expression within the selection.
-     * - `detected`: a `Float64Array` of length equal to the number of genes, containing the proportion of cells with detected expression inside the selection.
-     * - `lfc`: a `Float64Array` of length equal to the number of genes, containing the log-fold changes for the comparison between cells inside and outside the selection.
-     * - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
+     * @return {ScoreMarkersResults} Results of the marker detection for the desired features.
+     * All cells in the selection is denoted as group 1, while all cells outside of the selection are denoted as group 0.
      */
-    fetchResults(id, rank_type, feat_type) {
-        var current = this.#cache.results[id].raw[feat_type];
-        return markers.formatMarkerResults(current, 1, rank_type + "-mean"); 
+    fetchResults(id, feat_type) {
+        return this.#cache.results[id].raw[feat_type];
     }
 
     /**
@@ -179,6 +170,9 @@ export class CustomSelectionsState {
         return replacement;        
     }
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return {};
     }
@@ -308,20 +302,6 @@ export class CustomSelectionsState {
         var block = this.#filter.fetchFilteredBlock();
         var mat = this.#norm_states[feat_type].fetchNormalizedMatrix();
         return this.constructor.computeVersusCustom(left, right, rank_type, feat_type, mat, this.#parameters.selections, { cache: this.#cache, block: block });
-    }
-
-    /***************************
-     ******** Results **********
-     **************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return An empty object.
-     * This is returned for consistency with the other steps.
-     */
-    summary() {
-        return {};
     }
 
     /*************************

@@ -73,6 +73,9 @@ export class CellLabellingState {
      ******** Getters **********
      ***************************/
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         // Avoid any pass-by-reference activity.
         let out = { ...this.#parameters };
@@ -80,6 +83,35 @@ export class CellLabellingState {
             out[key] = out[key].slice();
         }
         return out;
+    }
+
+    /**
+     * @return {object} An object containing:
+     *
+     * - `per_reference`: an object where keys are the reference names and the values are arrays of strings.
+     *   Each array is of length equal to the number of clusters and contains the cell type classification for each cluster.
+     * - `integrated`: an array of length equal to the number of clusters.
+     *   Each element is a string specifying the name of the reference with the best label for each cluster.
+     *   Only available if multiple references are requested.
+     *
+     * This is available after running {@linkcode CellLabellingState#compute compute}.
+     *
+     * @async
+     */
+    async fetchResults() {
+        // No real need to clone these, they're string arrays
+        // so they can't be transferred anyway.
+        let perref = {};
+        for (const [key, val] of Object.entries(this.#cache.results)) {
+            perref[key] = await val;
+        }
+
+        let output = { "per_reference": perref };
+        if ("integrated_results" in this.#cache) {
+            output.integrated = await this.#cache.integrated_results;
+        }
+
+        return output;
     }
 
     /***************************
@@ -319,32 +351,6 @@ export class CellLabellingState {
      ******** Results **********
      ***************************/
 
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return A promise that resolves to an object containing:
-     *
-     * - `per_reference`: an object where keys are the reference names and the values are arrays of strings.
-     *   Each array is of length equal to the number of clusters and contains the cell type classification for each cluster.
-     * - `integrated`: an array of length equal to the number of clusters.
-     *   Each element is a string specifying the name of the reference with the best label for each cluster.
-     */
-    async summary() {
-        // No real need to clone these, they're string arrays
-        // so they can't be transferred anyway.
-        let perref = {};
-        for (const [key, val] of Object.entries(this.#cache.results)) {
-            perref[key] = await val;
-        }
-
-        let output = { "per_reference": perref };
-        if ("integrated_results" in this.#cache) {
-            output.integrated = await this.#cache.integrated_results;
-        }
-
-        return output;
-    }
-
     /*************************
      ******** Saving *********
      *************************/
@@ -360,7 +366,7 @@ export class CellLabellingState {
 
         {
             let rhandle = ghandle.createGroup("results");
-            let res = await this.summary();
+            let res = await this.fetchResults();
 
             let perhandle = rhandle.createGroup("per_reference");
             for (const [key, val] of Object.entries(res.per_reference)) {

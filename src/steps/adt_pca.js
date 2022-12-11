@@ -50,14 +50,22 @@ export class AdtPcaState extends putils.PcaStateBase {
         return this.#norm.valid();
     }
 
+    /**
+     * @return {?RunPCAResults} Results of the PCA on the normalized ADT matrix,
+     * available after running {@linkcode AdtPcaState#compute compute}.
+     * Alternatively `null`, if no ADTs are available.
+     */
     fetchPCs() {
         if (this.valid()) {
-            return putils.formatPCs(this.#cache.pcs);
+            return this.#cache.pcs;
         } else {
             return null;
         }
     }
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
@@ -103,28 +111,6 @@ export class AdtPcaState extends putils.PcaStateBase {
         };
     }
 
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return {?object}
-     * An object containing:
-     *
-     * - `var_exp`: a `Float64Array` of length equal to `num_pcs`, containing the proportion of variance explained for each successive PC.
-     *
-     * If there were no ADT features in the dataset, `null` is returned instead.
-     */
-    summary() {
-        if (this.valid()) {
-            return putils.formatSummary(this.#cache.pcs);
-        } else {
-            return null;
-        }
-    }
-
     /*************************
      ******** Saving *********
      *************************/
@@ -142,11 +128,17 @@ export class AdtPcaState extends putils.PcaStateBase {
             let rhandle = ghandle.createGroup("results");
 
             if (this.valid()) {
-                let ve = this.summary().var_exp;
-                rhandle.writeDataSet("var_exp", "Float64", null, ve);
-
                 let pcs = this.fetchPCs();
-                rhandle.writeDataSet("pcs", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
+                rhandle.writeDataSet(
+                    "pcs", 
+                    "Float64", 
+                    [pcs.numberOfCells(), pcs.numberOfPCs()], // remember, it's transposed.
+                    pcs.principalComponents({ copy: "view" })
+                ); 
+
+                let ve = pcs.varianceExplained();
+                ve.forEach((x, i) => { ve[i] = x/pcs.totalVariance(); });
+                rhandle.writeDataSet("var_exp", "Float64", null, ve);
             }
         }
     }

@@ -57,38 +57,33 @@ export class MarkerDetectionState {
      ***************************/
 
     /**
-     * Fetch the marker statistics for a given cluster.
-     *
-     * @param {number} group - An integer specifying the cluster of interest.
-     * This should be less than the value returned by {@linkcode MarkerDetectionState#numberOfGroups numberOfGroups}.
-     * @param {string} rank_type - Summarized effect size to use for ranking markers.
-     * This should follow the format of `<effect>-<summary>` where `<effect>` may be `lfc`, `cohen`, `auc` or `delta_detected`,
-     * and `<summary>` may be `min`, `mean` or `min-rank`.
      * @param {string} feat_type - The feature type of interest, usually `"RNA"` or `"ADT"`.
      *
-     * @return An object containing the marker statistics for the selection, sorted by the specified effect and summary size from `rank_type`.
-     * This contains:
-     *   - `means`: a `Float64Array` of length equal to the number of genes, containing the mean expression within the selection.
-     *   - `detected`: a `Float64Array` of length equal to the number of genes, containing the proportion of cells with detected expression inside the selection.
-     *   - `lfc`: a `Float64Array` of length equal to the number of genes, containing the log-fold changes for the comparison between cells inside and outside the selection.
-     *   - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
+     * @return {ScoreMarkersResults} Marker detection results for the given modality across all clusters,
+     * available after running {@linkcode MarkerDetectionResults#compute compute}.
      */
-    fetchGroupResults(group, rank_type, feat_type) {
-        return markers.formatMarkerResults(this.#cache.raw[feat_type], group, rank_type); 
+    fetchResults(feat_type) {
+        return this.#cache.raw[feat_type];
+    }
+
+    /**
+     * @return {Array} Array of names of the available modalities.
+     */
+    fetchModalities() {
+        return Object.keys(this.#cache.raw);
     }
 
     /** 
-     * @return The number of clusters for which markers were computed.
+     * @return {number} The number of clusters for which markers were computed.
      */
-    numberOfGroups() {
+    fetchNumberOfGroups() {
         let first = Object.values(this.#cache.raw)[0];
         return first.numberOfGroups();
     }
 
-    fetchGroupMeans(group, feat_type, { copy = true }) {
-        return this.#cache.raw[feat_type].means(group, { copy: copy });
-    }
-
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
@@ -220,20 +215,6 @@ export class MarkerDetectionState {
         var mat = this.#norm_states[feat_type].fetchNormalizedMatrix();
         var block = this.#filter.fetchFilteredBlock();
         return this.constructor.computeVersusCustom(left, right, rank_type, feat_type, mat, clusters, { cache: this.#cache, block: block });
-    }
-
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return An empty object.
-     * This is returned for consistency with the other steps.
-     */
-    summary() {
-        return {};
     }
 
     /*************************

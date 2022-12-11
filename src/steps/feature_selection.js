@@ -40,14 +40,26 @@ export class FeatureSelectionState {
      ******** Getters **********
      ***************************/
 
+    /**
+     * @return {ModelGeneVarResults} Variance modelling results,
+     * available after running {@linkcode FeatureSelectionState#compute compute}.
+     */
+    fetchResults() {
+        return this.#cache.results;
+    }
+
+    /**
+     * @return {Float64Array} Array of length equal to the number of genes,
+     * containing the sorted residuals after fitting a mean-dependent trend to the variances.
+     * Available after running {@linkcode FeatureSelectionState#compute compute}.
+     */
     fetchSortedResiduals() {
         return this.#cache.sorted_residuals;
     }
 
-    fetchResiduals({ unsafe = false } = {}) {
-        return this.#cache.results.residuals({ copy: !unsafe });
-    }
-
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference activity.
     }
@@ -82,33 +94,6 @@ export class FeatureSelectionState {
         }
 
         return;
-    }
-
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    #format_results({ copy = true } = {}) {
-        return {
-            "means": this.#cache.results.means({ copy: copy }),
-            "vars": this.#cache.results.variances({ copy: copy }),
-            "fitted": this.#cache.results.fitted({ copy: copy }),
-            "resids": this.#cache.results.residuals({copy: copy })
-        };
-    }
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return An object containing:
-     *
-     * - `means`: a Float64Array containing the mean log-expression for each gene.
-     * - `vars`: a Float64Array containing the variance in log-expression for each gene.
-     * - `fitted`: a Float64Array containing the fitted value of the mean-variance trend for each gene.
-     * - `resids`: a Float64Array containing the residuals from the mean-variance trend for each gene.
-     */
-    summary() {
-        return this.#format_results();
     }
 
     /*************************
