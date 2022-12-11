@@ -128,9 +128,10 @@ export class CellFilteringState {
     #raw_compute_matrix() {
         utils.freeCache(this.#cache.matrix);
         this.#cache.matrix = new scran.MultiMatrix;
-        let available = this.#inputs.listAvailableTypes();
-        for (const a of available) {
-            let src = this.#inputs.fetchCountMatrix({ type: a });
+
+        let inputs = this.#inputs.fetchCountMatrix();
+        for (const a of inputs.available()) {
+            let src = inputs.get(a);
 
             let sub;
             if ("discard_buffer" in this.#cache) {
@@ -149,7 +150,7 @@ export class CellFilteringState {
         let block = this.#inputs.fetchBlock();
         if (block !== null) {
             if ("discard_buffer" in this.#cache) {
-                // Filtering on the block. Might as well force a laod of the
+                // Filtering on the block. Might as well force a load of the
                 // matrix, it'll be needed once we have the blocks anyway.
                 let filtered_ncols = this.fetchFilteredMatrix().numberOfColumns();
                 let bcache = utils.allocateCachedArray(filtered_ncols, "Int32Array", this.#cache, "block_buffer");

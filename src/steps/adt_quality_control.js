@@ -44,7 +44,8 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
      ***************************/
 
     valid() {
-        return this.#inputs.hasAvailable(this.#parameters.target_matrix);
+        let input = this.#inputs.fetchCountMatrix();
+        return input.has(this.#parameters.target_matrix);
     }
 
     skipped() {
@@ -148,8 +149,8 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
                 // can re-run this step later via unskip_metrics = true.
                 delete this.#cache.metrics;
             } else {
-                var mat = this.#inputs.fetchCountMatrix({ type: this.#parameters.target_matrix });
-                var gene_info = this.#inputs.fetchGenes({ type: this.#parameters.target_matrix });
+                var mat = this.#inputs.fetchCountMatrix().get(this.#parameters.target_matrix);
+                var gene_info = this.#inputs.fetchFeatureAnnotations()[this.#parameters.target_matrix];
 
                 // Finding the prefix.
                 var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");

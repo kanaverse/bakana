@@ -347,10 +347,6 @@ export class CellLabellingState {
         return Promise.all(promises).then(x => null);
     }
 
-    /***************************
-     ******** Results **********
-     ***************************/
-
     /*************************
      ******** Saving *********
      *************************/
@@ -389,7 +385,7 @@ export class CellLabellingState {
 // Try to figure out the best feature identifiers to use,
 // based on the highest confidence annotation.
 function choose_features(inputs) {
-    let genes = inputs.fetchGenes("RNA");
+    let genes = inputs.fetchFeatureAnnotations()["RNA"];
 
     let best_feature = null;
     let best = null;

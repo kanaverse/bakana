@@ -50,7 +50,8 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
      ***************************/
 
     valid() {
-        return this.#filter.hasAvailable(this.#parameters.target_matrix);
+        let filtered = this.#filter.fetchFilteredMatrix();
+        return filtered.has(this.#parameters.target_matrix);
     }
 
     /**

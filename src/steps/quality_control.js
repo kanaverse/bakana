@@ -133,7 +133,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
 
                 // Finding the prefix.
                 // TODO: use the guessed features to narrow the Ensembl/symbol search.
-                var gene_info = this.#inputs.fetchGenes();
+                var gene_info = this.#inputs.fetchFeatureAnnotations()["RNA"];
                 var sub_arr = subsets.array();
                 for (const key of gene_info.columnNames()) {
                     let val = gene_info.column(key);
