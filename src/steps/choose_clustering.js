@@ -58,26 +58,6 @@ export class ChooseClusteringState {
         return { ...this.#parameters };
     }
 
-    /**
-     * Obtain the indices of all cells belonging to the specified cluster.
-     *
-     * @param {number} cluster - Identifier for the cluster of interest.
-     * This should be a number in the range of values defined by {@linkcode ChooseClusteringState#summary summary.clusters}.
-     *
-     * @return {Array} Array of indices for all cells belonging to `cluster`.
-     * Note that indices are relative to the filtered matrix - 
-     * use {@linkcode CellFilteringState#undoFiltering CellFilteringState.undoFiltering} to convert them to indices on the original dataset.
-     */
-    fetchClusterIndices(cluster) {
-        let keep = [];
-        this.fetchClusters().forEach((x, i) => {
-            if (x == cluster) {
-                keep.push(i);
-            }
-        });
-        return keep;
-    }
-
     /***************************
      ******** Compute **********
      ***************************/

@@ -238,6 +238,13 @@ export class InputsState {
      * @return Entries of `indices` are replaced with indices to the pre-subsetted matrix.
      */
     undoSubset(indices) {
+        let max_index = this.fetchCountMatrix().numberOfColumns();
+        for (const x of indices) {
+            if (x < 0 || x >= max_index) {
+                throw new Error("entries of 'indices' should be less than the number of cells in the dataset");
+            }
+        }
+
         // Setting the subset to null, if the parameter-level subset hasn't
         // been set yet. This is because we might get indirectly called via
         // setDirectSubset() before compute() has been run.

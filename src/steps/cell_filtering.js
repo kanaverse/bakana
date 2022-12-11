@@ -97,24 +97,6 @@ export class CellFilteringState {
     }
 
     /**
-     * Apply the same filter to an array of data for each cell in the unfiltered dataset.
-     * Any calls to this method should be done after running {@linkcode CellFilteringState#compute compute}.
-     *
-     * @param {Array|TypedArray} Any array-like object of length equal to the number of cells in the unfiltered dataset.
-     * 
-     * @return {Array|TypedArray} An array-like object of the same type as `x`,
-     * where all elements corresponding to low-quality cells have been discarded.
-     * This will have number of columns equal to that of {@linkcode CellFilteringState#fetchFilteredMatrix fetchFilteredMatrix}.
-     */
-    applyFilter(x) {
-        if ("discard_buffer" in this.#cache) {
-            return x.filter((y, i) => !discard[i]);
-        } else {
-            return x.slice(); // making a copy.
-        }
-    }
-
-    /**
      * @return {object} Object containing the parameters.
      */
     fetchParameters() {
@@ -222,18 +204,49 @@ export class CellFilteringState {
     }
 
     /**
+     * Apply the same filter to an array of data for each cell in the unfiltered dataset.
+     * Any calls to this method should be done after running {@linkcode CellFilteringState#compute compute}.
+     *
+     * @param {Array|TypedArray} Any array-like object of length equal to the number of cells in the unfiltered dataset.
+     * 
+     * @return {Array|TypedArray} An array-like object of the same type as `x`,
+     * where all elements corresponding to low-quality cells have been discarded.
+     * This will have number of columns equal to that of {@linkcode CellFilteringState#fetchFilteredMatrix fetchFilteredMatrix}.
+     */
+    applyFilter(x) {
+        let expect_len = this.#inputs.fetchCountMatrix().numberOfColumns();
+        if (expect_len != x.length) {
+            throw new Error("length of 'x' should be equal to the number of cells in the unfiltered dataset");
+        }
+
+        if (!("discard_buffer" in this.#cache)) {
+            return x.slice(); // making a copy.
+        } else {
+            let discard = this.#cache.discard_buffer.array();
+            return x.filter((y, i) => !discard[i]);
+        }
+    }
+
+    /**
      * Undo the effect of filtering on an array of indices.
-     * This is primarily useful for adjusting indices from downstream steps (e.g., {@linkcode CustomSelectionsState#fetchSelectionIndices CustomSelectionsState.fetchSelectionIndices})
+     * This is primarily useful for adjusting indices from downstream steps 
+     * (e.g., {@linkcode CustomSelectionsState#fetchSelectionIndices CustomSelectionsState.fetchSelectionIndices})
      * so that it can be used in {@linkcode subsetInputs}.
      *
      * @param {Array|TypedArray} indices - Array of column indices to the filtered matrix.
      * Note that this will be modified in-place.
      *
-     * @return Entries of `indices` are replaced with indices to the pre-filtered matrix.
+     * @return Entries of `indices` are replaced with indices to the unfiltered matrix.
      */
-    undoFiltering(indices) {
-        let discards = this.fetchDiscards({ unsafe: "view" });
-        if (discards !== null) {
+    undoFilter(indices) {
+        let max_index = this.#inputs.fetchFilteredMatrix().numberOfColumns();
+        for (const x of indices) {
+            if (x < 0 || x >= max_index) {
+                throw new Error("entries of 'indices' should be less than the number of cells in the filtered dataset");
+            }
+        }
+
+        if ('discard_buffer' in this.#cache) {
             let keep = [];
             discards.forEach((x, i) => {
                 if (x == 0) {
