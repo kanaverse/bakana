@@ -60,18 +60,10 @@ export class MarkerDetectionState {
      * @return {object} Marker detection results for the all modalities.
      * Each key is a modality name and each value is a ScoreMarkersResults object,
      * containing marker detection statistics for all clusters.
-     * This is available after running {@linkcode MarkerDetectionResults#compute compute}.
+     * This is available after running {@linkcode MarkerDetectionState#compute compute}.
      */
     fetchResults() {
         return this.#cache.raw;
-    }
-
-    /** 
-     * @return {number} The number of clusters for which markers were computed.
-     */
-    fetchNumberOfGroups() {
-        let first = Object.values(this.#cache.raw)[0];
-        return first.numberOfGroups();
     }
 
     /**
@@ -144,7 +136,7 @@ export class MarkerDetectionState {
      *
      * @return An object containing the marker statistics, see {@linkcode MarkerDetectionState#computeVersus computeVersus} for more details.
      */
-    static computeVersusCustom(left, right, rank_type, feat_type, mat, clusters, { cache = {}, block = null } = {}) {
+    static computeVersusCustom(left, right, mat, clusters, { cache = {}, block = null } = {}) {
 
         let generate = (smal, bigg) => {
             let new_clusters = [];
@@ -203,10 +195,12 @@ export class MarkerDetectionState {
      * This has the same structure as described for {@linkcode MarkerDetectionState#fetchGroupResults fetchGroupResults}.
      */
     computeVersus(left, right, rank_type, feat_type) {
-        var clusters = this.#choice.fetchClustersAsWasmArray();
-        var mat = this.#norm_states[feat_type].fetchNormalizedMatrix();
+        var clusters = this.#choice.fetchClusters();
         var block = this.#filter.fetchFilteredBlock();
-        return this.constructor.computeVersusCustom(left, right, rank_type, feat_type, mat, clusters, { cache: this.#cache, block: block });
+
+        for (const [feat_type, mat] of Object.entries(this.#norm_states)) {
+            return this.constructor.computeVersusCustom(left, right, rank_type, feat_type, mat, clusters, { cache: this.#cache, block: block });
+        }
     }
 
     /*************************
@@ -248,19 +242,19 @@ class ScoreMarkersMimic {
         return utils.mimicGetter(chosen, copy);
     }
 
-    lfc(group, { summary, copy }) {
+    lfc(group, { summary = 1, copy = true } = {}) {
         return this.effect_grabber("lfc", group, summary, copy);
     }
 
-    deltaDetected(group, { summary, copy }) {
+    deltaDetected(group, { summary = 1, copy = true } = {}) {
         return this.effect_grabber("delta_detected", group, summary, copy);
     }
 
-    cohen(group, { summary, copy }) {
+    cohen(group, { summary = 1, copy = true } = {}) {
         return this.effect_grabber("cohen", group, summary, copy);
     }
 
-    auc(group, { summary, copy }) {
+    auc(group, { summary = 1, copy = true } = {}) {
         return this.effect_grabber("auc", group, summary, copy);
     }
 
@@ -269,11 +263,11 @@ class ScoreMarkersMimic {
         return utils.mimicGetter(chosen, copy);
     }
 
-    means(group, { copy }) {
+    means(group, { copy = true } = {}) {
         return this.stat_grabber("means", group, copy);
     }
 
-    detected(group, { copy }) {
+    detected(group, { copy = true } = {}) {
         return this.stat_grabber("detected", group, copy);
     }
 

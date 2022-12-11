@@ -7,14 +7,14 @@ beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 test("runAnalysis works correctly (MatrixMarket)", async () => {
-    let attempts = new Set();
+    let attempts = new Set;
     let started = step => {
         attempts.add(step);
     };
 
-    let contents = {};
-    let finished = (step, res) => {
-        contents[step] = res;
+    let completed = new Set;
+    let finished = (step) => {
+        completed.add(step);
     };
 
     let mtx_file = "files/datasets/pbmc3k-matrix.mtx.gz";
@@ -27,16 +27,18 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     let params = utils.baseParams();
     let res = await bakana.runAnalysis(state, files, params, { startFun: started, finishFun: finished });
 
+    // Check that the callbacks are actually called.
+    expect(attempts.has("quality_control")).toBe(true);
     expect(attempts.has("pca")).toBe(true);
-    expect(contents.pca instanceof Object).toBe(true);
-    expect(contents.feature_selection instanceof Object).toBe(true);
-    expect(contents.cell_labelling instanceof Object).toBe(true);
+    expect(completed.has("pca")).toBe(true);
+    expect(completed.has("feature_selection")).toBe(true);
+    expect(completed.has("cell_labelling")).toBe(true);
 
     // Input reorganization is done correctly.
     {
-        let loaded = state.inputs.fetchCountMatrix();
-        let loaded_names = state.inputs.fetchGenes().column("id");
-        let loaded_ids = state.inputs.fetchRowIds();
+        let loaded = state.inputs.fetchCountMatrix().get("RNA");
+        let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].column("id");
+        let loaded_ids = state.inputs.fetchRowIds()["RNA"];
 
         let simple = scran.initializeSparseMatrixFromMatrixMarket(mtx_file, { layered: false });
         let parsed = bakana.readTable((new bakana.SimpleFile(feat_file)).buffer(), { compression: "gz" });
@@ -48,85 +50,72 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 
     // Quality control.
     {
-        expect(attempts.has("quality_control")).toBe(true);
-        expect(contents.quality_control instanceof Object).toBe(true);
-        expect(contents.quality_control.thresholds.default.proportion).toBeGreaterThan(0);
-
         // Undoing the filtering works as expected.
-        let last_filtered = contents.cell_filtering.retained - 1;
+        let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
+        let last_filtered = nfiltered - 1;
         let idx = [0, last_filtered];
-        state.cell_filtering.undoFiltering(idx);
+        state.cell_filtering.undoFilter(idx);
         expect(idx[1]).toBeGreaterThan(last_filtered);
-        expect(state.inputs.fetchCountMatrix().column(idx[0])).toEqual(state.cell_filtering.fetchFilteredMatrix().column(0));
-        expect(state.inputs.fetchCountMatrix().column(idx[1])).toEqual(state.cell_filtering.fetchFilteredMatrix().column(last_filtered));
 
-        for (const metric of Object.keys(contents.quality_control.data.default)) { 
-            let metvec = state.cell_filtering.fetchFilteredQualityMetric(metric, "RNA");
-            expect(metvec instanceof Float64Array || metvec instanceof Int32Array).toBe(true);
-            expect(metvec.length).toEqual(contents.cell_filtering.retained);
-        }
+        let counts = state.inputs.fetchCountMatrix().get("RNA");
+        let filtered = state.cell_filtering.fetchFilteredMatrix().get("RNA");
+        expect(counts.column(idx[0])).toEqual(filtered.column(0));
+        expect(counts.column(idx[1])).toEqual(filtered.column(last_filtered));
+
+        // QC metrics are correctly computed.
+        let sumvec = state.quality_control.fetchMetrics().sums();
+        expect(sumvec instanceof Float64Array).toBe(true);
+        expect(sumvec.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
+
+        let refiltered = state.cell_filtering.applyFilter(sumvec);
+        expect(refiltered.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
     }
 
     // Markers.
     {
-        expect(contents.marker_detection instanceof Object).toBe(true);
-        expect(state.marker_detection.numberOfGroups()).toBeGreaterThan(0);
+        let res = state.marker_detection.fetchResults()["RNA"];
+        expect(res.numberOfGroups()).toBeGreaterThan(0);
 
-        let res = state.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
-        expect("ordering" in res).toBe(true);
-        expect("means" in res).toBe(true);
-        expect("lfc" in res).toBe(true);
+        let res0 = res.cohen(0);
+        expect(res0 instanceof Float64Array).toBe(true);
+        expect(res0.length).toEqual(state.inputs.fetchCountMatrix().get("RNA").numberOfRows());
     }
 
-    // In versus mode.
-    {
-        let vres = state.marker_detection.computeVersus(3, 0, "auc", "RNA");
-        expect("ordering" in vres).toBe(true);
-        expect("lfc" in vres).toBe(true);
-
-        let vres2 = state.marker_detection.computeVersus(0, 3, "auc", "RNA");
-        expect("ordering" in vres2).toBe(true);
-        expect("lfc" in vres2).toBe(true);
-
-        let lfcs = new Array(vres.lfc.length);
-        vres.ordering.forEach((x, i) => {
-            lfcs[x] = vres.lfc[i];
-        });
-
-        let lfcs2 = new Array(vres2.lfc.length);
-        vres2.ordering.forEach((x, i) => {
-            lfcs2[x] = -vres2.lfc[i];
-        });
-
-        expect(lfcs).toEqual(lfcs2);
-    }
-
-    // Normalized expression.
-    {
-        let exprs = state.normalization.fetchExpression(0);
-        let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
-        expect(exprs.length).toBe(nfiltered);
-    }
+//    // In versus mode.
+//    {
+//        let vres = state.marker_detection.computeVersus(3, 0, "auc", "RNA");
+//        expect("ordering" in vres).toBe(true);
+//        expect("lfc" in vres).toBe(true);
+//
+//        let vres2 = state.marker_detection.computeVersus(0, 3, "auc", "RNA");
+//        expect("ordering" in vres2).toBe(true);
+//        expect("lfc" in vres2).toBe(true);
+//
+//        let lfcs = new Array(vres.lfc.length);
+//        vres.ordering.forEach((x, i) => {
+//            lfcs[x] = vres.lfc[i];
+//        });
+//
+//        let lfcs2 = new Array(vres2.lfc.length);
+//        vres2.ordering.forEach((x, i) => {
+//            lfcs2[x] = -vres2.lfc[i];
+//        });
+//
+//        expect(lfcs).toEqual(lfcs2);
+//    }
 
     // Clustering.
     {
-        let filtered_cells = contents.cell_filtering.retained;
-        expect(contents.choose_clustering.clusters.length).toBe(filtered_cells);
-
-        let nclusters = (new Set(contents.choose_clustering.clusters)).size;
-        let expected = new Int32Array(filtered_cells);
-        for (var c = 0; c < nclusters; c++) {
-            let idx = state.choose_clustering.fetchClusterIndices(c);
-            idx.forEach(x => { expected[x] = c; });
-        }
-        expect(contents.choose_clustering.clusters).toEqual(expected);
+        let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
+        let clusters = state.choose_clustering.fetchClusters();
+        expect(clusters.length).toBe(nfiltered);
     }
 
     // ADTs are no-ops.
     {
-        expect(state.adt_quality_control.summary()).toBeNull();
-        expect(state.adt_normalization.summary()).toBeNull();
-        expect(state.adt_pca.summary()).toBeNull();
+        expect(state.adt_quality_control.fetchMetrics()).toBeNull();
+        expect(state.adt_normalization.fetchSizeFactors()).toBeNull();
+        expect(state.adt_pca.fetchPCs()).toBeNull();
     }
 
     // Animation catcher workers correctly.
@@ -174,15 +163,15 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         expect(old_keys).toEqual(new_keys);
 
         for (const step of old_keys) {
-            let qc_deets = reloaded[step].summary();
-            let ref = state[step].summary();
+            let qc_deets = reloaded[step].fetchParameters();
+            let ref = state[step].fetchParameters();
             expect(ref).toEqual(ref);
         }
 
         // Check that we still get some markers.
-        let reloaded_markers = reloaded.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
-        let ref_markers = reloaded.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
-        expect(reloaded_markers).toEqual(ref_markers);
+        let reloaded_markers = reloaded.marker_detection.fetchResults();
+        let ref_markers = state.marker_detection.fetchResults();
+        expect(reloaded_markers["RNA"].cohen(0)).toEqual(ref_markers["RNA"].cohen(0));
     }
 
     {
@@ -194,15 +183,19 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     }
 
     // Checking that the permutation is unchanged on reload.
-    let old_ids = state.inputs.summary()["genes"]["RNA"]["id"];
-    let new_ids = reloaded.inputs.summary()["genes"]["RNA"]["id"];
+    let old_ids = state.inputs.fetchRowIds()["RNA"];
+    let new_ids = reloaded.inputs.fetchRowIds()["RNA"];
     expect(old_ids.length).toBeGreaterThan(0);
     expect(old_ids).toEqual(new_ids);
 
-    let old_res = state.feature_selection.summary();
-    let new_res = reloaded.feature_selection.summary();
-    expect("means" in old_res).toBe(true);
-    expect(old_res["means"]).toEqual(new_res["means"]);
+    let old_ids2 = state.inputs.fetchFeatureAnnotations()["RNA"].column("id");
+    let new_ids2 = reloaded.inputs.fetchFeatureAnnotations()["RNA"].column("id");
+    expect(old_ids2.length).toBeGreaterThan(0);
+    expect(old_ids2).toEqual(new_ids2);
+
+    let old_fres = state.feature_selection.fetchResults();
+    let new_fres = reloaded.feature_selection.fetchResults();
+    expect(old_fres.means()).toEqual(new_fres.means());
 
     // Release me!
     await bakana.freeAnalysis(state);

@@ -136,19 +136,19 @@ class ModelGeneVarMimic {
         this.resids_ = resids;
     }
 
-    means({copy}) {
+    means({ copy = true } = {}) {
         return utils.mimicGetter(this.means_, copy);
     }
 
-    variances({copy}) {
+    variances({ copy = true } = {}) {
         return utils.mimicGetter(this.vars_, copy);
     }
 
-    fitted({copy}) {
+    fitted({ copy = true } = {}) {
         return utils.mimicGetter(this.fitted_, copy);
     }
 
-    residuals({copy}) {
+    residuals({ copy = true } = {}) {
         return utils.mimicGetter(this.resids_, copy);
     }
 

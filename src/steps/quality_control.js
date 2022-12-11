@@ -58,8 +58,9 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
     }
 
     /**
-     * @return {Uint8WasmArray} Buffer containing the discard vector of length equal to the number of cells,
+     * @return {?Uint8WasmArray} Buffer containing the discard vector of length equal to the number of cells,
      * where each element is truthy if the corresponding cell is to be discarded.
+     * Alternatively `null`, if QC is skipped.
      */
     fetchDiscards() {
         if (this.valid() && !this.skipped()) {
@@ -208,7 +209,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
                 let mhandle = rhandle.createGroup("metrics");
                 mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
                 mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
-                mhandle.writeDataSet("proportion", "Float64", null, this.#cache.subsetProportions(0, { copy: "view" }));
+                mhandle.writeDataSet("proportion", "Float64", null, this.#cache.metrics.subsetProportions(0, { copy: "view" }));
             }
 
             if ("filters" in this.#cache) { // if skip=true, thresholds may not be computed... but if they are, we save them anyway.

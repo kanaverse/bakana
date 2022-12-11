@@ -202,7 +202,7 @@ export class CombineEmbeddingsState {
 
         {
             let rhandle = ghandle.createGroup("results");
-            let pcs = this.fetchPCs();
+            let pcs = this.fetchCombined();
             if (pcs.owner === null) {
                 // If it's not a view, we save it; otherwise we assume
                 // that we can recover it from the upstream PCA states.

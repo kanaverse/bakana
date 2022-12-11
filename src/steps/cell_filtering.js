@@ -239,7 +239,7 @@ export class CellFilteringState {
      * @return Entries of `indices` are replaced with indices to the unfiltered matrix.
      */
     undoFilter(indices) {
-        let max_index = this.#inputs.fetchFilteredMatrix().numberOfColumns();
+        let max_index = this.fetchFilteredMatrix().numberOfColumns();
         for (const x of indices) {
             if (x < 0 || x >= max_index) {
                 throw new Error("entries of 'indices' should be less than the number of cells in the filtered dataset");
@@ -251,11 +251,12 @@ export class CellFilteringState {
         }
 
         let keep = [];
-        discards.forEach((x, i) => {
+        this.#cache.discard_buffer.forEach((x, i) => {
             if (x == 0) {
                 keep.push(i);
             }
         });
+
         indices.forEach((x, i) => {
             indices[i] = keep[x];
         });

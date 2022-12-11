@@ -133,12 +133,11 @@ export function freeAnalysis(state) {
  * @param {object} [options] - Optional parameters.
  * @param {function} [options.startFun] - Function that is called when each step is started.
  * This should accept a single argument - the name of the step.
- * The function may optionally be `async`.
+ * The return value is ignored, but any promises will be awaited before the analysis proceeds to the next step.
  * If `null`, nothing is executed.
  * @param {function} [options.finishFun] - Function that is called on successful execution of each step.
- * This should accept two arguments - the name of the step and an object containing the results of that step.
- * (The latter will be undefined if the step uses a previously cached result.)
- * The function may optionally be `async`.
+ * This should accept a single argument - the name of the step.
+ * The return value is ignored, but any promises will be awaited before the analysis proceeds to the next step.
  * If `null`, nothing is executed.
  * 
  * @return A promise that resolves to `null` when all asynchronous analysis steps are complete.
@@ -153,11 +152,7 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
 
     let quickFinish = async step => {
         if (finishFun !== null) {
-            if (state[step].changed) {
-                await finishFun(step, state[step]);
-            } else {
-                await finishFun(step);
-            }
+            await finishFun(step);
         }
     }
 
@@ -443,7 +438,7 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     let handle = new scran.H5File(path);
     let quickFun = async step => {
         if (finishFun !== null) {
-            await finishFun(step, state[step]);
+            await finishFun(step);
         }
     }
 
