@@ -246,17 +246,19 @@ export class CellFilteringState {
             }
         }
 
-        if ('discard_buffer' in this.#cache) {
-            let keep = [];
-            discards.forEach((x, i) => {
-                if (x == 0) {
-                    keep.push(i);
-                }
-            });
-            indices.forEach((x, i) => {
-                indices[i] = keep[x];
-            });
-        } 
+        if (!('discard_buffer' in this.#cache)) {
+            return;
+        }
+
+        let keep = [];
+        discards.forEach((x, i) => {
+            if (x == 0) {
+                keep.push(i);
+            }
+        });
+        indices.forEach((x, i) => {
+            indices[i] = keep[x];
+        });
     }
 
     /*************************

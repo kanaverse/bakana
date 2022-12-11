@@ -124,7 +124,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
                 // can re-run this step later via unskip_metrics = true.
                 delete this.#cache.metrics;
             } else {
-                var mat = this.#inputs.fetchCountMatrix();
+                var mat = this.#inputs.fetchCountMatrix().get("RNA");
 
                 // TODO: add more choices.
                 var nsubsets = 1;

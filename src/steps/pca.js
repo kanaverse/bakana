@@ -169,7 +169,7 @@ function choose_hvgs(num_hvgs, feat, cache) {
 
     if (num_hvgs < sorted_resids.length) {
         var threshold_at = sorted_resids[sorted_resids.length - num_hvgs];
-        var unsorted_resids = feat.fetchResults.residuals({ copy: false });
+        var unsorted_resids = feat.fetchResults().residuals({ copy: false });
         sub.array().forEach((element, index, array) => {
             array[index] = unsorted_resids[index] >= threshold_at;
         });

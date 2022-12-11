@@ -55,14 +55,14 @@ export class BatchCorrectionState {
      * @return {number} Number of cells in {@linkcode BatchCorrectionState#fetchCorrected fetchCorrected}.
      */
     fetchNumberOfCells() {
-        return this.#combined.numberOfCells();
+        return this.#combined.fetchNumberOfCells();
     }
 
     /**
      * @return {number} Number of dimensions in {@linkcode BatchCorrectionState#fetchCorrected fetchCorrected}.
      */
     fetchNumberOfDimensions() {
-        return this.#combined.numberOfDimensions();
+        return this.#combined.fetchNumberOfDimensions();
     }
 
     /**
@@ -114,8 +114,7 @@ export class BatchCorrectionState {
             // changes in parameters, because they won't have any effect.
             if (!needs_correction) {
                 utils.freeCache(this.#cache.corrected);
-                let upstream = this.#combined.fetchCombined();
-                this.#cache.corrected = upstream.pcs.view();
+                this.#cache.corrected = this.#combined.fetchCombined().view();
             }
         }
 

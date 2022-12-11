@@ -57,20 +57,13 @@ export class MarkerDetectionState {
      ***************************/
 
     /**
-     * @param {string} feat_type - The feature type of interest, usually `"RNA"` or `"ADT"`.
-     *
-     * @return {ScoreMarkersResults} Marker detection results for the given modality across all clusters,
-     * available after running {@linkcode MarkerDetectionResults#compute compute}.
+     * @return {object} Marker detection results for the all modalities.
+     * Each key is a modality name and each value is a ScoreMarkersResults object,
+     * containing marker detection statistics for all clusters.
+     * This is available after running {@linkcode MarkerDetectionResults#compute compute}.
      */
-    fetchResults(feat_type) {
-        return this.#cache.raw[feat_type];
-    }
-
-    /**
-     * @return {Array} Array of names of the available modalities.
-     */
-    fetchModalities() {
-        return Object.keys(this.#cache.raw);
+    fetchResults() {
+        return this.#cache.raw;
     }
 
     /** 
@@ -107,7 +100,7 @@ export class MarkerDetectionState {
 
             if (v.changed || this.#choice.changed) {
                 var mat = v.fetchNormalizedMatrix();
-                var clusters = this.#choice.fetchClustersAsWasmArray();
+                var clusters = this.#choice.fetchClusters();
                 var block = this.#filter.fetchFilteredBlock();
                 
                 utils.freeCache(this.#cache.raw[k]);
@@ -204,7 +197,6 @@ export class MarkerDetectionState {
      * @param {string} rank_type - Effect size to use for ranking markers.
      * This should be one of `lfc`, `cohen`, `auc` or `delta_detected`.
      *
-     * Unlike {@linkcode MarkerDetectionState#fetchGroupResults fetchGroupResults}, the summary does not need to be specified here as all summaries are the same for pairwise comparisons.
      * @param {string} feat_type - The feature type of interest, usually `"RNA"` or `"ADT"`.
      *
      * @return An object containing the marker statistics for this pairwise comparison, sorted by the specified effect from `rank_type`.

@@ -64,8 +64,11 @@ export class NeighborIndexState {
     }
 
     #raw_compute(approximate) {
-        var pcs = this.#correct.fetchPCs();
-        this.#cache.raw = scran.buildNeighborSearchIndex(pcs.pcs, { approximate: approximate, numberOfDims: pcs.num_pcs, numberOfCells: pcs.num_obs });
+        this.#cache.raw = scran.buildNeighborSearchIndex(this.#correct.fetchCorrected(), { 
+            approximate: approximate, 
+            numberOfDims: this.#correct.fetchNumberOfDimensions(),
+            numberOfCells: this.#correct.fetchNumberOfCells()
+        });
         return;
     }
 
