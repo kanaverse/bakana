@@ -137,34 +137,31 @@ export function formatMarkerResults(results, group, rankEffect) {
     };
 }
 
-export function generateVersusResults(left, right, rank_type, feat_type, cache, generate) {
-    if (!("versus" in cache)) {
-        cache.versus = {};
+export function locateVersusCache(left, right, cache) {
+    let left_small = left < right;
+
+    let bigg = (left_small ? right : left);
+    if (!(bigg in cache)) {
+        cache[bigg] = {};
     }
-    let versus = cache.versus;
+    let biggversus = cache[bigg];
 
-    let bigg = (left < right ? right : left);
-    let smal = (left < right ? left : right); 
-
-    if (!(bigg in versus)) {
-        versus[bigg] = {};
-    }
-    let biggversus = versus[bigg];
-
-    if (!(smal in biggversus)) {
+    let smal = (left_small ? left : right); 
+    let rerun = !(smal in biggversus);
+    if (rerun) {
         biggversus[smal] = {};
     }
-    let smalversus = biggversus[smal];
 
-    if (!(feat_type in smalversus)) {
-        smalversus[feat_type] = generate(smal, bigg);
-    }
-    return formatMarkerResults(smalversus[feat_type], (left < right ? 0 : 1), rank_type + "-mean"); 
+    return { 
+        cached: biggversus[smal],
+        run: rerun,
+        left_small: left_small
+    };
 }
 
 export function freeVersusResults(cache) {
-    if ("versus" in cache) {
-        for (const v of Object.values(cache.versus)) {
+    if (cache) {
+        for (const v of Object.values(cache)) {
             for (const v2 of Object.values(v)) {
                 for (const m of Object.values(v2)) {
                     scran.free(m);
@@ -175,14 +172,21 @@ export function freeVersusResults(cache) {
     }
 }
 
-export function dropUnusedBlocks(x) {
-    let counter = 0;
-    let mapping = {};
-    x.forEach((y, i) => {
-        if (!(y in mapping)) {
-            mapping[y] = counter;
-            counter++;
+export function computeVersusResults(matrices, clusters, block, keep, cache) {
+    let new_block = null;
+    if (block !== null) {
+        new_block = scran.subsetBlock(block, keep);
+        scran.dropUnusedBlocks(new_block);
+    }
+
+    for (const modality of matrices.available()) {
+        let modmat = matrices.get(modality);
+        let sub;
+        try {
+            sub = scran.subsetColumns(modmat, keep);
+            cache[modality] = scran.scoreMarkers(sub, clusters, { block: new_block });
+        } finally {
+            scran.free(sub);
         }
-        x[i] = mapping[y];
-    });
+    }
 }

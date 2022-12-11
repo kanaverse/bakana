@@ -50,7 +50,7 @@ export class CustomSelectionsState {
         for (const k of Object.keys(this.#cache.results)) {
             this.#liberate(k);
         }
-        markers.freeVersusResults(this.#cache);
+        markers.freeVersusResults(this.#cache.versus);
     }
 
     /***************************
@@ -126,13 +126,14 @@ export class CustomSelectionsState {
 
     /**
      * @param {string} id - An identifier for the desired selection.
-     * @param {string} feat_type - The feature type of interest, usually `"RNA"` or `"ADT"`.
      *
-     * @return {ScoreMarkersResults} Results of the marker detection for the desired features.
-     * All cells in the selection is denoted as group 1, while all cells outside of the selection are denoted as group 0.
+     * @return {object} Object containing the markers for the desired selection.
+     * Each key is a modality name while each value is a ScoreMarkersResults object,
+     * containing the marker detection results across all features of the corresponding modality.
+     * The set of cells in the selection is denoted as group 1, while all cells outside of the selection are denoted as group 0.
      */
     fetchResults(id, feat_type) {
-        return this.#cache.results[id].raw[feat_type];
+        return this.#cache.results[id].raw;
     }
 
     /**
@@ -223,85 +224,100 @@ export class CustomSelectionsState {
      * Compute markers between two selections as described for {@linkcode CustomSelectionsState#computeVersus computeVersus}, but for a custom matrix, clusters and cache.
      * This allows applications to run versus-mode comparisons on custom inputs without creating a CustomSelectionState object.
      *
-     * @param {string} left - Identifier of one selection in which to find upregulated markers.
+     * @param {string} left - Identifier of one selection.
      * @param {string} right - Identifier of another selection to be compared against `left`.
-     * Effect sizes are defined as `left - right`.
-     * @param {string} rank_type - Effect size to use for ranking markers.
-     * @param {string} feat_type - The feature type of interest, usually `"RNA"` or `"ADT"`.
-     * @param {ScranMatrix} mat - Matrix containing log-expression data for all cells.
-     * @param {object} selections - Object containing selections of cells as Arrays, TypedArrays or WasmArrays of column indices on `mat`.
-     * Each key should be a selection identifier.
+     * @param {MultiMatrix} matrices - A MultiMatrix object containing log-normalized matrices for each modality.
+     * @param {object} selections - Object containing selections of cells.
+     * Each key should be a selection identifier while each value is an Array, TypedArray or WasmArray.
+     * Each array should contain integer column indices on `matrices`.
      * @param {object} [options={}] - Optional parameters.
      * @param {object} [options.cache={}] - Cache for the results.
      * @param {?Int32WasmArray} [options.block=null] - Blocking factor of length equal to the number of cells in `mat`, 
      * see {@linkcode CellFilteringState#fetchFilteredBlock CellFilteringState.fetchFilteredBlock}.
      *
-     * @return An object containing the marker statistics for this pairwise comparison - see {@linkcode CustomSelectionsState#computeVersus computeVersus} for details.
+     * @return {object} Object containing:
+     *
+     * - `results`: object containing the marker statistics for the comparison between two clusters.
+     *    Each key is a modality name and each value is a ScoreMarkersResults object.
+     * - `left`: index of the group corresponding to the `left` selection in each ScoreMarkersResults object.
+     *    e.g., Cohen's d for the RNA markers of the `left` selection are defined as `output.results.RNA.cohen(output.left)`.
+     * - `right`: index of the group corresponding to the `right` selection in each ScoreMarkersResults object.
+     *    e.g., Cohen's d for the RNA markers of the `right` selection are defined as `output.results.RNA.cohen(output.right)`.
      */
-    static computeVersusCustom(left, right, rank_type, feat_type, mat, selections, { cache = {}, block = null } = {}) {
+    static computeVersusCustom(left, right, matrices, selections, { cache = {}, block = null } = {}) {
+        let cache_info = markers.locateVersusCache(left, right, cache);
+        let left_index = (cache_info.left_small ? 0 : 1);
+        let right_index = (cache_info.left_small ? 1 : 0);
 
-        let generate = (smal, bigg) => {
-            if (!(smal in selections && bigg in selections)) {
+        if (cache_info.run) {
+            if (!(left in selections && right in selections)) {
                 throw new Error("invalid selection ID requested in versus mode");
             }
 
-            let smalsel = selections[smal];
-            let biggsel = selections[bigg];
-            if (smalsel.length == 0 || biggsel.length == 0) {
+            let leftsel = selections[left];
+            let rightsel = selections[left];
+            if (leftsel.length == 0 || rightsel.length == 0) {
                 throw new Error("non-zero entries should be present for both requested selections in versus mode");
             }
 
             let triplets = [];
-            smalsel.forEach((x, i) => {
-                triplets.push({ "index": i, "cluster": 0 });
+            leftsel.forEach((x, i) => {
+                triplets.push({ "index": i, "cluster": left_index });
             });
-            biggsel.forEach((x, i) => {
-                triplets.push({ "index": i, "cluster": 1 });
+            rightsel.forEach((x, i) => {
+                triplets.push({ "index": i, "cluster": right_index });
             });
 
             triplets.sort((a, b) => a.index - b.index);
             let keep = triplets.map(x => x.index);
             let new_clusters = triplets.map(x => x.cluster);
 
-            let new_block = null;
-            if (block !== null) {
-                let block_arr = block.array();
-                new_block = keep.map(i => block_arr[i]);
-                markers.dropUnusedBlocks(new_block);
-            }
-
-            let output;
-            let sub;
-            try {
-                sub = scran.subsetColumns(mat, keep);
-                output = scran.scoreMarkers(sub, new_clusters, { block: new_block });
-            } finally {
-                utils.freeCache(sub);
-            }
-
-            return output;
+            markers.computeVersusResults(matrices, new_clusters, block, keep, cache_info.cached);
         }
 
-        return markers.generateVersusResults(left, right, rank_type, feat_type, cache, generate);
+        return { 
+            results: cache_info.cached,
+            left: left_index,
+            right: right_index
+        };
     }
 
     /**
-     * Extract markers for a pairwise comparison between two selections, for more detailed examination of the differences between them.
+     * Extract markers for a pairwise comparison between two selections, 
+     * for more detailed examination of the differences between them.
      *
      * @param {string} left - Identifier of one selection in which to find upregulated markers.
      * @param {string} right - Identifier of another selection to be compared against `left`.
-     * Effect sizes are defined as `left - right`.
-     * @param {string} rank_type - Effect size to use for ranking markers.
-     * This should be one of `lfc`, `cohen`, `auc` or `delta_detected`.
-     * @param {string} feat_type - The feature type of interest, usually `"RNA"` or `"ADT"`.
      *
-     * @return An object containing the marker statistics for this pairwise comparison, sorted by the specified effect from `rank_type`.
-     * This has the same structure as described for {@linkcode CustomSelectionsState#fetchResults fetchResults}.
+     * @return {object} Object containing:
+     *
+     * - `results`: object containing the marker statistics for the comparison between two clusters.
+     *    Each key is a modality name and each value is a ScoreMarkersResults object.
+     * - `left`: index of the group corresponding to the `left` selection in each ScoreMarkersResults object.
+     *    e.g., Cohen's d for the RNA markers of the `left` selection are defined as `output.results.RNA.cohen(output.left)`.
+     * - `right`: index of the group corresponding to the `right` selection in each ScoreMarkersResults object.
+     *    e.g., Cohen's d for the RNA markers of the `right` selection are defined as `output.results.RNA.cohen(output.right)`.
      */
     computeVersus(left, right, rank_type, feat_type) {
         var block = this.#filter.fetchFilteredBlock();
-        var mat = this.#norm_states[feat_type].fetchNormalizedMatrix();
-        return this.constructor.computeVersusCustom(left, right, rank_type, feat_type, mat, this.#parameters.selections, { cache: this.#cache, block: block });
+
+        // No need to free this afterwards; we don't own the normalized matrices anyway.
+        let matrices = new scran.MultiMatrix;
+        for (const [modality, state] of Object.entries(this.#norm_states)) {
+            let curmat = state.fetchNormalizedMatrix();
+            if (curmat !== null) {
+                matrices.add(modality, curmat);
+            }
+        }
+
+        if (!("versus" in this.#cache)) {
+            this.#cache["versus"] = {};
+        }
+
+        return this.constructor.computeVersusCustom(left, right, matrices, this.#parameters.selections, { 
+            cache: this.#cache.versus, 
+            block: block
+        });
     }
 
     /*************************

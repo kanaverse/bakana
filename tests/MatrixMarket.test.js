@@ -81,28 +81,20 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         expect(res0.length).toEqual(state.inputs.fetchCountMatrix().get("RNA").numberOfRows());
     }
 
-//    // In versus mode.
-//    {
-//        let vres = state.marker_detection.computeVersus(3, 0, "auc", "RNA");
-//        expect("ordering" in vres).toBe(true);
-//        expect("lfc" in vres).toBe(true);
-//
-//        let vres2 = state.marker_detection.computeVersus(0, 3, "auc", "RNA");
-//        expect("ordering" in vres2).toBe(true);
-//        expect("lfc" in vres2).toBe(true);
-//
-//        let lfcs = new Array(vres.lfc.length);
-//        vres.ordering.forEach((x, i) => {
-//            lfcs[x] = vres.lfc[i];
-//        });
-//
-//        let lfcs2 = new Array(vres2.lfc.length);
-//        vres2.ordering.forEach((x, i) => {
-//            lfcs2[x] = -vres2.lfc[i];
-//        });
-//
-//        expect(lfcs).toEqual(lfcs2);
-//    }
+    // In versus mode.
+    {
+        let vres = state.marker_detection.computeVersus(3, 0);
+        let lfcs = vres.results.RNA.lfc(vres.left);
+
+        let vres2 = state.marker_detection.computeVersus(0, 3);
+        let lfcs2 = vres2.results.RNA.lfc(vres2.left);
+
+        lfcs2.forEach((x, i) => {
+            lfcs2[i] *= -1;
+        });
+
+        expect(lfcs).toEqual(lfcs2);
+    }
 
     // Clustering.
     {
@@ -203,24 +195,18 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 })
 
 test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async () => {
-    let contents = {};
-    let finished = (step, res) => {
-        contents[step] = res;
-    };
-
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
     let res = await bakana.runAnalysis(state, 
         { 
             default: new bakana.TenxMatrixMarketDataset("files/datasets/pbmc3k-matrix.mtx.gz", null, null)
         },
-        params,
-        {
-            finishFun: finished,
-        }
+        params
     );
 
-    expect(contents.quality_control.thresholds.default.proportion).toBe(0);
+    // No annotations, so no mitochondrial proportions.
+    expect(state.inputs.fetchFeatureAnnotations()["RNA"].numberOfColumns()).toBe(0);
+    expect(state.quality_control.fetchFilters().thresholdsSubsetProportions()[0]).toBe(0);
 
     // Saving and loading.
     const path = "TEST_state_MatrixMarket.h5";
