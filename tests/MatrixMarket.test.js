@@ -48,82 +48,8 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         simple.matrix.free();
     }
 
-    // Quality control.
-    {
-        // Undoing the filtering works as expected.
-        let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
-        let last_filtered = nfiltered - 1;
-        let idx = [0, last_filtered];
-        state.cell_filtering.undoFilter(idx);
-        expect(idx[1]).toBeGreaterThan(last_filtered);
-
-        let counts = state.inputs.fetchCountMatrix().get("RNA");
-        let filtered = state.cell_filtering.fetchFilteredMatrix().get("RNA");
-        expect(counts.column(idx[0])).toEqual(filtered.column(0));
-        expect(counts.column(idx[1])).toEqual(filtered.column(last_filtered));
-
-        // QC metrics are correctly computed.
-        let sumvec = state.quality_control.fetchMetrics().sums();
-        expect(sumvec instanceof Float64Array).toBe(true);
-        expect(sumvec.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
-
-        let refiltered = state.cell_filtering.applyFilter(sumvec);
-        expect(refiltered.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
-    }
-
-    // Markers.
-    {
-        let res = state.marker_detection.fetchResults()["RNA"];
-        expect(res.numberOfGroups()).toBeGreaterThan(0);
-
-        let res0 = res.cohen(0);
-        expect(res0 instanceof Float64Array).toBe(true);
-        expect(res0.length).toEqual(state.inputs.fetchCountMatrix().get("RNA").numberOfRows());
-    }
-
-    // In versus mode.
-    {
-        let vres = state.marker_detection.computeVersus(3, 0);
-        let lfcs = vres.results.RNA.lfc(vres.left);
-
-        let vres2 = state.marker_detection.computeVersus(0, 3);
-        let lfcs2 = vres2.results.RNA.lfc(vres2.left);
-
-        lfcs2.forEach((x, i) => {
-            lfcs2[i] *= -1;
-        });
-
-        expect(lfcs).toEqual(lfcs2);
-    }
-
-    // Clustering.
-    {
-        let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
-        let clusters = state.choose_clustering.fetchClusters();
-        expect(clusters.length).toBe(nfiltered);
-    }
-
-    // ADTs are no-ops.
-    {
-        expect(state.adt_quality_control.fetchMetrics()).toBeNull();
-        expect(state.adt_normalization.fetchSizeFactors()).toBeNull();
-        expect(state.adt_pca.fetchPCs()).toBeNull();
-    }
-
-    // Animation catcher workers correctly.
-    {
-        let collected = { tsne: [], umap: [] }
-        let fun = bakana.setVisualizationAnimate((type, x, y, iterations) => {
-            collected[type].push(iterations);
-        });
-
-        let p = [state.tsne.animate(), state.umap.animate()];
-        await Promise.all(p);
-        bakana.setVisualizationAnimate(null)
-
-        expect(collected.tsne.length).toBeGreaterThan(0);
-        expect(collected.umap.length).toBeGreaterThan(0);
-    }
+    // Basic consistency checks.
+    await utils.checkStateResultsSimple(state);
 
     // Saving and loading.
     const path = "TEST_state_MatrixMarket.h5";
@@ -203,6 +129,9 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
         },
         params
     );
+
+    // Basic consistency checks.
+    await utils.checkStateResultsSimple(state);
 
     // No annotations, so no mitochondrial proportions.
     expect(state.inputs.fetchFeatureAnnotations()["RNA"].numberOfColumns()).toBe(0);

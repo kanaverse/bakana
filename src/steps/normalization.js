@@ -65,7 +65,7 @@ export class NormalizationState extends nutils.NormalizationStateBase {
      * containing the gene expression size factor for each cell.
      */
     fetchSizeFactors() {
-        return this.#cache.sf_buffer;
+        return this.#cache.sum_buffer;
     }
 
     /**
