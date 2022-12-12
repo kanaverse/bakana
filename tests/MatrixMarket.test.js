@@ -50,6 +50,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 
     // Basic consistency checks.
     await utils.checkStateResultsSimple(state);
+    utils.checkClusterVersusMode(state);
 
     // Saving and loading.
     const path = "TEST_state_MatrixMarket.h5";

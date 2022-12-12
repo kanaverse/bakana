@@ -150,7 +150,7 @@ export function checkReorganization(matrix, ids, names, loadedMatrix, loadedIds,
     }
 }
 
-export async function checkStateResultsBase(state, { mutable = true, mimic = false } = {}) {
+export async function checkStateResultsBase(state, { mimic = false } = {}) {
     // Inputs:
     {
         let counts = state.inputs.fetchCountMatrix();
@@ -319,27 +319,6 @@ export async function checkStateResultsBase(state, { mutable = true, mimic = fal
         let resN = res.auc(nclusters - 1);
         expect(resN instanceof Float64Array).toBe(true);
         expect(resN.length).toEqual(ngenes);
-    }
-
-    // Markers in versus mode:
-    if (mutable) {
-        let vres = state.marker_detection.computeVersus(nclusters - 1, 0);
-        if (!mimic) {
-            expect(vres.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
-        }
-        let lfcs = vres.results.RNA.lfc(vres.left);
-
-        let vres2 = state.marker_detection.computeVersus(0, nclusters - 1);
-        if (!mimic) {
-            expect(vres2.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
-        }
-        expect(vres2.left).toBe(vres.right);
-
-        let lfcs2 = vres2.results.RNA.lfc(vres2.left);
-        lfcs2.forEach((x, i) => {
-            lfcs2[i] *= -1;
-        });
-        expect(lfcs).toEqual(lfcs2);
     }
 
     return;
@@ -697,4 +676,36 @@ export async function compareStates(left, right) {
     }
 
     return;
+}
+
+export function checkClusterVersusMode(state) {
+    let nclusters = (new Set(state.choose_clustering.fetchClusters().array())).size;
+
+    let vres = state.marker_detection.computeVersus(nclusters - 1, 0);
+    expect(vres.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
+    let lfcs = vres.results.RNA.lfc(vres.left);
+
+    let vres2 = state.marker_detection.computeVersus(0, nclusters - 1);
+    expect(vres2.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
+    expect(vres2.left).toBe(vres.right);
+
+    let lfcs2 = vres2.results.RNA.lfc(vres2.left);
+    lfcs2.forEach((x, i) => {
+        lfcs2[i] *= -1;
+    });
+    expect(lfcs).toEqual(lfcs2);
+
+    return vres;
+}
+
+export function launchCustomSelections(state) {
+    let ncells = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
+    state.custom_selections.addSelection("first", [0,1,2,3,4]);
+    state.custom_selections.addSelection("last", [ncells - 5, ncells - 4, ncells - 3, ncells - 2, ncells - 1]);
+
+    return {
+        first: state.custom_selections.fetchResults("first"),
+        last: state.custom_selections.fetchResults("last", "cohen", "RNA"),
+        versus: state.custom_selections.computeVersus("last", "first")
+    };
 }

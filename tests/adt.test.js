@@ -54,6 +54,14 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 
     await utils.checkStateResultsAdt(state);
 
+    let vres = utils.checkClusterVersusMode(state);
+    expect(vres.results.ADT.numberOfGroups()).toEqual(vres.results.RNA.numberOfGroups());
+
+    let custom = utils.launchCustomSelections(state);
+    expect(custom.first.ADT.numberOfGroups()).toEqual(custom.first.RNA.numberOfGroups());
+    expect(custom.last.ADT.numberOfGroups()).toEqual(custom.last.RNA.numberOfGroups());
+    expect(custom.versus.results.ADT.numberOfGroups()).toEqual(custom.versus.results.RNA.numberOfGroups());
+
     // Saving and loading.
     const path = "TEST_state_adt.h5";
     let collected = await bakana.saveAnalysis(state, path);
@@ -152,6 +160,15 @@ test("runAnalysis works for ADTs with blocking", async () => {
 
     await utils.checkStateResultsAdt(state);
     await utils.checkStateResultsBatched(state, { skipBasic: true });
+
+    let vres = utils.checkClusterVersusMode(state);
+    expect(vres.results.RNA.numberOfBlocks()).toEqual(nblocks);
+    expect(vres.results.ADT.numberOfBlocks()).toEqual(nblocks);
+
+    let custom = utils.launchCustomSelections(state);
+    expect(custom.first.ADT.numberOfBlocks()).toEqual(nblocks);
+    expect(custom.last.ADT.numberOfBlocks()).toEqual(nblocks);
+    expect(custom.versus.results.ADT.numberOfBlocks()).toBeGreaterThan(1); // as subset might not actually have all 3 blocks.
 
     // Check that multiple ADT-related QC thresholds exist.
     {

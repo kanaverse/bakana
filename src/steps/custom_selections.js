@@ -86,7 +86,7 @@ export class CustomSelectionsState {
             let v = this.#norm_states[k];
             if (v.valid()) {
                 let mat = v.fetchNormalizedMatrix();
-                res[k] = scran.scoreMarkers(mat, buffer); 
+                res[k] = scran.scoreMarkers(mat, buffer, { block: this.#filter.fetchFilteredBlock() }); 
             }
         }
               
@@ -255,17 +255,17 @@ export class CustomSelectionsState {
             }
 
             let leftsel = selections[left];
-            let rightsel = selections[left];
+            let rightsel = selections[right];
             if (leftsel.length == 0 || rightsel.length == 0) {
                 throw new Error("non-zero entries should be present for both requested selections in versus mode");
             }
 
             let triplets = [];
-            leftsel.forEach((x, i) => {
-                triplets.push({ "index": i, "cluster": left_index });
+            leftsel.forEach(x => {
+                triplets.push({ "index": x, "cluster": left_index });
             });
-            rightsel.forEach((x, i) => {
-                triplets.push({ "index": i, "cluster": right_index });
+            rightsel.forEach(x => {
+                triplets.push({ "index": x, "cluster": right_index });
             });
 
             triplets.sort((a, b) => a.index - b.index);

@@ -19,7 +19,7 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     expect(res.RNA instanceof scran.ScoreMarkersResults).toBe(true);
 
     state.custom_selections.addSelection("odds", [1,3,5,7,9]);
-    let res2 = state.custom_selections.fetchResults("odds", "cohen", "RNA");
+    let res2 = state.custom_selections.fetchResults("odds");
     expect(res2.RNA instanceof scran.ScoreMarkersResults).toBe(true);
 
     expect(state.custom_selections.fetchSelectionIndices("evens")).toEqual([0,2,4,6,8]);
@@ -69,8 +69,11 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     let new_params = bakana.retrieveParameters(reloaded);
     expect(new_params.custom_selections).toEqual({});
     expect(state.custom_selections.fetchSelectionIndices("evens")).toEqual([0,2,4,6,8]);
-    let reres = reloaded.custom_selections.fetchResults("evens", "cohen", "RNA");
-    expect(reres.ordering).toEqual(res.ordering);
+
+    let reres = reloaded.custom_selections.fetchResults("evens");
+    expect(reres.cohen(1)).toEqual(res.cohen(1));
+    expect(reres.auc(0)).toEqual(res.auc(0));
+    expect(reres.means(0)).toEqual(res.means(0));
 
     await bakana.freeAnalysis(state);
     await bakana.freeAnalysis(reloaded);

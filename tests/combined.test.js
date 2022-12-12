@@ -54,6 +54,14 @@ test("multi-matrix analyses work correctly", async () => {
     await utils.checkStateResultsBatched(state);
     expect(state.inputs.fetchBlockLevels()).toEqual(["3K", "4K"]); 
 
+    let vres = utils.checkClusterVersusMode(state);
+    expect(vres.results.RNA.numberOfBlocks()).toEqual(2);
+
+    let customs = utils.launchCustomSelections(state);
+    expect(custom.first.RNA.numberOfBlocks()).toEqual(2);
+    expect(custom.last.RNA.numberOfBlocks()).toEqual(2);
+    expect(custom.versus.results.RNA.numberOfBlocks()).toEqual(2);
+
     // Saving and loading.
     const path = "TEST_state_multi-matrix.h5";
     let collected = await bakana.saveAnalysis(state, path);
