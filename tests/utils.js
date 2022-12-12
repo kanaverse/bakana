@@ -367,6 +367,11 @@ export async function checkStateResultsSimple(state) {
         expect(com.owner).toEqual({});
     }
 
+    // Marker detection has a single block.
+    {
+        expect(res.numberOfBlocks()).toBe(1);
+    }
+
     // ADTs are no-ops.
     {
         expect(state.adt_quality_control.fetchMetrics()).toBeUndefined();
@@ -375,6 +380,48 @@ export async function checkStateResultsSimple(state) {
     }
 
     return;
+}
+
+export async function checkStateResultsBatched(state) {
+    await checkStateResultsBase(state);
+
+    // Checking the non-NULL blocking factors.
+    let nlevels = state.inputs.fetchBlockLevels().length;
+    {
+        expect(nlevels).toBeGreaterThan(1);
+
+        let ids = state.inputs.fetchBlock();
+        let counts = {};
+        ids.forEach((x, i) => {
+            if (x in counts) {
+                counts[x] = 1;
+            } else {
+                counts[x]++;
+            }
+        });
+        expect(Object.keys(counts).length).toBe(nlevels);
+    }
+
+    // Check that multiple QC thresholds exist.
+    {
+        let res = state.quality_control.fetchFilters();
+        let props = res.thresholdsSubsetProportions(0);
+        expect(props.length).toEqual(nlevels);
+    }
+
+    // Check that some correction actually occured.
+    {
+        let corrected_pcs = state.batch_correction.fetchCorrected().slice();
+        let original_pcs = state.pca.fetchPCs().principalComponents();
+        expect(corrected_pcs.length).toEqual(original_pcs.length);
+        expect(corrected_pcs).not.toEqual(original_pcs);
+    }
+
+    // Checking that the marker results show up with multiple blocks.
+    {
+        let res = state.marker_detection.fetchResults();
+        expect(res["RNA"].numberOfBlocks()).toEqual(nlevels);
+    }
 }
 
 export async function compareStates(left, right) {

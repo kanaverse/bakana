@@ -316,6 +316,9 @@ export class InputsState {
         let new_cache = {};
         new_cache[RAW_SUBSET_OVERRIDE] = this.#configureIndices(indices, copy, onOriginal);
 
+        // Need to manually copy everything in 'this.#cache' that is set in
+        // load_and_cache or block_and_cache.
+
         // Making explicit clones to take ownership.
         new_cache.raw_matrix = this.#cache.raw_matrix.clone();
         for (const x of [ "multi_block_ids", "raw_block_ids" ]) {
