@@ -371,7 +371,8 @@ export async function checkStateResultsSimple(state, { skipBasic = false } = {})
 
     // Marker detection has a single block.
     {
-        expect(res.numberOfBlocks()).toBe(1);
+        let res = state.marker_detection.fetchResults();
+        expect(res.RNA.numberOfBlocks()).toBe(1);
     }
 
     // ADTs are no-ops.

@@ -18,7 +18,7 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
     let params = utils.baseParams();
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, files, params);
-    let ref_pca = state.pca.summary();
+    await utils.checkStateResultsSimple(state);
 
     const path = "TEST_kana_state.h5";
     let collected = await bakana.saveAnalysis(state, path);
@@ -42,9 +42,7 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
         let loader = await bakana.parseKanaFile(kpath, round_trip, { stageDir: tmp });
         utils.validateState(round_trip);
         let reloaded = await bakana.loadAnalysis(round_trip, loader);
-
-        // Checking that we got something that was reasonable.
-        expect(reloaded.pca.summary()).toEqual(ref_pca);
+        await utils.compareStates(state, reloaded);
 
         // Cleaning up.
         await bakana.freeAnalysis(reloaded);
@@ -62,9 +60,7 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
         let loader = await bakana.parseKanaFile(contents, round_trip);
         utils.validateState(round_trip);
         let reloaded = await bakana.loadAnalysis(round_trip, loader);
-
-        // Checking that we got something that was reasonable.
-        expect(reloaded.pca.summary()).toEqual(ref_pca);
+        await utils.compareStates(state, reloaded);
 
         // Cleaning up.
         await bakana.freeAnalysis(reloaded);
@@ -80,7 +76,7 @@ test("saving to and loading from a kana file works with links", async () => {
     let params = utils.baseParams();
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, files, params);
-    let ref_pca = state.pca.summary();
+    await utils.checkStateResultsSimple(state);
 
     // Links just re-use the file path for our Node tests, which is unique enough!
     let old_create = bakana.setCreateLink((format, file) => format + ":" + file.content());
@@ -102,9 +98,7 @@ test("saving to and loading from a kana file works with links", async () => {
     let loader = await bakana.parseKanaFile(kpath, round_trip);
     utils.validateState(round_trip, false);
     let reloaded = await bakana.loadAnalysis(round_trip, loader);
-
-    // Checking that we got something that was reasonable.
-    expect(reloaded.pca.summary()).toEqual(ref_pca);
+    await utils.compareStates(state, reloaded);
 
     // Reverting the linkers.
     bakana.setCreateLink(old_create);
