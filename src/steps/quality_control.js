@@ -58,16 +58,11 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
     }
 
     /**
-     * @return {?Uint8WasmArray} Buffer containing the discard vector of length equal to the number of cells,
+     * @return {Uint8WasmArray} Buffer containing the discard vector of length equal to the number of cells,
      * where each element is truthy if the corresponding cell is to be discarded.
-     * Alternatively `null`, if QC is skipped.
      */
     fetchDiscards() {
-        if (this.valid() && !this.skipped()) {
-            return this.#cache.filters.discardOverall({ copy: "view" });
-        } else {
-            return null;
-        }
+        return this.#cache.filters.discardOverall({ copy: "view" });
     }
 
     /**
@@ -218,8 +213,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
                 thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "hdf5" }));
                 thandle.writeDataSet("proportion", "Float64", null, this.#cache.filters.thresholdsSubsetProportions(0, { copy: "hdf5" }));
 
-                let disc = this.fetchDiscards();
-                rhandle.writeDataSet("discards", "Uint8", null, disc);
+                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.filters.discardOverall({ copy: "hdf5" }));
             }
         }
     }

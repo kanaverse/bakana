@@ -67,38 +67,25 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
      * Alternatively `null`, if no ADTs are available or if this step was skipped.
      */
     fetchFilters() {
-        if (this.valid() && !this.skipped()) {
-            return this.#cache.filters;
-        } else {
-            return null;
-        }
+        return this.#cache.filters;
     }
 
     /**
-     * @return {?Uint8WasmArray} Buffer containing the discard vector of length equal to the number of cells,
+     * @return {Uint8WasmArray} Buffer containing the discard vector of length equal to the number of cells,
      * where each element is truthy if the corresponding cell is to be discarded.
      * This is available after running {@linkcode AdtQualityControlState#compute compute}.
-     * Alternatively `null`, if no ADTs are available or if this step was skipped.
      */
     fetchDiscards() {
-        if (this.valid() && !this.skipped()) {
-            return this.#cache.filters.discardOverall({ copy: "view" });
-        } else {
-            return null;
-        }
+        return this.#cache.filters.discardOverall({ copy: "view" });
     }
 
     /**
-     * @return {?PerCellAdtQcMetricsResults} ADT-derived QC metrics,
+     * @return {PerCellAdtQcMetricsResults} ADT-derived QC metrics,
      * available after running {@linkcode AdtQualityControlState#compute compute}.
      * Alternatively `null`, if no ADTs are available or if this step was skipped.
      */
     fetchMetrics() {
-        if (this.valid() && !this.skipped()) {
-            return this.#cache.metrics;
-        } else {
-            return null;
-        }
+        return this.#cache.metrics;
     }
 
     /***************************
@@ -228,8 +215,7 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
                 thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "hdf5" }));
                 thandle.writeDataSet("igg_total", "Float64", null, this.#cache.filters.thresholdsSubsetTotals(0, { copy: "hdf5" }));
 
-                let disc = this.fetchDiscards();
-                rhandle.writeDataSet("discards", "Uint8", null, disc);
+                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.filters.discardOverall({ copy: "hdf5" }));
             }
         }
     }
