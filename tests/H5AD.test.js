@@ -28,6 +28,7 @@ test("runAnalysis works correctly (H5AD)", async () => {
         simple.matrix.free();
     }
 
+    // Basic checks.
     await utils.checkStateResultsSimple(state);
 
     // Annotations, with and without filtering.

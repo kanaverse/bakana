@@ -369,7 +369,7 @@ export async function checkStateResultsSimple(state) {
 
     // ADTs are no-ops.
     {
-        expect(state.adt_quality_control.fetchMetrics()).toBeNull();
+        expect(state.adt_quality_control.fetchMetrics()).toBeUndefined();
         expect(state.adt_normalization.fetchSizeFactors()).toBeNull();
         expect(state.adt_pca.fetchPCs()).toBeNull();
     }
