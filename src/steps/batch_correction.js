@@ -205,10 +205,12 @@ export function unserialize(handle, filter, combined) {
         let ghandle = handle.open("pca");
 
         let rhandle = ghandle.open("results");
-        if ("corrected" in rhandle) {
+        if ("corrected" in rhandle.children) {
             let corrected = rhandle.open("corrected", { load: true }).values;
             let corbuffer = utils.allocateCachedArray(corrected.length, "Float64Array", cache, "corrected");
             corbuffer.set(corrected);
+        } else {
+            cache.corrected = combined.fetchCombined().view();
         }
 
         output = new BatchCorrectionState(filter, combined, parameters, cache);

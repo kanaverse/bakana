@@ -245,8 +245,9 @@ export class MarkerDetectionState {
  **************************/
 
 class ScoreMarkersMimic {
-    constructor(clusters) {
+    constructor(clusters, nblocks) {
         this.clusters = clusters;
+        this.num_blocks = nblocks;
     }
 
     effect_grabber(key, group, summary, copy) {
@@ -288,6 +289,10 @@ class ScoreMarkersMimic {
         return Object.keys(this.clusters).length;
     }
 
+    numberOfBlocks() {
+        return this.num_blocks;
+    }
+
     free() {}
 }
 
@@ -297,6 +302,20 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
     // No parameters to unserialize.
     let parameters = {};
 
+    // Figure out the number of blocks.
+    let num_blocks = 1;
+    {
+        let filtered = filter.fetchFilteredBlock();
+        if (filtered != null) {
+            filtered.forEach(x => {
+                if (x + 1 > num_blocks) {
+                    num_blocks = x + 1;
+                }
+            });
+        }
+    }
+
+    // Set up the marker detection statistics.
     let cache = {};
     {
         let rhandle = ghandle.open("results");
@@ -308,7 +327,7 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
             for (const cl of Object.keys(chandle.children)) {
                 clusters[Number(cl)] = markers.unserializeGroupStats(chandle.open(cl), permuters["RNA"]);
             }
-            cache.raw = { RNA: new ScoreMarkersMimic(clusters) };
+            cache.raw = { RNA: new ScoreMarkersMimic(clusters, num_blocks) };
         } else {
             // after v2.0.
             let chandle = rhandle.open("per_cluster");
@@ -319,7 +338,7 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
                 for (const cl of Object.keys(ahandle.children)) {
                     clusters[Number(cl)] = markers.unserializeGroupStats(ahandle.open(cl), permuters[a]);
                 }
-                cache.raw[a] = new ScoreMarkersMimic(clusters);
+                cache.raw[a] = new ScoreMarkersMimic(clusters, num_blocks);
             }
         }
     }

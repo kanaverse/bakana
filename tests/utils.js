@@ -150,7 +150,7 @@ export function checkReorganization(matrix, ids, names, loadedMatrix, loadedIds,
     }
 }
 
-export async function checkStateResultsBase(state, { mutable = true } = {}) {
+export async function checkStateResultsBase(state, { mutable = true, mimic = false } = {}) {
     // Inputs:
     {
         let counts = state.inputs.fetchCountMatrix();
@@ -173,10 +173,14 @@ export async function checkStateResultsBase(state, { mutable = true } = {}) {
 
         let sumvec = metres.sums();
         expect(sumvec instanceof Float64Array).toBe(true);
-        expect(sumvec.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
+        let ncells = state.inputs.fetchCountMatrix().numberOfColumns();
+        expect(sumvec.length).toBe(ncells);
 
         let filtres = state.quality_control.fetchFilters();
-        expect(filtres instanceof scran.PerCellQCFiltersResults).toBe(true);
+        expect(filtres.discardOverall().length).toEqual(ncells);
+        if (!mimic) {
+            expect(filtres instanceof scran.PerCellQCFiltersResults).toBe(true);
+        }
     }
 
     let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
@@ -216,7 +220,9 @@ export async function checkStateResultsBase(state, { mutable = true } = {}) {
     // Feature selection:
     {
         let feats = state.feature_selection.fetchResults();
-        expect(feats instanceof scran.ModelGeneVarResults).toBe(true);
+        if (!mimic) {
+            expect(feats instanceof scran.ModelGeneVarResults).toBe(true);
+        }
 
         let resids = feats.residuals();
         expect(resids.length).toBe(ngenes);
@@ -229,7 +235,9 @@ export async function checkStateResultsBase(state, { mutable = true } = {}) {
     // PCA:
     {
         let pcs = state.pca.fetchPCs();
-        expect(pcs instanceof scran.RunPCAResults).toBe(true);
+        if (!mimic) {
+            expect(pcs instanceof scran.RunPCAResults).toBe(true);
+        }
         expect(pcs.numberOfCells()).toBe(nfiltered);
         expect(pcs.numberOfPCs()).toBe(state.pca.fetchParameters().num_pcs);
     }
@@ -316,11 +324,15 @@ export async function checkStateResultsBase(state, { mutable = true } = {}) {
     // Markers in versus mode:
     if (mutable) {
         let vres = state.marker_detection.computeVersus(nclusters - 1, 0);
-        expect(vres.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
+        if (!mimic) {
+            expect(vres.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
+        }
         let lfcs = vres.results.RNA.lfc(vres.left);
 
         let vres2 = state.marker_detection.computeVersus(0, nclusters - 1);
-        expect(vres2.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
+        if (!mimic) {
+            expect(vres2.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
+        }
         expect(vres2.left).toBe(vres.right);
 
         let lfcs2 = vres2.results.RNA.lfc(vres2.left);
@@ -333,9 +345,9 @@ export async function checkStateResultsBase(state, { mutable = true } = {}) {
     return;
 }
 
-export async function checkStateResultsSimple(state, { skipBasic = false } = {}) {
+export async function checkStateResultsSimple(state, { skipBasic = false, mimic = false } = {}) {
     if (!skipBasic) {
-        await checkStateResultsBase(state);
+        await checkStateResultsBase(state, { mimic: mimic });
     }
 
     // Inputs.
@@ -385,9 +397,9 @@ export async function checkStateResultsSimple(state, { skipBasic = false } = {})
     return;
 }
 
-export async function checkStateResultsBatched(state, { skipBasic = false } = {}) {
+export async function checkStateResultsBatched(state, { skipBasic = false, mimic = false } = {}) {
     if (!skipBasic) {
-        await checkStateResultsBase(state);
+        await checkStateResultsBase(state, { mimic: mimic });
     }
 
     // Checking the non-NULL blocking factors.
@@ -429,9 +441,9 @@ export async function checkStateResultsBatched(state, { skipBasic = false } = {}
     }
 }
 
-export async function checkStateResultsAdt(state, { skipBasic = false } = {}) {
+export async function checkStateResultsAdt(state, { skipBasic = false, mimic = false } = {}) {
     if (!skipBasic) {
-        await checkStateResultsBase(state);
+        await checkStateResultsBase(state, { mimic: mimic });
     }
 
     // Checking that ADTs exist.
