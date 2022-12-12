@@ -11,8 +11,8 @@ export function subsetSums(qc, filter, mat, cache, name) {
     // unsafe, so no more Wasm allocations past this point. Unfortunately, we
     // can't use copy: view here, because the sums in the QC state may not be a
     // WasmArray if it's a reloaded mimic, in which case a copy: view request
-    // would fail.
-    let sums = qc.fetchSums({ unsafe: true }); 
+    // would fail. Hence, copy: false.
+    let sums = qc.fetchMetrics().sums({ copy: false }); 
 
     if (discards == null) {
         output.set(sums);

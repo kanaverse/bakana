@@ -35,6 +35,10 @@ export class NeighborIndexState {
      ******** Getters **********
      ***************************/
 
+    /**
+     * @return {BuildNeighborSearchIndexResults} Index for a nearest-neighbor search,
+     * available after running {@linkcode NeighborIndexState#compute compute}.
+     */
     fetchIndex() {
         if (!("raw" in this.#cache)) {
             this.#raw_compute(this.#parameters.approximate);
@@ -42,6 +46,9 @@ export class NeighborIndexState {
         return this.#cache.raw;
     }
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
@@ -57,8 +64,11 @@ export class NeighborIndexState {
     }
 
     #raw_compute(approximate) {
-        var pcs = this.#correct.fetchPCs();
-        this.#cache.raw = scran.buildNeighborSearchIndex(pcs.pcs, { approximate: approximate, numberOfDims: pcs.num_pcs, numberOfCells: pcs.num_obs });
+        this.#cache.raw = scran.buildNeighborSearchIndex(this.#correct.fetchCorrected(), { 
+            approximate: approximate, 
+            numberOfDims: this.#correct.fetchNumberOfDimensions(),
+            numberOfCells: this.#correct.fetchNumberOfCells()
+        });
         return;
     }
 
@@ -82,20 +92,6 @@ export class NeighborIndexState {
         }
 
         return;
-    }
-
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return An empty object.
-     * This is just provided for consistency with the other classes.
-     */
-    summary() {
-        return {};
     }
 
     /*************************

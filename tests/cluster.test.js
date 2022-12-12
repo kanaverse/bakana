@@ -12,18 +12,9 @@ test("switching between clustering methods (SNN first)", async () => {
 
     // First running the analysis with SNN graph,
     // and confirming that only SNN graph results are reported.
-    let contents = {};
-    let finished = (step, res) => {
-        contents[step] = res;
-    };
-
     let state = await bakana.createAnalysis();
     let paramcopy = utils.baseParams();
-    await bakana.runAnalysis(state, files, paramcopy, { finishFun: finished });
-
-    expect(contents.pca instanceof Object).toBe(true);
-    expect(contents.snn_graph_cluster instanceof Object).toBe(true);
-    expect(contents.kmeans_cluster instanceof Object).toBe(true);
+    await bakana.runAnalysis(state, files, paramcopy);
 
     const path = "TEST_state_clusters.h5";
     await bakana.saveAnalysis(state, path);
@@ -43,12 +34,11 @@ test("switching between clustering methods (SNN first)", async () => {
     // results to be saved, as both clusterings are still valid.
     paramcopy.choose_clustering.method = "kmeans";
 
-    contents = {};
-    await bakana.runAnalysis(state, files, paramcopy, { finishFun: finished });
-    expect(contents.inputs).toBeUndefined();
-    expect(contents.pca).toBeUndefined();
-    expect(contents.snn_graph_cluster).toBeUndefined();
-    expect(contents.kmeans_cluster instanceof Object).toBe(true);
+    await bakana.runAnalysis(state, files, paramcopy);
+    expect(state.pca.changed).toBe(false);
+    expect(state.snn_graph_cluster.changed).toBe(false);
+    expect(state.kmeans_cluster.changed).toBe(true);
+    expect(state.choose_clustering.changed).toBe(true);
 
     await bakana.saveAnalysis(state, path);
     utils.validateState(path);
@@ -68,11 +58,11 @@ test("switching between clustering methods (SNN first)", async () => {
     // results, the SNN graph results don't get rerun and the results get wiped.
     paramcopy.snn_graph_cluster.resolution = 0.77;
 
-    contents = {};
-    await bakana.runAnalysis(state, files, paramcopy, { finishFun: finished });
-    expect(contents.snn_graph_cluster instanceof Object).toBe(true);
-    expect(contents.kmeans_cluster).toBeUndefined();
-    expect(contents.choose_clustering).toBeUndefined();
+    await bakana.runAnalysis(state, files, paramcopy);
+    expect(state.pca.changed).toBe(false);
+    expect(state.snn_graph_cluster.changed).toBe(true);
+    expect(state.kmeans_cluster.changed).toBe(false);
+    expect(state.choose_clustering.changed).toBe(false);
 
     await bakana.saveAnalysis(state, path);
     utils.validateState(path);
@@ -98,18 +88,13 @@ test("switching between clustering methods (k-means first)", async () => {
         default: new bakana.TenxMatrixMarketDataset("files/datasets/pbmc3k-matrix.mtx.gz", "files/datasets/pbmc3k-features.tsv.gz", null)
     };
 
-    let contents = {};
-    let finished = (step, res) => {
-        contents[step] = res;
-    };
-
     let state = await bakana.createAnalysis();
     let paramcopy = utils.baseParams();
     paramcopy.choose_clustering = { method: "kmeans" };
 
-    await bakana.runAnalysis(state, files, paramcopy, { finishFun: finished });
-    expect(contents.snn_graph_cluster instanceof Object).toBe(true);
-    expect(contents.kmeans_cluster instanceof Object).toBe(true);
+    await bakana.runAnalysis(state, files, paramcopy);
+    expect(state.snn_graph_cluster.changed).toBe(true);
+    expect(state.kmeans_cluster.changed).toBe(true);
 
     const path = "TEST_state_clusters.h5";
     await bakana.saveAnalysis(state, path);
@@ -127,11 +112,10 @@ test("switching between clustering methods (k-means first)", async () => {
 
     // Trying with a different clustering method.
     paramcopy.choose_clustering.method = "snn_graph"; 
-    contents = {};
-    await bakana.runAnalysis(state, files, paramcopy, { finishFun: finished });
 
-    expect(contents.kmeans_cluster).toBeUndefined();
-    expect(contents.snn_graph_cluster instanceof Object).toBe(true);
+    await bakana.runAnalysis(state, files, paramcopy);
+    expect(state.snn_graph_cluster.changed).toBe(true);
+    expect(state.kmeans_cluster.changed).toBe(false);
 
     await bakana.saveAnalysis(state, path);
     utils.validateState(path);
@@ -148,12 +132,10 @@ test("switching between clustering methods (k-means first)", async () => {
 
     // Checking that invalidation works.
     paramcopy.kmeans_cluster.k = 7;
-    contents = {};
-    await bakana.runAnalysis(state, files, paramcopy, { finishFun: finished });
 
-    expect(contents.kmeans_cluster instanceof Object).toBe(true);
-    expect(contents.snn_graph_cluster).toBeUndefined();
-    expect(contents.choose_clustering).toBeUndefined();
+    await bakana.runAnalysis(state, files, paramcopy);
+    expect(state.snn_graph_cluster.changed).toBe(false);
+    expect(state.kmeans_cluster.changed).toBe(true);
 
     await bakana.saveAnalysis(state, path);
     utils.validateState(path);

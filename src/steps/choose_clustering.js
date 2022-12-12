@@ -39,36 +39,23 @@ export class ChooseClusteringState {
      ******** Getters **********
      ***************************/
 
-    fetchClustersAsWasmArray() {
+    /**
+     * @return {Int32WasmArray} Array of cluster assignments for each cell in the (filtered) dataset,
+     * available after running {@linkcode ChooseClusteringState#compute compute}.
+     */
+    fetchClusters() {
         if (this.#parameters.method == "snn_graph") {
-            return this.#snn_cluster.fetchClustersAsWasmArray();
+            return this.#snn_cluster.fetchClusters();
         } else if (this.#parameters.method == "kmeans") {
-            return this.#kmeans_cluster.fetchClustersAsWasmArray();
+            return this.#kmeans_cluster.fetchClusters();
         }
     }
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters };
-    }
-
-    /**
-     * Obtain the indices of all cells belonging to the specified cluster.
-     *
-     * @param {number} cluster - Identifier for the cluster of interest.
-     * This should be a number in the range of values defined by {@linkcode ChooseClusteringState#summary summary.clusters}.
-     *
-     * @return {Array} Array of indices for all cells belonging to `cluster`.
-     * Note that indices are relative to the filtered matrix - 
-     * use {@linkcode CellFilteringState#undoFiltering CellFilteringState.undoFiltering} to convert them to indices on the original dataset.
-     */
-    fetchClusterIndices(cluster) {
-        let keep = [];
-        this.fetchClustersAsWasmArray().forEach((x, i) => {
-            if (x == cluster) {
-                keep.push(i);
-            }
-        });
-        return keep;
     }
 
     /***************************
@@ -100,23 +87,6 @@ export class ChooseClusteringState {
 
         this.#parameters.method = method;
         return;
-    }
-
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return An object containing:
-     *
-     * - `clusters`: an Int32Array of length equal to the number of cells (after QC filtering),
-     * containing the cluster assignment for each cell.
-     */
-    summary() {
-        var clusters = this.fetchClustersAsWasmArray();
-        return { "clusters": clusters.slice() };
     }
 
     /*************************

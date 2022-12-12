@@ -32,7 +32,11 @@ export class KmeansClusterState {
      ******** Getters **********
      ***************************/
 
-    fetchClustersAsWasmArray() {
+    /**
+     * @return {Int32WasmArray} Array of cluster assignments for each cell in the (filtered) dataset,
+     * available after running {@linkcode KmeansClusterState#compute compute}.
+     */
+    fetchClusters() {
         if (!this.#valid()) {
             throw new Error("cannot fetch k-means clusters from an invalid state");
         } else {
@@ -40,6 +44,9 @@ export class KmeansClusterState {
         }
     }
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters };
     };
@@ -69,8 +76,12 @@ export class KmeansClusterState {
             utils.freeCache(this.#cache.raw);
 
             if (run_me) {
-                var pcs = this.#correct.fetchPCs();
-                this.#cache.raw = scran.clusterKmeans(pcs.pcs, k, { numberOfDims: pcs.num_pcs, numberOfCells: pcs.num_obs, initMethod: "pca-part" });
+                var pcs = this.#correct.fetchCorrected();
+                this.#cache.raw = scran.clusterKmeans(pcs, k, { 
+                    numberOfDims: this.#correct.fetchNumberOfDimensions(),
+                    numberOfCells: this.#correct.fetchNumberOfCells(),
+                    initMethod: "pca-part" 
+                });
             } else {
                 delete this.#cache.raw; // ensure this step gets re-run later when run_me = true. 
             }
@@ -80,19 +91,6 @@ export class KmeansClusterState {
         }
 
         return;
-    }
-
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return An empty object, see {@linkplain ChooseClusteringState} for the actual cluster assignments.
-     */
-    summary() {
-        return {};
     }
 
     /*************************
@@ -110,7 +108,7 @@ export class KmeansClusterState {
         {
             let rhandle = ghandle.createGroup("results");
             if (this.#valid()) {
-                let clusters = this.fetchClustersAsWasmArray();
+                let clusters = this.fetchClusters();
                 rhandle.writeDataSet("clusters", "Int32", null, clusters);
              }
         }

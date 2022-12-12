@@ -73,6 +73,9 @@ export class CellLabellingState {
      ******** Getters **********
      ***************************/
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         // Avoid any pass-by-reference activity.
         let out = { ...this.#parameters };
@@ -80,6 +83,35 @@ export class CellLabellingState {
             out[key] = out[key].slice();
         }
         return out;
+    }
+
+    /**
+     * @return {object} An object containing:
+     *
+     * - `per_reference`: an object where keys are the reference names and the values are arrays of strings.
+     *   Each array is of length equal to the number of clusters and contains the cell type classification for each cluster.
+     * - `integrated`: an array of length equal to the number of clusters.
+     *   Each element is a string specifying the name of the reference with the best label for each cluster.
+     *   Only available if multiple references are requested.
+     *
+     * This is available after running {@linkcode CellLabellingState#compute compute}.
+     *
+     * @async
+     */
+    async fetchResults() {
+        // No real need to clone these, they're string arrays
+        // so they can't be transferred anyway.
+        let perref = {};
+        for (const [key, val] of Object.entries(this.#cache.results)) {
+            perref[key] = await val;
+        }
+
+        let output = { "per_reference": perref };
+        if ("integrated_results" in this.#cache) {
+            output.integrated = await this.#cache.integrated_results;
+        }
+
+        return output;
     }
 
     /***************************
@@ -238,13 +270,14 @@ export class CellLabellingState {
         let ngroups;
         if (this.#cache.features !== null) {
             ngenes = this.#cache.features.length;
-            ngroups = this.#markers.numberOfGroups(); 
+            let marker_results = this.#markers.fetchResults()["RNA"];
+            ngroups = marker_results.numberOfGroups();
 
             if (this.#markers.changed || typeof cluster_means === "undefined") {
                 cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", this.#cache);
 
                 for (var g = 0; g < ngroups; g++) {
-                    let means = this.#markers.fetchGroupMeans(g, "RNA", { copy: false }); // Warning: direct view in wasm space - be careful.
+                    let means = marker_results.means(g, { copy: false }); // Warning: direct view in wasm space - be careful.
                     let cluster_array = cluster_means.array();
                     cluster_array.set(means, g * ngenes);
                 }
@@ -315,36 +348,6 @@ export class CellLabellingState {
         return Promise.all(promises).then(x => null);
     }
 
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return A promise that resolves to an object containing:
-     *
-     * - `per_reference`: an object where keys are the reference names and the values are arrays of strings.
-     *   Each array is of length equal to the number of clusters and contains the cell type classification for each cluster.
-     * - `integrated`: an array of length equal to the number of clusters.
-     *   Each element is a string specifying the name of the reference with the best label for each cluster.
-     */
-    async summary() {
-        // No real need to clone these, they're string arrays
-        // so they can't be transferred anyway.
-        let perref = {};
-        for (const [key, val] of Object.entries(this.#cache.results)) {
-            perref[key] = await val;
-        }
-
-        let output = { "per_reference": perref };
-        if ("integrated_results" in this.#cache) {
-            output.integrated = await this.#cache.integrated_results;
-        }
-
-        return output;
-    }
-
     /*************************
      ******** Saving *********
      *************************/
@@ -360,7 +363,7 @@ export class CellLabellingState {
 
         {
             let rhandle = ghandle.createGroup("results");
-            let res = await this.summary();
+            let res = await this.fetchResults();
 
             let perhandle = rhandle.createGroup("per_reference");
             for (const [key, val] of Object.entries(res.per_reference)) {
@@ -383,7 +386,7 @@ export class CellLabellingState {
 // Try to figure out the best feature identifiers to use,
 // based on the highest confidence annotation.
 function choose_features(inputs) {
-    let genes = inputs.fetchGenes("RNA");
+    let genes = inputs.fetchFeatureAnnotations()["RNA"];
 
     let best_feature = null;
     let best = null;

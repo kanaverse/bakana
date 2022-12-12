@@ -44,23 +44,17 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
      ***************************/
 
     valid() {
-        return this.#inputs.hasAvailable(this.#parameters.target_matrix);
+        let input = this.#inputs.fetchCountMatrix();
+        return input.has(this.#parameters.target_matrix);
     }
 
     skipped() {
         return this.#parameters.skip;
     }
 
-    fetchSums({ unsafe = false } = {}) {
-        // Unsafe, because we're returning a raw view into the Wasm heap,
-        // which might be invalidated upon further allocations.
-        return this.#cache.metrics.sums({ copy: !unsafe });
-    }
-
-    fetchDiscards() {
-        return this.#cache.filters.discardOverall({ copy: "view" });
-    }
-
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         let output = { ...this.#parameters }; // avoid pass-by-reference links.
         delete output.target_matrix;
@@ -68,27 +62,30 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
     }
 
     /**
-     * Fetch one type of metric used for evaluating per-cell quality from the ADT count matrix.
-     *
-     * @param {string} metric - Type of statistic.
-     * This may be any of `"sums"`, `"detected"` or `"igg_total"`.
-     * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.unsafe=false] - Whether to return the view on the Wasm heap directly.
-     * By default, a copy is created.
-     *
-     * @return {Float64Array} Array of QC statistics for each cell in the dataset.
-     * If `unsafe = true`, this may be a view on the Wasm heap and may be invalidated on the next allocation.
+     * @return {?PerCellAdtQcFiltersResults} Result of filtering on the ADT-derived QC metrics.
+     * This is available after running {@linkcode AdtQualityControlState#compute compute}.
+     * Alternatively `null`, if no ADTs are available or if this step was skipped.
      */
-    fetchQualityMetric(metric, { unsafe = false } = {}) {
-        if (metric == "sums") {
-            return this.fetchSums({ unsafe });
-        } else if (metric == "detected") {
-            return this.#cache.metrics.detected({ copy: !unsafe });
-        } else if (metric == "igg_total") {
-            return this.#cache.metrics.subsetTotals(0, { copy: !unsafe });
-        } else {
-            throw new Error("unknown QC statistic '" + metric + "'");
-        }
+    fetchFilters() {
+        return this.#cache.filters;
+    }
+
+    /**
+     * @return {Uint8WasmArray} Buffer containing the discard vector of length equal to the number of cells,
+     * where each element is truthy if the corresponding cell is to be discarded.
+     * This is available after running {@linkcode AdtQualityControlState#compute compute}.
+     */
+    fetchDiscards() {
+        return this.#cache.filters.discardOverall({ copy: "view" });
+    }
+
+    /**
+     * @return {PerCellAdtQcMetricsResults} ADT-derived QC metrics,
+     * available after running {@linkcode AdtQualityControlState#compute compute}.
+     * Alternatively `null`, if no ADTs are available or if this step was skipped.
+     */
+    fetchMetrics() {
+        return this.#cache.metrics;
     }
 
     /***************************
@@ -139,8 +136,8 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
                 // can re-run this step later via unskip_metrics = true.
                 delete this.#cache.metrics;
             } else {
-                var mat = this.#inputs.fetchCountMatrix({ type: this.#parameters.target_matrix });
-                var gene_info = this.#inputs.fetchGenes({ type: this.#parameters.target_matrix });
+                var mat = this.#inputs.fetchCountMatrix().get(this.#parameters.target_matrix);
+                var gene_info = this.#inputs.fetchFeatureAnnotations()[this.#parameters.target_matrix];
 
                 // Finding the prefix.
                 var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
@@ -188,71 +185,6 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
         return;
     }
 
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    #format_metrics({ copy = true } = {}) {
-        return {
-            sums: this.#cache.metrics.sums({ copy: copy }),
-            detected: this.#cache.metrics.detected({ copy: copy }),
-            igg_total: this.#cache.metrics.subsetTotals(0, { copy: copy })
-        };
-    }
-
-    #format_thresholds({ copy = true } = {}) {
-        return {
-            detected: this.#cache.filters.thresholdsDetected({ copy: copy }),
-            igg_total: this.#cache.filters.thresholdsSubsetTotals(0, { copy: copy })
-        }
-    }
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return {?object} 
-     * If QC was not skipped, an object is returned containing:
-     *
-     * - `data`: an object containing one property for each sample.
-     *   Each property is itself an object containing `sums`, `detected` and `igg_total`,
-     *   which are TypedArrays containing the relevant QC metrics for all cells in that sample.
-     * - `thresholds`: an object containing one property for each sample.
-     *   Each property is itself an object containing `detected` and `igg_total`,
-     *   which are numbers containing the thresholds on the corresponding QC metrics for that sample.
-     * - `retained`: the number of cells remaining after QC filtering.
-     *
-     * Alternatively, `null` may be returned instead if there are no ADT features in the data,
-     * or if the QC was skipped (`skip = true` in {@linkcode AdtQualityControlState#compute compute}).
-     */
-    summary() {
-        if (!this.valid() || this.skipped()) {
-            return null;
-        }
-
-        var output = {};
-
-        var blocks = this.#inputs.fetchBlockLevels();
-        if (blocks === null) {
-            blocks = [ "default" ];
-            output.data = { default: this.#format_metrics() };
-        } else {
-            let metrics = this.#format_metrics({ copy: "view" });
-            let bids = this.#inputs.fetchBlock();
-            output.data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
-        }
-
-        let listed = this.#format_thresholds();
-        output.thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
-
-        // We don't use sums for filtering but we do report it in the metrics,
-        // so we just add some NaNs to the thresholds for consistency.
-        for (const [k, v] of Object.entries(output.thresholds)) {
-            v.sums = NaN;
-        }
-
-        return output;
-    }
-
     /*************************
      ******** Saving *********
      *************************/
@@ -273,22 +205,17 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
 
             if ("metrics" in this.#cache) { // if skip=true, metrics may not be computed... but if they are, we save them anyway.
                 let mhandle = rhandle.createGroup("metrics");
-                let data = this.#format_metrics({ copy: "view" });
-                mhandle.writeDataSet("sums", "Float64", null, data.sums)
-                mhandle.writeDataSet("detected", "Int32", null, data.detected);
-                mhandle.writeDataSet("igg_total", "Float64", null, data.igg_total);
+                mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
+                mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
+                mhandle.writeDataSet("igg_total", "Float64", null, this.#cache.metrics.subsetTotals(0, { copy: "view" }));
             }
 
             if ("filters" in this.#cache) { // if skip=true, thresholds may not be reported... but if they are, we save them anyway.
                 let thandle = rhandle.createGroup("thresholds");
-                let thresholds = this.#format_thresholds({ copy: "hdf5" }); 
-                for (const x of [ "detected", "igg_total" ]) {
-                    let current = thresholds[x];
-                    thandle.writeDataSet(x, "Float64", null, current);
-                }
+                thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "hdf5" }));
+                thandle.writeDataSet("igg_total", "Float64", null, this.#cache.filters.thresholdsSubsetTotals(0, { copy: "hdf5" }));
 
-                let disc = this.fetchDiscards();
-                rhandle.writeDataSet("discards", "Uint8", null, disc);
+                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.filters.discardOverall({ copy: "hdf5" }));
             }
         }
     }

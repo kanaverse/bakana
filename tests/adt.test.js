@@ -20,93 +20,47 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         params
     );
 
-    // Checking that the ADTs were split out.
-    expect(state.inputs.hasAvailable("RNA")).toBe(true);
-    expect(state.inputs.hasAvailable("ADT")).toBe(true);
-
     // Input reorganization is done correctly. 
     {
         let simple = scran.initializeSparseMatrixFromMatrixMarket(mtx, { layered: false });
         let parsed = bakana.readTable((new bakana.SimpleFile(feats)).buffer(), { compression: "gz" });
-        let simple_names = parsed.map(x => x[0]);
+        let simple_names_all = parsed.map(x => x[0]);
         let simple_types = parsed.map(x => x[2]);
 
-        // For RNA.
-        {
+        const regexes = { "RNA": /Gene Expression/i, "ADT": /Antibody Capture/i };
+        for (const [k, v] of Object.entries(regexes)) {
             let keep = [];
             simple_types.forEach((x, i) => {
-                if (x.match(/Gene Expression/i)) {
+                if (x.match(v)) {
                     keep.push(i);
                 }
             });
 
-            let simple_names_rna = keep.map(x => simple_names[x]);
-            let simple_rna = scran.subsetRows(simple.matrix, keep);
-            let simple_ids_rna = keep.slice();
+            let simple_names = keep.map(x => simple_names_all[x]);
+            let simple_mat = scran.subsetRows(simple.matrix, keep);
+            let simple_ids = keep.slice();
 
-            let loaded = state.inputs.fetchCountMatrix({ type: "RNA" });
-            let loaded_ids = state.inputs.fetchRowIds({ type : "RNA" });
-            let loaded_names = state.inputs.fetchGenes({ type: "RNA" }).column("id");
-
-            expect(simple.matrix.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
-            utils.checkReorganization(simple_rna, simple_ids_rna, simple_names_rna, loaded, loaded_ids, loaded_names, { referenceSubset: true }); 
-            simple_rna.free();
-        }
-
-        // For ADT.
-        {
-            let keep = [];
-            simple_types.forEach((x, i) => {
-                if (x.match(/Antibody Capture/i)) {
-                    keep.push(i);
-                }
-            });
-
-            let simple_names_adt = keep.map(x => simple_names[x]);
-            let simple_adt = scran.subsetRows(simple.matrix, keep);
-            let simple_ids_adt = keep.slice();
-
-            let loaded = state.inputs.fetchCountMatrix({ type: "ADT" });
-            let loaded_ids = state.inputs.fetchRowIds({ type : "ADT" });
-            let loaded_names = state.inputs.fetchGenes({ type: "ADT" }).column("id");
+            let loaded = state.inputs.fetchCountMatrix().get(k);
+            let loaded_ids = state.inputs.fetchRowIds()[k];
+            let loaded_names = state.inputs.fetchFeatureAnnotations()[k].column("id");
 
             expect(simple.matrix.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
-            let sorted = Array.from(loaded_ids).sort((a, b) => a - b);
-            expect(sorted).toEqual(keep);
-
-            utils.checkReorganization(simple_adt, simple_ids_adt, simple_names_adt, loaded, loaded_ids, loaded_names, { referenceSubset: true }); 
-            simple_adt.free();
+            utils.checkReorganization(simple_mat, simple_ids, simple_names, loaded, loaded_ids, loaded_names, { referenceSubset: true }); 
+            simple_mat.free();
         }
 
         simple.matrix.free();
     }
 
-    // Checking all the computations.
-    {
-        // QC.
-        let summ = state.adt_quality_control.summary();
-        let positive_total = 0;
-        summ.data.default.igg_total.forEach(x => { positive_total += (x > 0); });
-        expect(positive_total).toBeGreaterThan(0);
-        expect(summ.thresholds.default.detected).toBeGreaterThan(0);
-        expect(summ.thresholds.default.igg_total).toBeGreaterThan(0);
+    await utils.checkStateResultsAdt(state);
 
-        let retained = state.cell_filtering.summary().retained;
-        for (const metric of Object.keys(summ.data.default)) { 
-            let metvec = state.cell_filtering.fetchFilteredQualityMetric(metric, "ADT");
-            expect(metvec instanceof Float64Array || metvec instanceof Int32Array).toBe(true);
-            expect(metvec.length).toEqual(retained);
-        }
-    }
+    let vres = utils.checkClusterVersusMode(state);
+    expect(vres.results.ADT.numberOfGroups()).toEqual(vres.results.RNA.numberOfGroups());
 
-    {
-        // Normalization.
-        let norm = state.adt_normalization.summary();
-        expect(norm.size_factors.length).toBeGreaterThan(0);
-        let positive_total = 0;
-        norm.size_factors.forEach(x => { positive_total += (x > 0); });
-        expect(positive_total).toBeGreaterThan(0);
-    }
+    let custom = utils.launchCustomSelections(state);
+    expect(custom.first.ADT.numberOfGroups()).toEqual(custom.first.RNA.numberOfGroups());
+    expect(custom.last.ADT.numberOfGroups()).toEqual(custom.last.RNA.numberOfGroups());
+    expect(custom.versus.results.ADT.numberOfGroups()).toEqual(custom.versus.results.RNA.numberOfGroups());
 
     // Saving and loading.
     const path = "TEST_state_adt.h5";
@@ -122,50 +76,9 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     );
 
     let new_params = bakana.retrieveParameters(reloaded);
+    expect(new_params).toEqual(params);
 
-    {
-        // Check that steps unserialize correctly.
-        let old_keys = Object.keys(state);
-        old_keys.sort();
-        let new_keys = Object.keys(reloaded);
-        new_keys.sort();
-        expect(old_keys).toEqual(new_keys);
-
-        for (const step of old_keys) {
-            let qc_deets = reloaded[step].summary();
-            let ref = state[step].summary();
-            expect(ref).toEqual(ref);
-        }
-
-        // Check that we still get some markers.
-        let reloaded_markers = reloaded.marker_detection.fetchGroupResults(0, "auc-min-rank", "ADT");
-        let ref_markers = state.marker_detection.fetchGroupResults(0, "auc-min-rank", "ADT");
-        expect(reloaded_markers).toEqual(ref_markers);
-
-        // Check that the QC steps got dragged out.
-        let adt_sums = state.adt_quality_control.fetchSums();
-        let positive = 0;
-        adt_sums.forEach(x => { positive += (x > 0); });
-        expect(positive).toBe(adt_sums.length);
-        expect(adt_sums).toEqual(state.adt_quality_control.fetchSums());
-    }
-
-    // Checking that the permutation is unchanged on reload, 
-    // even when identities are subsetted.
-    let old_adt_ids = state.inputs.summary()["genes"]["ADT"]["id"];
-    let new_adt_ids = reloaded.inputs.summary()["genes"]["ADT"]["id"];
-    expect(old_adt_ids.length).toBeGreaterThan(0);
-    expect(old_adt_ids).toEqual(new_adt_ids);
-
-    let old_rna_ids = state.inputs.summary()["genes"]["RNA"]["id"];
-    let new_rna_ids = reloaded.inputs.summary()["genes"]["RNA"]["id"];
-    expect(old_rna_ids.length).toBeGreaterThan(0);
-    expect(old_rna_ids).toEqual(new_rna_ids);
-
-    let old_res = state.feature_selection.summary();
-    let new_res = reloaded.feature_selection.summary();
-    expect("means" in old_res).toBe(true);
-    expect(old_res["means"]).toEqual(new_res["means"]);
+    await utils.compareStates(state, reloaded);
 
     // Release me!
     await bakana.freeAnalysis(state);
@@ -182,32 +95,30 @@ test("runAnalysis works correctly (10X)", async () => {
         params
     );
 
-    // Checking that the ADTs were split out.
-    expect(state.inputs.hasAvailable("RNA")).toBe(true);
-    expect(state.inputs.hasAvailable("ADT")).toBe(true);
+    await utils.checkStateResultsAdt(state);
 
     // What happens when one of the modalities has zero weight?
     {
         state.combine_embeddings.compute({ "RNA": 1, "ADT": 0 }, true);
-        let pcs = state.combine_embeddings.fetchPCs();
-        expect(pcs.pcs.owner !== null).toBe(true);
-        expect(pcs.num_pcs).toBe(10);
+        let pcs = state.combine_embeddings.fetchCombined();
+        expect(pcs.owner !== null).toBe(true);
+        expect(state.combine_embeddings.fetchNumberOfDimensions()).toBe(state.pca.fetchPCs().numberOfPCs());
 
         const path = "TEST_state_combine-embed.h5";
         let fhandle = scran.createNewHDF5File(path);
         state.combine_embeddings.serialize(fhandle);
 
         {
-            let ncells = state.cell_filtering.summary().retained;
-            let npcs_rna = state.pca.summary().var_exp.length;
-            let npcs_adt = state.adt_pca.summary().var_exp.length;
+            let ncells = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
+            let npcs_rna = state.pca.fetchPCs().numberOfPCs();
+            let npcs_adt = state.adt_pca.fetchPCs().numberOfPCs();
             valkana.validateCombineEmbeddingsState(path, ncells, ["RNA"], npcs_rna + npcs_adt, bakana.kanaFormatVersion);
         }
 
         let reloaded = combine.unserialize(fhandle, {"RNA": state.pca, "ADT": state.adt_pca});
-        let repcs = reloaded.fetchPCs();
-        expect(repcs.pcs.owner !== null).toBe(true);
-        expect(repcs.num_pcs).toBe(10);
+        let repcs = reloaded.fetchCombined();
+        expect(repcs.owner !== null).toBe(true);
+        expect(reloaded.fetchNumberOfDimensions()).toBe(state.pca.fetchPCs().numberOfPCs());
 
         reloaded.free();
     }
@@ -222,6 +133,7 @@ test("runAnalysis works for ADTs with blocking", async () => {
 
     // Mocking up a blocking file with pretend batches.
     let exfile = "TEST_adt_block.tsv";
+    let nblocks = 3;
     {
         let previous = "files/datasets/immune_3.0.0-barcodes.tsv.gz";
         let f = fs.readFileSync(previous);
@@ -229,7 +141,7 @@ test("runAnalysis works for ADTs with blocking", async () => {
         let stuff = bakana.readTable(new Uint8Array(buff));
 
         let ncells = stuff.length;
-        let per_block = Math.ceil(ncells / 3);
+        let per_block = Math.ceil(ncells / nblocks);
         let blocks = new Array(ncells);
         for (var c = 0; c < ncells; c++) {
             blocks[c] = 'A' + String(Math.floor(c / per_block));
@@ -246,22 +158,30 @@ test("runAnalysis works for ADTs with blocking", async () => {
         params
     );
 
-    let qcstate = state.adt_quality_control;
-    let summ = qcstate.summary();
+    await utils.checkStateResultsAdt(state);
+    await utils.checkStateResultsBatched(state, { skipBasic: true });
 
-    // Checking that that there are multiple metrics.
-    let positive_total = 0;
-    summ.data["A0"].detected.forEach(x => { positive_total += (x > 0); });
-    expect(positive_total).toBeGreaterThan(0);
+    let vres = utils.checkClusterVersusMode(state);
+    expect(vres.results.RNA.numberOfBlocks()).toEqual(nblocks);
+    expect(vres.results.ADT.numberOfBlocks()).toEqual(nblocks);
 
-    positive_total = 0;
-    summ.data["A2"].igg_total.forEach(x => { positive_total += (x > 0); });
-    expect(positive_total).toBeGreaterThan(0);
+    let custom = utils.launchCustomSelections(state);
+    expect(custom.first.ADT.numberOfBlocks()).toEqual(nblocks);
+    expect(custom.last.ADT.numberOfBlocks()).toEqual(nblocks);
+    expect(custom.versus.results.ADT.numberOfBlocks()).toBeGreaterThan(1); // as subset might not actually have all 3 blocks.
 
-    // Checking that the thresholds are sensible.
-    expect(summ.thresholds["A0"].detected).toBeGreaterThan(0);
-    expect(summ.thresholds["A1"].detected).toBeGreaterThan(0);
-    expect(summ.thresholds["A1"].igg_total).toBeGreaterThan(0);
+    // Check that multiple ADT-related QC thresholds exist.
+    {
+        let res = state.adt_quality_control.fetchFilters();
+        let props = res.thresholdsSubsetTotals(0);
+        expect(props.length).toEqual(nblocks);
+    }
+
+    // Checking that the ADT marker results show up with multiple blocks.
+    {
+        let res = state.marker_detection.fetchResults();
+        expect(res["ADT"].numberOfBlocks()).toEqual(nblocks);
+    }
 
     // Freeing everyone.
     await bakana.freeAnalysis(state);

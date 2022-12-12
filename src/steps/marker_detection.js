@@ -49,7 +49,7 @@ export class MarkerDetectionState {
         for (const v of Object.values(this.#cache.raw)) {
             utils.freeCache(v);
         }
-        markers.freeVersusResults(this.#cache);
+        markers.freeVersusResults(this.#cache.versus);
     }
 
     /***************************
@@ -57,38 +57,18 @@ export class MarkerDetectionState {
      ***************************/
 
     /**
-     * Fetch the marker statistics for a given cluster.
-     *
-     * @param {number} group - An integer specifying the cluster of interest.
-     * This should be less than the value returned by {@linkcode MarkerDetectionState#numberOfGroups numberOfGroups}.
-     * @param {string} rank_type - Summarized effect size to use for ranking markers.
-     * This should follow the format of `<effect>-<summary>` where `<effect>` may be `lfc`, `cohen`, `auc` or `delta_detected`,
-     * and `<summary>` may be `min`, `mean` or `min-rank`.
-     * @param {string} feat_type - The feature type of interest, usually `"RNA"` or `"ADT"`.
-     *
-     * @return An object containing the marker statistics for the selection, sorted by the specified effect and summary size from `rank_type`.
-     * This contains:
-     *   - `means`: a `Float64Array` of length equal to the number of genes, containing the mean expression within the selection.
-     *   - `detected`: a `Float64Array` of length equal to the number of genes, containing the proportion of cells with detected expression inside the selection.
-     *   - `lfc`: a `Float64Array` of length equal to the number of genes, containing the log-fold changes for the comparison between cells inside and outside the selection.
-     *   - `delta_detected`: a `Float64Array` of length equal to the number of genes, containing the difference in the detected proportions between cells inside and outside the selection.
+     * @return {object} Marker detection results for the all modalities.
+     * Each key is a modality name and each value is a ScoreMarkersResults object,
+     * containing marker detection statistics for all clusters.
+     * This is available after running {@linkcode MarkerDetectionState#compute compute}.
      */
-    fetchGroupResults(group, rank_type, feat_type) {
-        return markers.formatMarkerResults(this.#cache.raw[feat_type], group, rank_type); 
+    fetchResults() {
+        return this.#cache.raw;
     }
 
-    /** 
-     * @return The number of clusters for which markers were computed.
+    /**
+     * @return {object} Object containing the parameters.
      */
-    numberOfGroups() {
-        let first = Object.values(this.#cache.raw)[0];
-        return first.numberOfGroups();
-    }
-
-    fetchGroupMeans(group, feat_type, { copy = true }) {
-        return this.#cache.raw[feat_type].means(group, { copy: copy });
-    }
-
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
@@ -112,7 +92,7 @@ export class MarkerDetectionState {
 
             if (v.changed || this.#choice.changed) {
                 var mat = v.fetchNormalizedMatrix();
-                var clusters = this.#choice.fetchClustersAsWasmArray();
+                var clusters = this.#choice.fetchClusters();
                 var block = this.#filter.fetchFilteredBlock();
                 
                 utils.freeCache(this.#cache.raw[k]);
@@ -140,100 +120,100 @@ export class MarkerDetectionState {
      *******************************/
 
     /**
-     * Compute markers between two clusters as described for {@linkcode MarkerDetectionState#computeVersus computeVersus}, but for a custom matrix, clusters and cache.
+     * Compute markers between two clusters as described for {@linkcode MarkerDetectionState#computeVersus computeVersus}.
      * This allows applications to run versus-mode comparisons on custom inputs without creating a MarkerDetectionState object.
      *
-     * @param {number} left - Index of one cluster in which to find upregulated markers.
+     * @param {number} left - Index of one cluster. 
      * @param {number} right - Index of another cluster to be compared against `left`.
-     * @param {string} rank_type - Effect size to use for ranking markers.
-     * @param {string} feat_type - Feature type of interest.
-     * @param {ScranMatrix} mat - Matrix containing log-expression data for all cells.
-     * @param {Array|TypedArray|Int32WasmArray} clusters - Integer array of length containing the cluster assignments for all cells in `mat`.
+     * @param {MultiMatrix} matrices - A MultiMatrix object containing log-normalized matrices for each modality.
+     * @param {Array|TypedArray|Int32WasmArray} clusters - Integer array of length equal to the number of cells in `matrices`,
+     * containing the cluster assignments for all cells in `matrices`.
      * @param {object} [options={}] - Optional parameters.
      * @param {object} [options.cache={}] - Cache for the results.
      * @param {?Int32WasmArray} [options.block=null] - Blocking factor of length equal to the number of cells in `mat`, 
      * see {@linkcode CellFilteringState#fetchFilteredBlock CellFilteringState.fetchFilteredBlock}.
      *
-     * @return An object containing the marker statistics, see {@linkcode MarkerDetectionState#computeVersus computeVersus} for more details.
+     * @return {object} Object containing:
+     *
+     * - `results`: object containing the marker statistics for the comparison between two clusters.
+     *    Each key is a modality name and each value is a ScoreMarkersResults object.
+     * - `left`: index of the group corresponding to the `left` cluster in each ScoreMarkersResults object.
+     *    e.g., Cohen's d for the RNA markers of the `left` cluster are defined as `output.results.RNA.cohen(output.left)`.
+     * - `right`: index of the group corresponding to the `right` cluster in each ScoreMarkersResults object.
+     *    e.g., Cohen's d for the RNA markers of the `right` cluster are defined as `output.results.RNA.cohen(output.right)`.
      */
-    static computeVersusCustom(left, right, rank_type, feat_type, mat, clusters, { cache = {}, block = null } = {}) {
+    static computeVersusCustom(left, right, matrices, clusters, { cache = {}, block = null } = {}) {
+        let cache_info = markers.locateVersusCache(left, right, cache);
+        let left_index = (cache_info.left_small ? 0 : 1);
+        let right_index = (cache_info.left_small ? 1 : 0);
 
-        let generate = (smal, bigg) => {
+        if (cache_info.run) {
             let new_clusters = [];
             let keep = [];
-            let smalfound = false, biggfound = false;
+            let leftfound = false, rightfound = false;
             clusters.forEach((x, i) => {
-                if (x == smal) {
-                    new_clusters.push(0);
+                if (x == left) {
+                    new_clusters.push(left_index);
                     keep.push(i);
-                    smalfound = true;
-                } else if (x == bigg) {
-                    new_clusters.push(1);
+                    leftfound = true;
+                } else if (x == right) {
+                    new_clusters.push(right_index);
                     keep.push(i);
-                    biggfound = true;
+                    rightfound = true;
                 }
             });
 
-            if (!smalfound || !biggfound) {
+            if (!leftfound || !rightfound) {
                 throw new Error("non-zero entries should be present for both requested clusters in versus mode");
             }
 
-            let new_block = null;
-            if (block !== null) {
-                let block_arr = block.array();
-                new_block = keep.map(i => block_arr[i]);
-                markers.dropUnusedBlocks(new_block);
-            }
+            markers.computeVersusResults(matrices, new_clusters, block, keep, cache_info.cached);
+        }
 
-            let output;
-            let sub;
-            try {
-                sub = scran.subsetColumns(mat, keep);
-                output = scran.scoreMarkers(sub, new_clusters, { block: new_block });
-            } finally {
-                utils.freeCache(sub);
-            }
-
-            return output;
+        return { 
+            results: cache_info.cached,
+            left: left_index,
+            right: right_index
         };
-
-        return markers.generateVersusResults(left, right, rank_type, feat_type, cache, generate);
     }
 
     /**
-     * Extract markers for a pairwise comparison between two clusters, for more detailed examination of the differences between them.
+     * Extract markers for a pairwise comparison between two clusters, 
+     * for more detailed examination of the differences between them.
      *
      * @param {number} left - Index of one cluster in which to find upregulated markers.
      * @param {number} right - Index of another cluster to be compared against `left`.
-     * Effect sizes are defined as `left - right`.
-     * @param {string} rank_type - Effect size to use for ranking markers.
-     * This should be one of `lfc`, `cohen`, `auc` or `delta_detected`.
      *
-     * Unlike {@linkcode MarkerDetectionState#fetchGroupResults fetchGroupResults}, the summary does not need to be specified here as all summaries are the same for pairwise comparisons.
-     * @param {string} feat_type - The feature type of interest, usually `"RNA"` or `"ADT"`.
+     * @return {object} Object containing:
      *
-     * @return An object containing the marker statistics for this pairwise comparison, sorted by the specified effect from `rank_type`.
-     * This has the same structure as described for {@linkcode MarkerDetectionState#fetchGroupResults fetchGroupResults}.
+     * - `results`: object containing the marker statistics for the comparison between two clusters.
+     *    Each key is a modality name and each value is a ScoreMarkersResults object.
+     * - `left`: index of the group corresponding to the `left` cluster in each ScoreMarkersResults object,
+     *    e.g., Cohen's d for the RNA markers of the `left` cluster are defined as `output.results.RNA.cohen(output.left)`.
+     * - `right`: index of the group corresponding to the `right` cluster in each ScoreMarkersResults object.
+     *    e.g., Cohen's d for the RNA markers of the `left` cluster are defined as `output.results.RNA.cohen(output.right)`.
      */
-    computeVersus(left, right, rank_type, feat_type) {
-        var clusters = this.#choice.fetchClustersAsWasmArray();
-        var mat = this.#norm_states[feat_type].fetchNormalizedMatrix();
+    computeVersus(left, right) {
+        var clusters = this.#choice.fetchClusters();
         var block = this.#filter.fetchFilteredBlock();
-        return this.constructor.computeVersusCustom(left, right, rank_type, feat_type, mat, clusters, { cache: this.#cache, block: block });
-    }
 
-    /***************************
-     ******** Results **********
-     ***************************/
+        // No need to free this afterwards; we don't own the normalized matrices anyway.
+        let matrices = new scran.MultiMatrix;
+        for (const [modality, state] of Object.entries(this.#norm_states)) {
+            let curmat = state.fetchNormalizedMatrix();
+            if (curmat !== null) {
+                matrices.add(modality, curmat);
+            }
+        }
 
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return An empty object.
-     * This is returned for consistency with the other steps.
-     */
-    summary() {
-        return {};
+        if (!("versus" in this.#cache)) {
+            this.#cache["versus"] = {};
+        }
+
+        return this.constructor.computeVersusCustom(left, right, matrices, clusters, { 
+            cache: this.#cache.versus, 
+            block: block
+        });
     }
 
     /*************************
@@ -265,8 +245,9 @@ export class MarkerDetectionState {
  **************************/
 
 class ScoreMarkersMimic {
-    constructor(clusters) {
+    constructor(clusters, nblocks) {
         this.clusters = clusters;
+        this.num_blocks = nblocks;
     }
 
     effect_grabber(key, group, summary, copy) {
@@ -275,19 +256,19 @@ class ScoreMarkersMimic {
         return utils.mimicGetter(chosen, copy);
     }
 
-    lfc(group, { summary, copy }) {
+    lfc(group, { summary = 1, copy = true } = {}) {
         return this.effect_grabber("lfc", group, summary, copy);
     }
 
-    deltaDetected(group, { summary, copy }) {
+    deltaDetected(group, { summary = 1, copy = true } = {}) {
         return this.effect_grabber("delta_detected", group, summary, copy);
     }
 
-    cohen(group, { summary, copy }) {
+    cohen(group, { summary = 1, copy = true } = {}) {
         return this.effect_grabber("cohen", group, summary, copy);
     }
 
-    auc(group, { summary, copy }) {
+    auc(group, { summary = 1, copy = true } = {}) {
         return this.effect_grabber("auc", group, summary, copy);
     }
 
@@ -296,16 +277,20 @@ class ScoreMarkersMimic {
         return utils.mimicGetter(chosen, copy);
     }
 
-    means(group, { copy }) {
+    means(group, { copy = true } = {}) {
         return this.stat_grabber("means", group, copy);
     }
 
-    detected(group, { copy }) {
+    detected(group, { copy = true } = {}) {
         return this.stat_grabber("detected", group, copy);
     }
 
     numberOfGroups() {
         return Object.keys(this.clusters).length;
+    }
+
+    numberOfBlocks() {
+        return this.num_blocks;
     }
 
     free() {}
@@ -317,6 +302,20 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
     // No parameters to unserialize.
     let parameters = {};
 
+    // Figure out the number of blocks.
+    let num_blocks = 1;
+    {
+        let filtered = filter.fetchFilteredBlock();
+        if (filtered != null) {
+            filtered.forEach(x => {
+                if (x + 1 > num_blocks) {
+                    num_blocks = x + 1;
+                }
+            });
+        }
+    }
+
+    // Set up the marker detection statistics.
     let cache = {};
     {
         let rhandle = ghandle.open("results");
@@ -328,7 +327,7 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
             for (const cl of Object.keys(chandle.children)) {
                 clusters[Number(cl)] = markers.unserializeGroupStats(chandle.open(cl), permuters["RNA"]);
             }
-            cache.raw = { RNA: new ScoreMarkersMimic(clusters) };
+            cache.raw = { RNA: new ScoreMarkersMimic(clusters, num_blocks) };
         } else {
             // after v2.0.
             let chandle = rhandle.open("per_cluster");
@@ -339,7 +338,7 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
                 for (const cl of Object.keys(ahandle.children)) {
                     clusters[Number(cl)] = markers.unserializeGroupStats(ahandle.open(cl), permuters[a]);
                 }
-                cache.raw[a] = new ScoreMarkersMimic(clusters);
+                cache.raw[a] = new ScoreMarkersMimic(clusters, num_blocks);
             }
         }
     }

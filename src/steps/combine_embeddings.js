@@ -36,14 +36,34 @@ export class CombineEmbeddingsState {
      ******** Getters **********
      ***************************/
 
-    fetchPCs() {
-        return {
-            "pcs": this.#cache.combined_buffer,
-            "num_obs": this.#cache.num_cells,
-            "num_pcs": this.#cache.total_dims
-        };
+    /**
+     * @return {Float64WasmArray} Buffer containing the combined embeddings as a column-major dense matrix,
+     * where the rows are the dimensions and the columns are the cells.
+     * This is available after running {@linkcode CombineEmbeddingsState#compute compute}.
+     */
+    fetchCombined() {
+        return this.#cache.combined_buffer;
     }
 
+    /**
+     * @return {number} Number of cells in {@linkcode CombineEmbeddingsState#fetchCombined fetchCombined},
+     * available after running {@linkcode CombineEmbeddingsState#compute compute}.
+     */
+    fetchNumberOfCells() {
+        return this.#cache.num_cells;
+    }
+
+    /**
+     * @return {number} Number of dimensions in {@linkcode CombineEmbeddingsState#fetchCombined fetchCombined},
+     * available after running {@linkcode CombineEmbeddingsState#compute compute}.
+     */
+    fetchNumberOfDimensions() {
+        return this.#cache.total_dims;
+    }
+
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         // Avoid any pass-by-reference activity.
         let out = { ...this.#parameters };
@@ -66,9 +86,9 @@ export class CombineEmbeddingsState {
 
     static createPcsView(cache, upstream) {
         utils.freeCache(cache.combined_buffer);
-        cache.combined_buffer = upstream.pcs.view();
-        cache.num_cells = upstream.num_obs;
-        cache.total_dims = upstream.num_pcs;
+        cache.combined_buffer = upstream.principalComponents({ copy: "view" }).view();
+        cache.num_cells = upstream.numberOfCells();
+        cache.total_dims = upstream.numberOfPCs();
     }
 
     /**
@@ -126,13 +146,13 @@ export class CombineEmbeddingsState {
 
                     for (const k of to_use) {
                         let curpcs = this.#pca_states[k].fetchPCs();
-                        collected.push(curpcs.pcs);
+                        collected.push(curpcs.principalComponents({ copy: "view" }));
                         if (ncells == null) {
-                            ncells = curpcs.num_obs;
-                        } else if (ncells !== curpcs.num_obs) {
+                            ncells = curpcs.numberOfCells();
+                        } else if (ncells !== curpcs.numberOfCells()) {
                             throw new Error("number of cells should be consistent across all embeddings");
                         }
-                        total += curpcs.num_pcs;
+                        total += curpcs.numberOfPCs();
                     }
 
                     let buffer = utils.allocateCachedArray(ncells * total, "Float64Array", this.#cache, "combined_buffer");
@@ -162,14 +182,6 @@ export class CombineEmbeddingsState {
         return;
     }
 
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    summary() {
-        return {};
-    }
-
     /*************************
      ******** Saving *********
      *************************/
@@ -190,11 +202,16 @@ export class CombineEmbeddingsState {
 
         {
             let rhandle = ghandle.createGroup("results");
-            let pcs = this.fetchPCs();
-            if (pcs.pcs.owner === null) {
+            let pcs = this.fetchCombined();
+            if (pcs.owner === null) {
                 // If it's not a view, we save it; otherwise we assume
                 // that we can recover it from the upstream PCA states.
-                rhandle.writeDataSet("combined", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
+                rhandle.writeDataSet(
+                    "combined", 
+                    "Float64", 
+                    [this.fetchNumberOfCells(), this.fetchNumberOfDimensions()], // remember, it's transposed.
+                    pcs
+                ); 
             }
         }
     }

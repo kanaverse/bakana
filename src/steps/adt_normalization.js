@@ -41,7 +41,6 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
 
     free() {
         utils.freeCache(this.#cache.matrix);
-        utils.freeCache(this.#cache.exp_buffer);
         utils.freeCache(this.#cache.total_buffer);
         utils.freeCache(this.#cache.sf_buffer);
     }
@@ -51,32 +50,44 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
      ***************************/
 
     valid() {
-        return this.#filter.hasAvailable(this.#parameters.target_matrix);
+        let filtered = this.#filter.fetchFilteredMatrix();
+        return filtered.has(this.#parameters.target_matrix);
     }
 
+    /**
+     * @return {?ScranMatrix} A ScranMatrix object containing the normalized ADT values,
+     * available after running {@linkcode AdtNormalizationState#compute compute}.
+     * Alternatively `null`, if no ADTs are present in the dataset.
+     */
     fetchNormalizedMatrix() {
-        if (this.valid()) {
-            if (!("matrix" in this.#cache)) {
-                this.#raw_compute();
-            }
-            return this.#cache.matrix;
-        } else {
+        if (!this.valid()) {
             return null;
+        }
+
+        if (!("matrix" in this.#cache)) {
+            this.#raw_compute();
+        }
+
+        return this.#cache.matrix;
+    }
+
+    /**
+     * @return {?Float64WasmArray} Array of length equal to the number of cells, 
+     * containing the ADT-derived size factor for each cell in the (QC-filtered) dataset.
+     * This is available after running {@linkcode AdtNormalizationState#compute compute}.
+     * Alternatively `null`, if no ADTs are present in the dataset.
+     */
+    fetchSizeFactors() {
+        if (!this.valid()) {
+            return null;
+        } else {
+            return this.#cache.sf_buffer;
         }
     }
 
     /**
-     * Extract normalized expression values.
-     * @param {number} index - An integer specifying the row index to extract.
-     * @return A Float64Array of length equal to the number of (QC-filtered) cells, containing the log-normalized expression values for each cell.
+     * @return {object} Object containing the parameters.
      */
-    fetchExpression(index) {
-        var mat = this.fetchNormalizedMatrix();
-        var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "exp_buffer"); // re-using the buffer.
-        mat.row(index, { buffer: buffer });
-        return buffer.slice();
-    }
-
     fetchParameters() {
         let output = { ...this.#parameters }; // avoid pass-by-reference links.
         delete output.target_matrix;
@@ -94,7 +105,7 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
     }
 
     #raw_compute() {
-        var mat = this.#filter.fetchFilteredMatrix({ type: this.#parameters.target_matrix });
+        var mat = this.#filter.fetchFilteredMatrix().get(this.#parameters.target_matrix);
         var block = this.#filter.fetchFilteredBlock();
 
         var buffer = this.#cache.sf_buffer;
@@ -120,7 +131,7 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
 
         if (this.#qc.changed || this.#filter.changed || num_pcs !== this.#parameters.num_pcs || num_clusters != this.#parameters.num_clusters) {
             if (this.valid()) {
-                var mat = this.#filter.fetchFilteredMatrix({ type: this.#parameters.target_matrix });
+                var mat = this.#filter.fetchFilteredMatrix().get(this.#parameters.target_matrix);
                 let total_buffer = nutils.subsetSums(this.#qc, this.#filter, mat, this.#cache, "total_buffer");
 
                 var block = this.#filter.fetchFilteredBlock();
@@ -147,27 +158,6 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
         return {
            num_pcs: 25,
            num_clusters: 20
-        };
-    }
-
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return {?object} Object containing `size_factors`, a Float64Array containing the size factor for each cell.
-     *
-     * If there were no ADT features in the dataset, `null` is returned instead.
-     */
-    summary() {
-        if (!this.valid()) {
-            return null;
-        }
-
-        return {
-            size_factors: this.#cache.sf_buffer.slice()
         };
     }
 

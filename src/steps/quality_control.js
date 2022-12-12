@@ -50,42 +50,33 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
         return this.#parameters.skip;
     }
 
-    fetchSums({ unsafe = false } = {}) {
-        // Unsafe, because we're returning a raw view into the Wasm heap,
-        // which might be invalidated upon further allocations.
-        return this.#cache.metrics.sums({ copy: !unsafe });
-    }
-
-    fetchDiscards() {
-        return this.#cache.filters.discardOverall({ copy: "view" });
-    }
-
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
 
     /**
-     * Fetch one type of metric used for evaluating per-cell quality from the RNA count matrix.
-     *
-     * @param {string} metric - Type of statistic.
-     * This may be any of `"sums"`, `"detected"` or `"proportion"`.
-     * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.unsafe=false] - Whether to return the view on the Wasm heap directly.
-     * By default, a copy is created.
-     *
-     * @return {Float64Array} Array of QC statistics for each cell in the dataset.
-     * If `unsafe = true`, this may be a view on the Wasm heap and may be invalidated on the next allocation.
+     * @return {Uint8WasmArray} Buffer containing the discard vector of length equal to the number of cells,
+     * where each element is truthy if the corresponding cell is to be discarded.
      */
-    fetchQualityMetric(metric, { unsafe = false } = {}) {
-        if (metric == "sums") {
-            return this.fetchSums({ unsafe });
-        } else if (metric == "detected") {
-            return this.#cache.metrics.detected({ copy: !unsafe });
-        } else if (metric == "proportion") {
-            return this.#cache.metrics.subsetProportions(0, { copy: !unsafe });
-        } else {
-            throw new Error("unknown QC statistic '" + metric + "'");
-        }
+    fetchDiscards() {
+        return this.#cache.filters.discardOverall({ copy: "view" });
+    }
+
+    /**
+     * @return {PerCellQCFiltersResults} Result of filtering on the RNA-derived QC metrics.
+     */
+    fetchFilters() {
+        return this.#cache.filters;
+    }
+
+    /**
+     * @return {PerCellQCMetricsResults} RNA-derived QC metrics.
+     */
+    fetchMetrics() {
+        return this.#cache.metrics;
     }
 
     /***************************
@@ -129,7 +120,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
                 // can re-run this step later via unskip_metrics = true.
                 delete this.#cache.metrics;
             } else {
-                var mat = this.#inputs.fetchCountMatrix();
+                var mat = this.#inputs.fetchCountMatrix().get("RNA");
 
                 // TODO: add more choices.
                 var nsubsets = 1;
@@ -138,7 +129,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
 
                 // Finding the prefix.
                 // TODO: use the guessed features to narrow the Ensembl/symbol search.
-                var gene_info = this.#inputs.fetchGenes();
+                var gene_info = this.#inputs.fetchFeatureAnnotations()["RNA"];
                 var sub_arr = subsets.array();
                 for (const key of gene_info.columnNames()) {
                     let val = gene_info.column(key);
@@ -191,66 +182,6 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
         return;
     }
 
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    #format_metrics({ copy = true } = {}) {
-        return {
-            sums: this.#cache.metrics.sums({ copy: copy }),
-            detected: this.#cache.metrics.detected({ copy: copy }),
-            proportion: this.#cache.metrics.subsetProportions(0, { copy: copy })
-        };
-    }
-
-    #format_thresholds({ copy = true } = {}) {
-        return {
-            sums: this.#cache.filters.thresholdsSums({ copy: copy }),
-            detected: this.#cache.filters.thresholdsDetected({ copy: copy }),
-            proportion: this.#cache.filters.thresholdsSubsetProportions(0, { copy: copy })
-        }
-    }
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return {?object} 
-     * An object is returned containing:
-     *
-     * - `data`: an object containing one property for each sample.
-     *   Each property is itself an object containing `sums`, `detected` and `proportion`,
-     *   which are TypedArrays containing the relevant QC metrics for all cells in that sample.
-     * - `thresholds`: an object containing one property for each sample.
-     *   Each property is itself an object containing `sums`, `detected` and `proportion`,
-     *   which are numbers containing the thresholds on the corresponding QC metrics for that sample.
-     * - `retained`: the number of cells remaining after QC filtering.
-     *
-     * Alternatively, `null` may be returned instead if there are no RNA features in the data,
-     * or if the QC was skipped (`skip = true` in {@linkcode QualityControlState#compute compute}).
-     */
-    summary() {
-        if (!this.valid() || this.skipped()) {
-            return null;
-        }
-
-        var output = {};
-
-        var blocks = this.#inputs.fetchBlockLevels();
-        if (blocks === null) {
-            blocks = [ "default" ];
-            output.data = { default: this.#format_metrics() };
-        } else {
-            let metrics = this.#format_metrics({ copy: "view" });
-            let bids = this.#inputs.fetchBlock();
-            output.data = qcutils.splitMetricsByBlock(metrics, blocks, bids);
-        }
-
-        let listed = this.#format_thresholds();
-        output.thresholds = qcutils.splitThresholdsByBlock(listed, blocks);
-
-        return output;
-    }
-
     /*************************
      ******** Saving *********
      *************************/
@@ -271,22 +202,18 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
 
             if ("metrics" in this.#cache) { // if skip=true, metrics may not be computed... but if they are, we save them anyway.
                 let mhandle = rhandle.createGroup("metrics");
-                let data = this.#format_metrics({ copy: "view" });
-                mhandle.writeDataSet("sums", "Float64", null, data.sums)
-                mhandle.writeDataSet("detected", "Int32", null, data.detected);
-                mhandle.writeDataSet("proportion", "Float64", null, data.proportion);
+                mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
+                mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
+                mhandle.writeDataSet("proportion", "Float64", null, this.#cache.metrics.subsetProportions(0, { copy: "view" }));
             }
 
             if ("filters" in this.#cache) { // if skip=true, thresholds may not be computed... but if they are, we save them anyway.
                 let thandle = rhandle.createGroup("thresholds");
-                let thresholds = this.#format_thresholds({ copy: "hdf5" }); 
-                for (const x of [ "sums", "detected", "proportion" ]) {
-                    let current = thresholds[x];
-                    thandle.writeDataSet(x, "Float64", null, current);
-                }
+                thandle.writeDataSet("sums", "Float64", null, this.#cache.filters.thresholdsSums({ copy: "hdf5" }));
+                thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "hdf5" }));
+                thandle.writeDataSet("proportion", "Float64", null, this.#cache.filters.thresholdsSubsetProportions(0, { copy: "hdf5" }));
 
-                let disc = this.fetchDiscards();
-                rhandle.writeDataSet("discards", "Uint8", null, disc);
+                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.filters.discardOverall({ copy: "hdf5" }));
             }
         }
     }
@@ -311,22 +238,22 @@ class QCFiltersMimic {
         }
     }
 
-    thresholdsSums({ copy }) {
+    thresholdsSums({ copy = true } = {}) {
         return utils.mimicGetter(this.sums_, copy);
     }
 
-    thresholdsDetected({ copy }) {
+    thresholdsDetected({ copy = true } = {}) {
         return utils.mimicGetter(this.detected_, copy);
     }
 
-    thresholdsSubsetProportions(index, { copy }) {
+    thresholdsSubsetProportions(index, { copy = true } = {}) {
         if (index != 0) {
             throw "only 'index = 0' is supported for mimics";
         }
         return utils.mimicGetter(this.proportion_, copy);
     }
 
-    discardOverall({ copy }) {
+    discardOverall({ copy = true } = {}) {
         return utils.mimicGetter(this.discards, copy);
     }
 

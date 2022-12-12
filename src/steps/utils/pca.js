@@ -1,25 +1,6 @@
 import * as scran from "scran.js";
 import * as utils from "./general.js";
 
-export function formatPCs(pcs) {
-    return {
-        "pcs": pcs.principalComponents({ copy: "view" }),
-        "num_pcs": pcs.numberOfPCs(),
-        "num_obs": pcs.numberOfCells()
-    };
-}
-
-export function formatSummary(pcs) {
-    var var_exp = pcs.varianceExplained();
-    var total_var = pcs.totalVariance();
-    var_exp.forEach((x, i) => {
-        var_exp[i] = x/total_var;
-    });
-    return { 
-        "var_exp": var_exp 
-    };
-}
-
 export class PcaStateBase {}
 
 export class PcaMimic { 
@@ -34,7 +15,7 @@ export class PcaMimic {
         }
     }
 
-    principalComponents({ copy }) {
+    principalComponents({ copy = true } = {}) {
         return utils.mimicGetter(this.pcs, copy);
     }
 
@@ -50,7 +31,7 @@ export class PcaMimic {
         return utils.mimicGetter(this.var_exp, copy);
     }
 
-    totalVariance () {
+    totalVariance() {
         return 1;
     }
 

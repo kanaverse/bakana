@@ -42,12 +42,32 @@ export class BatchCorrectionState {
      ******** Getters **********
      ***************************/
 
-    fetchPCs() {
-        let upstream = this.#combined.fetchPCs();
-        upstream.pcs = this.#cache.corrected;
-        return upstream;
+    /**
+     * @return {Float64WasmArray} Buffer containing the batch-corrected embeddings as a column-major dense matrix,
+     * where the rows are the dimensions and the columns are the cells.
+     * This is available after running {@linkcode BatchCorrectionState#compute compute}.
+     */
+    fetchCorrected() {
+        return this.#cache.corrected;
     }
 
+    /**
+     * @return {number} Number of cells in {@linkcode BatchCorrectionState#fetchCorrected fetchCorrected}.
+     */
+    fetchNumberOfCells() {
+        return this.#combined.fetchNumberOfCells();
+    }
+
+    /**
+     * @return {number} Number of dimensions in {@linkcode BatchCorrectionState#fetchCorrected fetchCorrected}.
+     */
+    fetchNumberOfDimensions() {
+        return this.#combined.fetchNumberOfDimensions();
+    }
+
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
@@ -76,9 +96,15 @@ export class BatchCorrectionState {
 
         if (this.changed || method !== this.#parameters.method || num_neighbors !== this.#parameters.num_neighbors || approximate !== this.#parameters.approximate) { 
             if (needs_correction) {
-                let pcs = this.#combined.fetchPCs();
-                let corrected = utils.allocateCachedArray(pcs.pcs.length, "Float64Array", this.#cache, "corrected");
-                scran.mnnCorrect(pcs.pcs, block, { k: num_neighbors, buffer: corrected, numberOfCells: pcs.num_obs, numberOfDims: pcs.num_pcs, approximate: approximate });
+                let pcs = this.#combined.fetchCombined();
+                let corrected = utils.allocateCachedArray(pcs.length, "Float64Array", this.#cache, "corrected");
+                scran.mnnCorrect(pcs, block, { 
+                    k: num_neighbors, 
+                    buffer: corrected, 
+                    numberOfCells: this.#combined.fetchNumberOfCells(), 
+                    numberOfDims: this.#combined.fetchNumberOfDimensions(), 
+                    approximate: approximate 
+                });
                 this.changed = true;
             }
         }
@@ -88,8 +114,7 @@ export class BatchCorrectionState {
             // changes in parameters, because they won't have any effect.
             if (!needs_correction) {
                 utils.freeCache(this.#cache.corrected);
-                let upstream = this.#combined.fetchPCs();
-                this.#cache.corrected = upstream.pcs.view();
+                this.#cache.corrected = this.#combined.fetchCombined().view();
             }
         }
 
@@ -108,14 +133,6 @@ export class BatchCorrectionState {
         };
     }
 
-    /**************************
-     ******** Results**********
-     **************************/
-
-    summary() {
-        return {};
-    }
-
     /*************************
      ******** Saving *********
      *************************/
@@ -132,11 +149,16 @@ export class BatchCorrectionState {
 
         {
             let rhandle = ghandle.createGroup("results");
-            let pcs = this.fetchPCs();
-            if (pcs.pcs.owner === null) {
+            let pcs = this.fetchCorrected();
+            if (pcs.owner === null) {
                 // If it's not a view, we save it; otherwise we assume
                 // that we can recover it from the upstream state.
-                rhandle.writeDataSet("corrected", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
+                rhandle.writeDataSet(
+                    "corrected", 
+                    "Float64", 
+                    [this.fetchNumberOfCells(), this.fetchNumberOfDimensions()],
+                    pcs
+                );
             }
         }
     }
@@ -168,8 +190,8 @@ export function unserialize(handle, filter, combined) {
                 cache.corrected.set(corrected);
             } else {
                 // Creating a view from the upstream combined state.
-                let pcs = combined.fetchPCs();
-                cache.corrected = pcs.pcs.view();
+                let pcs = combined.fetchCombined();
+                cache.corrected = pcs.view();
             }
 
             output = new BatchCorrectionState(filter, combined, parameters, cache);
@@ -183,10 +205,12 @@ export function unserialize(handle, filter, combined) {
         let ghandle = handle.open("pca");
 
         let rhandle = ghandle.open("results");
-        if ("corrected" in rhandle) {
+        if ("corrected" in rhandle.children) {
             let corrected = rhandle.open("corrected", { load: true }).values;
             let corbuffer = utils.allocateCachedArray(corrected.length, "Float64Array", cache, "corrected");
             corbuffer.set(corrected);
+        } else {
+            cache.corrected = combined.fetchCombined().view();
         }
 
         output = new BatchCorrectionState(filter, combined, parameters, cache);

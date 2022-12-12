@@ -179,3 +179,13 @@ export function checkIndices(indices, max) {
         }
     }
 }
+
+export function prepareWasmArrayOutput(x, unsafe) {
+    if (unsafe === "view") {
+        return x;
+    } else if (unsafe) {
+        return x.array();
+    } else {
+        return x.slice();
+    }
+}

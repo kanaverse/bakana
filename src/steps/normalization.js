@@ -50,6 +50,9 @@ export class NormalizationState extends nutils.NormalizationStateBase {
         return true;
     }
 
+    /**
+     * @return {ScranMatrix} A ScranMatrix object containing the normalized expression values.
+     */
     fetchNormalizedMatrix() {
         if (!("matrix" in this.#cache)) {
             this.#raw_compute();
@@ -58,17 +61,16 @@ export class NormalizationState extends nutils.NormalizationStateBase {
     }
 
     /**
-     * Extract normalized expression values.
-     * @param {number} index - An integer specifying the row index to extract.
-     * @return A Float64Array of length equal to the number of (QC-filtered) cells, containing the log-normalized expression values for each cell.
+     * @return {Float64WasmArray} Array of length equal to the number of cells, 
+     * containing the gene expression size factor for each cell.
      */
-    fetchExpression(index) {
-        var mat = this.fetchNormalizedMatrix();
-        var buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache); // re-using the buffer.
-        mat.row(index, { buffer: buffer });
-        return buffer.slice();
+    fetchSizeFactors() {
+        return this.#cache.sum_buffer;
     }
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
@@ -78,7 +80,7 @@ export class NormalizationState extends nutils.NormalizationStateBase {
      ***************************/
 
     #raw_compute() {
-        var mat = this.#filter.fetchFilteredMatrix({ type: "RNA" });
+        var mat = this.#filter.fetchFilteredMatrix().get("RNA");
         let buffer = nutils.subsetSums(this.#qc, this.#filter, mat, this.#cache, "sum_buffer");
 
         var block = this.#filter.fetchFilteredBlock();
@@ -105,20 +107,6 @@ export class NormalizationState extends nutils.NormalizationStateBase {
     }
 
     static defaults() {
-        return {};
-    }
-
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return An empty object.
-     * This is just provided for consistency with the other classes.
-     */
-    summary() {
         return {};
     }
 

@@ -35,7 +35,11 @@ export class SnnGraphClusterState {
      ******** Getters **********
      ***************************/
 
-    fetchClustersAsWasmArray() {
+    /**
+     * @return {Int32WasmArray} Array of cluster assignments for each cell in the (filtered) dataset,
+     * available after running {@linkcode SnnGraphClusterState#compute compute}.
+     */
+    fetchClusters() {
         if (!this.#valid()) {
             throw "cannot fetch SNN clusters from an invalid state";
         } else {
@@ -43,6 +47,9 @@ export class SnnGraphClusterState {
         }
     }
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
@@ -128,21 +135,6 @@ export class SnnGraphClusterState {
         return;
     }
 
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return An empty object, see {@linkplain ChooseClusteringState} for the actual cluster assignments.
-     */
-    summary() {
-        // Cluster IDs will be passed to main thread in 
-        // choose_clustering, so no need to do it here.
-        return {};
-    }
-
     /*************************
      ******** Saving *********
      *************************/
@@ -160,7 +152,7 @@ export class SnnGraphClusterState {
         {
             let rhandle = ghandle.createGroup("results");
             if (this.#valid()) {
-                let clusters = this.fetchClustersAsWasmArray();
+                let clusters = this.fetchClusters();
                 rhandle.writeDataSet("clusters", "Int32", null, clusters);
             }
         }

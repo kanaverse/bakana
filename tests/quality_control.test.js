@@ -13,24 +13,17 @@ test("analysis works when we skip the QC steps", async () => {
         default: new bakana.TenxHdf5Dataset("files/datasets/immune_3.0.0-tenx.h5")
     };
 
-    let contents = {};
-    let finished = (step, res) => {
-        contents[step] = res;
-    };
-
     // Running the analysis with skipped QC.
     let state = await bakana.createAnalysis();
     let paramcopy = utils.baseParams();
     paramcopy.quality_control.skip = true;
     paramcopy.adt_quality_control.skip = true;
 
-    await bakana.runAnalysis(state, files, paramcopy, { finishFun: finished });
+    await bakana.runAnalysis(state, files, paramcopy);
     expect(state.quality_control.valid()).toBe(true);
     expect(state.quality_control.skipped()).toBe(true);
-    expect(contents.quality_control).toBeNull();
     expect(state.adt_quality_control.valid()).toBe(true);
     expect(state.adt_quality_control.skipped()).toBe(true);
-    expect(contents.adt_quality_control).toBeNull();
 
     expect(state.cell_filtering.fetchDiscards()).toBeNull();
     let ncells = state.inputs.fetchCountMatrix().numberOfColumns();
@@ -110,11 +103,13 @@ test("analysis works when we skip the QC steps", async () => {
         
         // Changing parameters have no effect when we're still skipping.
         rerun_change(true);
+        expect(state.inputs.changed).toBe(false);
         expect(curstep.skipped()).toBe(true);
         expect(curstep.changed).toBe(false);
 
         // Until we reactivate everything... 
         rerun(false);
+        expect(state.inputs.changed).toBe(false);
         expect(curstep.changed).toBe(true);
         expect(curstep.skipped()).toBe(false);
 
@@ -125,7 +120,9 @@ test("analysis works when we skip the QC steps", async () => {
             state.cell_filtering.compute();
             has_discards = state.cell_filtering.fetchDiscards();
             expect(has_discards.length).toBe(ncells);
-            let remaining = state.cell_filtering.summary().retained;
+
+            let remaining = 0;
+            has_discards.forEach(x => { remaining += !x; });
             expect(remaining).toBeLessThan(ncells);
             expect(state.cell_filtering.fetchFilteredMatrix().numberOfColumns()).toEqual(remaining);
 
@@ -139,20 +136,16 @@ test("analysis works when we skip the QC steps", async () => {
         expect(curstep.changed).toBe(true);
 
         {
-            let has_discards = curstep.fetchDiscards();
-            expect(has_discards.length).toBe(ncells);
-
             state.cell_filtering.compute();
             expect(state.cell_filtering.fetchDiscards()).toBeNull();
-            expect(state.cell_filtering.summary().retained).toEqual(ncells);
             expect(state.cell_filtering.fetchFilteredMatrix().numberOfColumns()).toEqual(ncells);
 
-            let handle = scran.createNewHDF5File(path);
-            curstep.serialize(handle);
-            validate(path);
-        }
+            {
+                let handle = scran.createNewHDF5File(path);
+                curstep.serialize(handle);
+                validate(path);
+            }
 
-        {
             let handle = new scran.H5File(path);
             let qhandle = handle.open(stepname);
             let qrhandle = qhandle.open("results");
@@ -167,8 +160,7 @@ test("analysis works when we skip the QC steps", async () => {
             }
             expect(reloaded.skipped()).toBe(true);
 
-            let has_discards = reloaded.fetchDiscards();
-            expect(has_discards.length).toBe(ncells);
+            expect(reloaded.fetchDiscards().length).toBe(ncells);
             reloaded.free();
         }
 
@@ -179,6 +171,7 @@ test("analysis works when we skip the QC steps", async () => {
         }
 
         rerun(false);
+        expect(state.inputs.changed).toBe(false);
         expect(curstep.changed).toBe(true);
 
         {
@@ -188,6 +181,7 @@ test("analysis works when we skip the QC steps", async () => {
 
         // Reskipping, but with altered parameters, so we wipe the existing values. 
         rerun_change(true);
+        expect(state.inputs.changed).toBe(false);
         expect(curstep.changed).toBe(true);
 
         {

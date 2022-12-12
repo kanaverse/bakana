@@ -41,53 +41,64 @@ export class InputsState {
      ******** Getters **********
      ***************************/
 
-    listAvailableTypes() {
-        return this.#cache.matrix.available();
-    }
-
-    hasAvailable(type) {
-        return this.#cache.matrix.has(type);
-    }
-
-    fetchCountMatrix({ type = "RNA" } = {}) {
-        return this.#cache.matrix.get(type);
-    }
-
-    fetchGenes({ type = "RNA" } = {}) {
-        return this.#cache.genes[type];
-    }
-
-    fetchRowIds({ type = "RNA" } = {}) {
-        return this.#cache.row_ids[type];
+    /**
+     * @return {MultiMatrix} A MultiMatrix object containing the counts for one or more modalities.
+     * Each modality is represented by a separate count matrix, where each row of the matrix represents a feature of that modality.
+     * All matrices have the same number and ordering of cells in their columns.
+     */
+    fetchCountMatrix() {
+        return this.#cache.matrix;
     }
 
     /**
-     * Fetch an annotation for all cells in the dataset.
-     * This considers all cells in the dataset before QC filtering - 
-     * see {@linkcode QualityControlState#fetchFilteredAnnotations QualityControlState.fetchFilteredAnnotations} for an alternative.
-     *
-     * @param {string} col - Name of the annotation field of interest.
-     *
-     * @return {Array|TypedArray} Array of length equal to the total number of cells, containing the requested annotations.
+     * @return {object} Object where each key is the name of a modality and each value is a DataFrame.
+     * Each row of the DataFrame corresponds to a feature in that modality 
+     * (i.e., a row in the corresponding matrix from {@linkcode InputsState#fetchCountMatrix fetchCountMatrix})
+     * and each column represents a per-feature annotation field.
      */
-    fetchAnnotations(col) {
-        let annots = this.#cache.annotations;
-        if (!annots.hasColumn(col)) {
-            throw new Error(`${col} does not exist in the column annotations`);
-        }
-
-        // Make a copy, avoid accidental writes or transfers. 
-        return bioc.CLONE(annots.column(col));
+    fetchFeatureAnnotations() {
+        return this.#cache.genes;
     }
 
+    /**
+     * @return {object} Object where each key is the name of a modality and each value is an Int32Array.
+     * Each entry of an Int32Array specifies the identity of the corresponding row of its count matrix from {@linkcode InputsState#fetchCountMatrix fetchCountMatrix}.
+     */
+    fetchRowIds() {
+        return this.#cache.row_ids;
+    }
+
+    /**
+     * @return {DataFrame} DataFrame containing per-cell annotations.
+     * Each row of the DataFrame corresponds to a cell in {@linkcode InputsState#fetchCountMatrix fetchCountMatrix},
+     * and each column represents a per-cell annotation field.
+     *
+     * Note that this considers all cells in the dataset before QC filtering - 
+     * see {@linkcode QualityControlState#applyFilter QualityControlState.applyFilter} to obtain a filtered version of each column.
+     */
+    fetchCellAnnotations() {
+        return this.#cache.annotations;
+    }
+
+    /**
+     * @return {?Int32Array} Array of length equal to the number of cells in the dataset,
+     * identifying the block to which each cell is assigned.
+     * Alternatively `null`, if no blocking is performed.
+     */
     fetchBlock() {
         return this.#cache.block_ids;
     }
 
+    /**
+     * @return {?Array} Array of names of the blocks, or `null` if no blocking is performed.
+     */
     fetchBlockLevels() {
         return this.#cache.block_levels;
     }
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         // Cloning the parameters to avoid pass-by-reference behavior affecting the
         // InputsState object. We don't pass the files back here.
@@ -96,6 +107,11 @@ export class InputsState {
         return output;
     }
 
+    /**
+     * @return {?Int32Array} Array containing the indices to use for direct subsetting -
+     * see {@linkcode InputsState#setDirectSubset setDirectSubset} for more information.
+     * Alternatively `null`, if direct subsetting is not performed.
+     */
     fetchDirectSubset() {
         if (RAW_SUBSET_OVERRIDE in this.#cache) {
             return this.#cache[RAW_SUBSET_OVERRIDE].slice();
@@ -222,6 +238,15 @@ export class InputsState {
      * @return Entries of `indices` are replaced with indices to the pre-subsetted matrix.
      */
     undoSubset(indices) {
+        if ("matrix" in this.#cache) {
+            let max_index = this.fetchCountMatrix().numberOfColumns();
+            for (const x of indices) {
+                if (x < 0 || x >= max_index) {
+                    throw new Error("entries of 'indices' should be less than the number of cells in the dataset");
+                }
+            }
+        }
+
         // Setting the subset to null, if the parameter-level subset hasn't
         // been set yet. This is because we might get indirectly called via
         // setDirectSubset() before compute() has been run.
@@ -291,6 +316,9 @@ export class InputsState {
         let new_cache = {};
         new_cache[RAW_SUBSET_OVERRIDE] = this.#configureIndices(indices, copy, onOriginal);
 
+        // Need to manually copy everything in 'this.#cache' that is set in
+        // load_and_cache or block_and_cache.
+
         // Making explicit clones to take ownership.
         new_cache.raw_matrix = this.#cache.raw_matrix.clone();
         for (const x of [ "multi_block_ids", "raw_block_ids" ]) {
@@ -306,7 +334,7 @@ export class InputsState {
         // These can probably be copied directly, given that they are always
         // replaced wholesale in the various *_and_cache functions, rather than
         // being modified in-place.
-        for (const x of [ "raw_annotations", "genes", "multi_block_levels", "raw_block_levels" ]) {
+        for (const x of [ "row_ids", "raw_annotations", "genes", "multi_block_levels", "raw_block_levels" ]) {
             if (x in this.#cache) {
                 new_cache[x] = this.#cache[x];
             }
@@ -318,46 +346,6 @@ export class InputsState {
         new_params.subset = null;
 
         return new InputsState(new_params, new_cache, this.#abbreviated);
-    }
-
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return An object containing:
-     *
-     * - `dimensions`: an object containing `num_genes` and `num_cells`, the number of genes and cells respectively.
-     *   For multiple datasets, the number of cells is defined as the sum across all datasets.
-     * - `genes`: an object containing the per-gene annotation.
-     *   Each property is an array of length equal to the number of genes, usually containing strings with gene identifiers or symbols.
-     *   Property names are arbitrary.
-     * - (optional) `annotations`: an array of strings containing the names of available cell annotation fields.
-     */
-    summary() {
-        let ngenes = {};
-        for (const a of this.#cache.matrix.available()) {
-            ngenes[a] = this.#cache.matrix.get(a).numberOfRows();
-        }
-
-        let gene_info = {};
-        for (const [k, v] of Object.entries(this.#cache.genes)) {
-            let info = {};
-            for (const c of v.columnNames()) {
-                info[c] = bioc.CLONE(v.column(c));
-            }
-            gene_info[k] = info;
-        }
-        
-        var output = {
-            "num_cells": this.#cache.matrix.numberOfColumns(),
-            "num_genes": ngenes,
-            "genes": gene_info,
-            "annotations": this.#cache.annotations.columnNames()
-        };
-        return output;
     }
 
     /*************************

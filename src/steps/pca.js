@@ -58,10 +58,20 @@ export class PcaState extends putils.PcaStateBase {
         return true;
     }
 
+    /**
+     * @return {RunPCAResults} Results of the PCA on the normalized gene expression values.
+     */
     fetchPCs() {
-        return putils.formatPCs(this.#cache.pcs);
+        if (this.valid()) {
+            return this.#cache.pcs;
+        } else {
+            return null;
+        }
     }
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
@@ -117,21 +127,6 @@ export class PcaState extends putils.PcaStateBase {
         };
     }
 
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return An object containing:
-     *
-     * - `var_exp`: a `Float64Array` of length equal to `num_pcs`, containing the proportion of variance explained for each successive PC.
-     */
-    summary() {
-        return putils.formatSummary(this.#cache.pcs);
-    }
-
     /*************************
      ******** Saving *********
      *************************/
@@ -149,11 +144,17 @@ export class PcaState extends putils.PcaStateBase {
         {
             let rhandle = ghandle.createGroup("results");
 
-            let ve = this.summary().var_exp;
-            rhandle.writeDataSet("var_exp", "Float64", null, ve);
-
             let pcs = this.fetchPCs();
-            rhandle.writeDataSet("pcs", "Float64", [pcs.num_obs, pcs.num_pcs], pcs.pcs); // remember, it's transposed.
+            rhandle.writeDataSet(
+                "pcs", 
+                "Float64", 
+                [pcs.numberOfCells(), pcs.numberOfPCs()], // remember, it's transposed.
+                pcs.principalComponents({ copy: "view" })
+            ); 
+
+            let ve = pcs.varianceExplained();
+            ve.forEach((x, i) => { ve[i] = x/pcs.totalVariance(); });
+            rhandle.writeDataSet("var_exp", "Float64", null, ve);
         }
     }
 }
@@ -168,7 +169,7 @@ function choose_hvgs(num_hvgs, feat, cache) {
 
     if (num_hvgs < sorted_resids.length) {
         var threshold_at = sorted_resids[sorted_resids.length - num_hvgs];
-        var unsorted_resids = feat.fetchResiduals({ unsafe: true });
+        var unsorted_resids = feat.fetchResults().residuals({ copy: false });
         sub.array().forEach((element, index, array) => {
             array[index] = unsorted_resids[index] >= threshold_at;
         });

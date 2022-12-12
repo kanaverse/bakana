@@ -15,16 +15,12 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     await bakana.runAnalysis(state, files, params);
 
     state.custom_selections.addSelection("evens", [0,2,4,6,8]);
-    let res = state.custom_selections.fetchResults("evens", "cohen", "RNA");
-    expect("ordering" in res).toBe(true);
-    expect("means" in res).toBe(true);
-    expect("lfc" in res).toBe(true);
+    let res = state.custom_selections.fetchResults("evens");
+    expect(res.RNA instanceof scran.ScoreMarkersResults).toBe(true);
 
     state.custom_selections.addSelection("odds", [1,3,5,7,9]);
-    let res2 = state.custom_selections.fetchResults("odds", "cohen", "RNA");
-    expect("ordering" in res2).toBe(true);
-    expect("means" in res2).toBe(true);
-    expect("lfc" in res2).toBe(true);
+    let res2 = state.custom_selections.fetchResults("odds");
+    expect(res2.RNA instanceof scran.ScoreMarkersResults).toBe(true);
 
     expect(state.custom_selections.fetchSelectionIndices("evens")).toEqual([0,2,4,6,8]);
     expect(state.custom_selections.fetchSelectionIndices("odds")).toEqual([1,3,5,7,9]);
@@ -36,22 +32,16 @@ test("addition, fetching and removal of custom selections works correctly", asyn
 
     // Versus mode works correctly.
     {
-        let vres = state.custom_selections.computeVersus("odds", "evens", "cohen", "RNA");
-        expect("ordering" in vres).toBe(true);
-        expect("lfc" in vres).toBe(true);
+        let vres = state.custom_selections.computeVersus("odds", "evens");
+        expect(vres.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
 
-        let vres2 = state.custom_selections.computeVersus("evens", "odds", "cohen", "RNA");
-        expect("ordering" in vres2).toBe(true);
-        expect("lfc" in vres2).toBe(true);
+        let vres2 = state.custom_selections.computeVersus("evens", "odds");
+        expect(vres2.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
 
-        let lfcs = new Array(vres.lfc.length);
-        vres.ordering.forEach((x, i) => {
-            lfcs[x] = vres.lfc[i];
-        });
-
-        let lfcs2 = new Array(vres2.lfc.length);
-        vres2.ordering.forEach((x, i) => {
-            lfcs2[x] = -vres2.lfc[i];
+        let lfcs = vres.results.RNA.lfc(vres.left);
+        let lfcs2 = vres2.results.RNA.lfc(vres2.left);
+        lfcs2.forEach((x, i) => {
+            lfcs2[i] *= -1;
         });
 
         expect(lfcs).toEqual(lfcs2);
@@ -79,8 +69,11 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     let new_params = bakana.retrieveParameters(reloaded);
     expect(new_params.custom_selections).toEqual({});
     expect(state.custom_selections.fetchSelectionIndices("evens")).toEqual([0,2,4,6,8]);
-    let reres = reloaded.custom_selections.fetchResults("evens", "cohen", "RNA");
-    expect(reres.ordering).toEqual(res.ordering);
+
+    let reres = reloaded.custom_selections.fetchResults("evens");
+    expect(reres.cohen(1)).toEqual(res.cohen(1));
+    expect(reres.auc(0)).toEqual(res.auc(0));
+    expect(reres.means(0)).toEqual(res.means(0));
 
     await bakana.freeAnalysis(state);
     await bakana.freeAnalysis(reloaded);

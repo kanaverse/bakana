@@ -7,14 +7,14 @@ beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 test("runAnalysis works correctly (MatrixMarket)", async () => {
-    let attempts = new Set();
+    let attempts = new Set;
     let started = step => {
         attempts.add(step);
     };
 
-    let contents = {};
-    let finished = (step, res) => {
-        contents[step] = res;
+    let completed = new Set;
+    let finished = (step) => {
+        completed.add(step);
     };
 
     let mtx_file = "files/datasets/pbmc3k-matrix.mtx.gz";
@@ -27,16 +27,18 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     let params = utils.baseParams();
     let res = await bakana.runAnalysis(state, files, params, { startFun: started, finishFun: finished });
 
+    // Check that the callbacks are actually called.
+    expect(attempts.has("quality_control")).toBe(true);
     expect(attempts.has("pca")).toBe(true);
-    expect(contents.pca instanceof Object).toBe(true);
-    expect(contents.feature_selection instanceof Object).toBe(true);
-    expect(contents.cell_labelling instanceof Object).toBe(true);
+    expect(completed.has("pca")).toBe(true);
+    expect(completed.has("feature_selection")).toBe(true);
+    expect(completed.has("cell_labelling")).toBe(true);
 
     // Input reorganization is done correctly.
     {
-        let loaded = state.inputs.fetchCountMatrix();
-        let loaded_names = state.inputs.fetchGenes().column("id");
-        let loaded_ids = state.inputs.fetchRowIds();
+        let loaded = state.inputs.fetchCountMatrix().get("RNA");
+        let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].column("id");
+        let loaded_ids = state.inputs.fetchRowIds()["RNA"];
 
         let simple = scran.initializeSparseMatrixFromMatrixMarket(mtx_file, { layered: false });
         let parsed = bakana.readTable((new bakana.SimpleFile(feat_file)).buffer(), { compression: "gz" });
@@ -46,103 +48,9 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         simple.matrix.free();
     }
 
-    // Quality control.
-    {
-        expect(attempts.has("quality_control")).toBe(true);
-        expect(contents.quality_control instanceof Object).toBe(true);
-        expect(contents.quality_control.thresholds.default.proportion).toBeGreaterThan(0);
-
-        // Undoing the filtering works as expected.
-        let last_filtered = contents.cell_filtering.retained - 1;
-        let idx = [0, last_filtered];
-        state.cell_filtering.undoFiltering(idx);
-        expect(idx[1]).toBeGreaterThan(last_filtered);
-        expect(state.inputs.fetchCountMatrix().column(idx[0])).toEqual(state.cell_filtering.fetchFilteredMatrix().column(0));
-        expect(state.inputs.fetchCountMatrix().column(idx[1])).toEqual(state.cell_filtering.fetchFilteredMatrix().column(last_filtered));
-
-        for (const metric of Object.keys(contents.quality_control.data.default)) { 
-            let metvec = state.cell_filtering.fetchFilteredQualityMetric(metric, "RNA");
-            expect(metvec instanceof Float64Array || metvec instanceof Int32Array).toBe(true);
-            expect(metvec.length).toEqual(contents.cell_filtering.retained);
-        }
-    }
-
-    // Markers.
-    {
-        expect(contents.marker_detection instanceof Object).toBe(true);
-        expect(state.marker_detection.numberOfGroups()).toBeGreaterThan(0);
-
-        let res = state.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
-        expect("ordering" in res).toBe(true);
-        expect("means" in res).toBe(true);
-        expect("lfc" in res).toBe(true);
-    }
-
-    // In versus mode.
-    {
-        let vres = state.marker_detection.computeVersus(3, 0, "auc", "RNA");
-        expect("ordering" in vres).toBe(true);
-        expect("lfc" in vres).toBe(true);
-
-        let vres2 = state.marker_detection.computeVersus(0, 3, "auc", "RNA");
-        expect("ordering" in vres2).toBe(true);
-        expect("lfc" in vres2).toBe(true);
-
-        let lfcs = new Array(vres.lfc.length);
-        vres.ordering.forEach((x, i) => {
-            lfcs[x] = vres.lfc[i];
-        });
-
-        let lfcs2 = new Array(vres2.lfc.length);
-        vres2.ordering.forEach((x, i) => {
-            lfcs2[x] = -vres2.lfc[i];
-        });
-
-        expect(lfcs).toEqual(lfcs2);
-    }
-
-    // Normalized expression.
-    {
-        let exprs = state.normalization.fetchExpression(0);
-        let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
-        expect(exprs.length).toBe(nfiltered);
-    }
-
-    // Clustering.
-    {
-        let filtered_cells = contents.cell_filtering.retained;
-        expect(contents.choose_clustering.clusters.length).toBe(filtered_cells);
-
-        let nclusters = (new Set(contents.choose_clustering.clusters)).size;
-        let expected = new Int32Array(filtered_cells);
-        for (var c = 0; c < nclusters; c++) {
-            let idx = state.choose_clustering.fetchClusterIndices(c);
-            idx.forEach(x => { expected[x] = c; });
-        }
-        expect(contents.choose_clustering.clusters).toEqual(expected);
-    }
-
-    // ADTs are no-ops.
-    {
-        expect(state.adt_quality_control.summary()).toBeNull();
-        expect(state.adt_normalization.summary()).toBeNull();
-        expect(state.adt_pca.summary()).toBeNull();
-    }
-
-    // Animation catcher workers correctly.
-    {
-        let collected = { tsne: [], umap: [] }
-        let fun = bakana.setVisualizationAnimate((type, x, y, iterations) => {
-            collected[type].push(iterations);
-        });
-
-        let p = [state.tsne.animate(), state.umap.animate()];
-        await Promise.all(p);
-        bakana.setVisualizationAnimate(null)
-
-        expect(collected.tsne.length).toBeGreaterThan(0);
-        expect(collected.umap.length).toBeGreaterThan(0);
-    }
+    // Basic consistency checks.
+    await utils.checkStateResultsSimple(state);
+    utils.checkClusterVersusMode(state);
 
     // Saving and loading.
     const path = "TEST_state_MatrixMarket.h5";
@@ -158,51 +66,16 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     );
 
     let new_params = bakana.retrieveParameters(reloaded);
-//    for (const [k, v] of Object.entries(params)) {
-//        if (butils.changedParameters(new_params[k], v)) {
-//            console.log([k, new_params[k], v]);
-//        }
-//    }
     expect(butils.changedParameters(new_params, params)).toBe(false); // should be the same after a roundtrip.
 
-    {
-        // Check that steps unserialize correctly.
-        let old_keys = Object.keys(state);
-        old_keys.sort();
-        let new_keys = Object.keys(reloaded);
-        new_keys.sort();
-        expect(old_keys).toEqual(new_keys);
+    // Checking that the results are the same.
+    await utils.compareStates(state, reloaded);
 
-        for (const step of old_keys) {
-            let qc_deets = reloaded[step].summary();
-            let ref = state[step].summary();
-            expect(ref).toEqual(ref);
-        }
-
-        // Check that we still get some markers.
-        let reloaded_markers = reloaded.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
-        let ref_markers = reloaded.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
-        expect(reloaded_markers).toEqual(ref_markers);
-    }
-
-    {
-        // While the ADT itself is a no-op, the parameters should still be okay.
-        expect(new_params.adt_normalization.num_pcs).toBeGreaterThan(0);
-        expect(new_params.adt_normalization.num_clusters).toBeGreaterThan(0);
-        expect(new_params.combine_embeddings.weights).toBeNull();
-        expect(new_params.batch_correction.num_neighbors).toBeGreaterThan(0);
-    }
-
-    // Checking that the permutation is unchanged on reload.
-    let old_ids = state.inputs.summary()["genes"]["RNA"]["id"];
-    let new_ids = reloaded.inputs.summary()["genes"]["RNA"]["id"];
-    expect(old_ids.length).toBeGreaterThan(0);
-    expect(old_ids).toEqual(new_ids);
-
-    let old_res = state.feature_selection.summary();
-    let new_res = reloaded.feature_selection.summary();
-    expect("means" in old_res).toBe(true);
-    expect(old_res["means"]).toEqual(new_res["means"]);
+    // While the ADT itself is a no-op, the parameters should still be okay.
+    expect(new_params.adt_normalization.num_pcs).toBeGreaterThan(0);
+    expect(new_params.adt_normalization.num_clusters).toBeGreaterThan(0);
+    expect(new_params.combine_embeddings.weights).toBeNull();
+    expect(new_params.batch_correction.num_neighbors).toBeGreaterThan(0);
 
     // Release me!
     await bakana.freeAnalysis(state);
@@ -210,24 +83,21 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 })
 
 test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async () => {
-    let contents = {};
-    let finished = (step, res) => {
-        contents[step] = res;
-    };
-
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
     let res = await bakana.runAnalysis(state, 
         { 
             default: new bakana.TenxMatrixMarketDataset("files/datasets/pbmc3k-matrix.mtx.gz", null, null)
         },
-        params,
-        {
-            finishFun: finished,
-        }
+        params
     );
 
-    expect(contents.quality_control.thresholds.default.proportion).toBe(0);
+    // Basic consistency checks.
+    await utils.checkStateResultsSimple(state);
+
+    // No annotations, so no mitochondrial proportions.
+    expect(state.inputs.fetchFeatureAnnotations()["RNA"].numberOfColumns()).toBe(0);
+    expect(state.quality_control.fetchFilters().thresholdsSubsetProportions()[0]).toBe(0);
 
     // Saving and loading.
     const path = "TEST_state_MatrixMarket.h5";
@@ -242,9 +112,10 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
         (offset, size) => offsets[offset]
     );
 
+    await utils.compareStates(state, reloaded);
+
     let new_params = bakana.retrieveParameters(reloaded);
-    expect(new_params.quality_control instanceof Object).toBe(true);
-    expect(new_params.pca instanceof Object).toBe(true);
+    expect(new_params).toEqual(params);
 
     // Release me!
     await bakana.freeAnalysis(state);

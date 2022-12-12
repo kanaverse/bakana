@@ -57,9 +57,48 @@ export class TsneState {
      ******** Getters **********
      ***************************/
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
+
+    /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.copy=true] - Whether to create a copy of the coordinates,
+     * if the caller might mutate them.
+     *
+     * @return {object} Object containing:
+     *
+     * - `x`: a Float64Array containing the x-coordinate for each cell.
+     * - `y`: a Float64Array containing the y-coordinate for each cell.
+     * - `iterations`: the number of iterations processed.
+     *
+     * @async
+     */
+    async fetchResults({ copy = true } = {}) {
+        if (this.#reloaded !== null) {
+            let output = {
+                x: this.#reloaded.x,
+                y: this.#reloaded.y
+            };
+
+            if (copy) {
+                output.x = output.x.slice();
+                output.y = output.y.slice();
+            }
+        
+            output.iterations = this.#parameters.iterations;
+            return output;
+        } else {
+            // Vectors that we get from the worker are inherently
+            // copied, so no need to do anything extra here.
+            await this.#run;
+            return vizutils.sendTask(this.#worker, { "cmd": "FETCH" }, this.#cache);
+        }
+    }
+
 
     /***************************
      ******** Compute **********
@@ -122,45 +161,6 @@ export class TsneState {
         return this.#run;
     }
 
-    /***************************
-     ******** Results **********
-     ***************************/
-
-    async #fetch_results(copy) {
-        if (this.#reloaded !== null) {
-            let output = {
-                x: this.#reloaded.x,
-                y: this.#reloaded.y
-            };
-
-            if (copy) {
-                output.x = output.x.slice();
-                output.y = output.y.slice();
-            }
-        
-            output.iterations = this.#parameters.iterations;
-            return output;
-        } else {
-            // Vectors that we get from the worker are inherently
-            // copied, so no need to do anything extra here.
-            await this.#run;
-            return vizutils.sendTask(this.#worker, { "cmd": "FETCH" }, this.#cache);
-        }
-    }
-
-    /**
-     * Obtain a summary of the state, typically for display on a UI like **kana**.
-     *
-     * @return A promise that resolves to an object containing:
-     *
-     * - `x`: a Float64Array containing the x-coordinate for each cell.
-     * - `y`: a Float64Array containing the y-coordinate for each cell.
-     * - `iterations`: the number of iterations processed.
-     */
-    summary() {
-        return this.#fetch_results(true);
-    }
-
     /*************************
      ******** Saving *********
      *************************/
@@ -176,7 +176,7 @@ export class TsneState {
         }
 
         {
-            let res = await this.#fetch_results(false);
+            let res = await this.fetchResults({ copy: false });
             let rhandle = ghandle.createGroup("results");
             rhandle.writeDataSet("x", "Float64", null, res.x);
             rhandle.writeDataSet("y", "Float64", null, res.y);

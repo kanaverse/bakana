@@ -133,37 +133,34 @@ export function freeAnalysis(state) {
  * @param {object} [options] - Optional parameters.
  * @param {function} [options.startFun] - Function that is called when each step is started.
  * This should accept a single argument - the name of the step.
+ * The return value is ignored, but any promises will be awaited before the analysis proceeds to the next step.
  * If `null`, nothing is executed.
  * @param {function} [options.finishFun] - Function that is called on successful execution of each step.
- * This should accept two arguments - the name of the step and an object containing the results of that step.
- * (The latter will be undefined if the step uses a previously cached result.)
+ * This should accept a single argument - the name of the step.
+ * The return value is ignored, but any promises will be awaited before the analysis proceeds to the next step.
  * If `null`, nothing is executed.
  * 
  * @return A promise that resolves to `null` when all asynchronous analysis steps are complete.
  * The contents of `state` are modified by reference to reflect the latest state of the analysis with the supplied parameters.
  */
 export async function runAnalysis(state, datasets, params, { startFun = null, finishFun = null } = {}) {
-    let quickStart = step => {
+    let quickStart = async step => {
         if (startFun !== null) {
-            startFun(step);
+            await startFun(step);
         }
     }
 
-    let quickFinish = step => {
+    let quickFinish = async step => {
         if (finishFun !== null) {
-            if (state[step].changed) {
-                finishFun(step, state[step].summary());
-            } else {
-                finishFun(step);
-            }
+            await finishFun(step);
         }
     }
 
     let promises = [];
-    let asyncQuickFinish = (step, p) => {
+    let deferredQuickFinish = (step, p) => {
         if (finishFun !== null) {
             if (state[step].changed) {
-                p = state[step].summary().then(res => finishFun(step, res));
+                p = p.then(out => finishFun(step, state[step]));
             } else {
                 p = p.then(out => finishFun(step));
             }
@@ -172,157 +169,158 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
     }
 
     /*** Loading ***/
-    quickStart(step_inputs);
+    await quickStart(step_inputs);
     await state[step_inputs].compute(
         datasets,
         params[step_inputs]["sample_factor"],
         params[step_inputs]["subset"]
     );
-    quickFinish(step_inputs);
+    await quickFinish(step_inputs);
 
     /*** Quality control ***/
-    quickStart(step_qc);
+    await quickStart(step_qc);
     state[step_qc].compute(
         params[step_qc]["skip"],
         params[step_qc]["use_mito_default"], 
         params[step_qc]["mito_prefix"], 
         params[step_qc]["nmads"]
     );
-    quickFinish(step_qc);
+    await quickFinish(step_qc);
 
-    quickStart(step_qc_adt);
+    await quickStart(step_qc_adt);
     state[step_qc_adt].compute(
         params[step_qc_adt]["skip"],
         params[step_qc_adt]["igg_prefix"], 
         params[step_qc_adt]["nmads"],
         params[step_qc_adt]["min_detected_drop"]
     );
-    quickFinish(step_qc_adt);
+    await quickFinish(step_qc_adt);
 
-    quickStart(step_filter);
+    await quickStart(step_filter);
     state[step_filter].compute();
-    quickFinish(step_filter);
+    await quickFinish(step_filter);
 
     /*** Normalization ***/
-    quickStart(step_norm);
+    await quickStart(step_norm);
     state[step_norm].compute();
-    quickFinish(step_norm);
+    await quickFinish(step_norm);
 
-    quickStart(step_norm_adt);
+    await quickStart(step_norm_adt);
     state[step_norm_adt].compute(
         params[step_norm_adt]["num_pcs"],    
         params[step_norm_adt]["num_clusters"]    
     );
-    quickFinish(step_norm_adt);
+    await quickFinish(step_norm_adt);
 
     /*** Feature selection ***/
-    quickStart(step_feat);
+    await quickStart(step_feat);
     state[step_feat].compute(
         params[step_feat]["span"]
     );
-    quickFinish(step_feat);
+    await quickFinish(step_feat);
   
     /*** Dimensionality reduction ***/
-    quickStart(step_pca);
+    await quickStart(step_pca);
     state[step_pca].compute(
         params[step_pca]["num_hvgs"],
         params[step_pca]["num_pcs"],
         params[step_pca]["block_method"]
     );
-    quickFinish(step_pca);
+    await quickFinish(step_pca);
 
-    quickStart(step_pca_adt);
+    await quickStart(step_pca_adt);
     state[step_pca_adt].compute(
         params[step_pca_adt]["num_pcs"],
         params[step_pca_adt]["block_method"]
     );
-    quickFinish(step_pca_adt);
+    await quickFinish(step_pca_adt);
 
-    quickStart(step_combine);
+    await quickStart(step_combine);
     state[step_combine].compute(
         params[step_combine]["weights"],
         params[step_combine]["approximate"]
     );
-    quickFinish(step_combine);
+    await quickFinish(step_combine);
 
-    quickStart(step_correct);
+    await quickStart(step_correct);
     state[step_correct].compute(
         params[step_correct]["method"],
         params[step_correct]["num_neighbors"],
         params[step_correct]["approximate"]
     );
-    quickFinish(step_correct);
+    await quickFinish(step_correct);
 
     /*** Nearest neighbors ***/
-    quickStart(step_neighbors);
+    await quickStart(step_neighbors);
     state[step_neighbors].compute(
         params[step_neighbors]["approximate"]
     );
-    quickFinish(step_neighbors);
+    await quickFinish(step_neighbors);
 
     /*** Visualization ***/
     {
-        quickStart(step_tsne);
+        await quickStart(step_tsne);
         let p = state[step_tsne].compute(
             params[step_tsne]["perplexity"],
             params[step_tsne]["iterations"], 
             params[step_tsne]["animate"]
         );
-        asyncQuickFinish(step_tsne, p);
+        deferredQuickFinish(step_tsne, p);
     }
 
     {
-        quickStart(step_umap);
+        await quickStart(step_umap);
         let p = state[step_umap].compute(
             params[step_umap]["num_neighbors"], 
             params[step_umap]["num_epochs"], 
             params[step_umap]["min_dist"], 
             params[step_umap]["animate"]
         );
-        asyncQuickFinish(step_umap, p);
+        deferredQuickFinish(step_umap, p);
     }
 
     /*** Clustering ***/
     let method = params[step_choice]["method"];
 
-    quickStart(step_kmeans);
+    await quickStart(step_kmeans);
     state[step_kmeans].compute(
         method == "kmeans", 
         params[step_kmeans]["k"]
     );
-    quickFinish(step_kmeans);
+    await quickFinish(step_kmeans);
 
-    quickStart(step_snn);
+    await quickStart(step_snn);
     state[step_snn].compute(
         method == "snn_graph", 
         params[step_snn]["k"], 
         params[step_snn]["scheme"], 
         params[step_snn]["resolution"]
     );
-    quickFinish(step_snn);
+    await quickFinish(step_snn);
 
-    quickStart(step_choice);
+    await quickStart(step_choice);
     state[step_choice].compute(
         method
     );
-    quickFinish(step_choice);
+    await quickFinish(step_choice);
 
     /*** Markers and labels ***/
-    quickStart(step_markers);
+    await quickStart(step_markers);
     state[step_markers].compute();
-    quickFinish(step_markers);
+    await quickFinish(step_markers);
 
     {
-        quickStart(step_labels);
+        await quickStart(step_labels);
         let p = state[step_labels].compute(
             params[step_labels]["human_references"],
             params[step_labels]["mouse_references"]
         );
-        asyncQuickFinish(step_labels, p);
+        deferredQuickFinish(step_labels, p);
     }
 
+    await quickStart(step_custom);
     state[step_custom].compute();
-    quickFinish(step_custom);
+    await quickFinish(step_custom);
 
     await Promise.all(promises);
     return null;
@@ -429,6 +427,7 @@ export async function saveAnalysis(state, path, { embedded = true } = {}) {
  * @param {object} [options] - Optional parameters.
  * @param {function} [options.finishFun] - Function that is called on after extracting results for each step.
  * This should accept two arguments - the name of the step and an object containing the results of that step.
+ * The function may optionally be `async`.
  * If `null`, a no-op function is automatically created.
  *
  * @return An object containing the loaded analysis state.
@@ -437,9 +436,9 @@ export async function saveAnalysis(state, path, { embedded = true } = {}) {
 export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     let state = {};
     let handle = new scran.H5File(path);
-    let quickFun = step => {
+    let quickFun = async step => {
         if (finishFun !== null) {
-            finishFun(step, state[step].summary());
+            await finishFun(step);
         }
     }
 
@@ -449,120 +448,111 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
         let out = await inputs.unserialize(handle, loadFun);
         state[step_inputs] = out.state;
         permuters = out.permuters;
-        quickFun(step_inputs);
+        await quickFun(step_inputs);
     }
 
     /*** Quality control ***/
     {
         state[step_qc] = qc.unserialize(handle, state[step_inputs]);
-        quickFun(step_qc);
+        await quickFun(step_qc);
     }
 
     {
         state[step_qc_adt] = qcadt.unserialize(handle, state[step_inputs]);
-        quickFun(step_qc_adt);
+        await quickFun(step_qc_adt);
     }
 
     {
         state[step_filter] = filters.unserialize(handle, state[step_inputs], { "RNA": state[step_qc], "ADT": state[step_qc_adt] });
-        quickFun(step_filter);
+        await quickFun(step_filter);
     }
 
     /*** Normalization ***/
     {
         state[step_norm] = normalization.unserialize(handle, state[step_qc], state[step_filter]);
-        quickFun(step_norm);
+        await quickFun(step_norm);
     }
 
     {
         state[step_norm_adt] = normadt.unserialize(handle, state[step_qc_adt], state[step_filter]);
-        quickFun(step_norm_adt);
+        await quickFun(step_norm_adt);
     }
 
     /*** Feature selection ***/
     {
         state[step_feat] = variance.unserialize(handle, permuters["RNA"], state[step_filter], state[step_norm]);
-        quickFun(step_feat);
+        await quickFun(step_feat);
     }
 
     /*** Dimensionality reduction ***/
     {
         state[step_pca] = pca.unserialize(handle, state[step_filter], state[step_norm], state[step_feat]);
-        quickFun(step_pca);
+        await quickFun(step_pca);
     }
 
     {
         state[step_pca_adt] = pcaadt.unserialize(handle, state[step_filter], state[step_norm_adt]);
-        quickFun(step_pca_adt);
+        await quickFun(step_pca_adt);
     }
 
     {
         state[step_combine] = combine.unserialize(handle, { "RNA": state[step_pca], "ADT": state[step_pca_adt] });
-        quickFun(step_combine);
+        await quickFun(step_combine);
     }
 
     {
         state[step_correct] = correct.unserialize(handle, state[step_filter], state[step_combine]);
-        quickFun(step_correct);
+        await quickFun(step_correct);
     }
 
     /*** Nearest neighbors ***/
     {
         state[step_neighbors] = index.unserialize(handle, state[step_correct]);
-        quickFun(step_neighbors);
+        await quickFun(step_neighbors);
     }
 
     /*** Visualization ***/
-    // Note that all awaits here are trivial, and just occur because summary()
-    // is async for general usage.  So we can chuck them in without really
-    // worrying that they're blocking anything here.
     {
         state[step_tsne] = tsne.unserialize(handle, state[step_neighbors]);
-        if (finishFun !== null) {
-            finishFun(step_tsne, await state[step_tsne].summary());
-        }
+        await quickFun(step_tsne);
     }
 
     {
         state[step_umap] = umap.unserialize(handle, state[step_neighbors]);
-        if (finishFun !== null) {
-            finishFun(step_umap, await state[step_umap].summary());
-        }
+        await quickFun(step_umap);
     }
 
     /*** Clustering ***/
     {
         state[step_kmeans] = kmeans_cluster.unserialize(handle, state[step_correct]);
-        quickFun(step_kmeans);
+        await quickFun(step_kmeans);
     }
 
     {
         state[step_snn] = snn_cluster.unserialize(handle, state[step_neighbors]);
-        quickFun(step_snn);
+        await quickFun(step_snn);
     }
 
     {
         state[step_choice] = cluster_choice.unserialize(handle, state[step_snn], state[step_kmeans]);
-        quickFun(step_choice);
+        await quickFun(step_choice);
     }
 
     /*** Markers and labels ***/
     let norm_states = { "RNA": state[step_norm], "ADT": state[step_norm_adt] };
     {
         state[step_markers] = cluster_markers.unserialize(handle, permuters, state[step_filter], norm_states, state[step_choice]);
-        quickFun(step_markers);
+        await quickFun(step_markers);
     }
 
     {
         state[step_labels] = label_cells.unserialize(handle, state[step_inputs], state[step_markers]);
-        if (finishFun !== null) {
-            finishFun(step_labels, await state[step_labels].summary());
-        }
+        await quickFun(step_labels);
     }
 
     {
         state[step_custom] = custom_markers.unserialize(handle, permuters, state[step_filter], norm_states);
-        quickFun(step_custom);
+        await quickFun(step_custom);
     }
 
     return state;

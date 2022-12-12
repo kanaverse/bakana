@@ -7,11 +7,6 @@ beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async () => {
-    let contents = {};
-    let finished = (step, res) => {
-        contents[step] = res;
-    };
-
     let fpath = "files/datasets/zeisel-brain.rds";
     let files = { 
         default: new bakana.SummarizedExperimentDataset(fpath)
@@ -19,19 +14,13 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
 
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
-    let res = await bakana.runAnalysis(state, files, params, { finishFun: finished });
-
-    expect(contents.quality_control instanceof Object).toBe(true);
-    expect(contents.pca instanceof Object).toBe(true);
-    expect(contents.feature_selection instanceof Object).toBe(true);
-    expect(contents.cell_labelling instanceof Object).toBe(true);
-    expect(contents.marker_detection instanceof Object).toBe(true);
+    let res = await bakana.runAnalysis(state, files, params);
 
     // Input reorganization is done correctly. 
     {
-        let loaded = state.inputs.fetchCountMatrix();
-        let loaded_ids = state.inputs.fetchRowIds();
-        let loaded_names = state.inputs.fetchGenes().column("id");
+        let loaded = state.inputs.fetchCountMatrix().get("RNA");
+        let loaded_ids = state.inputs.fetchRowIds()["RNA"];
+        let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].column("id");
         expect(loaded_names.length).toBeGreaterThan(0);
 
         let rdshandle = scran.readRds(fpath);
@@ -56,32 +45,23 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
         simple.matrix.free();
     }
 
-    // Computations are done correctly.
+    // Basic checks.
+    await utils.checkStateResultsSimple(state);
+
+    // Annotations, with and without filtering.
     {
-        // Markers.
-        expect(state.marker_detection.numberOfGroups()).toBeGreaterThan(0);
+        let nfull = state.inputs.fetchCountMatrix().numberOfColumns();
+        let nfilt = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
 
-        let res = state.marker_detection.fetchGroupResults(0, "cohen-mean", "RNA");
-        expect("ordering" in res).toBe(true);
-        expect("means" in res).toBe(true);
-        expect("lfc" in res).toBe(true);
+        let cell_anno = state.inputs.fetchCellAnnotations().column("level1class");
+        expect(cell_anno.length).toBe(nfull);
+        let filtered_cell_anno = state.cell_filtering.applyFilter(cell_anno);
+        expect(filtered_cell_anno.length).toBe(nfilt);
 
-        // Normalized expression.
-        let exprs = state.normalization.fetchExpression(0);
-        let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
-        expect(exprs.length).toBe(nfiltered);
-
-        // Factor annotations, with and without filtering.
-        let cell_anno = state.inputs.fetchAnnotations("level1class");
-        expect(cell_anno.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
-        let filtered_anno = state.cell_filtering.fetchFilteredAnnotations("level1class");
-        expect(filtered_anno.length).toBe(nfiltered);
-
-        // Non-factor annotations, with and without filtering.
-        let sex_anno = state.inputs.fetchAnnotations("sex");
-        expect(sex_anno.length).toBe(state.inputs.fetchCountMatrix().numberOfColumns());
-        let filtered_sex = state.cell_filtering.fetchFilteredAnnotations("sex");
-        expect(filtered_sex.length).toBe(nfiltered);
+        let sex_anno = state.inputs.fetchCellAnnotations().column("sex");
+        expect(sex_anno.length).toBe(nfull);
+        let filtered_sex_anno = state.cell_filtering.applyFilter(sex_anno);
+        expect(filtered_sex_anno.length).toBe(nfilt);
     }
 
     // Saving and loading.
@@ -97,9 +77,10 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
         (offset, size) => offsets[offset]
     );
 
+    await utils.compareStates(state, reloaded);
+
     let new_params = bakana.retrieveParameters(reloaded);
-    expect(new_params.quality_control instanceof Object).toBe(true);
-    expect(new_params.pca instanceof Object).toBe(true);
+    expect(new_params).toEqual(params);
 
     // Freeing.
     await bakana.freeAnalysis(state);
@@ -132,7 +113,7 @@ test("RDS loaders work correctly for a base SummarizedExperiment", async () => {
     let loaded = fullstate.fetchCountMatrix();
     expect(loaded.numberOfColumns()).toBeGreaterThan(0);
 
-    let loaded_names = fullstate.fetchGenes().column("id");
+    let loaded_names = fullstate.fetchFeatureAnnotations()["RNA"].column("id");
     expect(loaded_names.length).toBeGreaterThan(0);
 
     fullstate.free();
@@ -169,7 +150,7 @@ test("RDS loaders work correctly for GRanges SummarizedExperiment", async () => 
     let loaded = fullstate.fetchCountMatrix();
     expect(loaded.numberOfColumns()).toBeGreaterThan(0);
 
-    let loaded_names = fullstate.fetchGenes().column("id");
+    let loaded_names = fullstate.fetchFeatureAnnotations()["RNA"].column("id");
     expect(loaded_names.length).toBeGreaterThan(0);
 
     fullstate.free();
@@ -189,18 +170,20 @@ test("RDS loaders work correctly for a SingleCellExperiment with altExps", async
     let fullstate = new inputs.InputsState;
     await fullstate.compute(files, null, null);
 
-    let loaded = fullstate.fetchCountMatrix({ type: "RNA" });
-    expect(loaded.numberOfColumns()).toBeGreaterThan(0);
-
-    let loaded_adt = fullstate.fetchCountMatrix({ type: "ADT" });
+    let loaded = fullstate.fetchCountMatrix();
+    let loaded_rna = loaded.get("RNA");
+    expect(loaded_rna.numberOfColumns()).toBeGreaterThan(0);
+    let loaded_adt = loaded.get("ADT");
     expect(loaded_adt.numberOfColumns()).toBeGreaterThan(0);
 
-    let loaded_names = fullstate.fetchGenes({ type: "RNA" }).column("id");
+    let feat_anno = fullstate.fetchFeatureAnnotations();
+
+    let loaded_names = feat_anno["RNA"].column("id");
     expect(loaded_names.length).toBeGreaterThan(0);
-    expect(loaded_names.length).toEqual(loaded.numberOfRows());
+    expect(loaded_names.length).toEqual(loaded_rna.numberOfRows());
     expect(loaded_names.some(x => x.match(/^ENSG/))).toBe(true);
 
-    let loaded_names_adt = fullstate.fetchGenes({ type: "ADT" }).column("id");
+    let loaded_names_adt = feat_anno["ADT"].column("id");
     expect(loaded_names_adt.length).toBeGreaterThan(0);
     expect(loaded_names_adt.length).toEqual(loaded_adt.numberOfRows());
     expect(loaded_names_adt.some(x => x.match(/^ENSG/))).toBe(false);
