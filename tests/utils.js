@@ -333,8 +333,10 @@ export async function checkStateResultsBase(state, { mutable = true } = {}) {
     return;
 }
 
-export async function checkStateResultsSimple(state) {
-    await checkStateResultsBase(state);
+export async function checkStateResultsSimple(state, { skipBasic = false } = {}) {
+    if (!skipBasic) {
+        await checkStateResultsBase(state);
+    }
 
     // Inputs.
     {
@@ -382,8 +384,10 @@ export async function checkStateResultsSimple(state) {
     return;
 }
 
-export async function checkStateResultsBatched(state) {
-    await checkStateResultsBase(state);
+export async function checkStateResultsBatched(state, { skipBasic = false } = {}) {
+    if (!skipBasic) {
+        await checkStateResultsBase(state);
+    }
 
     // Checking the non-NULL blocking factors.
     let nlevels = state.inputs.fetchBlockLevels().length;
@@ -411,10 +415,10 @@ export async function checkStateResultsBatched(state) {
 
     // Check that some correction actually occured.
     {
-        let corrected_pcs = state.batch_correction.fetchCorrected().slice();
-        let original_pcs = state.pca.fetchPCs().principalComponents();
+        let corrected_pcs = state.batch_correction.fetchCorrected();
+        let original_pcs = state.combine_embeddings.fetchCombined();
         expect(corrected_pcs.length).toEqual(original_pcs.length);
-        expect(corrected_pcs).not.toEqual(original_pcs);
+        expect(corrected_pcs.array()).not.toEqual(original_pcs.array());
     }
 
     // Checking that the marker results show up with multiple blocks.
@@ -422,6 +426,84 @@ export async function checkStateResultsBatched(state) {
         let res = state.marker_detection.fetchResults();
         expect(res["RNA"].numberOfBlocks()).toEqual(nlevels);
     }
+}
+
+export async function checkStateResultsAdt(state, { skipBasic = false } = {}) {
+    if (!skipBasic) {
+        await checkStateResultsBase(state);
+    }
+
+    // Checking that ADTs exist.
+    {
+        expect(state.inputs.fetchCountMatrix().has("ADT")).toBe(true);
+        let adtmat = state.inputs.fetchCountMatrix().get("ADT");
+        expect(state.inputs.fetchFeatureAnnotations()["ADT"].numberOfRows()).toEqual(adtmat.numberOfRows());
+        expect(state.inputs.fetchRowIds()["ADT"].length).toEqual(adtmat.numberOfRows());
+    }
+
+    // Checking the QCs.
+    {
+        let amet = state.adt_quality_control.fetchMetrics();
+        let positive_total = 0;
+        amet.subsetTotals(0, { copy: false }).forEach(x => { positive_total += (x > 0); });
+        expect(positive_total).toBeGreaterThan(0);
+
+        let afilt = state.adt_quality_control.fetchFilters();
+        expect(afilt.thresholdsDetected()[0]).toBeGreaterThan(0);
+        expect(afilt.thresholdsSubsetTotals(0)[0]).toBeGreaterThan(0);
+    }
+
+    // Cell filtering responds to both modalities.
+    let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
+    {
+        let rna_only = 0;
+        state.quality_control.fetchDiscards().forEach(x => { rna_only += (x > 0); });
+
+        let adt_only = 0;
+        state.adt_quality_control.fetchDiscards().forEach(x => { adt_only += (x > 0); });
+
+        expect(nfiltered).toBeGreaterThan(rna_only);
+        expect(nfiltered).toBeGreaterThan(adt_only);
+    }
+
+    // Normalization.
+    {
+        let sf = state.adt_normalization.fetchSizeFactors();
+        expect(sf.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
+
+        let positive_total = 0;
+        sf.forEach(x => { positive_total += (x > 0); });
+        expect(positive_total).toBeGreaterThan(0);
+
+        let norm = state.adt_normalization.fetchNormalizedMatrix();
+        expect(norm.numberOfColumns()).toEqual(sf.length);
+        expect(norm.numberOfRows()).toEqual(state.inputs.fetchCountMatrix().get("ADT").numberOfRows());
+    }
+
+    // PCA.
+    {
+        let pcs = state.adt_pca.fetchPCs();
+        expect(pcs.numberOfCells()).toEqual(nfiltered);
+        expect(pcs.numberOfPCs()).toBeGreaterThan(0);
+    }
+
+    // Combined embeddings.
+    {
+        let rna_dims = state.pca.fetchPCs().numberOfPCs();
+        let adt_dims = state.adt_pca.fetchPCs().numberOfPCs();
+        expect(state.combine_embeddings.fetchNumberOfDimensions()).toEqual(rna_dims + adt_dims);
+        expect(state.combine_embeddings.fetchNumberOfCells()).toEqual(nfiltered);
+    }
+
+    // Markers.
+    {
+        let res = state.marker_detection.fetchResults();
+        expect(res["ADT"].numberOfGroups()).toEqual(res["RNA"].numberOfGroups());
+        let d = res["ADT"].cohen(0);
+        expect(d.length).toBe(state.inputs.fetchCountMatrix().get("ADT").numberOfRows());
+    }
+
+    return;
 }
 
 export async function compareStates(left, right) {
@@ -451,16 +533,18 @@ export async function compareStates(left, right) {
         }
 
         // Checking that the permutation is unchanged on reload.
-        let old_ids = left.inputs.fetchRowIds()["RNA"];
-        let new_ids = right.inputs.fetchRowIds()["RNA"];
-        expect(old_ids.length).toBeGreaterThan(0);
-        expect(old_ids).toEqual(new_ids);
+        for (const a of lavailable) {
+            let old_ids = left.inputs.fetchRowIds()[a];
+            let new_ids = right.inputs.fetchRowIds()[a];
+            expect(old_ids.length).toBeGreaterThan(0);
+            expect(old_ids).toEqual(new_ids);
 
-        let old_ids2 = left.inputs.fetchFeatureAnnotations()["RNA"];
-        let new_ids2 = right.inputs.fetchFeatureAnnotations()["RNA"];
-        expect(old_ids2.columnNames()).toEqual(new_ids2.columnNames());
-        for (const col of old_ids2.columnNames()) {
-            expect(old_ids2.column(col)).toEqual(new_ids2.column(col));
+            let old_ids2 = left.inputs.fetchFeatureAnnotations()[a];
+            let new_ids2 = right.inputs.fetchFeatureAnnotations()[a];
+            expect(old_ids2.columnNames()).toEqual(new_ids2.columnNames());
+            for (const col of old_ids2.columnNames()) {
+                expect(old_ids2.column(col)).toEqual(new_ids2.column(col));
+            }
         }
     }
 
@@ -583,16 +667,19 @@ export async function compareStates(left, right) {
     {
         let lres = left.marker_detection.fetchResults();
         let rres = right.marker_detection.fetchResults();
-        expect(Object.keys(lres)).toEqual(Object.keys(rres));
+        let available = Object.keys(lres).sort();
+        expect(Object.keys(rres).sort()).toEqual(available);
 
         let ng = lres.RNA.numberOfGroups();
         expect(ng).toEqual(rres.RNA.numberOfGroups());
 
-        for (var g = 0; g < ng; g++) {
-            expect(lres.RNA.cohen(g)).toEqual(rres.RNA.cohen(g));
-            expect(lres.RNA.auc(g)).toEqual(rres.RNA.auc(g));
-            expect(lres.RNA.means(g)).toEqual(rres.RNA.means(g));
-            expect(lres.RNA.detected(g)).toEqual(rres.RNA.detected(g));
+        for (const a of available) {
+            for (var g = 0; g < ng; g++) {
+                expect(lres[a].cohen(g)).toEqual(rres[a].cohen(g));
+                expect(lres[a].auc(g)).toEqual(rres[a].auc(g));
+                expect(lres[a].means(g)).toEqual(rres[a].means(g));
+                expect(lres[a].detected(g)).toEqual(rres[a].detected(g));
+            }
         }
     }
 
