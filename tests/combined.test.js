@@ -57,7 +57,7 @@ test("multi-matrix analyses work correctly", async () => {
     let vres = utils.checkClusterVersusMode(state);
     expect(vres.results.RNA.numberOfBlocks()).toEqual(2);
 
-    let customs = utils.launchCustomSelections(state);
+    let custom = utils.launchCustomSelections(state);
     expect(custom.first.RNA.numberOfBlocks()).toEqual(2);
     expect(custom.last.RNA.numberOfBlocks()).toEqual(2);
     expect(custom.versus.results.RNA.numberOfBlocks()).toEqual(2);
