@@ -176,7 +176,7 @@ export function computeVersusResults(matrices, clusters, block, keep, cache) {
     let new_block = null;
     if (block !== null) {
         new_block = scran.subsetBlock(block, keep);
-        scran.dropUnusedBlocks(new_block);
+        scran.dropUnusedBlock(new_block);
     }
 
     for (const modality of matrices.available()) {

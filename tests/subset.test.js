@@ -39,9 +39,8 @@ test("subsetting behaves correctly with indices", async () => {
     await istate.compute(files, null, null);
 
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
-    expect(istate.summary().num_cells).toBe(subset.length);
-    expect(istate.fetchCountMatrix().column(2)).toEqual(fullstate.fetchCountMatrix().column(4));
-    expect(istate.fetchCountMatrix().column(5)).toEqual(fullstate.fetchCountMatrix().column(10));
+    expect(istate.fetchCountMatrix().get("RNA").column(2)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(4));
+    expect(istate.fetchCountMatrix().get("RNA").column(5)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(10));
 
     {
         let indices = [0,2,4,8];
@@ -52,10 +51,10 @@ test("subsetting behaves correctly with indices", async () => {
     }
 
     {
-        let subanno = istate.fetchAnnotations("level1class");
+        let subanno = istate.fetchCellAnnotations().column("level1class");
         expect(subanno.length).toBe(subset.length);
 
-        let fullanno = fullstate.fetchAnnotations("level1class");
+        let fullanno = fullstate.fetchCellAnnotations().column("level1class");
         let expected = subset.map(i => fullanno[i]);
         expect(subanno).toEqual(expected);
     }
@@ -93,14 +92,14 @@ test("subsetting behaves correctly with indices", async () => {
     // Unsetting works as expected.
     istate.setDirectSubset(null);
     expect(istate.changed).toBe(true);
-    expect(istate.summary().num_cells).toBe(fullstate.summary().num_cells);
-    expect(istate.fetchCountMatrix().column(1)).toEqual(fullstate.fetchCountMatrix().column(1));
+    expect(istate.fetchCountMatrix().numberOfColumns()).toBeGreaterThan(3000);
+    expect(istate.fetchCountMatrix().get("RNA").column(1)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(1));
 
     // Resetting works as expected.
     istate.setDirectSubset(subset);
     expect(istate.changed).toBe(true);
-    expect(istate.summary().num_cells).toBe(subset.length);
-    expect(istate.fetchCountMatrix().column(3)).toEqual(fullstate.fetchCountMatrix().column(6));
+    expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
+    expect(istate.fetchCountMatrix().get("RNA").column(3)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(6));
 
     istate.free();
     fullstate.free();
@@ -129,10 +128,9 @@ test("subsetting behaves correctly with a factor", async () => {
 
     expect(expected_num).toBeGreaterThan(0);
     expect(istate.fetchCountMatrix().numberOfColumns()).toEqual(expected_num);
-    expect(istate.summary().num_cells).toBe(expected_num);
 
     {
-        let subanno = istate.fetchAnnotations("level1class");
+        let subanno = istate.fetchCellAnnotations().column("level1class");
         expect(subanno.length).toBe(expected_num);
 
         let uniq = Array.from(new Set(subanno));
@@ -167,19 +165,19 @@ test("subsetting behaves correctly with a factor", async () => {
     let subset = [1,10,100];
     let expected = {};
     for (const i of subset) {
-        expected[i] = istate.fetchCountMatrix().column(i); 
+        expected[i] = istate.fetchCountMatrix().get("RNA").column(i); 
     }
 
     istate.setDirectSubset(subset);
-    expect(istate.summary().num_cells).toBe(subset.length);
+    expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
     for (const [i, j] of Object.entries(subset)) {
-        expect(istate.fetchCountMatrix().column(i)).toEqual(expected[j]);
+        expect(istate.fetchCountMatrix().get("RNA").column(i)).toEqual(expected[j]);
     }
 
     istate.setDirectSubset(null);
-    expect(istate.summary().num_cells).toBe(expected_num);
+    expect(istate.fetchCountMatrix().numberOfColumns()).toBe(expected_num);
     for (const i of subset) {
-        expect(istate.fetchCountMatrix().column(i)).toEqual(expected[i]);
+        expect(istate.fetchCountMatrix().get("RNA").column(i)).toEqual(expected[i]);
     }
 
     istate.free();
@@ -207,10 +205,9 @@ test("subsetting behaves correctly with ranges", async () => {
 
     expect(expected_num).toBeGreaterThan(0);
     expect(istate.fetchCountMatrix().numberOfColumns()).toEqual(expected_num);
-    expect(istate.summary().num_cells).toBe(expected_num);
 
     {
-        let subanno = istate.fetchAnnotations("diameter");
+        let subanno = istate.fetchCellAnnotations().column("diameter");
         expect(subanno.length).toBe(expected_num);
 
         let failed = 0;
@@ -270,7 +267,6 @@ test("subsetting behaves correctly with infinite ranges", async () => {
 
     expect(expected_num).toBeGreaterThan(0);
     expect(istate.fetchCountMatrix().numberOfColumns()).toEqual(expected_num);
-    expect(istate.summary().num_cells).toBe(expected_num);
 
     // Checking the serialization and unserialization.
     const path = "TEST_subset-inputs.h5";
@@ -321,14 +317,14 @@ test("subsetting processes the blocking factors", async () => {
     await istate.compute(files, null, null);
 
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
-    expect(istate.fetchCountMatrix().column(2)).toEqual(fullstate.fetchCountMatrix().column(5));
-    expect(istate.fetchCountMatrix().column(5)).toEqual(fullstate.fetchCountMatrix().column(11));
+    expect(istate.fetchCountMatrix().get("RNA").column(2)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(5));
+    expect(istate.fetchCountMatrix().get("RNA").column(5)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(11));
 
     {
-        let subanno = istate.fetchAnnotations("__batch__");
+        let subanno = istate.fetchCellAnnotations().column("__batch__");
         expect(subanno.length).toBe(subset.length);
 
-        let fullanno = fullstate.fetchAnnotations("__batch__");
+        let fullanno = fullstate.fetchCellAnnotations().column("__batch__");
         let expected = subset.map(i => fullanno[i]);
         expect(subanno).toEqual(expected);
     }
@@ -373,10 +369,10 @@ test("end-to-end run works with subsetting", async () => {
     params.inputs.sample_factor = "3k";
 
     let res = await bakana.runAnalysis(state, files, params);
-    expect(state.inputs.summary().num_cells).toBe(subset.length);
+    expect(state.inputs.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
+    expect(state.quality_control.fetchDiscards().length).toBe(subset.length);
 
-    let qc_sum = state.quality_control.summary();
-    expect(qc_sum.data["3k"].sums.length + qc_sum.data["4k"].sums.length).toBe(subset.length);
+    await utils.checkStateResultsBase(state);
 
     // Saving and loading.
     const path = "TEST_subset-inputs.h5";
@@ -389,13 +385,15 @@ test("end-to-end run works with subsetting", async () => {
         (offset, size) => offsets[offset]
     );
 
+    await utils.compareStates(state, reloaded);
+
     expect(Array.from(state.inputs.fetchDirectSubset())).toEqual(subset);
-    expect(reloaded.inputs.summary().num_cells).toEqual(subset.length);
+    expect(reloaded.inputs.fetchCountMatrix().numberOfColumns()).toEqual(subset.length);
 
     // subsetInputs works as expected. 
     let refcol = {};
     for (const i of [ 0, 2, 10 ]) {
-        refcol[i] = state.inputs.fetchCountMatrix().column(i);
+        refcol[i] = state.inputs.fetchCountMatrix().get("RNA").column(i);
     }
 
     let subset2 = [];
@@ -413,14 +411,20 @@ test("end-to-end run works with subsetting", async () => {
         // in 'state.inputs'.
         let subx = await bakana.subsetInputs(state, subset2);
 
-        let ref = state.inputs.summary();
-        let idetails = subx.inputs.summary();
-        expect(idetails.num_cells).toEqual(subset2.length);
-        expect(idetails.num_genes).toEqual(ref.num_genes);
-        expect(idetails.genes).toStrictEqual(ref.genes); // exact same genes.
+        // Exact same genes.
+        let mat = state.inputs.fetchCountMatrix();
+        let submat = subx.inputs.fetchCountMatrix();
+        expect(mat.available()).toEqual(submat.available());
+        expect(mat.get("RNA").numberOfRows()).toEqual(submat.get("RNA").numberOfRows());
+
+        let anno = state.inputs.fetchFeatureAnnotations()["RNA"];
+        let subanno = subx.inputs.fetchFeatureAnnotations()["RNA"];
+        expect(anno.numberOfRows()).toEqual(subanno.numberOfRows());
+        expect(anno.column(0)).toEqual(subanno.column(0));
+        expect(state.inputs.fetchRowIds()["RNA"]).toEqual(subx.inputs.fetchRowIds()["RNA"]);
 
         for (const [k, v] of Object.entries(refcol)) {
-            expect(subx.inputs.fetchCountMatrix().column(k/2)).toEqual(v);
+            expect(subx.inputs.fetchCountMatrix().get("RNA").column(k/2)).toEqual(v);
         }
 
         // Indices were correctly reindexed to be relative to the original cells.

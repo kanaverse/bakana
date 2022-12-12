@@ -97,8 +97,8 @@ export class BatchCorrectionState {
         if (this.changed || method !== this.#parameters.method || num_neighbors !== this.#parameters.num_neighbors || approximate !== this.#parameters.approximate) { 
             if (needs_correction) {
                 let pcs = this.#combined.fetchCombined();
-                let corrected = utils.allocateCachedArray(pcs.pcs.length, "Float64Array", this.#cache, "corrected");
-                scran.mnnCorrect(pcs.pcs, block, { 
+                let corrected = utils.allocateCachedArray(pcs.length, "Float64Array", this.#cache, "corrected");
+                scran.mnnCorrect(pcs, block, { 
                     k: num_neighbors, 
                     buffer: corrected, 
                     numberOfCells: this.#combined.fetchNumberOfCells(), 

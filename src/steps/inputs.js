@@ -238,10 +238,12 @@ export class InputsState {
      * @return Entries of `indices` are replaced with indices to the pre-subsetted matrix.
      */
     undoSubset(indices) {
-        let max_index = this.fetchCountMatrix().numberOfColumns();
-        for (const x of indices) {
-            if (x < 0 || x >= max_index) {
-                throw new Error("entries of 'indices' should be less than the number of cells in the dataset");
+        if ("matrix" in this.#cache) {
+            let max_index = this.fetchCountMatrix().numberOfColumns();
+            for (const x of indices) {
+                if (x < 0 || x >= max_index) {
+                    throw new Error("entries of 'indices' should be less than the number of cells in the dataset");
+                }
             }
         }
 
@@ -329,7 +331,7 @@ export class InputsState {
         // These can probably be copied directly, given that they are always
         // replaced wholesale in the various *_and_cache functions, rather than
         // being modified in-place.
-        for (const x of [ "raw_annotations", "genes", "multi_block_levels", "raw_block_levels" ]) {
+        for (const x of [ "row_ids", "raw_annotations", "genes", "multi_block_levels", "raw_block_levels" ]) {
             if (x in this.#cache) {
                 new_cache[x] = this.#cache[x];
             }
