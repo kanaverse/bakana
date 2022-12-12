@@ -103,11 +103,13 @@ test("analysis works when we skip the QC steps", async () => {
         
         // Changing parameters have no effect when we're still skipping.
         rerun_change(true);
+        expect(state.inputs.changed).toBe(false);
         expect(curstep.skipped()).toBe(true);
         expect(curstep.changed).toBe(false);
 
         // Until we reactivate everything... 
         rerun(false);
+        expect(state.inputs.changed).toBe(false);
         expect(curstep.changed).toBe(true);
         expect(curstep.skipped()).toBe(false);
 
@@ -169,6 +171,7 @@ test("analysis works when we skip the QC steps", async () => {
         }
 
         rerun(false);
+        expect(state.inputs.changed).toBe(false);
         expect(curstep.changed).toBe(true);
 
         {
@@ -178,6 +181,7 @@ test("analysis works when we skip the QC steps", async () => {
 
         // Reskipping, but with altered parameters, so we wipe the existing values. 
         rerun_change(true);
+        expect(state.inputs.changed).toBe(false);
         expect(curstep.changed).toBe(true);
 
         {
