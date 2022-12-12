@@ -15,7 +15,7 @@ export class PcaMimic {
         }
     }
 
-    principalComponents({ copy }) {
+    principalComponents({ copy = true } = {}) {
         return utils.mimicGetter(this.pcs, copy);
     }
 
@@ -31,7 +31,7 @@ export class PcaMimic {
         return utils.mimicGetter(this.var_exp, copy);
     }
 
-    totalVariance () {
+    totalVariance() {
         return 1;
     }
 

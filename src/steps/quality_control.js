@@ -244,22 +244,22 @@ class QCFiltersMimic {
         }
     }
 
-    thresholdsSums({ copy }) {
+    thresholdsSums({ copy = true } = {}) {
         return utils.mimicGetter(this.sums_, copy);
     }
 
-    thresholdsDetected({ copy }) {
+    thresholdsDetected({ copy = true } = {}) {
         return utils.mimicGetter(this.detected_, copy);
     }
 
-    thresholdsSubsetProportions(index, { copy }) {
+    thresholdsSubsetProportions(index, { copy = true } = {}) {
         if (index != 0) {
             throw "only 'index = 0' is supported for mimics";
         }
         return utils.mimicGetter(this.proportion_, copy);
     }
 
-    discardOverall({ copy }) {
+    discardOverall({ copy = true } = {}) {
         return utils.mimicGetter(this.discards, copy);
     }
 

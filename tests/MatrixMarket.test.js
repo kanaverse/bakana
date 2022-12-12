@@ -65,55 +65,16 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     );
 
     let new_params = bakana.retrieveParameters(reloaded);
-//    for (const [k, v] of Object.entries(params)) {
-//        if (butils.changedParameters(new_params[k], v)) {
-//            console.log([k, new_params[k], v]);
-//        }
-//    }
     expect(butils.changedParameters(new_params, params)).toBe(false); // should be the same after a roundtrip.
 
-    {
-        // Check that steps unserialize correctly.
-        let old_keys = Object.keys(state);
-        old_keys.sort();
-        let new_keys = Object.keys(reloaded);
-        new_keys.sort();
-        expect(old_keys).toEqual(new_keys);
+    // Checking that the results are the same.
+    await utils.compareStates(state, reloaded);
 
-        for (const step of old_keys) {
-            let qc_deets = reloaded[step].fetchParameters();
-            let ref = state[step].fetchParameters();
-            expect(ref).toEqual(ref);
-        }
-
-        // Check that we still get some markers.
-        let reloaded_markers = reloaded.marker_detection.fetchResults();
-        let ref_markers = state.marker_detection.fetchResults();
-        expect(reloaded_markers["RNA"].cohen(0)).toEqual(ref_markers["RNA"].cohen(0));
-    }
-
-    {
-        // While the ADT itself is a no-op, the parameters should still be okay.
-        expect(new_params.adt_normalization.num_pcs).toBeGreaterThan(0);
-        expect(new_params.adt_normalization.num_clusters).toBeGreaterThan(0);
-        expect(new_params.combine_embeddings.weights).toBeNull();
-        expect(new_params.batch_correction.num_neighbors).toBeGreaterThan(0);
-    }
-
-    // Checking that the permutation is unchanged on reload.
-    let old_ids = state.inputs.fetchRowIds()["RNA"];
-    let new_ids = reloaded.inputs.fetchRowIds()["RNA"];
-    expect(old_ids.length).toBeGreaterThan(0);
-    expect(old_ids).toEqual(new_ids);
-
-    let old_ids2 = state.inputs.fetchFeatureAnnotations()["RNA"].column("id");
-    let new_ids2 = reloaded.inputs.fetchFeatureAnnotations()["RNA"].column("id");
-    expect(old_ids2.length).toBeGreaterThan(0);
-    expect(old_ids2).toEqual(new_ids2);
-
-    let old_fres = state.feature_selection.fetchResults();
-    let new_fres = reloaded.feature_selection.fetchResults();
-    expect(old_fres.means()).toEqual(new_fres.means());
+    // While the ADT itself is a no-op, the parameters should still be okay.
+    expect(new_params.adt_normalization.num_pcs).toBeGreaterThan(0);
+    expect(new_params.adt_normalization.num_clusters).toBeGreaterThan(0);
+    expect(new_params.combine_embeddings.weights).toBeNull();
+    expect(new_params.batch_correction.num_neighbors).toBeGreaterThan(0);
 
     // Release me!
     await bakana.freeAnalysis(state);
@@ -150,9 +111,10 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
         (offset, size) => offsets[offset]
     );
 
+    await utils.compareStates(state, reloaded);
+
     let new_params = bakana.retrieveParameters(reloaded);
-    expect(new_params.quality_control instanceof Object).toBe(true);
-    expect(new_params.pca instanceof Object).toBe(true);
+    expect(new_params).toEqual(params);
 
     // Release me!
     await bakana.freeAnalysis(state);

@@ -150,7 +150,7 @@ export function checkReorganization(matrix, ids, names, loadedMatrix, loadedIds,
     }
 }
 
-export async function checkStateResultsBase(state) {
+export async function checkStateResultsBase(state, { mutable = true } = {}) {
     // Inputs:
     {
         let counts = state.inputs.fetchCountMatrix();
@@ -314,7 +314,7 @@ export async function checkStateResultsBase(state) {
     }
 
     // Markers in versus mode:
-    {
+    if (mutable) {
         let vres = state.marker_detection.computeVersus(nclusters - 1, 0);
         expect(vres.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
         let lfcs = vres.results.RNA.lfc(vres.left);
@@ -329,6 +329,8 @@ export async function checkStateResultsBase(state) {
         });
         expect(lfcs).toEqual(lfcs2);
     }
+
+    return;
 }
 
 export async function checkStateResultsSimple(state) {
@@ -372,4 +374,180 @@ export async function checkStateResultsSimple(state) {
         expect(state.adt_pca.fetchPCs()).toBeNull();
     }
 
+    return;
+}
+
+export async function compareStates(left, right) {
+    // Parameter checks.
+    for (const step of Object.keys(left)) {
+        let params = right[step].fetchParameters();
+        let ref = left[step].fetchParameters();
+        expect(ref).toEqual(params);
+    }
+
+    // Inputs:
+    {
+        let lcounts = left.inputs.fetchCountMatrix();
+        let rcounts = right.inputs.fetchCountMatrix();
+
+        let lavailable = lcounts.available();
+        expect(lavailable).toEqual(rcounts.available());
+        expect(lcounts.numberOfColumns()).toEqual(rcounts.numberOfColumns());
+
+        for (const a of lavailable) {
+            let lmat = lcounts.get(a);
+            let rmat = rcounts.get(a);
+            let NR = lmat.numberOfRows();
+            expect(NR).toEqual(rmat.numberOfRows());
+            expect(lmat.row(0)).toEqual(rmat.row(0));
+            expect(lmat.row(NR-1)).toEqual(rmat.row(NR-1));
+        }
+
+        // Checking that the permutation is unchanged on reload.
+        let old_ids = left.inputs.fetchRowIds()["RNA"];
+        let new_ids = right.inputs.fetchRowIds()["RNA"];
+        expect(old_ids.length).toBeGreaterThan(0);
+        expect(old_ids).toEqual(new_ids);
+
+        let old_ids2 = left.inputs.fetchFeatureAnnotations()["RNA"];
+        let new_ids2 = right.inputs.fetchFeatureAnnotations()["RNA"];
+        expect(old_ids2.columnNames()).toEqual(new_ids2.columnNames());
+        for (const col of old_ids2.columnNames()) {
+            expect(old_ids2.column(col)).toEqual(new_ids2.column(col));
+        }
+    }
+
+    // Quality control:
+    {
+        let lmetrics = left.quality_control.fetchMetrics();
+        let rmetrics = right.quality_control.fetchMetrics();
+        expect(lmetrics.sums()).toEqual(rmetrics.sums());
+        expect(lmetrics.detected()).toEqual(rmetrics.detected());
+        expect(lmetrics.subsetProportions(0)).toEqual(rmetrics.subsetProportions(0));
+
+        let lfilters = left.quality_control.fetchFilters();
+        let rfilters = right.quality_control.fetchFilters();
+        expect(lfilters.discardOverall()).toEqual(rfilters.discardOverall());
+        expect(lfilters.thresholdsSums()).toEqual(rfilters.thresholdsSums());
+    }
+
+    // Cell filtering:
+    {
+        let ldiscard = left.cell_filtering.fetchDiscards();
+        let rdiscard = right.cell_filtering.fetchDiscards();
+        expect(ldiscard).toEqual(rdiscard);
+
+        let lfiltered = left.cell_filtering.fetchFilteredMatrix();
+        let rfiltered = right.cell_filtering.fetchFilteredMatrix();
+        expect(lfiltered.available()).toEqual(rfiltered.available());
+
+        for (const a of lfiltered.available()) {
+            let lmat = lfiltered.get(a);
+            let rmat = rfiltered.get(a);
+            let NR = lmat.numberOfRows();
+            expect(NR).toEqual(rmat.numberOfRows());
+            expect(lmat.row(0)).toEqual(rmat.row(0));
+            expect(lmat.row(NR-1)).toEqual(rmat.row(NR-1));
+        }
+    }
+
+    // Normalization:
+    {
+        let lmat = left.normalization.fetchNormalizedMatrix();
+        let rmat = right.normalization.fetchNormalizedMatrix();
+
+        let NR = lmat.numberOfRows();
+        expect(NR).toEqual(rmat.numberOfRows());
+        expect(lmat.row(0)).toEqual(rmat.row(0));
+        expect(lmat.row(NR-1)).toEqual(rmat.row(NR-1));
+
+        let lsf = left.normalization.fetchSizeFactors();
+        let rsf = right.normalization.fetchSizeFactors();
+        expect(lsf.array()).toEqual(rsf.array());
+    }
+
+    // Feature selection:
+    {
+        let old_fres = left.feature_selection.fetchResults();
+        let new_fres = right.feature_selection.fetchResults();
+        for (const x of [ "means", "residuals" ]) {
+            expect(old_fres[x]()).toEqual(new_fres[x]());
+        }
+
+        let old_sresids = left.feature_selection.fetchSortedResiduals();
+        let new_sresids = right.feature_selection.fetchSortedResiduals();
+        expect(old_sresids).toEqual(new_sresids);
+    }
+
+    // PCA:
+    {
+        let lpcs = left.pca.fetchPCs();
+        let rpcs = right.pca.fetchPCs();
+        expect(lpcs.principalComponents()).toEqual(rpcs.principalComponents());
+
+        let lvp = lpcs.varianceExplained();
+        lvp.forEach((x, i) => { lvp[i] /= lpcs.totalVariance(); });
+        let rvp = rpcs.varianceExplained();
+        rvp.forEach((x, i) => { rvp[i] /= rpcs.totalVariance(); });
+
+        expect(lvp).toEqual(rvp);
+    }
+
+    // Combine embeddings:
+    {
+        expect(left.combine_embeddings.fetchCombined().array()).toEqual(right.combine_embeddings.fetchCombined().array());
+        expect(left.combine_embeddings.fetchNumberOfCells()).toEqual(right.combine_embeddings.fetchNumberOfCells());
+        expect(left.combine_embeddings.fetchNumberOfDimensions()).toEqual(right.combine_embeddings.fetchNumberOfDimensions());
+    }
+
+    // Batch correction:
+    {
+        expect(left.batch_correction.fetchCorrected().array()).toEqual(right.batch_correction.fetchCorrected().array());
+        expect(left.batch_correction.fetchNumberOfCells()).toEqual(right.batch_correction.fetchNumberOfCells());
+        expect(left.batch_correction.fetchNumberOfDimensions()).toEqual(right.batch_correction.fetchNumberOfDimensions());
+    }
+
+    // Clustering:
+    {
+        expect(left.choose_clustering.fetchClusters().array()).toEqual(right.choose_clustering.fetchClusters().array());
+    }
+
+    // t-SNE:
+    {
+        let lres = await left.tsne.fetchResults();
+        let rres = await right.tsne.fetchResults();
+        expect(rres.x.length).toEqual(lres.x.length); // direct comparison fails for reasons I don't understand.
+        expect(rres.x.buffer).toEqual(lres.x.buffer);
+        expect(rres.y.length).toEqual(lres.y.length);
+        expect(rres.y.buffer).toEqual(lres.y.buffer);
+    }
+
+    // UMAP:
+    {
+        let lres = await left.umap.fetchResults();
+        let rres = await right.umap.fetchResults();
+        expect(rres.x.length).toEqual(lres.x.length);
+        expect(rres.x.buffer).toEqual(lres.x.buffer);
+        expect(rres.y.length).toEqual(lres.y.length);
+        expect(rres.y.buffer).toEqual(lres.y.buffer);
+    }
+
+    // Markers:
+    {
+        let lres = left.marker_detection.fetchResults();
+        let rres = right.marker_detection.fetchResults();
+        expect(Object.keys(lres)).toEqual(Object.keys(rres));
+
+        let ng = lres.RNA.numberOfGroups();
+        expect(ng).toEqual(rres.RNA.numberOfGroups());
+
+        for (var g = 0; g < ng; g++) {
+            expect(lres.RNA.cohen(g)).toEqual(rres.RNA.cohen(g));
+            expect(lres.RNA.auc(g)).toEqual(rres.RNA.auc(g));
+            expect(lres.RNA.means(g)).toEqual(rres.RNA.means(g));
+            expect(lres.RNA.detected(g)).toEqual(rres.RNA.detected(g));
+        }
+    }
+
+    return;
 }
