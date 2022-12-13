@@ -513,12 +513,12 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
 
     /*** Visualization ***/
     {
-        state[step_tsne] = tsne.unserialize(handle, state[step_neighbors]);
+        state[step_tsne] = await tsne.unserialize(handle, state[step_neighbors]);
         await quickFun(step_tsne);
     }
 
     {
-        state[step_umap] = umap.unserialize(handle, state[step_neighbors]);
+        state[step_umap] = await umap.unserialize(handle, state[step_neighbors]);
         await quickFun(step_umap);
     }
 

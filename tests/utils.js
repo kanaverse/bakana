@@ -292,21 +292,6 @@ export async function checkStateResultsBase(state, { mimic = false } = {}) {
         expect(coords.iterations).toBeGreaterThan(0);
     }
 
-    // Animation catcher works correctly.
-    {
-        let collected = { tsne: [], umap: [] }
-        let fun = bakana.setVisualizationAnimate((type, x, y, iterations) => {
-            collected[type].push(iterations);
-        });
-
-        let p = [state.tsne.animate(), state.umap.animate()];
-        await Promise.all(p);
-        bakana.setVisualizationAnimate(null)
-
-        expect(collected.tsne.length).toBeGreaterThan(0);
-        expect(collected.umap.length).toBeGreaterThan(0);
-    }
-
     // Markers:
     {
         let res = state.marker_detection.fetchResults()["RNA"];
@@ -708,4 +693,19 @@ export function launchCustomSelections(state) {
         last: state.custom_selections.fetchResults("last", "cohen", "RNA"),
         versus: state.custom_selections.computeVersus("last", "first")
     };
+}
+
+export async function triggerAnimation(state) {
+    let collected = { tsne: [], umap: [] }
+    let fun = bakana.setVisualizationAnimate((type, x, y, iterations) => {
+        collected[type].push(iterations);
+    });
+
+    let p = [state.tsne.animate(), state.umap.animate()];
+    await Promise.all(p);
+    bakana.setVisualizationAnimate(null)
+
+    expect(collected.tsne.length).toBeGreaterThan(0);
+    expect(collected.umap.length).toBeGreaterThan(0);
+    return;
 }

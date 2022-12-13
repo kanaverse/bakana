@@ -30,6 +30,8 @@ test("runAnalysis works correctly (H5AD)", async () => {
 
     // Basic checks.
     await utils.checkStateResultsSimple(state);
+    utils.checkClusterVersusMode(state);
+    await utils.triggerAnimation(state);
 
     // Annotations, with and without filtering.
     {

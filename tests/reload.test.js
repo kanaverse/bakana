@@ -30,16 +30,17 @@ test("reanalysis from a reloaded analysis works correctly", async () => {
     );
 
     // Re-analyzing without change; should be a no-op.
-    {
-        let new_params = bakana.retrieveParameters(reloaded);
-        await bakana.runAnalysis(reloaded, null, new_params);
+    let new_params = bakana.retrieveParameters(reloaded);
+    await bakana.runAnalysis(reloaded, null, new_params);
 
-        for (const x of Object.values(reloaded)) {
-            expect(x.changed).toBe(false);
-        }
-
-        await bakana.freeAnalysis(reloaded);
+    for (const x of Object.values(reloaded)) {
+        expect(x.changed).toBe(false);
     }
+
+    // Animations still work after reloading.
+    await utils.triggerAnimation(reloaded);
+
+    await bakana.freeAnalysis(reloaded);
 
     // Re-analyzing with a change.
     {

@@ -220,7 +220,7 @@ export class TsneState {
  ******** Loading *********
  **************************/
 
-export function unserialize(handle, index) {
+export async function unserialize(handle, index) {
     let ghandle = handle.open("tsne");
 
     let parameters;
@@ -242,5 +242,7 @@ export function unserialize(handle, index) {
         };
     }
 
-    return new TsneState(index, parameters, reloaded);
+    let output = new TsneState(index, parameters, reloaded);
+    await output.ready();
+    return output;
 }

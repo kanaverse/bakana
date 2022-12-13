@@ -30,6 +30,8 @@ test("runAnalysis works correctly (10X)", async () => {
 
     // Basic consistency checks.
     await utils.checkStateResultsSimple(state);
+    utils.checkClusterVersusMode(state);
+    await utils.triggerAnimation(state);
 
     // Saving and loading.
     const path = "TEST_state_10X.h5";

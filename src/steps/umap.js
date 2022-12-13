@@ -222,7 +222,7 @@ export class UmapState {
  ******** Loading *********
  **************************/
 
-export function unserialize(handle, index) {
+export async function unserialize(handle, index) {
     let ghandle = handle.open("umap");
 
     let parameters;
@@ -245,5 +245,7 @@ export function unserialize(handle, index) {
         };
     }
 
-    return new UmapState(index, parameters, reloaded);
+    let output = new UmapState(index, parameters, reloaded);
+    await output.ready();
+    return output;
 }

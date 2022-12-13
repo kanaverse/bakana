@@ -47,6 +47,8 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
 
     // Basic checks.
     await utils.checkStateResultsSimple(state);
+    utils.checkClusterVersusMode(state);
+    await utils.triggerAnimation(state);
 
     // Annotations, with and without filtering.
     {
