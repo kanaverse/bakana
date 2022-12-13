@@ -369,19 +369,19 @@ class CustomMarkersMimic {
         return utils.mimicGetter(chosen, copy);
     }
 
-    lfc(group, { summary, copy }) {
+    lfc(group, { summary = 1, copy = true } = {}) {
         return this.effect_grabber("lfc", group, summary, copy);
     }
 
-    deltaDetected(group, { summary, copy }) {
+    deltaDetected(group, { summary = 1, copy = true } = {}) {
         return this.effect_grabber("delta_detected", group, summary, copy);
     }
 
-    cohen(group, { summary, copy }) {
+    cohen(group, { summary = 1, copy = true } = {}) {
         return this.effect_grabber("cohen", group, summary, copy);
     }
 
-    auc(group, { summary, copy }) {
+    auc(group, { summary = 1, copy = true } = {}) {
         return this.effect_grabber("auc", group, summary, copy);
     }
 
@@ -390,11 +390,11 @@ class CustomMarkersMimic {
         return utils.mimicGetter(chosen, copy);
     }
 
-    means(group, { copy }) {
+    means(group, { copy = true } = {}) {
         return this.stat_grabber("means", group, copy);
     }
 
-    detected(group, { copy }) {
+    detected(group, { copy = true } = {}) {
         return this.stat_grabber("detected", group, copy);
     }
 

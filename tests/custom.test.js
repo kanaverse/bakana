@@ -71,9 +71,9 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     expect(state.custom_selections.fetchSelectionIndices("evens")).toEqual([0,2,4,6,8]);
 
     let reres = reloaded.custom_selections.fetchResults("evens");
-    expect(reres.cohen(1)).toEqual(res.cohen(1));
-    expect(reres.auc(0)).toEqual(res.auc(0));
-    expect(reres.means(0)).toEqual(res.means(0));
+    expect(reres.RNA.cohen(1)).toEqual(res.RNA.cohen(1));
+    expect(reres.RNA.auc(1)).toEqual(res.RNA.auc(1));
+    expect(reres.RNA.means(1)).toEqual(res.RNA.means(1));
 
     await bakana.freeAnalysis(state);
     await bakana.freeAnalysis(reloaded);
