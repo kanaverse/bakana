@@ -1,31 +1,13 @@
 import * as scran from "scran.js";
 import * as bioc from "bioconductor";
 
-const default_modality = "";
-
-function create_solo_default_object(value) {
+function create_solo_default_object(value, modality) {
     let output = {};
-    output[default_modality] = value;
+    output[modality] = value;
     return output;
 }
 
-export function cloneCached(x, cached) {
-    return (cached ? bioc.CLONE(x) : x);
-}
-
-export function reportFeatures(rawFeatures, typeField, cached) {
-    if (rawFeatures.hasColumn(typeField)) {
-        let by_type = bioc.presplitFactor(rawFeatures.column(typeField));
-        let copy = bioc.CLONE(rawFeatures, { deepCopy: false }); // SPLIT will make a copy anyway.
-        copy.$removeColumn(typeField);
-        return bioc.SPLIT(copy, by_type);
-    } else {
-        // Cloning this instance to avoid complications if the caller modifies the return value.
-        return create_solo_default_object(cloneCached(rawFeatures, cached));
-    }
-}
-
-export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, cached) {
+export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, featureTypeMapping, featureTypeDefault) {
     let output = { matrix: new scran.MultiMatrix };
 
     try {
@@ -37,13 +19,22 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, cach
         if (out_ids !== null) {
             current_features = bioc.SLICE(rawFeatures, out_ids);
         } else {
-            current_features = cloneCached(rawFeatures, cached);
+            current_features = bioc.CLONE(rawFeatures, { deepCopy: false }); // because we're deleting a column.
             out_ids = new Int32Array(out_mat.numberOfRows());
             out_ids.forEach((x, i) => { out_ids[i] = i });
         }
 
         if (typeField !== null && current_features.hasColumn(typeField)) {
-            let by_type = bioc.presplitFactor(current_features.column(typeField));
+            let by_type = {};
+            {
+                let tmp = bioc.presplitFactor(rawFeatures.column(typeField));
+                for (const [k, v] of Object.entries(featureTypeMapping)) {
+                    if (v !== null && v in tmp) {
+                        by_type[k] = tmp[v];
+                    }
+                }
+            }
+
             let type_keys = Object.keys(by_type);
 
             if (type_keys.length > 1) {
@@ -59,8 +50,8 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, cach
             output.row_ids = bioc.SPLIT(out_ids, by_type);
 
         } else {
-            output.row_ids = create_solo_default_object(out_ids);
-            output.features = create_solo_default_object(current_features);
+            output.row_ids = create_solo_default_object(out_ids, featureTypeDefault);
+            output.features = create_solo_default_object(current_features, featureTypeDefault);
         }
     } catch (e) {
         scran.free(output.matrix);

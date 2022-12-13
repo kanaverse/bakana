@@ -15,24 +15,69 @@ export class H5adDataset {
 
     #raw_features;
     #raw_cells;
-    #raw_cell_factors;
-
-    #chosen_assay;
     #assay_details;
+
+    #countAssayName;
+    #featureTypeRnaName;
+    #featureTypeAdtName;
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a H5AD file.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {?string} [options.countAssayName=null] - See {@linkcode H5adDataset#setCountAssayName setCountAssayName}.
+     * @param {?string} [options.featureTypeColumnName=null] - See {@linkcode H5adDataset#setFeatureTypeColumnName setFeatureTypeColumnName}.
+     * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode H5adDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
+     * @param {string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode H5adDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
      */
-    constructor(h5File) {
+    constructor(h5File, { countAssayName = null, featureTypeColumnName = null, featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture" } = {}) {
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
         } else {
             this.#h5_file = new afile.SimpleFile(h5File);
         }
 
+        this.#countAssayName = countAssayName;
+        this.#featureTypeColumnName = featureTypeColumnName;
+        this.#featureTypeRnaName = featureTypeRnaName;
+        this.#featureTypeAdtName = featureTypeAdtName;
+
         this.clear();
+    }
+
+    /**
+     * @param {?string} name - Name of the assay containing the count matrix.
+     * If `null`, the first encountered assay or layer is used.
+     */
+    setCountAssayName(name) {
+        this.#countAssayName = name;
+    }
+
+    /**
+     * @param {?string} name - Name of the per-feature annotation column containing the feature types.
+     * If `null`, no column is assumed to contain the feature types.
+     */
+    setFeatureTypeColumnName(name) {
+        this.#featureTypeColumnName = name;
+    }
+
+    /**
+     * @param {?string} name - Name of the feature type for gene expression.
+     * Alternatively `null`, to indicate that no RNA features are to be loaded.
+     */
+    setFeatureTypeRnaName(name) {
+        this.#featureTypeRnaName = name;
+        return;
+    }
+
+    /**
+     * @param {string} name - Name of the feature type for ADTs.
+     * Alternatively `null`, to indicate that no ADT features are to be loaded.
+     */
+    setFeatureTypeAdtName(name) {
+        this.#featureTypeAdtName = name;
+        return;
     }
 
     #instantiate() {
@@ -60,9 +105,6 @@ export class H5adDataset {
 
         this.#raw_features = null;
         this.#raw_cells = null;
-        this.#raw_cell_factors = null;
-
-        this.#chosen_assay = null;
         this.#assay_details = null;
     }
 
@@ -78,22 +120,34 @@ export class H5adDataset {
      * @return {object} Object containing the abbreviated details of this dataset.
      */
     abbreviate() {
-        return { 
-            "h5": {
+        var formatted = {};
+        formatted.files = [];
+        formatted.files.push({
+            type: "h5",
+            file: {
                 "name": this.#h5_file.name(),
                 "size": this.#h5_file.size()
             }
+        });
+
+        formatted.options = {
+            countAssayName: this.#countAssayName,
+            featureTypeColumnName: this.#featureTypeColumnName,
+            featureTypeRnaName: this.#featureTypeRnaName,
+            featureTypeAdtName: this.#featureTypeAdtName
         };
+
+        return formatted;
     }
 
-    #choose_assay() {
-        if (this.#chosen_assay !== null) {
+    #fetch_assay_details() {
+        if (this.#assay_details !== null) {
             return;
         }
 
+        let available = [];
         if ("X" in this.#h5_handle.children) {
-            this.#chosen_assay = "X";
-            return;
+            available.push("X");
         } 
 
         if (!("layers" in this.#h5_handle.children)) {
@@ -106,23 +160,19 @@ export class H5adDataset {
         }
 
         for (const k of Object.keys(lhandle.children)) {
-            if (k.match(/^count/i)) {
-                this.#chosen_assay = "layers/" + k;
-                return;
-            }
+            available.push("layers/" + k);
         }
 
-        throw new Error("failed to find any count-like layer in a H5AD file");
-    }
-
-    #fetch_assay_details() {
-        if (this.#assay_details !== null) {
-            return;
+        if (available.length == 0) {
+            throw new Error("failed to find any assay in the H5AD file");
         }
 
-        this.#choose_assay();
-        this.#assay_details = scran.extractHDF5MatrixDetails(this.#h5_path, this.#chosen_assay);
-        return;
+        let deets = scran.extractHDF5MatrixDetails(this.#h5_path, available[0]);
+        this.#assay_details = {
+            names: available,
+            rows: deets.rows,
+            columns: deets.columns
+        };
     }
 
     #features() {
@@ -189,7 +239,13 @@ export class H5adDataset {
 
                 for (const [key, val] of Object.entries(chandle.children)) {
                     if (key in annotations) {
-                        factors[key] = eutils.extractHDF5Strings(chandle, key);
+                        let current_levels = eutils.extractHDF5Strings(chandle, key);
+                        let current_indices = annotations[key];
+                        let temp = new Array(current_indices.length);
+                        current_indices.forEach((x, i) => {
+                            temp[i] = cats[x]
+                        }); 
+                        annotations[key] = current_indices;
                     }
                 }
             }
@@ -201,7 +257,6 @@ export class H5adDataset {
         } else {
             this.#raw_cells = new bioc.DataFrame(annotations);
         }
-        this.#raw_cell_factors = factors;
         return;
     }
 
@@ -213,33 +268,19 @@ export class H5adDataset {
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
      *
-     * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
-     * - `cells`: an object containing:
-     *   - `number`: the number of cells in this dataset.
-     *   - `summary`: an object where each key is the name of a per-cell annotation field and its value is a summary of that annotation field,
-     *     following the same structure as returned by {@linkcode summarizeArray}.
+     * - `features`: a {@linkplain external:DataFrame DataFrame} of per-feature annotations.
+     * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
+     * - `assays`: an Array of strings containing names of potential count matrices.
      */
     annotations({ cache = false } = {}) {
         this.#features();
         this.#cells();
-
-        let summaries = {};
-        for (const k of this.#raw_cells.columnNames()) {
-            let x;
-            if (k in this.#raw_cell_factors) {
-                x = this.#raw_cell_factors[k];
-            } else {
-                x = this.#raw_cells.column(k);
-            }
-            summaries[k] = eutils.summarizeArray(x);
-        }
+        this.#fetch_assay_details();
 
         let output = {
-            features: { "": futils.cloneCached(this.#raw_features, cache) },
-            cells: {
-                number: this.#raw_cells.numberOfColumns(),
-                summary: summaries
-            }
+            features: this.#raw_features,
+            cells: this.#raw_cells,
+            assays: this.#assay_details.names
         };
 
         if (!cache) {
@@ -260,45 +301,20 @@ export class H5adDataset {
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
      * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
+     *
+     * Modality names are guaranteed to be one of `"RNA"` or `"ADT"`.
+     * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
+     * either in the constructor or in {@linkcode setFeatureTypeRnaName} and {@linkcode setFeatureTypeAdtName}.
      */
     load({ cache = false } = {}) {
         this.#features();
         this.#cells();
-        this.#choose_assay();
 
-        let remap = (df, k, v) => {
-            let cats = this.#raw_cell_factors[k];
-            let temp = new Array(v.length);
-            v.forEach((x, i) => {
-                temp[i] = cats[x]
-            }); 
-            df.$setColumn(k, temp);
-        };
+        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, this.#countAssayName);
 
-        let cells;
-        let src = this.#raw_cells;
-        if (cache) {
-            cells = new bioc.DataFrame({}, { numberOfRows: src.numberOfRows(), metadata: bioc.CLONE(src.metadata()) });
-            for (const k of src.columnNames()) {
-                let v = src.column(k);
-                if (k in this.#raw_cell_factors) {
-                    remap(cells, k, v);
-                } else {
-                    cells.$setColumn(k, bioc.CLONE(v)); // Making explicit copies to avoid problems with pass-by-reference.
-                }
-            }
-        } else {
-            cells = src;
-            for (const k of cells.columnNames()) {
-                if (k in this.#raw_cell_factors) {
-                    remap(cells, k, cells.column(k));
-                }
-            }
-        }
-
-        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, this.#chosen_assay);
-        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, null, cache);
-        output.cells = cells;
+        let mappings = { RNA: this.#featureTypeRnaName, ADT: this.#featureTypeAdtName };
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#featureTypeColumnName, mappings, "RNA");
+        output.cells = this.#raw_cells;
 
         if (!cache) {
             this.clear();
