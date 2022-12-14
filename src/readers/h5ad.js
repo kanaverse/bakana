@@ -18,6 +18,7 @@ export class H5adDataset {
     #assay_details;
 
     #countAssayName;
+    #featureTypeColumnName;
     #featureTypeRnaName;
     #featureTypeAdtName;
 
