@@ -13,7 +13,7 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
     try {
         let out_mat = loaded.matrix;
         let out_ids = loaded.row_ids;
-        output.matrix.add(default_modality, out_mat);
+        output.matrix.add(featureTypeDefault, out_mat);
 
         let current_features;
         if (out_ids !== null) {
@@ -42,7 +42,7 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
                 scran.free(output.matrix);
                 output.matrix = replacement;
             } else {
-                output.matrix.rename(default_modality, type_keys[0]);
+                output.matrix.rename(featureTypeDefault, type_keys[0]);
             }
 
             delete current_features[typeField];
@@ -66,6 +66,11 @@ export function decorateWithPrimaryIds(features, primary) {
         if (!(k in primary)) {
             throw new Error("modality '" + k + "' has no primary key identifier");  
         }
-        features[k].$setRowNames(features[k].column(primary[k]));
+
+        let curfeat = features[k];
+        let id = primary[k];
+        if ((typeof id == "string" && curfeat.hasColumn(id)) || (typeof id == "number" && id < curfeat.numberOfColumns())) {
+            curfeat.$setRowNames(curfeat.column(id));
+        }
     }
 }

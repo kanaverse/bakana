@@ -289,12 +289,12 @@ function extract_counts(handle, assay) {
 }
 
 function extract_alt_exps(handle) {
+    let output = { handles: {}, order: [] };
     let indx = handle.findAttribute("int_colData");
     if (indx < 0) {
-        return {};
+        return output;
     }
 
-    let output = {};
     let in_handle;
     let inld_handle;
     let innn_handle;
@@ -306,32 +306,32 @@ function extract_alt_exps(handle) {
         in_handle = handle.attribute(indx);
         let inld_dx = in_handle.findAttribute("listData");
         if (inld_dx < 0) {
-            return {};
+            return output;
         }
 
         inld_handle = in_handle.attribute(inld_dx);
         let innn_dx = inld_handle.findAttribute("names");
         if (innn_dx < 0) {
-            return {};
+            return output;
         }
 
         innn_handle = inld_handle.attribute(innn_dx);
         let in_names = innn_handle.values();
         let ae_dx = in_names.indexOf("altExps");
         if (ae_dx < 0) {
-            return {};
+            return output;
         }
 
         ae_handle = inld_handle.load(ae_dx);
         let aeld_dx = ae_handle.findAttribute("listData");
         if (aeld_dx < 0) {
-            return {};
+            return output;
         }
 
         aeld_handle = ae_handle.attribute(aeld_dx);
         let aenn_dx = aeld_handle.findAttribute("names");
         if (aenn_dx < 0) {
-            return {};
+            return output;
         }
 
         aenn_handle = aeld_handle.attribute(aenn_dx);
@@ -342,7 +342,8 @@ function extract_alt_exps(handle) {
             try {
                 curhandle = aeld_handle.load(i);
                 let asehandle = curhandle.attribute("se");
-                output[ae_names[i]] = asehandle;
+                output.handles[ae_names[i]] = asehandle;
+                output.order.push(ae_names[i]);
                 check_for_se(asehandle);
             } catch (e) {
                 throw new Error("failed to load alternative Experiment '" + ae_names[i] + "'; " + e.message);
@@ -388,14 +389,15 @@ export class SummarizedExperimentDataset {
     #rds_handle;
     #se_handle;
     #alt_handles;
+    #alt_handle_order;
 
     #raw_features;
     #raw_cells;
 
     #rnaCountAssay;
     #adtCountAssay;
-    #featureTypeRnaName;
-    #featureTypeAdtName;
+    #rnaExperiment;
+    #adtExperiment;
     #primaryRnaFeatureIdColumn;
     #primaryAdtFeatureIdColumn;
 
@@ -404,8 +406,8 @@ export class SummarizedExperimentDataset {
         let options = {
             rnaCountAssay: this.#rnaCountAssay,
             adtCountAssay: this.#adtCountAssay,
-            featureTypeRnaName: this.#featureTypeRnaName,
-            featureTypeAdtName: this.#featureTypeAdtName,
+            rnaExperiment: this.#rnaExperiment,
+            adtExperiment: this.#adtExperiment,
             primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
             primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn
         };
@@ -419,12 +421,12 @@ export class SummarizedExperimentDataset {
      * @param {object} [options={}] - Optional parameters.
      * @param {string|number} [options.rnaCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setRnaCountAssay setRnaCountAssay}.
      * @param {string|number} [options.adtCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setAdtCountAssay setAdtCountAssay}.
-     * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode SummarizedExperimentDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
-     * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode SummarizedExperimentDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {?(string|number)} [options.rnaExperiment=""] - See {@linkcode SummarizedExperimentDataset#setRnaExperiment setRnaExperiment}.
+     * @param {?(string|number)} [options.adtExperiment="Antibody Capture"] - See {@linkcode SummarizedExperimentDataset#setAdtExperiment setAdtExperiment}.
      * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
      * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
      */
-    constructor(rdsFile, { rnaCountAssay = 1, adtCountAssay = 1, featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture" } = {}) {
+    constructor(rdsFile, { rnaCountAssay = 0, adtCountAssay = 0, rnaExperiment = "", adtExperiment = null, primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0 } = {}) {
         if (rdsFile instanceof afile.SimpleFile) {
             this.#rds_file = rdsFile;
         } else {
@@ -433,8 +435,8 @@ export class SummarizedExperimentDataset {
 
         this.#rnaCountAssay = rnaCountAssay;
         this.#adtCountAssay = adtCountAssay;
-        this.#featureTypeRnaName = featureTypeRnaName;
-        this.#featureTypeAdtName = featureTypeAdtName;
+        this.#rnaExperiment = rnaExperiment;
+        this.#adtExperiment = adtExperiment;
         this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
         this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
 
@@ -447,6 +449,7 @@ export class SummarizedExperimentDataset {
      */
     setRnaCountAssay(name) {
         this.#rnaCountAssay = i;
+        return;
     }
 
     /**
@@ -454,27 +457,30 @@ export class SummarizedExperimentDataset {
      */
     setAdtCountAssay(i) {
         this.#adtCountAssay = i;
+        return;
     }
 
     /**
-     * @param {?string} name - Name of the feature type for gene expression.
-     * Alternatively `null`, to indicate that no RNA features are to be loaded.
+     * @param {?(string|number)} i - Name or index of the alternative experiment containing gene expression data.
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.
      */
-    setFeatureTypeRnaName(name) {
-        this.#featureTypeRnaName = name;
+    setRnaExperiment(i) {
+        this.#rnaExperiment = i;
+        return;
     }
 
     /**
-     * @param {string} name - Name of the feature type for ADTs.
-     * Alternatively `null`, to indicate that no ADT features are to be loaded.
+     * @param {?(string|number)} i - Name or index of the alternative experiment containing ADT data.
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.
      */
-    setFeatureTypeAdtName(name) {
-        this.#featureTypeAdtName = name;
+    setAdtExperiment(i) {
+        this.#adtExperiment = i;
+        return;
     }
 
     /**
      * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
-     * This is used when deciding how to combine multiple datasets.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
     setPrimaryRnaFeatureIdColumn(i) {
         this.#primaryRnaFeatureIdColumn = i;
@@ -483,7 +489,7 @@ export class SummarizedExperimentDataset {
 
     /**
      * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
-     * This is used when deciding how to combine multiple datasets.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
     setPrimaryAdtFeatureIdColumn(i) {
         this.#primaryAdtFeatureIdColumn = i;
@@ -535,7 +541,9 @@ export class SummarizedExperimentDataset {
         this.#se_handle = this.#rds_handle.value();
         try {
             check_for_se(this.#se_handle);
-            this.#alt_handles = extract_alt_exps(this.#se_handle);
+            const { handles, order } = extract_alt_exps(this.#se_handle);
+            this.#alt_handles = handles;
+            this.#alt_handle_order = order;
         } catch (e) {
             this.#se_handle.free();
             this.#rds_handle.free();
@@ -650,31 +658,40 @@ export class SummarizedExperimentDataset {
         };
 
         let mapping = { 
-            RNA: { name: this.#featureTypeRnaName, assay: this.#rnaCountAssayName },
-            ADT: { name: this.#featureTypeAdtName, assay: this.#adtCountAssayName }
+            RNA: { exp: this.#rnaExperiment, assay: this.#rnaCountAssay },
+            ADT: { exp: this.#adtExperiment, assay: this.#adtCountAssay }
         };
 
         try {
             for (const [k, v] of Object.entries(mapping)) {
-                if (v.name === null) {
+                if (v.exp === null) {
                     continue;
                 }
 
                 let handle;
-                if (v.name == "") {
-                    handle = this.#se_handle;
-                } else {
-                    if (!(v.name in this.#alt_handles)) {
-                        throw new Error("no alternative experiment named '" + v.name + "' for " + k + " features");
+                let name = v.exp;
+                if (typeof v.exp == "string") {
+                    if (v.exp === "") {
+                        handle = this.#se_handle;
+                    } else {
+                        if (!(v.exp in this.#alt_handles)) {
+                            continue;
+                        }
+                        handle = this.#alt_handles[v.exp];
                     }
-                    handle = this.#alt_handles[v.name];
+                } else {
+                    if (v.exp >= this.#alt_handle_order.length) {
+                        continue;
+                    }
+                    name = this.#alt_handle_order[v.exp];
+                    handle = this.#alt_handles[name];
                 }
 
                 let loaded = extract_counts(handle, v.assay);
                 output.matrix.add(k, loaded.matrix);
                 let out_ids = loaded.row_ids;
                 output.row_ids[k] = out_ids;
-                output.features[k] = bioc.SLICE(this.#raw_features[v.name], out_ids);
+                output.features[k] = bioc.SLICE(this.#raw_features[name], out_ids);
             }
 
         } catch (e) {

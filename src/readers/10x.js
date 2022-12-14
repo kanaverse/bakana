@@ -66,7 +66,7 @@ export class TenxHdf5Dataset {
     }
 
     /**
-     * @param {string} name - Name of the feature type for ADTs.
+     * @param {?string} name - Name of the feature type for ADTs.
      * Alternatively `null`, to indicate that no ADT features are to be loaded.
      */
     setFeatureTypeAdtName(name) {
@@ -76,7 +76,7 @@ export class TenxHdf5Dataset {
     
     /**
      * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
-     * This is used when deciding how to combine multiple datasets.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
     setPrimaryRnaFeatureIdColumn(i) {
         this.#primaryRnaFeatureIdColumn = i;
@@ -84,8 +84,8 @@ export class TenxHdf5Dataset {
     }
 
     /**
-     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
-     * This is used when deciding how to combine multiple datasets.
+     * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
     setPrimaryAdtFeatureIdColumn(i) {
         this.#primaryAdtFeatureIdColumn = i;
@@ -154,19 +154,20 @@ export class TenxHdf5Dataset {
         if (ids == null) {
             throw new Error("expected a 'matrix/features/id' string dataset containing the feature IDs");
         }
-        let feats = { id: ids };
+        let feats = new bioc.DataFrame({ id: ids }); // build it piece-by-piece for a well-defined ordering.
 
         let names = eutils.extractHDF5Strings(fhandle, "name");
         if (names !== null) {
-            feats.name = names;
+            feats.$setColumn("name", names);
         }
 
-        let ftype = eutils.extractHDF5Strings(fhandle, this.#"feature_type");
+        let ftype = eutils.extractHDF5Strings(fhandle, "feature_type");
         if (ftype !== null) {
-            feats.type = ftype;
+            feats.$setColumn("type", ftype);
         }
 
-        this.#raw_features = new bioc.DataFrame(feats);
+        this.#raw_features = feats;
+        return;
     }
 
     #cells() {

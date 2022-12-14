@@ -93,7 +93,7 @@ export class TenxMatrixMarketDataset {
     }
 
     /**
-     * @param {string} name - Name of the feature type for ADTs.
+     * @param {?string} name - Name of the feature type for ADTs.
      * Alternatively `null`, to indicate that no ADT features are to be loaded.
      */
     setFeatureTypeAdtName(name) {
@@ -102,26 +102,8 @@ export class TenxMatrixMarketDataset {
     }
 
     /**
-     * @param {string|number} i - Name or index of the column of the `features` DataFrame that contains the primary feature identifier for gene expression.
-     * This is used when deciding how to combine multiple datasets.
-     */
-    setPrimaryRnaFeatureIdColumn(i) {
-        this.#primaryRnaFeatureIdColumn = i;
-        return;
-    }
-
-    /**
-     * @param {string|number} i - Name or index of the column of the `features` DataFrame that contains the primary feature identifier for the ADTs.
-     * This is used when deciding how to combine multiple datasets.
-     */
-    setPrimaryAdtFeatureIdColumn(i) {
-        this.#primaryAdtFeatureIdColumn = i;
-        return;
-    }
-
-    /**
      * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
-     * This is used when deciding how to combine multiple datasets.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
     setPrimaryRnaFeatureIdColumn(i) {
         this.#primaryRnaFeatureIdColumn = i;
@@ -130,7 +112,7 @@ export class TenxMatrixMarketDataset {
 
     /**
      * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
-     * This is used when deciding how to combine multiple datasets.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
     setPrimaryAdtFeatureIdColumn(i) {
         this.#primaryAdtFeatureIdColumn = i;
@@ -160,7 +142,7 @@ export class TenxMatrixMarketDataset {
      * in a form that can be cheaply stringified.
      */
     abbreviate(args) {
-        return this.#dump_files(f => { return { name: f.name(), size: f.size() }; });
+        return this.#dump_summary(f => { return { name: f.name(), size: f.size() }; });
     }
 
     #fetch_dimensions() {
@@ -209,15 +191,18 @@ export class TenxMatrixMarketDataset {
             ids.push(x[0]);
             symb.push(x[1]);
         });
-        let output = { "id": ids, "name": symb };
+
+        let output = new bioc.DataFrame({}, { numberOfRows: NR }); // build it piece-by-piece for a well-defined order.
+        output.$setColumn("id", ids);
+        output.$setColumn("name", symb);
 
         if (parsed[0].length > 2) {
             let types = [];
             parsed.forEach(x => { types.push(x[2]); });
-            output.type = types;
+            output.$setColumn("type", types);
         }
 
-        this.#raw_features = new bioc.DataFrame(output);
+        this.#raw_features = output;
         return;
     }
 
@@ -342,7 +327,7 @@ export class TenxMatrixMarketDataset {
      * - `options`: An object containing additional options to saved.
      */
     async serialize() {
-        return this.#dump_files(f => f);
+        return this.#dump_summary(f => f);
     }
 
     /**

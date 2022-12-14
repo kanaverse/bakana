@@ -46,10 +46,10 @@ export class H5adDataset {
      * @param {?string} [options.featureTypeColumnName=null] - See {@linkcode H5adDataset#setFeatureTypeColumnName setFeatureTypeColumnName}.
      * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode H5adDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
      * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode H5adDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
-     * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
-     * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
+     * @param {?(string|number)} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
+     * @param {?(string|number)} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
      */
-    constructor(h5File, { countAssayName = null, featureTypeColumnName = null, featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture", primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0  } = {}) {
+    constructor(h5File, { countAssayName = null, featureTypeColumnName = null, featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture", primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0 } = {}) {
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
         } else {
@@ -72,6 +72,7 @@ export class H5adDataset {
      */
     setCountAssayName(name) {
         this.#countAssayName = name;
+        return;
     }
 
     /**
@@ -80,6 +81,7 @@ export class H5adDataset {
      */
     setFeatureTypeColumnName(name) {
         this.#featureTypeColumnName = name;
+        return;
     }
 
     /**
@@ -88,6 +90,7 @@ export class H5adDataset {
      */
     setFeatureTypeRnaName(name) {
         this.#featureTypeRnaName = name;
+        return;
     }
 
     /**
@@ -96,11 +99,12 @@ export class H5adDataset {
      */
     setFeatureTypeAdtName(name) {
         this.#featureTypeAdtName = name;
+        return;
     }
 
     /**
-     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
-     * This is used when deciding how to combine multiple datasets.
+     * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
     setPrimaryRnaFeatureIdColumn(i) {
         this.#primaryRnaFeatureIdColumn = i;
@@ -108,8 +112,8 @@ export class H5adDataset {
     }
 
     /**
-     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
-     * This is used when deciding how to combine multiple datasets.
+     * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
     setPrimaryAdtFeatureIdColumn(i) {
         this.#primaryAdtFeatureIdColumn = i;
@@ -169,17 +173,15 @@ export class H5adDataset {
             available.push("X");
         } 
 
-        if (!("layers" in this.#h5_handle.children)) {
-            throw new Error("expected 'X' or 'layers' in a H5AD file");
-        }
+        if ("layers" in this.#h5_handle.children) {
+            let lhandle = this.#h5_handle.open("layers");
+            if (!(lhandle instanceof scran.H5Group)) {
+                throw new Error("expected a 'layers' group in a H5AD file");
+            }
 
-        let lhandle = this.#h5_handle.open("layers");
-        if (!(lhandle instanceof scran.H5Group)) {
-            throw new Error("expected a 'layers' group in a H5AD file");
-        }
-
-        for (const k of Object.keys(lhandle.children)) {
-            available.push("layers/" + k);
+            for (const k of Object.keys(lhandle.children)) {
+                available.push("layers/" + k);
+            }
         }
 
         if (available.length == 0) {
@@ -204,19 +206,21 @@ export class H5adDataset {
         if ("var" in handle.children && handle.children["var"] == "Group") {
             let vhandle = handle.open("var");
             let index = eutils.extractHDF5Strings(vhandle, "_index");
+
             if (index !== null) {
-                let genes = { "_index": index };
+                // Build it piece-by-piece for a well-defined order.
+                let genes = new bioc.DataFrame({ "_index": index });
 
                 for (const [key, val] of Object.entries(vhandle.children)) {
                     if (val === "DataSet" && (key.match(/name/i) || key.match(/symb/i))) {
                         let dhandle2 = vhandle.open(key);
                         if (dhandle2.type == "String") {
-                            genes[key] = dhandle2.load();
+                            genes.$setColumn(key, dhandle2.load());
                         }
                     }
                 }
 
-                this.#raw_features = new bioc.DataFrame(genes);
+                this.#raw_features = genes;
                 return;
             }
         }
@@ -259,12 +263,7 @@ export class H5adDataset {
                 for (const [key, val] of Object.entries(chandle.children)) {
                     if (key in annotations) {
                         let current_levels = eutils.extractHDF5Strings(chandle, key);
-                        let current_indices = annotations[key];
-                        let temp = new Array(current_indices.length);
-                        current_indices.forEach((x, i) => {
-                            temp[i] = cats[x]
-                        }); 
-                        annotations[key] = current_indices;
+                        annotations[key] = bioc.SLICE(current_levels, annotations[key]);
                     }
                 }
             }
@@ -328,8 +327,13 @@ export class H5adDataset {
     load({ cache = false } = {}) {
         this.#features();
         this.#cells();
+        this.#fetch_assay_details();
 
-        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, this.#countAssayName);
+        let chosen_assay = this.#countAssayName;
+        if (chosen_assay == null) {
+            chosen_assay = this.#assay_details.names[0];
+        }
+        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, chosen_assay);
 
         let mappings = { RNA: this.#featureTypeRnaName, ADT: this.#featureTypeAdtName };
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#featureTypeColumnName, mappings, "RNA");
