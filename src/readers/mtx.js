@@ -18,6 +18,29 @@ export class TenxMatrixMarketDataset {
 
     #featureTypeRnaName;
     #featureTypeAdtName;
+    #primaryRnaFeatureIdColumn;
+    #primaryAdtFeatureIdColumn;
+
+    #dump_summary(fun) {
+        let files = [{ type: "mtx", file: fun(this.#matrix_file) }];
+
+        if (this.#feature_file !== null) {
+            files.push({ type: "genes", file: fun(this.#feature_file) });
+        }
+
+        if (this.#barcode_file !== null) {
+            files.push({ type: "annotations", file: fun(this.#barcode_file) });
+        }
+
+        let options = {
+            featureTypeRnaName: this.#featureTypeRnaName,
+            featureTypeAdtName: this.#featureTypeAdtName,
+            primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
+            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn
+        };
+
+        return { files, options };
+    }
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} matrixFile - A Matrix Market file.
@@ -29,9 +52,11 @@ export class TenxMatrixMarketDataset {
      * If `null`, it is assumed that no file was available.
      * @param {object} [options={}] - Optional parameters.
      * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
-     * @param {string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode TenxMatrixMarketDataset#primaryRnaFeatureIdColumn primaryRnaFeatureIdColumn}.
+     * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode TenxMatrixMarketDataset#primaryAdtFeatureIdColumn primaryAdtFeatureIdColumn}.
      */
-    constructor(matrixFile, featureFile, barcodeFile, { featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture" } = {}) {
+    constructor(matrixFile, featureFile, barcodeFile, { featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture", primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0 } = {}) {
         if (matrixFile instanceof afile.SimpleFile) {
             this.#matrix_file = matrixFile;
         } else {
@@ -52,6 +77,8 @@ export class TenxMatrixMarketDataset {
 
         this.#featureTypeRnaName = featureTypeRnaName;
         this.#featureTypeAdtName = featureTypeAdtName;
+        this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
+        this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
 
         this.clear();
     }
@@ -71,6 +98,42 @@ export class TenxMatrixMarketDataset {
      */
     setFeatureTypeAdtName(name) {
         this.#featureTypeAdtName = name;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` DataFrame that contains the primary feature identifier for gene expression.
+     * This is used when deciding how to combine multiple datasets.
+     */
+    setPrimaryRnaFeatureIdColumn(i) {
+        this.#primaryRnaFeatureIdColumn = i;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` DataFrame that contains the primary feature identifier for the ADTs.
+     * This is used when deciding how to combine multiple datasets.
+     */
+    setPrimaryAdtFeatureIdColumn(i) {
+        this.#primaryAdtFeatureIdColumn = i;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * This is used when deciding how to combine multiple datasets.
+     */
+    setPrimaryRnaFeatureIdColumn(i) {
+        this.#primaryRnaFeatureIdColumn = i;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     * This is used when deciding how to combine multiple datasets.
+     */
+    setPrimaryAdtFeatureIdColumn(i) {
+        this.#primaryAdtFeatureIdColumn = i;
         return;
     }
 
@@ -97,42 +160,7 @@ export class TenxMatrixMarketDataset {
      * in a form that can be cheaply stringified.
      */
     abbreviate(args) {
-        var formatted = {};
-        formatted.files = [];
-        formatted.files.push({
-            type: "mtx",
-            file: {
-                name: this.#matrix_file.name(),
-                size: this.#matrix_file.size()
-            }
-        });
-
-        if (this.#feature_file !== null) {
-            formatted.files.push({
-                type: "genes",
-                file: {
-                    name: this.#feature_file.name(),
-                    size: this.#feature_file.size()
-                }
-            });
-        }
-
-        if (this.#barcode_file !== null) {
-            formatted.files.push({
-                type: "annotations",
-                file: {
-                    name: this.#barcode_file.name(),
-                    size: this.#barcode_file.size()
-                }
-            });
-        }
-
-        formatted.options = {
-            featureTypeRnaName: this.#featureTypeRnaName,
-            featureTypeAdtName: this.#featureTypeAdtName
-        };
-
-        return formatted;
+        return this.#dump_files(f => { return { name: f.name(), size: f.size() }; });
     }
 
     #fetch_dimensions() {
@@ -181,7 +209,7 @@ export class TenxMatrixMarketDataset {
             ids.push(x[0]);
             symb.push(x[1]);
         });
-        let output = { "id": ids, "symbol": symb };
+        let output = { "id": ids, "name": symb };
 
         if (parsed[0].length > 2) {
             let types = [];
@@ -295,6 +323,9 @@ export class TenxMatrixMarketDataset {
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", mappings, "RNA"); 
         output.cells = this.#raw_cells;
 
+        let primaries = { RNA: this.#primaryRnaFeatureIdColumn, ADT: this.#primaryAdtFeatureIdColumn };
+        futils.decorateWithPrimaryIds(output.features, primaries);
+
         if (!cache) {
             this.clear();
         }
@@ -311,30 +342,13 @@ export class TenxMatrixMarketDataset {
      * - `options`: An object containing additional options to saved.
      */
     async serialize() {
-        // These 'type's are largely retained for back-compatibility.
-        let files = [ { type: "mtx", file: this.#matrix_file } ];
-
-        if (this.#feature_file !== null) {
-            files.push({ type: "genes", file: this.#feature_file });
-        }
-
-        if (this.#barcode_file !== null) {
-            files.push({ type: "annotations", file: this.#barcode_file });
-        }
-
-        return {
-            files: files,
-            options: {
-                featureTypeRnaName: this.#featureTypeRnaName,
-                featureTypeAdtName: this.#featureTypeAdtName
-            }
-        }
+        return this.#dump_files(f => f);
     }
 
     /**
      * @param {Array} files - Array of objects like that produced by {@linkcode TenxMatrixMarketDataset#serialize serialize}.
-     * @return {TenxMatrixMarketDataset} A new instance of this class.
      * @param {object} options - Object containing additional options to be passed to the constructor.
+     * @return {TenxMatrixMarketDataset} A new instance of this class.
      * @static
      */
     static async unserialize(files, options) {

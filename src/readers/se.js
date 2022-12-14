@@ -396,16 +396,33 @@ export class SummarizedExperimentDataset {
     #adtCountAssay;
     #featureTypeRnaName;
     #featureTypeAdtName;
+    #primaryRnaFeatureIdColumn;
+    #primaryAdtFeatureIdColumn;
+
+    #dump_summary(fun) {
+        let files = [{ type: "rds", file: fun(this.#rds_file) }];
+        let options = {
+            rnaCountAssay: this.#rnaCountAssay,
+            adtCountAssay: this.#adtCountAssay,
+            featureTypeRnaName: this.#featureTypeRnaName,
+            featureTypeAdtName: this.#featureTypeAdtName,
+            primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
+            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn
+        };
+        return { files, options };
+    }
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} rdsFile - Contents of a RDS file.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
      * @param {object} [options={}] - Optional parameters.
-     * @param {string|number} [options.rnaCountAssay=1] - See {@linkcode SummarizedExperimentDataset#setRnaCountAssay setRnaCountAssay}.
-     * @param {string|number} [options.adtCountAssay=1] - See {@linkcode SummarizedExperimentDataset#setAdtCountAssay setAdtCountAssay}.
+     * @param {string|number} [options.rnaCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setRnaCountAssay setRnaCountAssay}.
+     * @param {string|number} [options.adtCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setAdtCountAssay setAdtCountAssay}.
      * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode SummarizedExperimentDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
-     * @param {string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode SummarizedExperimentDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode SummarizedExperimentDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
+     * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
      */
     constructor(rdsFile, { rnaCountAssay = 1, adtCountAssay = 1, featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture" } = {}) {
         if (rdsFile instanceof afile.SimpleFile) {
@@ -418,6 +435,8 @@ export class SummarizedExperimentDataset {
         this.#adtCountAssay = adtCountAssay;
         this.#featureTypeRnaName = featureTypeRnaName;
         this.#featureTypeAdtName = featureTypeAdtName;
+        this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
+        this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
 
         this.clear();
     }
@@ -454,6 +473,24 @@ export class SummarizedExperimentDataset {
     }
 
     /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * This is used when deciding how to combine multiple datasets.
+     */
+    setPrimaryRnaFeatureIdColumn(i) {
+        this.#primaryRnaFeatureIdColumn = i;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     * This is used when deciding how to combine multiple datasets.
+     */
+    setPrimaryAdtFeatureIdColumn(i) {
+        this.#primaryAdtFeatureIdColumn = i;
+        return;
+    }
+
+    /**
      * Destroy caches if present, releasing the associated memory.
      * This may be called at any time but only has an effect if `cache = true` in {@linkcode SummarizedExperimentDataset#load load} or {@linkcodeSummarizedExperimentDataset#annotations annotations}.
      */
@@ -486,12 +523,7 @@ export class SummarizedExperimentDataset {
      * @return {object} Object containing the abbreviated details of this dataset.
      */
     abbreviate() {
-        return {
-            "rds": {
-                name: this.#rds_file.name(),
-                size: this.#rds_file.size()
-            }
-        };
+        return this.#dump_summary(f => { return { name: f.name(), size: f.size() }; });
     }
 
     #initialize() {
@@ -657,24 +689,28 @@ export class SummarizedExperimentDataset {
     }
 
     /**
-     * @return {Array} Array of objects representing the files used in this dataset.
-     * Each object corresponds to a single file and contains:
-     * - `type`: a string denoting the type.
-     * - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * @return {object} Object describing this dataset, containing:
+     *
+     * - `files`: Array of objects representing the files used in this dataset.
+     *   Each object corresponds to a single file and contains:
+     *   - `type`: a string denoting the type.
+     *   - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * - `options`: An object containing additional options to saved.
      */
     serialize() {
-        return [ { type: "rds", file: this.#rds_file } ];
+        return this.#dump_summary(f => f);
     }
 
     /**
      * @param {Array} files - Array of objects like that produced by {@linkcode SummarizedExperimentDataset#serialize serialize}.
+     * @param {object} options - Object containing additional options to be passed to the constructor.
      * @return {SummarizedExperimentDataset} A new instance of this class.
      * @static
      */
-    static async unserialize(files) {
+    static async unserialize(files, options) {
         if (files.length != 1 || files[0].type != "rds") {
             throw new Error("expected exactly one file of type 'rds' for SummarizedExperiment unserialization");
         }
-        return new SummarizedExperimentDataset(files[0].file);
+        return new SummarizedExperimentDataset(files[0].file, options);
     }
 }

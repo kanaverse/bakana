@@ -60,3 +60,12 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
 
     return output;
 }
+
+export function decorateWithPrimaryIds(features, primary) {
+    for (const k of Object.keys(features)) {
+        if (!(k in primary)) {
+            throw new Error("modality '" + k + "' has no primary key identifier");  
+        }
+        features[k].$setRowNames(features[k].column(primary[k]));
+    }
+}

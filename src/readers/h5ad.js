@@ -21,6 +21,21 @@ export class H5adDataset {
     #featureTypeColumnName;
     #featureTypeRnaName;
     #featureTypeAdtName;
+    #primaryRnaFeatureIdColumn;
+    #primaryAdtFeatureIdColumn;
+
+    #dump_summary(fun) {
+        let files = [{ type: "h5", file: fun(this.#h5_file) }]; 
+        let options = {
+            countAssayName: this.#countAssayName,
+            featureTypeColumnName: this.#featureTypeColumnName,
+            featureTypeRnaName: this.#featureTypeRnaName,
+            featureTypeAdtName: this.#featureTypeAdtName,
+            primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
+            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn
+        };
+        return { files, options };
+    }
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a H5AD file.
@@ -30,9 +45,11 @@ export class H5adDataset {
      * @param {?string} [options.countAssayName=null] - See {@linkcode H5adDataset#setCountAssayName setCountAssayName}.
      * @param {?string} [options.featureTypeColumnName=null] - See {@linkcode H5adDataset#setFeatureTypeColumnName setFeatureTypeColumnName}.
      * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode H5adDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
-     * @param {string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode H5adDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode H5adDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
+     * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
      */
-    constructor(h5File, { countAssayName = null, featureTypeColumnName = null, featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture" } = {}) {
+    constructor(h5File, { countAssayName = null, featureTypeColumnName = null, featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture", primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0  } = {}) {
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
         } else {
@@ -43,6 +60,8 @@ export class H5adDataset {
         this.#featureTypeColumnName = featureTypeColumnName;
         this.#featureTypeRnaName = featureTypeRnaName;
         this.#featureTypeAdtName = featureTypeAdtName;
+        this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
+        this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
 
         this.clear();
     }
@@ -69,7 +88,6 @@ export class H5adDataset {
      */
     setFeatureTypeRnaName(name) {
         this.#featureTypeRnaName = name;
-        return;
     }
 
     /**
@@ -78,6 +96,23 @@ export class H5adDataset {
      */
     setFeatureTypeAdtName(name) {
         this.#featureTypeAdtName = name;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * This is used when deciding how to combine multiple datasets.
+     */
+    setPrimaryRnaFeatureIdColumn(i) {
+        this.#primaryRnaFeatureIdColumn = i;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     * This is used when deciding how to combine multiple datasets.
+     */
+    setPrimaryAdtFeatureIdColumn(i) {
+        this.#primaryAdtFeatureIdColumn = i;
         return;
     }
 
@@ -121,24 +156,7 @@ export class H5adDataset {
      * @return {object} Object containing the abbreviated details of this dataset.
      */
     abbreviate() {
-        var formatted = {};
-        formatted.files = [];
-        formatted.files.push({
-            type: "h5",
-            file: {
-                "name": this.#h5_file.name(),
-                "size": this.#h5_file.size()
-            }
-        });
-
-        formatted.options = {
-            countAssayName: this.#countAssayName,
-            featureTypeColumnName: this.#featureTypeColumnName,
-            featureTypeRnaName: this.#featureTypeRnaName,
-            featureTypeAdtName: this.#featureTypeAdtName
-        };
-
-        return formatted;
+        return this.#dump_summary(f => { return { name: f.name(), size: f.size() }; });
     }
 
     #fetch_assay_details() {
@@ -317,6 +335,9 @@ export class H5adDataset {
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#featureTypeColumnName, mappings, "RNA");
         output.cells = this.#raw_cells;
 
+        let primaries = { RNA: this.#primaryRnaFeatureIdColumn, ADT: this.#primaryAdtFeatureIdColumn };
+        futils.decorateWithPrimaryIds(output.features, primaries);
+
         if (!cache) {
             this.clear();
         }
@@ -324,24 +345,28 @@ export class H5adDataset {
     }
 
     /**
-     * @return {Array} Array of objects representing the files used in this dataset.
-     * Each object corresponds to a single file and contains:
-     * - `type`: a string denoting the type.
-     * - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * @return {object} Object describing this dataset, containing:
+     *
+     * - `files`: Array of objects representing the files used in this dataset.
+     *   Each object corresponds to a single file and contains:
+     *   - `type`: a string denoting the type.
+     *   - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * - `options`: An object containing additional options to saved.
      */
     serialize() {
-        return [ { type: "h5", file: this.#h5_file } ];
+        return this.#dump_summary(f => f);
     }
 
     /**
      * @param {Array} files - Array of objects like that produced by {@linkcode H5adDataset#serialize serialize}.
+     * @param {object} options - Object containing additional options to be passed to the constructor.
      * @return {H5adDataset} A new instance of this class.
      * @static
      */
-    static async unserialize(files) {
+    static async unserialize(files, options) {
         if (files.length != 1 || files[0].type != "h5") {
             throw new Error("expected exactly one file of type 'h5' for H5AD unserialization");
         }
-        return new H5adDataset(files[0].file);
+        return new H5adDataset(files[0].file, options);
     }
 }

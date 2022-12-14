@@ -17,16 +17,31 @@ export class TenxHdf5Dataset {
 
     #featureTypeRnaName;
     #featureTypeAdtName;
+    #primaryRnaFeatureIdColumn;
+    #primaryAdtFeatureIdColumn;
+
+    #dump_summary(fun) {
+        let files = [{ type: "h5", file: fun(this.#h5_file) }];
+        let options = {
+            featureTypeRnaName: this.#featureTypeRnaName,
+            featureTypeAdtName: this.#featureTypeAdtName,
+            primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
+            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn
+        };
+        return { files, options };
+    }
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a HDF5 file.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
      * @param {object} [options={}] - Optional parameters.
-     * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
-     * @param {string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode TenxHdf5Dataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
+     * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode TenxHdf5Dataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode TenxHdf5Dataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
+     * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode TenxHdf5Dataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
      */
-    constructor(h5File, { featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture" } = {}) {
+    constructor(h5File, { featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture", primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0 } = {}) {
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
         } else {
@@ -35,6 +50,8 @@ export class TenxHdf5Dataset {
 
         this.#featureTypeRnaName = featureTypeRnaName;
         this.#featureTypeAdtName = featureTypeAdtName;
+        this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
+        this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
 
         this.clear();
     }
@@ -56,7 +73,24 @@ export class TenxHdf5Dataset {
         this.#featureTypeAdtName = name;
         return;
     }
+    
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * This is used when deciding how to combine multiple datasets.
+     */
+    setPrimaryRnaFeatureIdColumn(i) {
+        this.#primaryRnaFeatureIdColumn = i;
+        return;
+    }
 
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     * This is used when deciding how to combine multiple datasets.
+     */
+    setPrimaryAdtFeatureIdColumn(i) {
+        this.#primaryAdtFeatureIdColumn = i;
+        return;
+    }
 
     #instantiate() {
         if (this.#h5_path !== null) {
@@ -96,22 +130,7 @@ export class TenxHdf5Dataset {
      * in a form that can be cheaply stringified.
      */
     abbreviate() {
-        var formatted = {};
-        formatted.files = [];
-        formatted.files.push({
-            type: "h5",
-            file: {
-                "name": this.#h5_file.name(),
-                "size": this.#h5_file.size()
-            }
-        });
-
-        formatted.options = {
-            featureTypeRnaName: this.#featureTypeRnaName,
-            featureTypeAdtName: this.#featureTypeAdtName
-        };
-
-        return formatted;
+        return this.#dump_summary(f => { return { name: f.name(), size: f.size() }; });
     }
 
     #features() {
@@ -214,6 +233,9 @@ export class TenxHdf5Dataset {
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", mappings, "RNA");
         output.cells = this.#raw_cells;
 
+        let primaries = { RNA: this.#primaryRnaFeatureIdColumn, ADT: this.#primaryAdtFeatureIdColumn };
+        futils.decorateWithPrimaryIds(output.features, primaries);
+
         if (!cache) {
             this.clear();
         }
@@ -230,14 +252,7 @@ export class TenxHdf5Dataset {
      * - `options`: An object containing additional options to saved.
      */
     serialize() {
-        let files = [ { type: "h5", file: this.#h5_file } ];
-        return {
-            files: files,
-            options: {
-                featureTypeRnaName: this.#featureTypeRnaName,
-                featureTypeAdtName: this.#featureTypeAdtName
-            }
-        }
+        return this.#dump_summary(f => f);
     }
 
     /**
