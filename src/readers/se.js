@@ -226,7 +226,8 @@ function extract_assay_names(handle) {
 
         output = load_listData_names(lhandle);
         if (output == null) {
-            output = lhandle.length();
+            output = new Array(lhandle.length());
+            output.fill(null);
         }
     } catch(e) {
         throw new Error("failed to extract assay data; " + e.message);
@@ -498,7 +499,7 @@ export class SummarizedExperimentDataset {
 
     /**
      * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode SummarizedExperimentDataset#load load} or {@linkcodeSummarizedExperimentDataset#annotations annotations}.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode SummarizedExperimentDataset#load load} or {@linkcodeSummarizedExperimentDataset#summary summary}.
      */
     clear() {
         scran.free(this.#se_handle);
@@ -599,13 +600,12 @@ export class SummarizedExperimentDataset {
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
      *
-     * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
+     * - `modality_features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
-     * - `assays`: an object where each key is a modality name and each value is either:
-     *   - an Array containing the names of available assays for that modality.
-     *   - a number specifying the number of available assays, if those assays are unnamed.
+     * - `modality_assay_names`: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.
+     *    Unnamed assays are represented as `null` names.
      */
-    annotations({ cache = false } = {}) {
+    summary({ cache = false } = {}) {
         this.#initialize();
         this.#features();
         this.#cells();
@@ -621,9 +621,9 @@ export class SummarizedExperimentDataset {
         }
 
         let output = {
-            features: this.#raw_features,
+            modality_features: this.#raw_features,
             cells: this.#raw_cells,
-            assays: assays
+            modality_assay_names: assays
         };
 
         if (!cache) {
@@ -634,7 +634,7 @@ export class SummarizedExperimentDataset {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#annotations annotations}.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#summary summary}.
      * If `true`, users should consider calling {@linkcode SummarizedExperimentDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.

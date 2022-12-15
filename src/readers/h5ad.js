@@ -133,7 +133,7 @@ export class H5adDataset {
 
     /**
      * Destroy caches if present, releasing the associated memory. 
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode H5adDataset#load load} or {@linkcodeH5adDataset#annotations annotations}.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode H5adDataset#load load} or {@linkcodeH5adDataset#summary summary}.
      */
     clear() {
         if (typeof this.#h5_flush == "function") {
@@ -286,19 +286,19 @@ export class H5adDataset {
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
      *
-     * - `features`: a {@linkplain external:DataFrame DataFrame} of per-feature annotations.
+     * - `all_features`: a {@linkplain external:DataFrame DataFrame} of per-feature annotations.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
-     * - `assays`: an Array of strings containing names of potential count matrices.
+     * - `all_assay_names`: an Array of strings containing names of potential count matrices.
      */
-    annotations({ cache = false } = {}) {
+    summary({ cache = false } = {}) {
         this.#features();
         this.#cells();
         this.#fetch_assay_details();
 
         let output = {
-            features: this.#raw_features,
+            all_features: this.#raw_features,
             cells: this.#raw_cells,
-            assays: this.#assay_details.names
+            all_assay_names: this.#assay_details.names
         };
 
         if (!cache) {
@@ -309,7 +309,7 @@ export class H5adDataset {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode H5adDataset#annotations annotations}.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode H5adDataset#summary summary}.
      * If `true`, users should consider calling {@linkcode H5adDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.

@@ -121,7 +121,7 @@ export class TenxMatrixMarketDataset {
 
     /**
      * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode TenxMatrixMarketDataset#load load} or {@linkcodeTenxMatrixMarketDataset#annotations annotations}. 
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode TenxMatrixMarketDataset#load load} or {@linkcodeTenxMatrixMarketDataset#summary summary}. 
      */
     clear() {
         this.#dimensions = null;
@@ -257,18 +257,18 @@ export class TenxMatrixMarketDataset {
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
      *
-     * - `features`: a {@linkplain external:DataFrame DataFrame} of per-feature annotations.
+     * - `all_features`: a {@linkplain external:DataFrame DataFrame} of per-feature annotations.
      *    Unlike {@linkcode TenxMatrixMarketDataset#load load}, this has not been split by modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
      *
      * @async
      */
-    async annotations({ cache = false } = {}) {
+    async summary({ cache = false } = {}) {
         await this.#features();
         await this.#cells();
 
         let output = {
-            "features": this.#raw_features,
+            "all_features": this.#raw_features,
             "cells": this.#raw_cells
         };
 
@@ -280,7 +280,7 @@ export class TenxMatrixMarketDataset {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxMatrixMarketDataset#annotations annotations}.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxMatrixMarketDataset#summary summary}.
      * If `true`, users should consider calling {@linkcode TenxMatrixMarketDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.

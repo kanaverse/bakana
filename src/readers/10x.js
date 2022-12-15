@@ -104,7 +104,7 @@ export class TenxHdf5Dataset {
 
     /**
      * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode TenxHdf5Dataset#load load} or {@linkcodeTenxHdf5Dataset#annotations annotations}. 
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode TenxHdf5Dataset#load load} or {@linkcodeTenxHdf5Dataset#summary summary}. 
      */
     clear() {
         if (typeof this.#h5_flush == "function") {
@@ -188,16 +188,16 @@ export class TenxHdf5Dataset {
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
      *
-     * - `features`: a {@linkplain external:DataFrame DataFrame} of per-feature annotations.
+     * - `all_features`: a {@linkplain external:DataFrame DataFrame} of per-feature annotations.
      *   Unlike {@linkcode TenxMatrixMarketDataset#load load}, this has not been split by modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
      */
-    annotations({ cache = false } = {}) {
+    summary({ cache = false } = {}) {
         this.#features();
         this.#cells();
 
         let output = {
-            "features": this.#raw_features, 
+            "all_features": this.#raw_features, 
             "cells": this.#raw_cells
         };
 
@@ -209,7 +209,7 @@ export class TenxHdf5Dataset {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxHdf5Dataset#annotations annotations}.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxHdf5Dataset#summary summary}.
      * If `true`, users should consider calling {@linkcode TenxHdf5Dataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
