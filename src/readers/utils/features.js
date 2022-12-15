@@ -27,7 +27,7 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
         if (typeField !== null && current_features.hasColumn(typeField)) {
             let by_type = {};
             {
-                let tmp = bioc.presplitFactor(rawFeatures.column(typeField));
+                let tmp = bioc.presplitFactor(current_features.column(typeField));
                 for (const [k, v] of Object.entries(featureTypeMapping)) {
                     if (v !== null && v in tmp) {
                         by_type[k] = tmp[v];
