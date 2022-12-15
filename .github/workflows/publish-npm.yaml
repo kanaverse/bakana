@@ -12,7 +12,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
     - name: Checkout the repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     # We run the various preparatory steps to ensure that they do, in fact, run.
     # This avoids nasty surprises when we actually do want to publish something.
@@ -33,9 +33,10 @@ jobs:
         echo "UPDATE_BAKANA=${update}" >> $GITHUB_ENV
         echo "Current version is ${current_version} (published ${old_version})"
 
-    - uses: actions/setup-node@v2
+    - uses: actions/setup-node@v3
       if: env.UPDATE_BAKANA == 1
       with:
+        node-version: 16
         registry-url: 'https://registry.npmjs.org'
 
     - name: Publish to NPM

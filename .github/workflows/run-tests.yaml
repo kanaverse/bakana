@@ -6,31 +6,33 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Set up Node
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
 
     - name: Restore the node modules
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: '**/node_modules'
         key: modules-${{ hashFiles('**/package.json') }}
 
     - name: Restore the dataset files 
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: '**/files/datasets'
         key: datasets-${{ hashFiles('**/files/download-datasets.sh') }}
 
     - name: Restore the reference files 
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: '**/files/references'
         key: references-${{ hashFiles('**/files/download-references.sh') }}
 
     - name: Restore the legacy files 
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: '**/files/legacy'
         key: references-${{ hashFiles('**/files/download-legacy.sh') }}
