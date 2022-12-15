@@ -1,16 +1,23 @@
 import * as bakana from "../src/index.js";
 import * as scran from "scran.js";
 import * as utils from "./utils.js";
+import * as bioc from "bioconductor";
 
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
-test("runAnalysis works correctly (10X)", async () => {
-    let h5path = "files/datasets/pbmc4k-tenx.h5";
-    let files = {
-        default: new bakana.TenxHdf5Dataset(h5path)
-    };
+let h5path = "files/datasets/pbmc4k-tenx.h5";
+let files = {
+    default: new bakana.TenxHdf5Dataset(h5path)
+};
 
+test("10X summary works correctly", async () => {
+    let summ = files.default.summary();
+    expect(summ.all_features instanceof bioc.DataFrame).toBe(true);
+    expect(summ.cells instanceof bioc.DataFrame).toBe(true);
+})
+
+test("runAnalysis works correctly (10X)", async () => {
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
     let res = await bakana.runAnalysis(state, files, params);

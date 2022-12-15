@@ -2,9 +2,24 @@ import * as bakana from "../src/index.js";
 import * as butils from "../src/steps/utils/general.js";
 import * as scran from "scran.js";
 import * as utils from "./utils.js";
+import * as bioc from "bioconductor";
 
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
+
+let mtx_file = "files/datasets/pbmc3k-matrix.mtx.gz";
+let feat_file = "files/datasets/pbmc3k-features.tsv.gz";
+let files = { 
+    default: new bakana.TenxMatrixMarketDataset(mtx_file, feat_file, "files/datasets/pbmc3k-barcodes.tsv.gz")
+};
+
+test("MatrixMarket summary works correctly", async () => {
+    let summ = await files.default.summary();
+    expect(summ.all_features instanceof bioc.DataFrame).toBe(true);
+    expect(summ.all_features.numberOfColumns()).toBeGreaterThan(0);
+    expect(summ.cells instanceof bioc.DataFrame).toBe(true);
+    expect(summ.cells.numberOfColumns()).toBeGreaterThan(0);
+})
 
 test("runAnalysis works correctly (MatrixMarket)", async () => {
     let attempts = new Set;
@@ -15,12 +30,6 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     let completed = new Set;
     let finished = (step) => {
         completed.add(step);
-    };
-
-    let mtx_file = "files/datasets/pbmc3k-matrix.mtx.gz";
-    let feat_file = "files/datasets/pbmc3k-features.tsv.gz";
-    let files = { 
-        default: new bakana.TenxMatrixMarketDataset(mtx_file, feat_file, "files/datasets/pbmc3k-barcodes.tsv.gz")
     };
 
     let state = await bakana.createAnalysis();
@@ -83,15 +92,22 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     await bakana.freeAnalysis(reloaded);
 })
 
+let minimal_files = { 
+    default: new bakana.TenxMatrixMarketDataset("files/datasets/pbmc3k-matrix.mtx.gz", null, null)
+};
+
+test("MatrixMarket summary works correctly with the bare minimum", async () => {
+    let summ = await minimal_files.default.summary();
+    expect(summ.all_features instanceof bioc.DataFrame).toBe(true);
+    expect(summ.all_features.numberOfColumns()).toBe(0);
+    expect(summ.cells instanceof bioc.DataFrame).toBe(true);
+    expect(summ.cells.numberOfColumns()).toBe(0);
+})
+
 test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async () => {
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
-    let res = await bakana.runAnalysis(state, 
-        { 
-            default: new bakana.TenxMatrixMarketDataset("files/datasets/pbmc3k-matrix.mtx.gz", null, null)
-        },
-        params
-    );
+    let res = await bakana.runAnalysis(state, minimal_files, params);
 
     // Basic consistency checks.
     await utils.checkStateResultsSimple(state);
