@@ -16,6 +16,32 @@ export class TenxMatrixMarketDataset {
     #raw_features;
     #raw_cells;
 
+    #featureTypeRnaName;
+    #featureTypeAdtName;
+    #primaryRnaFeatureIdColumn;
+    #primaryAdtFeatureIdColumn;
+
+    #dump_summary(fun) {
+        let files = [{ type: "mtx", file: fun(this.#matrix_file) }];
+
+        if (this.#feature_file !== null) {
+            files.push({ type: "genes", file: fun(this.#feature_file) });
+        }
+
+        if (this.#barcode_file !== null) {
+            files.push({ type: "annotations", file: fun(this.#barcode_file) });
+        }
+
+        let options = {
+            featureTypeRnaName: this.#featureTypeRnaName,
+            featureTypeAdtName: this.#featureTypeAdtName,
+            primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
+            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn
+        };
+
+        return { files, options };
+    }
+
     /**
      * @param {SimpleFile|string|Uint8Array|File} matrixFile - A Matrix Market file.
      * On browsers, this may be a File object.
@@ -24,8 +50,13 @@ export class TenxMatrixMarketDataset {
      * If `null`, it is assumed that no file was available.
      * @param {?(SimpleFile|string|Uint8Array|File)} barcodeFile - Contents of a barcode annotation file.
      * If `null`, it is assumed that no file was available.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
+     * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode TenxMatrixMarketDataset#primaryRnaFeatureIdColumn primaryRnaFeatureIdColumn}.
+     * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode TenxMatrixMarketDataset#primaryAdtFeatureIdColumn primaryAdtFeatureIdColumn}.
      */
-    constructor(matrixFile, featureFile, barcodeFile) {
+    constructor(matrixFile, featureFile, barcodeFile, { featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture", primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0 } = {}) {
         if (matrixFile instanceof afile.SimpleFile) {
             this.#matrix_file = matrixFile;
         } else {
@@ -44,12 +75,53 @@ export class TenxMatrixMarketDataset {
             this.#barcode_file = new afile.SimpleFile(barcodeFile);
         }
 
+        this.#featureTypeRnaName = featureTypeRnaName;
+        this.#featureTypeAdtName = featureTypeAdtName;
+        this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
+        this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
+
         this.clear();
     }
 
     /**
+     * @param {?string} name - Name of the feature type for gene expression.
+     * Alternatively `null`, to indicate that no RNA features are to be loaded.
+     */
+    setFeatureTypeRnaName(name) {
+        this.#featureTypeRnaName = name;
+        return;
+    }
+
+    /**
+     * @param {?string} name - Name of the feature type for ADTs.
+     * Alternatively `null`, to indicate that no ADT features are to be loaded.
+     */
+    setFeatureTypeAdtName(name) {
+        this.#featureTypeAdtName = name;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     */
+    setPrimaryRnaFeatureIdColumn(i) {
+        this.#primaryRnaFeatureIdColumn = i;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     */
+    setPrimaryAdtFeatureIdColumn(i) {
+        this.#primaryAdtFeatureIdColumn = i;
+        return;
+    }
+
+    /**
      * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode TenxMatrixMarketDataset#load load} or {@linkcodeTenxMatrixMarketDataset#annotations annotations}. 
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode TenxMatrixMarketDataset#load load} or {@linkcodeTenxMatrixMarketDataset#summary summary}. 
      */
     clear() {
         this.#dimensions = null;
@@ -66,31 +138,11 @@ export class TenxMatrixMarketDataset {
     }
 
     /**
-     * @return {object} Object containing the abbreviated details of this dataset.
+     * @return {object} Object containing the abbreviated details of this dataset,
+     * in a form that can be cheaply stringified.
      */
     abbreviate(args) {
-        var formatted = {
-            "matrix": {
-                name: this.#matrix_file.name(),
-                size: this.#matrix_file.size()
-            }
-        };
-
-        if (this.#feature_file !== null) {
-            formatted.features = {
-                name: this.#feature_file.name(),
-                size: this.#feature_file.size()
-            };
-        }
-
-        if (this.#barcode_file !== null) {
-            formatted.barcodes = {
-                name: this.#barcode_file.name(),
-                size: this.#barcode_file.size()
-            };
-        }
-
-        return formatted;
+        return this.#dump_summary(f => { return { name: f.name(), size: f.size() }; });
     }
 
     #fetch_dimensions() {
@@ -139,15 +191,18 @@ export class TenxMatrixMarketDataset {
             ids.push(x[0]);
             symb.push(x[1]);
         });
-        let output = { "id": ids, "symbol": symb };
 
-        if (parsed[0].length >= 3) {
+        let output = new bioc.DataFrame({}, { numberOfRows: NR }); // build it piece-by-piece for a well-defined order.
+        output.$setColumn("id", ids);
+        output.$setColumn("name", symb);
+
+        if (parsed[0].length > 2) {
             let types = [];
             parsed.forEach(x => { types.push(x[2]); });
-            output.type = types;
+            output.$setColumn("type", types);
         }
 
-        this.#raw_features = new bioc.DataFrame(output);
+        this.#raw_features = output;
         return;
     }
 
@@ -202,29 +257,19 @@ export class TenxMatrixMarketDataset {
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
      *
-     * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
-     * - `cells`: an object containing:
-     *   - `number`: the number of cells in this dataset.
-     *   - `summary`: an object where each key is the name of a per-cell annotation field and its value is a summary of that annotation field,
-     *     following the same structure as returned by {@linkcode summarizeArray}.
+     * - `modality_features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
+     *   Unlike {@linkcode TenxMatrixMarketDataset#load load}, modality names are arbitrary.
+     * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
      *
      * @async
      */
-    async annotations({ cache = false } = {}) {
+    async summary({ cache = false } = {}) {
         await this.#features();
         await this.#cells();
 
-        let anno = {};
-        for (const k of this.#raw_cells.columnNames()) {
-            anno[k] = eutils.summarizeArray(this.#raw_cells.column(k));
-        }
-
         let output = {
-            "features": futils.reportFeatures(this.#raw_features, "type", cache),
-            "cells": {
-                "number": this.#raw_cells.numberOfRows(),
-                "summary": anno
-            }
+            "modality_features": futils.reportFeatures(this.#raw_features, "type"),
+            "cells": this.#raw_cells
         };
 
         if (!cache) {
@@ -235,7 +280,7 @@ export class TenxMatrixMarketDataset {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxMatrixMarketDataset#annotations annotations}.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxMatrixMarketDataset#summary summary}.
      * If `true`, users should consider calling {@linkcode TenxMatrixMarketDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
@@ -246,6 +291,10 @@ export class TenxMatrixMarketDataset {
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
      * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
      *
+     * Modality names are guaranteed to be one of `"RNA"` or `"ADT"`.
+     * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
+     * either in the constructor or in {@linkcode setFeatureTypeRnaName} and {@linkcode setFeatureTypeAdtName}.
+     *
      * @async
      */
     async load({ cache = false } = {}) {
@@ -254,8 +303,13 @@ export class TenxMatrixMarketDataset {
 
         var is_gz = this.#matrix_file.name().endsWith(".gz");
         let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compressed": is_gz });
-        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", cache);
-        output.cells = futils.cloneCached(this.#raw_cells, cache);
+
+        let mappings = { RNA: this.#featureTypeRnaName, ADT: this.#featureTypeAdtName };
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", mappings, "RNA"); 
+        output.cells = this.#raw_cells;
+
+        let primaries = { RNA: this.#primaryRnaFeatureIdColumn, ADT: this.#primaryAdtFeatureIdColumn };
+        futils.decorateWithPrimaryIds(output.features, primaries);
 
         if (!cache) {
             this.clear();
@@ -264,32 +318,25 @@ export class TenxMatrixMarketDataset {
     }
 
     /**
-     * @return {Array} Array of objects representing the files used in this dataset.
-     * Each object corresponds to a single file and contains:
-     * - `type`: a string denoting the type.
-     * - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * @return {object} Object describing this dataset, containing:
+     *
+     * - `files`: Array of objects representing the files used in this dataset.
+     *   Each object corresponds to a single file and contains:
+     *   - `type`: a string denoting the type.
+     *   - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * - `options`: An object containing additional options to saved.
      */
     async serialize() {
-        // These 'type's are largely retained for back-compatibility.
-        let files = [ { type: "mtx", file: this.#matrix_file } ];
-
-        if (this.#feature_file !== null) {
-            files.push({ type: "genes", file: this.#feature_file });
-        }
-
-        if (this.#barcode_file !== null) {
-            files.push({ type: "annotations", file: this.#barcode_file });
-        }
-
-        return files;
+        return this.#dump_summary(f => f);
     }
 
     /**
      * @param {Array} files - Array of objects like that produced by {@linkcode TenxMatrixMarketDataset#serialize serialize}.
+     * @param {object} options - Object containing additional options to be passed to the constructor.
      * @return {TenxMatrixMarketDataset} A new instance of this class.
      * @static
      */
-    static async unserialize(files) {
+    static async unserialize(files, options) {
         let args = {};
         for (const x of files) {
             if (x.type in args) {
@@ -312,6 +359,6 @@ export class TenxMatrixMarketDataset {
             barcode = args.annotations;
         }
 
-        return new TenxMatrixMarketDataset(args.mtx, feat, barcode);
+        return new TenxMatrixMarketDataset(args.mtx, feat, barcode, options);
     }
 }

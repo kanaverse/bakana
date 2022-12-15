@@ -355,7 +355,6 @@ export class InputsState {
     async serialize(handle, embeddedSaver) {
         let ghandle = handle.createGroup("inputs");
 
-        let multifile = false;
         {
             let phandle = ghandle.createGroup("parameters");
 
@@ -368,14 +367,16 @@ export class InputsState {
             let numbers = [];
             let fihandle = phandle.createGroup("files");
             let sofar = 0;
+            let all_options = [];
 
             for (const key of names) {
                 let val = this.#cache.datasets[key];
                 let dformat = val.constructor.format();
                 formats.push(dformat);
 
-                let files = await val.serialize();
+                let { files, options } = await val.serialize();
                 numbers.push(files.length);
+                all_options.push(JSON.stringify(options));
 
                 for (const obj of files) {
                     let curhandle = fihandle.createGroup(String(sofar));
@@ -401,8 +402,8 @@ export class InputsState {
                 }
             }
 
+            // TODO: get rid of this pointless little difference in behavior.
             if (formats.length > 1) {
-                multifile = true;
                 phandle.writeDataSet("format", "String", null, formats);
                 phandle.writeDataSet("sample_groups", "Int32", null, numbers);
                 phandle.writeDataSet("sample_names", "String", null, names);
@@ -412,6 +413,8 @@ export class InputsState {
                     phandle.writeDataSet("sample_factor", "String", [], this.#parameters.sample_factor);
                 }
             }
+
+            phandle.writeDataSet("options", "String", null, all_options);
 
             if (this.#parameters.subset !== null || RAW_SUBSET_OVERRIDE in this.#cache) {
                 let shandle = phandle.createGroup("subset");
@@ -464,165 +467,21 @@ export class InputsState {
 }
 
 /************************************
- ******* Internals - guessing *******
- ************************************/
-
-// TODO: remove all of this and require explicit mention of which features are which.
-
-// Exported for testing only.
-export function commonFeatureTypes(genes) {
-    let scores = {
-        "symbol-mouse": [],
-        "symbol-human": [],
-        "ensembl-mouse": [],
-        "ensembl-human": []
-    };
-    let fields = bioc.CLONE(scores);
-
-    for (var i = 0; i < genes.length; i++) {
-        let curgenes = genes[i];
-        let best_scores = {};
-        let best_fields = {};
-
-        for (const k of curgenes.columnNames()) {
-            let v = curgenes.column(k);
-            let fscore = scran.guessFeatures(v);
-            let curname = fscore.type + "-" + fscore.species;
-            if (!(curname in best_scores) || fscore.confidence > best_scores[curname]) {
-                best_scores[curname] = fscore.confidence;
-                best_fields[curname] = k;
-            }
-        }
-
-        for (const [k, v] of Object.entries(best_fields)) {
-            fields[k].push(v);
-            scores[k].push(best_scores[k]);
-        }
-    }
-
-    let best_score = -1000;
-    let best_type = null;
-
-    for (const [k, v] of Object.entries(scores)) {
-        if (v.length == genes.length) { // skipping if not represented in all entries.
-            let nscore = v.reduce((a, b) => a * b);
-            if (nscore > best_score) {
-                best_score = nscore;
-                best_type = k;
-            }
-        }
-    }
-
-    let best_fields = [];
-    let best_features = null;
-
-    if (best_type !== null) {
-        let best_type_cols = fields[best_type];
-        let best_features_sub = best_type.split("-");
-        best_features = {
-            type: best_features_sub[0],
-            species: best_features_sub[1]
-        };
-        for (var i = 0; i < genes.length; i++) {
-            best_fields.push(best_type_cols[i]);
-        }
-    }
-
-    return {
-        "best_type": best_features,
-        "best_fields": best_fields
-    };
-}
-
-// Patterns are ordered by priority, e.g., if we see one modality named 'adt'
-// and another modality named 'hto', the former is used to represent ADTs.
-const guess_patterns = {
-    RNA: [
-        modality => modality.match(/gene expression/i),
-        modality => modality.match(/^rna/i),
-        modality => modality.match(/^gex/i),
-        modality => modality == ""
-    ],
-    ADT: [
-        modality => modality.match(/^adt/i),
-        modality => modality.match(/antibody capture/i),
-        modality => modality.match(/^hto/i)
-    ]
-};
-
-export function guessDefaultModalities(loaded) {
-    let available = {};
-    for (const chosen of Object.keys(guess_patterns)) {
-        available[chosen] = new Array(loaded.length);
-        available[chosen].fill(null);
-    }
-
-    for (var i = 0; i < loaded.length; i++) {
-        let curmodalities = Object.keys(loaded[i].features);
-        for (const [chosen, patfuns] of Object.entries(guess_patterns)) {
-            let curavail = available[chosen];
-            (() => {
-                for (const pfun of patfuns) {
-                    for (const modality of curmodalities) {
-                        if (pfun(modality)) {
-                            curavail[i] = modality;
-
-                            // Quitting on the first match to the given order
-                            // of 'patfuns'. This ensures that the choice is
-                            // well-defined if there are multiple matches to
-                            // different patterns. Note that nothing is
-                            // guaranteed about the order of 'curmodalities',
-                            // so if there were multiple matches to the same
-                            // pattern, the choice is undefined.
-                            return;
-                        }
-                    }
-                }
-            })();
-        }
-    }
-
-    let choices = {};
-    for (const [k, v] of Object.entries(available)) {
-        let failed = false;
-        for (const v2 of v) {
-            if (v2 == null) {
-                failed = true;
-                break;
-            }
-        }
-        if (!failed) {
-            choices[k] = v;
-        }
-    }
-
-    return choices;
-}
-
-/************************************
  ******* Internals - loading ********
  ************************************/
 
-function bind_single_modality(modality, mapping, loaded) {
+const known_modalities = [ "RNA", "ADT" ];
+
+function bind_single_modality(modality, loaded) {
     let output = {};
 
     try {
-        let genes = [];
-        for (var i = 0; i < mapping.length; i++) {
-            let mod_name = mapping[i];
-            genes.push(loaded[i].features[mod_name]);
-        }
-
-        let result = commonFeatureTypes(genes);
-        if (result.best_type === null) {
-            throw new Error("no common feature types available across all datasets for '" + modality + "'");
-        }
-
         let gnames = [];
         let mats = [];
-        for (var i = 0; i < mapping.length; i++) {
-            gnames.push(genes[i].column(result.best_fields[i]));
-            mats.push(loaded[i].matrix.get(mapping[i]));
+        for (var i = 0; i < loaded.length; i++) {
+            let curfeat = loaded[i].features[modality];
+            gnames.push(curfeat.rowNames());
+            mats.push(loaded[i].matrix.get(modality));
         }
 
         let merged = scran.cbindWithNames(mats, gnames);
@@ -630,8 +489,8 @@ function bind_single_modality(modality, mapping, loaded) {
 
         // Extracting gene information from the first object. We won't make
         // any attempt at merging and deduplication across objects.
-        output.features = bioc.SLICE(genes[0], merged.indices);
-        output.row_ids = bioc.SLICE(loaded[0].row_ids[mapping[0]], merged.indices);
+        output.features = bioc.SLICE(loaded[0].features[modality], merged.indices);
+        output.row_ids = bioc.SLICE(loaded[0].row_ids[modality], merged.indices);
 
     } catch (e) {
         utils.freeCache(output.matrix);
@@ -642,9 +501,22 @@ function bind_single_modality(modality, mapping, loaded) {
 }
 
 function bind_datasets(names, loaded) {
-    let common_modes = guessDefaultModalities(loaded);
-    if (Object.keys(common_modes).length == 0) {
-        throw new Error("failed to guess common modalities across all datasets");
+    let common_modes = [];
+    for (const mod of known_modalities) {
+        let okay = true;
+        for (const l of loaded) {
+            if (!l.matrix.has(mod)) {
+                okay = false;
+                break;
+            }
+        }
+        if (okay) {
+            common_modes.push(mod);
+        }
+    }
+
+    if (common_modes.length == 0) {
+        throw new Error("failed to find common modalities across all datasets");
     }
 
     let blocks;
@@ -655,8 +527,8 @@ function bind_datasets(names, loaded) {
     };
 
     try {
-        for (const [k, v] of Object.entries(common_modes)) {
-            let current = bind_single_modality(k, v, loaded);
+        for (const k of common_modes) {
+            let current = bind_single_modality(k, loaded);
             output.matrix.add(k, current.matrix);
             output.features[k] = current.features;
             output.row_ids[k] = current.row_ids;
@@ -686,9 +558,9 @@ function bind_datasets(names, loaded) {
 }
 
 function rename_dataset(single) {
-    let common_modes = guessDefaultModalities([single]);
-    if (Object.keys(common_modes).length == 0) {
-        throw new Error("failed to guess common modalities across all datasets");
+    let modalities = single.matrix.available();
+    if (modalities.length == 0) {
+        throw new Error("");
     }
 
     let output = { 
@@ -698,11 +570,14 @@ function rename_dataset(single) {
     };
 
     try {
-        for (const [k, v] of Object.entries(common_modes)) {
-            let current = v[0];
-            output.matrix.add(k, single.matrix.get(current));
-            output.features[k] = single.features[current];
-            output.row_ids[k] = single.row_ids[current];
+        for (const k of known_modalities) {
+            if (!single.matrix.has(k)) {
+                continue;
+            }
+
+            output.matrix.add(k, single.matrix.get(k));
+            output.features[k] = single.features[k];
+            output.row_ids[k] = single.row_ids[k];
         }
     } catch (e) {
         scran.free(output.matrix);
@@ -943,7 +818,7 @@ function createPermuter(perm) {
     };
 }
 
-async function unserialize_Dataset(format, all_files, loader) {
+async function unserialize_Dataset(format, all_files, all_options, loader) {
     if (!(format in iutils.availableReaders)) {
         throw new Error("unknown format '" + format + "' during unserialization");
     }
@@ -964,7 +839,7 @@ async function unserialize_Dataset(format, all_files, loader) {
         handles.push({ type: f.type, file: handle });
     }
 
-    return await cls.unserialize(handles);
+    return await cls.unserialize(handles, all_options);
 }
 
 export async function unserialize(handle, embeddedLoader) {
@@ -1005,7 +880,7 @@ export async function unserialize(handle, embeddedLoader) {
 
     if (solofile) {
         let format = fohandle.values[0];
-        readers["default"] = await unserialize_Dataset(format, all_files, embeddedLoader);
+        readers["default"] = await unserialize_Dataset(format, all_files, {}, embeddedLoader);
         if ("sample_factor" in phandle.children) {
             parameters.sample_factor = phandle.open("sample_factor", { load: true }).values[0];
         } else {
@@ -1017,13 +892,20 @@ export async function unserialize(handle, embeddedLoader) {
         let sample_names = phandle.open("sample_names", { load: true }).values;
         let sample_groups = phandle.open("sample_groups", { load: true }).values;
 
+        let all_options = [];
+        if ("options" in phandle.children) {
+            all_options = phandle.open("options", { load: true }).values.map(JSON.parse);
+        } else {
+            all_options = formats.map(x => { return {}; });
+        }
+
         let sofar = 0;
         for (var i = 0; i < formats.length; i++) {
             let start = sofar;
             sofar += sample_groups[i];
             let curfiles = all_files.slice(start, sofar);
             let format = formats[i];
-            readers[sample_names[i]] = await unserialize_Dataset(format, curfiles, embeddedLoader);
+            readers[sample_names[i]] = await unserialize_Dataset(format, curfiles, all_options[i], embeddedLoader);
         }
     }
 

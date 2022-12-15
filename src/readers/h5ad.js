@@ -15,24 +15,109 @@ export class H5adDataset {
 
     #raw_features;
     #raw_cells;
-    #raw_cell_factors;
-
-    #chosen_assay;
     #assay_details;
+
+    #countAssayName;
+    #featureTypeColumnName;
+    #featureTypeRnaName;
+    #featureTypeAdtName;
+    #primaryRnaFeatureIdColumn;
+    #primaryAdtFeatureIdColumn;
+
+    #dump_summary(fun) {
+        let files = [{ type: "h5", file: fun(this.#h5_file) }]; 
+        let options = {
+            countAssayName: this.#countAssayName,
+            featureTypeColumnName: this.#featureTypeColumnName,
+            featureTypeRnaName: this.#featureTypeRnaName,
+            featureTypeAdtName: this.#featureTypeAdtName,
+            primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
+            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn
+        };
+        return { files, options };
+    }
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a H5AD file.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {?string} [options.countAssayName=null] - See {@linkcode H5adDataset#setCountAssayName setCountAssayName}.
+     * @param {?string} [options.featureTypeColumnName=null] - See {@linkcode H5adDataset#setFeatureTypeColumnName setFeatureTypeColumnName}.
+     * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode H5adDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
+     * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode H5adDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {?(string|number)} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
+     * @param {?(string|number)} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
      */
-    constructor(h5File) {
+    constructor(h5File, { countAssayName = null, featureTypeColumnName = null, featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture", primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0 } = {}) {
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
         } else {
             this.#h5_file = new afile.SimpleFile(h5File);
         }
 
+        this.#countAssayName = countAssayName;
+        this.#featureTypeColumnName = featureTypeColumnName;
+        this.#featureTypeRnaName = featureTypeRnaName;
+        this.#featureTypeAdtName = featureTypeAdtName;
+        this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
+        this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
+
         this.clear();
+    }
+
+    /**
+     * @param {?string} name - Name of the assay containing the count matrix.
+     * If `null`, the first encountered assay or layer is used.
+     */
+    setCountAssayName(name) {
+        this.#countAssayName = name;
+        return;
+    }
+
+    /**
+     * @param {?string} name - Name of the per-feature annotation column containing the feature types.
+     * If `null`, no column is assumed to contain the feature types.
+     */
+    setFeatureTypeColumnName(name) {
+        this.#featureTypeColumnName = name;
+        return;
+    }
+
+    /**
+     * @param {?string} name - Name of the feature type for gene expression.
+     * Alternatively `null`, to indicate that no RNA features are to be loaded.
+     */
+    setFeatureTypeRnaName(name) {
+        this.#featureTypeRnaName = name;
+        return;
+    }
+
+    /**
+     * @param {string} name - Name of the feature type for ADTs.
+     * Alternatively `null`, to indicate that no ADT features are to be loaded.
+     */
+    setFeatureTypeAdtName(name) {
+        this.#featureTypeAdtName = name;
+        return;
+    }
+
+    /**
+     * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     */
+    setPrimaryRnaFeatureIdColumn(i) {
+        this.#primaryRnaFeatureIdColumn = i;
+        return;
+    }
+
+    /**
+     * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     */
+    setPrimaryAdtFeatureIdColumn(i) {
+        this.#primaryAdtFeatureIdColumn = i;
+        return;
     }
 
     #instantiate() {
@@ -48,7 +133,7 @@ export class H5adDataset {
 
     /**
      * Destroy caches if present, releasing the associated memory. 
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode H5adDataset#load load} or {@linkcodeH5adDataset#annotations annotations}.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode H5adDataset#load load} or {@linkcodeH5adDataset#summary summary}.
      */
     clear() {
         if (typeof this.#h5_flush == "function") {
@@ -60,9 +145,6 @@ export class H5adDataset {
 
         this.#raw_features = null;
         this.#raw_cells = null;
-        this.#raw_cell_factors = null;
-
-        this.#chosen_assay = null;
         this.#assay_details = null;
     }
 
@@ -78,41 +160,7 @@ export class H5adDataset {
      * @return {object} Object containing the abbreviated details of this dataset.
      */
     abbreviate() {
-        return { 
-            "h5": {
-                "name": this.#h5_file.name(),
-                "size": this.#h5_file.size()
-            }
-        };
-    }
-
-    #choose_assay() {
-        if (this.#chosen_assay !== null) {
-            return;
-        }
-
-        if ("X" in this.#h5_handle.children) {
-            this.#chosen_assay = "X";
-            return;
-        } 
-
-        if (!("layers" in this.#h5_handle.children)) {
-            throw new Error("expected 'X' or 'layers' in a H5AD file");
-        }
-
-        let lhandle = this.#h5_handle.open("layers");
-        if (!(lhandle instanceof scran.H5Group)) {
-            throw new Error("expected a 'layers' group in a H5AD file");
-        }
-
-        for (const k of Object.keys(lhandle.children)) {
-            if (k.match(/^count/i)) {
-                this.#chosen_assay = "layers/" + k;
-                return;
-            }
-        }
-
-        throw new Error("failed to find any count-like layer in a H5AD file");
+        return this.#dump_summary(f => { return { name: f.name(), size: f.size() }; });
     }
 
     #fetch_assay_details() {
@@ -120,9 +168,32 @@ export class H5adDataset {
             return;
         }
 
-        this.#choose_assay();
-        this.#assay_details = scran.extractHDF5MatrixDetails(this.#h5_path, this.#chosen_assay);
-        return;
+        let available = [];
+        if ("X" in this.#h5_handle.children) {
+            available.push("X");
+        } 
+
+        if ("layers" in this.#h5_handle.children) {
+            let lhandle = this.#h5_handle.open("layers");
+            if (!(lhandle instanceof scran.H5Group)) {
+                throw new Error("expected a 'layers' group in a H5AD file");
+            }
+
+            for (const k of Object.keys(lhandle.children)) {
+                available.push("layers/" + k);
+            }
+        }
+
+        if (available.length == 0) {
+            throw new Error("failed to find any assay in the H5AD file");
+        }
+
+        let deets = scran.extractHDF5MatrixDetails(this.#h5_path, available[0]);
+        this.#assay_details = {
+            names: available,
+            rows: deets.rows,
+            columns: deets.columns
+        };
     }
 
     #features() {
@@ -135,19 +206,21 @@ export class H5adDataset {
         if ("var" in handle.children && handle.children["var"] == "Group") {
             let vhandle = handle.open("var");
             let index = eutils.extractHDF5Strings(vhandle, "_index");
+
             if (index !== null) {
-                let genes = { "_index": index };
+                // Build it piece-by-piece for a well-defined order.
+                let genes = new bioc.DataFrame({ "_index": index });
 
                 for (const [key, val] of Object.entries(vhandle.children)) {
                     if (val === "DataSet" && (key.match(/name/i) || key.match(/symb/i))) {
                         let dhandle2 = vhandle.open(key);
                         if (dhandle2.type == "String") {
-                            genes[key] = dhandle2.load();
+                            genes.$setColumn(key, dhandle2.load());
                         }
                     }
                 }
 
-                this.#raw_features = new bioc.DataFrame(genes);
+                this.#raw_features = genes;
                 return;
             }
         }
@@ -189,7 +262,8 @@ export class H5adDataset {
 
                 for (const [key, val] of Object.entries(chandle.children)) {
                     if (key in annotations) {
-                        factors[key] = eutils.extractHDF5Strings(chandle, key);
+                        let current_levels = eutils.extractHDF5Strings(chandle, key);
+                        annotations[key] = bioc.SLICE(current_levels, annotations[key]);
                     }
                 }
             }
@@ -201,7 +275,6 @@ export class H5adDataset {
         } else {
             this.#raw_cells = new bioc.DataFrame(annotations);
         }
-        this.#raw_cell_factors = factors;
         return;
     }
 
@@ -213,33 +286,19 @@ export class H5adDataset {
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
      *
-     * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
-     * - `cells`: an object containing:
-     *   - `number`: the number of cells in this dataset.
-     *   - `summary`: an object where each key is the name of a per-cell annotation field and its value is a summary of that annotation field,
-     *     following the same structure as returned by {@linkcode summarizeArray}.
+     * - `all_features`: a {@linkplain external:DataFrame DataFrame} of per-feature annotations.
+     * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
+     * - `all_assay_names`: an Array of strings containing names of potential count matrices.
      */
-    annotations({ cache = false } = {}) {
+    summary({ cache = false } = {}) {
         this.#features();
         this.#cells();
-
-        let summaries = {};
-        for (const k of this.#raw_cells.columnNames()) {
-            let x;
-            if (k in this.#raw_cell_factors) {
-                x = this.#raw_cell_factors[k];
-            } else {
-                x = this.#raw_cells.column(k);
-            }
-            summaries[k] = eutils.summarizeArray(x);
-        }
+        this.#fetch_assay_details();
 
         let output = {
-            features: { "": futils.cloneCached(this.#raw_features, cache) },
-            cells: {
-                number: this.#raw_cells.numberOfColumns(),
-                summary: summaries
-            }
+            all_features: this.#raw_features,
+            cells: this.#raw_cells,
+            all_assay_names: this.#assay_details.names
         };
 
         if (!cache) {
@@ -250,7 +309,7 @@ export class H5adDataset {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode H5adDataset#annotations annotations}.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode H5adDataset#summary summary}.
      * If `true`, users should consider calling {@linkcode H5adDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
@@ -260,45 +319,28 @@ export class H5adDataset {
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
      * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
+     *
+     * Modality names are guaranteed to be one of `"RNA"` or `"ADT"`.
+     * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
+     * either in the constructor or in {@linkcode setFeatureTypeRnaName} and {@linkcode setFeatureTypeAdtName}.
      */
     load({ cache = false } = {}) {
         this.#features();
         this.#cells();
-        this.#choose_assay();
+        this.#fetch_assay_details();
 
-        let remap = (df, k, v) => {
-            let cats = this.#raw_cell_factors[k];
-            let temp = new Array(v.length);
-            v.forEach((x, i) => {
-                temp[i] = cats[x]
-            }); 
-            df.$setColumn(k, temp);
-        };
-
-        let cells;
-        let src = this.#raw_cells;
-        if (cache) {
-            cells = new bioc.DataFrame({}, { numberOfRows: src.numberOfRows(), metadata: bioc.CLONE(src.metadata()) });
-            for (const k of src.columnNames()) {
-                let v = src.column(k);
-                if (k in this.#raw_cell_factors) {
-                    remap(cells, k, v);
-                } else {
-                    cells.$setColumn(k, bioc.CLONE(v)); // Making explicit copies to avoid problems with pass-by-reference.
-                }
-            }
-        } else {
-            cells = src;
-            for (const k of cells.columnNames()) {
-                if (k in this.#raw_cell_factors) {
-                    remap(cells, k, cells.column(k));
-                }
-            }
+        let chosen_assay = this.#countAssayName;
+        if (chosen_assay == null) {
+            chosen_assay = this.#assay_details.names[0];
         }
+        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, chosen_assay);
 
-        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, this.#chosen_assay);
-        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, null, cache);
-        output.cells = cells;
+        let mappings = { RNA: this.#featureTypeRnaName, ADT: this.#featureTypeAdtName };
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#featureTypeColumnName, mappings, "RNA");
+        output.cells = this.#raw_cells;
+
+        let primaries = { RNA: this.#primaryRnaFeatureIdColumn, ADT: this.#primaryAdtFeatureIdColumn };
+        futils.decorateWithPrimaryIds(output.features, primaries);
 
         if (!cache) {
             this.clear();
@@ -307,24 +349,28 @@ export class H5adDataset {
     }
 
     /**
-     * @return {Array} Array of objects representing the files used in this dataset.
-     * Each object corresponds to a single file and contains:
-     * - `type`: a string denoting the type.
-     * - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * @return {object} Object describing this dataset, containing:
+     *
+     * - `files`: Array of objects representing the files used in this dataset.
+     *   Each object corresponds to a single file and contains:
+     *   - `type`: a string denoting the type.
+     *   - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * - `options`: An object containing additional options to saved.
      */
     serialize() {
-        return [ { type: "h5", file: this.#h5_file } ];
+        return this.#dump_summary(f => f);
     }
 
     /**
      * @param {Array} files - Array of objects like that produced by {@linkcode H5adDataset#serialize serialize}.
+     * @param {object} options - Object containing additional options to be passed to the constructor.
      * @return {H5adDataset} A new instance of this class.
      * @static
      */
-    static async unserialize(files) {
+    static async unserialize(files, options) {
         if (files.length != 1 || files[0].type != "h5") {
             throw new Error("expected exactly one file of type 'h5' for H5AD unserialization");
         }
-        return new H5adDataset(files[0].file);
+        return new H5adDataset(files[0].file, options);
     }
 }

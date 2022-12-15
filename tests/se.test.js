@@ -2,6 +2,7 @@ import * as bakana from "../src/index.js";
 import * as inputs from "../src/steps/inputs.js";
 import * as scran from "scran.js";
 import * as utils from "./utils.js";
+import * as bioc from "bioconductor";
 
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
@@ -168,6 +169,14 @@ test("RDS loaders work correctly for a SingleCellExperiment with altExps", async
     let files = { 
         default: new bakana.SummarizedExperimentDataset(fpath)
     };
+
+    // Summary works correctly.
+    let summ = files.default.summary();
+    expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
+    expect(summ.modality_features["Antibody Capture"] instanceof bioc.DataFrame).toBe(true);
+    expect(summ.cells instanceof bioc.DataFrame).toBe(true);
+    expect(summ.modality_assay_names[""].length).toBeGreaterThan(0);
+    expect(summ.modality_assay_names["Antibody Capture"].length).toBeGreaterThan(0);
 
     let fullstate = new inputs.InputsState;
     await fullstate.compute(files, null, null);

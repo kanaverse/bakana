@@ -213,7 +213,7 @@ function extract_features(handle) {
     }
 }
 
-function extract_counts(handle) {
+function extract_assay_names(handle) {
     let output;
     let ahandle;
     let dhandle;
@@ -224,14 +224,47 @@ function extract_counts(handle) {
         dhandle = ahandle.attribute("data");
         lhandle = dhandle.attribute("listData");
 
-        let names = load_listData_names(lhandle);
-        let chosen = 1;
-        if (names != null) {
-            for (var n = 0; n < names.length; n++) {
-                if (names[n].match(/^count/i)) {
-                    chosen = n;
-                    break;
+        output = load_listData_names(lhandle);
+        if (output == null) {
+            output = new Array(lhandle.length());
+            output.fill(null);
+        }
+    } catch(e) {
+        throw new Error("failed to extract assay data; " + e.message);
+    } finally {
+        scran.free(ahandle);
+        scran.free(lhandle);
+        scran.free(dhandle);
+    }
+
+    return output;
+}
+
+function extract_counts(handle, assay) {
+    let output;
+    let ahandle;
+    let dhandle;
+    let lhandle;
+
+    try {
+        ahandle = handle.attribute("assays");
+        dhandle = ahandle.attribute("data");
+        lhandle = dhandle.attribute("listData");
+
+        let chosen = assay;
+        if (typeof assay == "string") {
+            let names = load_listData_names(lhandle);
+            if (assay !== null && names != null) {
+                for (var n = 0; n < names.length; n++) {
+                    if (names[n] == assay) {
+                        chosen = n;
+                        break;
+                    }
                 }
+            }
+        } else {
+            if (assay >= lhandle.length()) {
+                throw new Error("assay index " + String(assay) + " out of range");
             }
         }
 
@@ -257,12 +290,12 @@ function extract_counts(handle) {
 }
 
 function extract_alt_exps(handle) {
+    let output = { handles: {}, order: [] };
     let indx = handle.findAttribute("int_colData");
     if (indx < 0) {
-        return {};
+        return output;
     }
 
-    let output = {};
     let in_handle;
     let inld_handle;
     let innn_handle;
@@ -274,32 +307,32 @@ function extract_alt_exps(handle) {
         in_handle = handle.attribute(indx);
         let inld_dx = in_handle.findAttribute("listData");
         if (inld_dx < 0) {
-            return {};
+            return output;
         }
 
         inld_handle = in_handle.attribute(inld_dx);
         let innn_dx = inld_handle.findAttribute("names");
         if (innn_dx < 0) {
-            return {};
+            return output;
         }
 
         innn_handle = inld_handle.attribute(innn_dx);
         let in_names = innn_handle.values();
         let ae_dx = in_names.indexOf("altExps");
         if (ae_dx < 0) {
-            return {};
+            return output;
         }
 
         ae_handle = inld_handle.load(ae_dx);
         let aeld_dx = ae_handle.findAttribute("listData");
         if (aeld_dx < 0) {
-            return {};
+            return output;
         }
 
         aeld_handle = ae_handle.attribute(aeld_dx);
         let aenn_dx = aeld_handle.findAttribute("names");
         if (aenn_dx < 0) {
-            return {};
+            return output;
         }
 
         aenn_handle = aeld_handle.attribute(aenn_dx);
@@ -310,7 +343,8 @@ function extract_alt_exps(handle) {
             try {
                 curhandle = aeld_handle.load(i);
                 let asehandle = curhandle.attribute("se");
-                output[ae_names[i]] = asehandle;
+                output.handles[ae_names[i]] = asehandle;
+                output.order.push(ae_names[i]);
                 check_for_se(asehandle);
             } catch (e) {
                 throw new Error("failed to load alternative Experiment '" + ae_names[i] + "'; " + e.message);
@@ -345,6 +379,8 @@ function check_for_se(handle) {
     }, "SummarizedExperiment");
 }
 
+const main_experiment_name = "";
+
 /**
  * Dataset stored as a `SummarizedExperiment` object (or one of its subclasses) inside an RDS file.
  */
@@ -354,28 +390,116 @@ export class SummarizedExperimentDataset {
     #rds_handle;
     #se_handle;
     #alt_handles;
+    #alt_handle_order;
 
     #raw_features;
     #raw_cells;
+
+    #rnaCountAssay;
+    #adtCountAssay;
+    #rnaExperiment;
+    #adtExperiment;
+    #primaryRnaFeatureIdColumn;
+    #primaryAdtFeatureIdColumn;
+
+    #dump_summary(fun) {
+        let files = [{ type: "rds", file: fun(this.#rds_file) }];
+        let options = {
+            rnaCountAssay: this.#rnaCountAssay,
+            adtCountAssay: this.#adtCountAssay,
+            rnaExperiment: this.#rnaExperiment,
+            adtExperiment: this.#adtExperiment,
+            primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
+            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn
+        };
+        return { files, options };
+    }
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} rdsFile - Contents of a RDS file.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {string|number} [options.rnaCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setRnaCountAssay setRnaCountAssay}.
+     * @param {string|number} [options.adtCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setAdtCountAssay setAdtCountAssay}.
+     * @param {?(string|number)} [options.rnaExperiment=""] - See {@linkcode SummarizedExperimentDataset#setRnaExperiment setRnaExperiment}.
+     * @param {?(string|number)} [options.adtExperiment="Antibody Capture"] - See {@linkcode SummarizedExperimentDataset#setAdtExperiment setAdtExperiment}.
+     * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
+     * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
      */
-    constructor(rdsFile) {
+    constructor(rdsFile, { rnaCountAssay = 0, adtCountAssay = 0, rnaExperiment = "", adtExperiment = "Antibody Capture", primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0 } = {}) {
         if (rdsFile instanceof afile.SimpleFile) {
             this.#rds_file = rdsFile;
         } else {
             this.#rds_file = new afile.SimpleFile(rdsFile);
         }
 
+        this.#rnaCountAssay = rnaCountAssay;
+        this.#adtCountAssay = adtCountAssay;
+        this.#rnaExperiment = rnaExperiment;
+        this.#adtExperiment = adtExperiment;
+        this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
+        this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
+
         this.clear();
     }
 
     /**
+     * @param {string|number} i - Name or index of the assay containing the RNA count matrix.
+     * If `null`, the first encountered assay is used.
+     */
+    setRnaCountAssay(name) {
+        this.#rnaCountAssay = i;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the assay containing the ADT count matrix.
+     */
+    setAdtCountAssay(i) {
+        this.#adtCountAssay = i;
+        return;
+    }
+
+    /**
+     * @param {?(string|number)} i - Name or index of the alternative experiment containing gene expression data.
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.
+     */
+    setRnaExperiment(i) {
+        this.#rnaExperiment = i;
+        return;
+    }
+
+    /**
+     * @param {?(string|number)} i - Name or index of the alternative experiment containing ADT data.
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.
+     */
+    setAdtExperiment(i) {
+        this.#adtExperiment = i;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     */
+    setPrimaryRnaFeatureIdColumn(i) {
+        this.#primaryRnaFeatureIdColumn = i;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     */
+    setPrimaryAdtFeatureIdColumn(i) {
+        this.#primaryAdtFeatureIdColumn = i;
+        return;
+    }
+
+    /**
      * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode SummarizedExperimentDataset#load load} or {@linkcodeSummarizedExperimentDataset#annotations annotations}.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode SummarizedExperimentDataset#load load} or {@linkcodeSummarizedExperimentDataset#summary summary}.
      */
     clear() {
         scran.free(this.#se_handle);
@@ -406,12 +530,7 @@ export class SummarizedExperimentDataset {
      * @return {object} Object containing the abbreviated details of this dataset.
      */
     abbreviate() {
-        return {
-            "rds": {
-                name: this.#rds_file.name(),
-                size: this.#rds_file.size()
-            }
-        };
+        return this.#dump_summary(f => { return { name: f.name(), size: f.size() }; });
     }
 
     #initialize() {
@@ -423,7 +542,9 @@ export class SummarizedExperimentDataset {
         this.#se_handle = this.#rds_handle.value();
         try {
             check_for_se(this.#se_handle);
-            this.#alt_handles = extract_alt_exps(this.#se_handle);
+            const { handles, order } = extract_alt_exps(this.#se_handle);
+            this.#alt_handles = handles;
+            this.#alt_handle_order = order;
         } catch (e) {
             this.#se_handle.free();
             this.#rds_handle.free();
@@ -437,7 +558,8 @@ export class SummarizedExperimentDataset {
         }
 
         this.#initialize();
-        this.#raw_features = { "": extract_features(this.#se_handle) };
+        this.#raw_features = {};
+        this.#raw_features[main_experiment_name] = extract_features(this.#se_handle);
 
         for (const [k, v] of Object.entries(this.#alt_handles)) {
             try {
@@ -478,28 +600,30 @@ export class SummarizedExperimentDataset {
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
      *
-     * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
-     * - `cells`: an object containing:
-     *   - `number`: the number of cells in this dataset.
-     *   - `summary`: an object where each key is the name of a per-cell annotation field and its value is a summary of that annotation field,
-     *     following the same structure as returned by {@linkcode summarizeArray}.
+     * - `modality_features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
+     * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
+     * - `modality_assay_names`: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.
+     *    Unnamed assays are represented as `null` names.
      */
-    annotations({ cache = false } = {}) {
+    summary({ cache = false } = {}) {
         this.#initialize();
         this.#features();
         this.#cells();
 
-        let anno = {};
-        for (const k of this.#raw_cells.columnNames()) {
-            anno[k] = eutils.summarizeArray(this.#raw_cells.column(k));
+        let assays = {};
+        assays[main_experiment_name] = extract_assay_names(this.#se_handle);
+        for (const [k, v] of Object.entries(this.#alt_handles)) {
+            try {
+                assays[k] = extract_assay_names(v);
+            } catch (e) {
+                console.warn("failed to extract features for alternative Experiment '" + k + "'; " + e.message);
+            }
         }
 
         let output = {
-            features: futils.cloneCached(this.#raw_features, cache),
-            cells: {
-                number: this.#raw_cells.numberOfColumns(),
-                summary: anno
-            }
+            modality_features: this.#raw_features,
+            cells: this.#raw_cells,
+            modality_assay_names: assays
         };
 
         if (!cache) {
@@ -510,7 +634,7 @@ export class SummarizedExperimentDataset {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#annotations annotations}.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#summary summary}.
      * If `true`, users should consider calling {@linkcode SummarizedExperimentDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
@@ -530,22 +654,44 @@ export class SummarizedExperimentDataset {
             matrix: new scran.MultiMatrix,
             row_ids: {},
             features: {},
-            cells: futils.cloneCached(this.#raw_cells, cache)
+            cells: this.#raw_cells
+        };
+
+        let mapping = { 
+            RNA: { exp: this.#rnaExperiment, assay: this.#rnaCountAssay },
+            ADT: { exp: this.#adtExperiment, assay: this.#adtCountAssay }
         };
 
         try {
-            let loaded = extract_counts(this.#se_handle);
-            let out_mat = loaded.matrix;
-            let out_ids = loaded.row_ids;
-            output.matrix.add("", out_mat);
-            output.row_ids[""] = out_ids;
-            output.features[""] = bioc.SLICE(this.#raw_features[""], out_ids);
+            for (const [k, v] of Object.entries(mapping)) {
+                if (v.exp === null) {
+                    continue;
+                }
 
-            for (const [k, v] of Object.entries(this.#alt_handles)) {
-                let alt = extract_counts(v);
-                output.matrix.add(k, alt.matrix);
-                output.row_ids[k] = alt.row_ids;
-                output.features[k] = bioc.SLICE(this.#raw_features[k], alt.row_ids);
+                let handle;
+                let name = v.exp;
+                if (typeof v.exp == "string") {
+                    if (v.exp === "") {
+                        handle = this.#se_handle;
+                    } else {
+                        if (!(v.exp in this.#alt_handles)) {
+                            continue;
+                        }
+                        handle = this.#alt_handles[v.exp];
+                    }
+                } else {
+                    if (v.exp >= this.#alt_handle_order.length) {
+                        continue;
+                    }
+                    name = this.#alt_handle_order[v.exp];
+                    handle = this.#alt_handles[name];
+                }
+
+                let loaded = extract_counts(handle, v.assay);
+                output.matrix.add(k, loaded.matrix);
+                let out_ids = loaded.row_ids;
+                output.row_ids[k] = out_ids;
+                output.features[k] = bioc.SLICE(this.#raw_features[name], out_ids);
             }
 
         } catch (e) {
@@ -560,24 +706,28 @@ export class SummarizedExperimentDataset {
     }
 
     /**
-     * @return {Array} Array of objects representing the files used in this dataset.
-     * Each object corresponds to a single file and contains:
-     * - `type`: a string denoting the type.
-     * - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * @return {object} Object describing this dataset, containing:
+     *
+     * - `files`: Array of objects representing the files used in this dataset.
+     *   Each object corresponds to a single file and contains:
+     *   - `type`: a string denoting the type.
+     *   - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * - `options`: An object containing additional options to saved.
      */
     serialize() {
-        return [ { type: "rds", file: this.#rds_file } ];
+        return this.#dump_summary(f => f);
     }
 
     /**
      * @param {Array} files - Array of objects like that produced by {@linkcode SummarizedExperimentDataset#serialize serialize}.
+     * @param {object} options - Object containing additional options to be passed to the constructor.
      * @return {SummarizedExperimentDataset} A new instance of this class.
      * @static
      */
-    static async unserialize(files) {
+    static async unserialize(files, options) {
         if (files.length != 1 || files[0].type != "rds") {
             throw new Error("expected exactly one file of type 'rds' for SummarizedExperiment unserialization");
         }
-        return new SummarizedExperimentDataset(files[0].file);
+        return new SummarizedExperimentDataset(files[0].file, options);
     }
 }

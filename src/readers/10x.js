@@ -15,18 +15,81 @@ export class TenxHdf5Dataset {
     #raw_features;
     #raw_cells;
 
+    #featureTypeRnaName;
+    #featureTypeAdtName;
+    #primaryRnaFeatureIdColumn;
+    #primaryAdtFeatureIdColumn;
+
+    #dump_summary(fun) {
+        let files = [{ type: "h5", file: fun(this.#h5_file) }];
+        let options = {
+            featureTypeRnaName: this.#featureTypeRnaName,
+            featureTypeAdtName: this.#featureTypeAdtName,
+            primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
+            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn
+        };
+        return { files, options };
+    }
+
     /**
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a HDF5 file.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode TenxHdf5Dataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
+     * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode TenxHdf5Dataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode TenxHdf5Dataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
+     * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode TenxHdf5Dataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
      */
-    constructor(h5File) {
+    constructor(h5File, { featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture", primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0 } = {}) {
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
         } else {
             this.#h5_file = new afile.SimpleFile(h5File);
         }
+
+        this.#featureTypeRnaName = featureTypeRnaName;
+        this.#featureTypeAdtName = featureTypeAdtName;
+        this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
+        this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
+
         this.clear();
+    }
+
+    /**
+     * @param {?string} name - Name of the feature type for gene expression.
+     * Alternatively `null`, to indicate that no RNA features are to be loaded.
+     */
+    setFeatureTypeRnaName(name) {
+        this.#featureTypeRnaName = name;
+        return;
+    }
+
+    /**
+     * @param {?string} name - Name of the feature type for ADTs.
+     * Alternatively `null`, to indicate that no ADT features are to be loaded.
+     */
+    setFeatureTypeAdtName(name) {
+        this.#featureTypeAdtName = name;
+        return;
+    }
+    
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     */
+    setPrimaryRnaFeatureIdColumn(i) {
+        this.#primaryRnaFeatureIdColumn = i;
+        return;
+    }
+
+    /**
+     * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     */
+    setPrimaryAdtFeatureIdColumn(i) {
+        this.#primaryAdtFeatureIdColumn = i;
+        return;
     }
 
     #instantiate() {
@@ -41,7 +104,7 @@ export class TenxHdf5Dataset {
 
     /**
      * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode TenxHdf5Dataset#load load} or {@linkcodeTenxHdf5Dataset#annotations annotations}. 
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode TenxHdf5Dataset#load load} or {@linkcodeTenxHdf5Dataset#summary summary}. 
      */
     clear() {
         if (typeof this.#h5_flush == "function") {
@@ -63,15 +126,11 @@ export class TenxHdf5Dataset {
     }
 
     /**
-     * @return {object} Object containing the abbreviated details of this dataset.
+     * @return {object} Object containing the abbreviated details of this dataset,
+     * in a form that can be cheaply stringified.
      */
     abbreviate() {
-        return { 
-            "h5": {
-                "name": this.#h5_file.name(),
-                "size": this.#h5_file.size()
-            }
-        };
+        return this.#dump_summary(f => { return { name: f.name(), size: f.size() }; });
     }
 
     #features() {
@@ -95,19 +154,20 @@ export class TenxHdf5Dataset {
         if (ids == null) {
             throw new Error("expected a 'matrix/features/id' string dataset containing the feature IDs");
         }
-        let feats = { id: ids };
+        let feats = new bioc.DataFrame({ id: ids }); // build it piece-by-piece for a well-defined ordering.
 
         let names = eutils.extractHDF5Strings(fhandle, "name");
         if (names !== null) {
-            feats.name = names;
+            feats.$setColumn("name", names);
         }
 
         let ftype = eutils.extractHDF5Strings(fhandle, "feature_type");
         if (ftype !== null) {
-            feats.type = ftype;
+            feats.$setColumn("type", ftype);
         }
 
-        this.#raw_features = new bioc.DataFrame(feats);
+        this.#raw_features = feats;
+        return;
     }
 
     #cells() {
@@ -128,22 +188,17 @@ export class TenxHdf5Dataset {
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
      *
-     * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
-     * - `cells`: an object containing:
-     *   - `number`: the number of cells in this dataset.
-     *   - `summary`: an object where each key is the name of a per-cell annotation field and its value is a summary of that annotation field,
-     *     following the same structure as returned by {@linkcode summarizeArray}.
+     * - `modality_features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
+     *   Unlike {@linkcode TenxMatrixMarketDataset#load load}, modality names are arbitrary.
+     * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
      */
-    annotations({ cache = false } = {}) {
+    summary({ cache = false } = {}) {
         this.#features();
         this.#cells();
 
         let output = {
-            "features": futils.reportFeatures(this.#raw_features, "type", cache),
-            "cells": {
-                "number": this.#raw_cells.numberOfColumns(),
-                "summary": {}
-            }
+            "modality_features": futils.reportFeatures(this.#raw_features, "type"),
+            "cells": this.#raw_cells
         };
 
         if (!cache) {
@@ -154,7 +209,7 @@ export class TenxHdf5Dataset {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxHdf5Dataset#annotations annotations}.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxHdf5Dataset#summary summary}.
      * If `true`, users should consider calling {@linkcode TenxHdf5Dataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
@@ -164,14 +219,23 @@ export class TenxHdf5Dataset {
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
      * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
+     *
+     * Modality names are guaranteed to be one of `"RNA"` or `"ADT"`.
+     * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
+     * either in the constructor or in {@linkcode setFeatureTypeRnaName} and {@linkcode setFeatureTypeAdtName}.
      */
     load({ cache = false } = {}) {
         this.#features();
         this.#cells();
 
         let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, "matrix"); // collection gets handled inside splitScranMatrixAndFeatures.
-        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", cache);
-        output.cells = futils.cloneCached(this.#raw_cells, cache);
+
+        let mappings = { RNA: this.#featureTypeRnaName, ADT: this.#featureTypeAdtName };
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", mappings, "RNA");
+        output.cells = this.#raw_cells;
+
+        let primaries = { RNA: this.#primaryRnaFeatureIdColumn, ADT: this.#primaryAdtFeatureIdColumn };
+        futils.decorateWithPrimaryIds(output.features, primaries);
 
         if (!cache) {
             this.clear();
@@ -180,24 +244,28 @@ export class TenxHdf5Dataset {
     }
 
     /**
-     * @return {Array} Array of objects representing the files used in this dataset.
-     * Each object corresponds to a single file and contains:
-     * - `type`: a string denoting the type.
-     * - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * @return {object} Object describing this dataset, containing:
+     *
+     * - `files`: Array of objects representing the files used in this dataset.
+     *   Each object corresponds to a single file and contains:
+     *   - `type`: a string denoting the type.
+     *   - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * - `options`: An object containing additional options to saved.
      */
     serialize() {
-        return [ { type: "h5", file: this.#h5_file } ];
+        return this.#dump_summary(f => f);
     }
 
     /**
      * @param {Array} files - Array of objects like that produced by {@linkcode TenxHdf5Dataset#serialize serialize}.
+     * @param {object} options - Object containing additional options to be passed to the constructor.
      * @return {TenxHdf5Dataset} A new instance of this class.
      * @static
      */
-    static async unserialize(files) {
+    static async unserialize(files, options) {
         if (files.length != 1 || files[0].type != "h5") {
             throw new Error("expected exactly one file of type 'h5' for 10X HDF5 unserialization");
         }
-        return new TenxHdf5Dataset(files[0].file);
+        return new TenxHdf5Dataset(files[0].file, options);
     }
 }
