@@ -426,7 +426,7 @@ export class SummarizedExperimentDataset {
      * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
      * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
      */
-    constructor(rdsFile, { rnaCountAssay = 0, adtCountAssay = 0, rnaExperiment = "", adtExperiment = null, primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0 } = {}) {
+    constructor(rdsFile, { rnaCountAssay = 0, adtCountAssay = 0, rnaExperiment = "", adtExperiment = "Antibody Capture", primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0 } = {}) {
         if (rdsFile instanceof afile.SimpleFile) {
             this.#rds_file = rdsFile;
         } else {

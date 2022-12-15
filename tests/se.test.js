@@ -166,7 +166,7 @@ test("RDS loaders work correctly for a SingleCellExperiment with altExps", async
 
     let fpath = "files/datasets/immune_3.0.0-tenx.rds";
     let files = { 
-        default: new bakana.SummarizedExperimentDataset(fpath, { adtExperiment: 0 })
+        default: new bakana.SummarizedExperimentDataset(fpath)
     };
 
     let fullstate = new inputs.InputsState;
