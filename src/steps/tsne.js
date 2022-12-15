@@ -2,7 +2,7 @@ import * as scran from "scran.js";
 import * as vizutils from "./utils/viz_parent.js";
 import * as utils from "./utils/general.js";
 import * as neighbor_module from "./neighbor_index.js";
-import * as aworkers from "../abstract/worker_parent.js";
+import * as aworkers from "./abstract/worker_parent.js";
 
 /**
  * This creates a t-SNE embedding based on the neighbor index constructed by {@linkplain NeighborIndexState}.
@@ -14,10 +14,8 @@ import * as aworkers from "../abstract/worker_parent.js";
 export class TsneState {
     #index;
     #parameters;
-    #cache;
     #reloaded;
 
-    #worker;
     #worker_id;
 
     #ready;
@@ -30,13 +28,11 @@ export class TsneState {
         this.#index = index;
 
         this.#parameters = (parameters === null ? {} : parameters);
-        this.#cache = { "counter": 0, "promises": {} };
         this.#reloaded = reloaded;
         this.changed = false;
 
         let worker = aworkers.createTsneWorker();
-        let { worker_id, ready } = vizutils.initializeWorker(worker, this.#cache, vizutils.scranOptions);
-        this.#worker = worker;
+        let { worker_id, ready } = vizutils.initializeWorker(worker, vizutils.scranOptions);
         this.#worker_id = worker_id;
         this.#ready = ready;
 
@@ -95,7 +91,7 @@ export class TsneState {
             // Vectors that we get from the worker are inherently
             // copied, so no need to do anything extra here.
             await this.#run;
-            return vizutils.sendTask(this.#worker, { "cmd": "FETCH" }, this.#cache);
+            return vizutils.sendTask(this.#worker_id, { "cmd": "FETCH" });
         }
     }
 
@@ -122,7 +118,7 @@ export class TsneState {
         // parallel with other analysis steps. Do NOT put the runWithNeighbors
         // call in a .then() as this may defer the message sending until 
         // the current thread is completely done processing.
-        this.#run = vizutils.runWithNeighbors(this.#worker, args, nn_out, this.#cache);
+        this.#run = vizutils.runWithNeighbors(this.#worker_id, args, nn_out);
         return;
     }
 
@@ -211,7 +207,7 @@ export class TsneState {
                     };
                 });
         } else {
-            return vizutils.sendTask(this.#worker, { "cmd": "RERUN" }, this.#cache);
+            return vizutils.sendTask(this.#worker_id, { "cmd": "RERUN" });
         }
     }
 }

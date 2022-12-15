@@ -23,7 +23,7 @@ rm -rf ${mode}
 mkdir -p ${mode}
 cp -r src/* ${mode}
 
-for abdirs in abstract readers/abstract readers/utils/abstract
+for abdirs in abstract readers/abstract readers/utils/abstract steps/abstract steps/utils/abstract
 do 
     rm ${mode}/${abdirs}/*_${toss}.js
 

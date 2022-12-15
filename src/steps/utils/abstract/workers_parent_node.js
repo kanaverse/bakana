@@ -1,13 +1,3 @@
-import * as workers from "worker_threads";
-
-export function createTsneWorker() {
-    return new workers.Worker(new URL("../steps/tsne.worker.js", import.meta.url));
-}
-
-export function createUmapWorker() {
-    return new workers.Worker(new URL("../steps/umap.worker.js", import.meta.url));
-}
-
 export function registerCallback(worker, callback) {
     // Wrapping it in an extra 'data' to mimic web workers.
     worker.on("message", msg => callback({ data: msg }));

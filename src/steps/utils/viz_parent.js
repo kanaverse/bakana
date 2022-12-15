@@ -1,6 +1,6 @@
 import * as scran from "scran.js";
 import * as utils from "./general.js";
-import * as aworkers from "../../abstract/worker_parent.js";
+import * as aworkers from "./abstract/workers_parent.js";
 
 var animateFun = (x, y, i) => null;
 
@@ -62,22 +62,29 @@ export function computeNeighbors(index, k) {
     return output;
 }
 
-export function sendTask(worker, payload, cache, transferrable = []) {
+const worker_registry = [];
+const worker_cache_registry = [];
+
+export function sendTask(worker_id, payload, transferrable = []) {
+    let worker = worker_registry[worker_id];
+    let cache = worker_cache_registry[worker_id];
+
     var i = cache.counter;
     var p = new Promise((resolve, reject) => {
         cache.promises[i] = { "resolve": resolve, "reject": reject };
     });
+
     cache.counter++;
     payload.id = i;
     aworkers.sendMessage(worker, payload, transferrable);
     return p;
 }
 
-const worker_registry = [];
-
-export function initializeWorker(worker, cache, scranOptions) { 
+export function initializeWorker(worker, scranOptions) { 
     let n = worker_registry.length;
     worker_registry.push(worker);
+    let cache = { counter: 0, promises: {} };
+    worker_cache_registry.push(cache);
 
     aworkers.registerCallback(worker, msg => {
         var type = msg.data.type;
@@ -85,7 +92,7 @@ export function initializeWorker(worker, cache, scranOptions) {
             animateFun(type.slice(0, -5), msg.data.x, msg.data.y, msg.data.iteration);
             return;
         }
-  
+
         var id = msg.data.id;
         var fun = cache.promises[id];
         if (type == "error") {
@@ -98,11 +105,12 @@ export function initializeWorker(worker, cache, scranOptions) {
 
     return {
         "worker_id": n,
-        "ready": sendTask(worker, { "cmd": "INIT", scranOptions: scranOptions }, cache)
+        "ready": sendTask(n, { "cmd": "INIT", scranOptions: scranOptions })
     };
 }
 
-export function killWorker(worker_id) {
+export async function killWorker(worker_id) {
+    await sendTask(worker_id, { "cmd": "KILL" });
     let worker = worker_registry[worker_id];
     worker_registry[worker_id] = null;
     return aworkers.terminateWorker(worker);
@@ -110,9 +118,9 @@ export function killWorker(worker_id) {
 
 export function killAllWorkers() {
     let p = [];
-    for (const x of worker_registry) {
-        if (x !== null) {
-            let p_ = aworkers.terminateWorker(x);
+    for (var i = 0; i < worker_registry.length; i++) {
+        if (worker_registry[i] !== null) {
+            let p_ = killWorker(i);
             if (p_) { // not null, not undefined.
                 p.push(p_);
             }
@@ -121,7 +129,7 @@ export function killAllWorkers() {
     return Promise.all(p).then(x => null);
 }
 
-export function runWithNeighbors(worker, args, nn_out, cache) {
+export function runWithNeighbors(worker_id, args, nn_out) {
     var run_msg = {
         "cmd": "RUN",
         "params": args 
@@ -137,5 +145,5 @@ export function runWithNeighbors(worker, args, nn_out, cache) {
         run_msg.neighbors = nn_out;
     }
 
-    return sendTask(worker, run_msg, cache, transferrable);
+    return sendTask(worker_id, run_msg, transferrable);
 }

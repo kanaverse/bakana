@@ -1,7 +1,7 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as vizutils from "./utils/viz_child.js";
-import * as aworkers from "../abstract/worker_child.js";
+import * as aworkers from "./abstract/worker_child.js";
 
 var cache = {};
 var init_changed = false;
@@ -138,5 +138,30 @@ aworkers.registerCallback(msg => {
                     "error": error
                 });
             });
+
+    } else if (msg.data.cmd == "KILL") {
+        loaded
+            .then(x => {
+                scran.terminate();
+                aworkers.sendMessage({
+                    "id": id,
+                    "type": "umap_killed",
+                    "data": null
+                });
+            })
+            .catch(error => {
+                aworkers.sendMessage({ 
+                    "id": id,
+                    "type": "error",
+                    "error": error
+                });
+            });
+
+    } else {
+        aworkers.sendMessage({
+            "id": id,
+            "type": "error",
+            "error": "unknown message type '" + JSON.stringify(msg.data) + "'"
+        });
     }
 });
