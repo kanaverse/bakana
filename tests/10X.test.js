@@ -13,7 +13,8 @@ let files = {
 
 test("10X summary works correctly", async () => {
     let summ = files.default.summary();
-    expect(summ.all_features instanceof bioc.DataFrame).toBe(true);
+    expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
+    expect(summ.modality_features[""].numberOfRows()).toBeGreaterThan(0);
     expect(summ.cells instanceof bioc.DataFrame).toBe(true);
 })
 

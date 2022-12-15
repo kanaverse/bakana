@@ -15,8 +15,8 @@ let files = {
 
 test("MatrixMarket summary works correctly", async () => {
     let summ = await files.default.summary();
-    expect(summ.all_features instanceof bioc.DataFrame).toBe(true);
-    expect(summ.all_features.numberOfColumns()).toBeGreaterThan(0);
+    expect(summ.modality_features["Gene Expression"] instanceof bioc.DataFrame).toBe(true);
+    expect(summ.modality_features["Gene Expression"].numberOfColumns()).toBeGreaterThan(0);
     expect(summ.cells instanceof bioc.DataFrame).toBe(true);
     expect(summ.cells.numberOfColumns()).toBeGreaterThan(0);
 })
@@ -98,8 +98,8 @@ let minimal_files = {
 
 test("MatrixMarket summary works correctly with the bare minimum", async () => {
     let summ = await minimal_files.default.summary();
-    expect(summ.all_features instanceof bioc.DataFrame).toBe(true);
-    expect(summ.all_features.numberOfColumns()).toBe(0);
+    expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
+    expect(summ.modality_features[""].numberOfColumns()).toBe(0);
     expect(summ.cells instanceof bioc.DataFrame).toBe(true);
     expect(summ.cells.numberOfColumns()).toBe(0);
 })

@@ -2,23 +2,33 @@ import * as bakana from "../src/index.js";
 import * as utils from "./utils.js";
 import * as scran from "scran.js";
 import * as valkana from "valkana";
+import * as bioc from "bioconductor";
 import * as fs from "fs";
 import * as combine from "../src/steps/combine_embeddings.js";
 
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
+let mtx = "files/datasets/immune_3.0.0-matrix.mtx.gz";
+let feats = "files/datasets/immune_3.0.0-features.tsv.gz";
+let files = { 
+    default: new bakana.TenxMatrixMarketDataset(mtx, feats, "files/datasets/immune_3.0.0-barcodes.tsv.gz")
+};
+
+test("ADT MatrixMarket summary works correctly", async () => {
+    let summ = await files.default.summary();
+    expect(summ.modality_features["Gene Expression"] instanceof bioc.DataFrame).toBe(true);
+    expect(summ.modality_features["Gene Expression"].numberOfColumns()).toBeGreaterThan(0);
+    expect(summ.modality_features["Antibody Capture"] instanceof bioc.DataFrame).toBe(true);
+    expect(summ.modality_features["Antibody Capture"].numberOfColumns()).toBeGreaterThan(0);
+    expect(summ.cells instanceof bioc.DataFrame).toBe(true);
+    expect(summ.cells.numberOfColumns()).toBeGreaterThan(0);
+})
+
 test("runAnalysis works correctly (MatrixMarket)", async () => {
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
-    let mtx = "files/datasets/immune_3.0.0-matrix.mtx.gz";
-    let feats = "files/datasets/immune_3.0.0-features.tsv.gz";
-    let res = await bakana.runAnalysis(state, 
-        { 
-            default: new bakana.TenxMatrixMarketDataset(mtx, feats, "files/datasets/immune_3.0.0-barcodes.tsv.gz")
-        },
-        params
-    );
+    let res = await bakana.runAnalysis(state, files, params);
 
     // Input reorganization is done correctly. 
     {

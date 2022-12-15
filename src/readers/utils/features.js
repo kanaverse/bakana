@@ -7,6 +7,17 @@ function create_solo_default_object(value, modality) {
     return output;
 }
 
+export function reportFeatures(rawFeatures, typeField) {
+    if (rawFeatures.hasColumn(typeField)) {
+        let by_type = bioc.presplitFactor(rawFeatures.column(typeField));
+        let copy = bioc.CLONE(rawFeatures, { deepCopy: false }); // SPLIT will make a copy anyway.
+        copy.$removeColumn(typeField);
+        return bioc.SPLIT(copy, by_type);
+    } else {
+        return create_solo_default_object(rawFeatures, "");
+    }
+}
+
 export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, featureTypeMapping, featureTypeDefault) {
     let output = { matrix: new scran.MultiMatrix };
 

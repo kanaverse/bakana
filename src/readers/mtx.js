@@ -257,8 +257,8 @@ export class TenxMatrixMarketDataset {
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
      *
-     * - `all_features`: a {@linkplain external:DataFrame DataFrame} of per-feature annotations.
-     *    Unlike {@linkcode TenxMatrixMarketDataset#load load}, this has not been split by modality.
+     * - `modality_features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
+     *   Unlike {@linkcode TenxMatrixMarketDataset#load load}, modality names are arbitrary.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
      *
      * @async
@@ -268,7 +268,7 @@ export class TenxMatrixMarketDataset {
         await this.#cells();
 
         let output = {
-            "all_features": this.#raw_features,
+            "modality_features": futils.reportFeatures(this.#raw_features, "type"),
             "cells": this.#raw_cells
         };
 
