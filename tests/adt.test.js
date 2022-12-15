@@ -52,6 +52,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         simple.matrix.free();
     }
 
+    // Running through some basic checks.
     await utils.checkStateResultsAdt(state);
 
     let vres = utils.checkClusterVersusMode(state);

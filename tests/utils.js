@@ -318,6 +318,10 @@ export async function checkStateResultsSimple(state, { skipBasic = false, mimic 
     {
         expect(state.inputs.fetchBlock()).toBeNull();
         expect(state.inputs.fetchBlockLevels()).toBeNull();
+
+        expect(state.inputs.fetchCountMatrix().has("ADT")).toBe(false);
+        expect("ADT" in state.inputs.fetchFeatureAnnotations()).toBe(false);
+        expect("ADT" in state.inputs.fetchRowIds()).toBe(false);
     }
 
     // Quality control.
