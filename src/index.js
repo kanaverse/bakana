@@ -3,7 +3,6 @@ export * from "./analysis.js";
 export * from "./serialize.js";
 export * from "./readers/index.js";
 
-export { validateAnnotations } from "./preflight.js";
 export { setVisualizationAnimate } from "./steps/utils/viz_parent.js";
 export { formatMarkerResults } from "./steps/utils/markers.js";
 export { setCellLabellingDownload } from "./steps/cell_labelling.js";
