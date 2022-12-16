@@ -128,33 +128,6 @@ export class FeatureSelectionState {
  ******** Loading *********
  **************************/
 
-class ModelGeneVarMimic {
-    constructor(means, vars, fitted, resids) {
-        this.means_ = means;
-        this.vars_ = vars;
-        this.fitted_ = fitted;
-        this.resids_ = resids;
-    }
-
-    means({ copy = true } = {}) {
-        return utils.mimicGetter(this.means_, copy);
-    }
-
-    variances({ copy = true } = {}) {
-        return utils.mimicGetter(this.vars_, copy);
-    }
-
-    fitted({ copy = true } = {}) {
-        return utils.mimicGetter(this.fitted_, copy);
-    }
-
-    residuals({ copy = true } = {}) {
-        return utils.mimicGetter(this.resids_, copy);
-    }
-
-    free() {}
-}
-
 export function unserialize(handle, permuter, filter, norm) {
     let ghandle = handle.open("feature_selection");
 
@@ -179,7 +152,11 @@ export function unserialize(handle, permuter, filter, norm) {
             reloaded[key] = value;
         }
 
-        cache.results = new ModelGeneVarMimic(reloaded.means, reloaded.vars, reloaded.fitted, reloaded.resids);
+        cache.results = scran.emptyModelGeneVarResults(reloaded.means.length, 1);
+        cache.results.means({ copy : false }).set(reloaded.means);
+        cache.results.variances({ copy : false }).set(reloaded.variances);
+        cache.results.fitted({ copy : false }).set(reloaded.fitted);
+        cache.results.residuals({ copy : false }).set(reloaded.resids);
     }
 
     cache.sorted_residuals = cache.results.residuals({ copy: true });
