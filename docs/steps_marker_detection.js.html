@@ -125,10 +125,15 @@ export class MarkerDetectionState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `marker_detection` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @param {number} lfc_threshold - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
+     * @param {boolean} compute_auc - Whether to compute the AUCs.
+     * Setting this to `false` will skip AUC calculations and improve speed and memory efficiency.
      *
      * @return The state is updated with new results.
      */
-    compute() {
+    compute(lfc_threshold, compute_auc) {
         this.changed = false;
 
         for (const [k, v] of Object.entries(this.#norm_states)) {
@@ -136,29 +141,32 @@ export class MarkerDetectionState {
                 continue;
             }
 
-            if (v.changed || this.#choice.changed) {
+            if (v.changed || this.#choice.changed || lfc_threshold !== this.#parameters.lfc_threshold || compute_auc != this.#parameters.compute_auc) {
                 var mat = v.fetchNormalizedMatrix();
                 var clusters = this.#choice.fetchClusters();
                 var block = this.#filter.fetchFilteredBlock();
                 
                 utils.freeCache(this.#cache.raw[k]);
-                this.#cache.raw[k] = scran.scoreMarkers(mat, clusters, { block: block });
-
-                // No parameters to set.
+                this.#cache.raw[k] = scran.scoreMarkers(mat, clusters, { block: block, lfcThreshold: lfc_threshold, computeAuc: compute_auc });
 
                 this.changed = true;
             }
         }
 
+        this.#parameters.lfc_threshold = lfc_threshold;
+        this.#parameters.compute_auc = compute_auc;
         if (this.changed) {
-            markers.freeVersusResults(this.#cache);
+            markers.freeVersusResults(this.#cache.versus);
         }
 
         return;
     }
 
     static defaults() {
-        return {};
+        return {
+            lfc_threshold: 0,
+            compute_auc: true
+        };
     }
 
     /*******************************
@@ -178,6 +186,9 @@ export class MarkerDetectionState {
      * @param {object} [options.cache={}] - Cache for the results.
      * @param {?Int32WasmArray} [options.block=null] - Blocking factor of length equal to the number of cells in `mat`, 
      * see {@linkcode CellFilteringState#fetchFilteredBlock CellFilteringState.fetchFilteredBlock}.
+     * @param {number} [options.lfc_threshold=0] - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
+     * @param {boolean} [options.compute_auc=true] - Whether to compute the AUCs.
+     * Setting this to `false` will skip AUC calculations and improve speed and memory efficiency.
      *
      * @return {object} Object containing:
      *
@@ -188,7 +199,7 @@ export class MarkerDetectionState {
      * - `right`: index of the group corresponding to the `right` cluster in each ScoreMarkersResults object.
      *    e.g., Cohen's d for the RNA markers of the `right` cluster are defined as `output.results.RNA.cohen(output.right)`.
      */
-    static computeVersusCustom(left, right, matrices, clusters, { cache = {}, block = null } = {}) {
+    static computeVersusCustom(left, right, matrices, clusters, { cache = {}, block = null, lfc_threshold = 0, compute_auc = true } = {}) {
         let cache_info = markers.locateVersusCache(left, right, cache);
         let left_index = (cache_info.left_small ? 0 : 1);
         let right_index = (cache_info.left_small ? 1 : 0);
@@ -213,7 +224,7 @@ export class MarkerDetectionState {
                 throw new Error("non-zero entries should be present for both requested clusters in versus mode");
             }
 
-            markers.computeVersusResults(matrices, new_clusters, block, keep, cache_info.cached);
+            markers.computeVersusResults(matrices, new_clusters, block, keep, cache_info.cached, lfc_threshold, compute_auc);
         }
 
         return { 
@@ -258,7 +269,9 @@ export class MarkerDetectionState {
 
         return this.constructor.computeVersusCustom(left, right, matrices, clusters, { 
             cache: this.#cache.versus, 
-            block: block
+            block: block,
+            lfc_threshold: this.#parameters.lfc_threshold,
+            compute_auc: this.#parameters.compute_auc
         });
     }
 
@@ -268,7 +281,12 @@ export class MarkerDetectionState {
 
     serialize(handle) {
         let ghandle = handle.createGroup("marker_detection");
-        ghandle.createGroup("parameters");
+
+        {
+            let phandle = ghandle.createGroup("parameters");
+            phandle.writeDataSet("lfc_threshold", "Float64", [], this.#parameters.lfc_threshold)
+            phandle.writeDataSet("compute_auc", "Uint8", [], (this.#parameters.compute_auc ? 1 : 0));
+        }
 
         {
             let rhandle = ghandle.createGroup("results");
@@ -279,7 +297,7 @@ export class MarkerDetectionState {
                 var num = v.numberOfGroups();
                 for (var i = 0; i &lt; num; i++) {
                     let ihandle = khandle.createGroup(String(i));
-                    markers.serializeGroupStats(ihandle, v, i);
+                    markers.serializeGroupStats(ihandle, v, i, { compute_auc: this.#parameters.compute_auc });
                 }
             }
         }
@@ -297,8 +315,21 @@ class ScoreMarkersMimic {
     }
 
     effect_grabber(key, group, summary, copy) {
+        if (!(group in this.clusters)) {
+            throw new Error("no markers for group " + String(group));
+        }
+        let curgroup = this.clusters[group];
+
+        if (!(key in curgroup)) {
+            throw new Error("effect size '" + key + "' was not computed");
+        }
+        let cureffect = curgroup[key];
+
         let sidx = markers.int2summaries[summary];
-        let chosen = this.clusters[group][key][sidx];
+        if (!(sidx in cureffect)) {
+            throw new Error("effect size summary " + String(summary) + " is not available");
+        }
+        let chosen = cureffect[sidx];
         return utils.mimicGetter(chosen, copy);
     }
 
@@ -345,8 +376,16 @@ class ScoreMarkersMimic {
 export function unserialize(handle, permuters, filter, norm_states, choice) {
     let ghandle = handle.open("marker_detection");
 
-    // No parameters to unserialize.
-    let parameters = {};
+    let parameters = MarkerDetectionState.defaults();
+    {
+        let phandle = ghandle.open("parameters");
+        if ("lfc_threshold" in phandle.children) {
+            parameters.lfc_threshold = phandle.open("lfc_threshold", { load: true }).values[0];
+        }
+        if ("compute_auc" in phandle.children) {
+            parameters.compute_auc = phandle.open("compute_auc", { load: true }).values[0] > 0;
+        }
+    }
 
     // Figure out the number of blocks.
     let num_blocks = 1;
@@ -371,7 +410,7 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
             let chandle = rhandle.open("clusters");
             let clusters = {};
             for (const cl of Object.keys(chandle.children)) {
-                clusters[Number(cl)] = markers.unserializeGroupStats(chandle.open(cl), permuters["RNA"]);
+                clusters[Number(cl)] = markers.unserializeGroupStats(chandle.open(cl), permuters["RNA"], { compute_auc: parameters.compute_auc });
             }
             cache.raw = { RNA: new ScoreMarkersMimic(clusters, num_blocks) };
         } else {
@@ -382,7 +421,7 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
                 let clusters = {};
                 let ahandle = chandle.open(a);
                 for (const cl of Object.keys(ahandle.children)) {
-                    clusters[Number(cl)] = markers.unserializeGroupStats(ahandle.open(cl), permuters[a]);
+                    clusters[Number(cl)] = markers.unserializeGroupStats(ahandle.open(cl), permuters[a], { compute_auc: parameters.compute_auc });
                 }
                 cache.raw[a] = new ScoreMarkersMimic(clusters, num_blocks);
             }
@@ -406,7 +445,7 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Thu Dec 15 2022 11:47:39 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Fri Dec 16 2022 03:02:13 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

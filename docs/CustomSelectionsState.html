@@ -102,7 +102,7 @@ This wraps the <code>scoreMarkers</code> function from <a href="https://github.c
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line247">line 247</a>
+        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line273">line 273</a>
     </li></ul></dd>
     
 
@@ -467,6 +467,85 @@ see <a href="CellFilteringState.html#fetchFilteredBlock"><code>CellFilteringStat
         </tr>
 
     
+
+        <tr>
+            
+                <td class="name"><code>lfc_threshold</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>0</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>compute_auc</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>true</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Whether to compute the AUCs.
+Setting this to <code>false</code> will skip AUC calculations and improve speed and memory efficiency.</p></td>
+        </tr>
+
+    
     </tbody>
 </table>
 
@@ -825,7 +904,7 @@ Nothing is returned.</p>
 
     
 
-    <h4 class="name" id="compute"><span class="type-signature"></span>compute<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="compute"><span class="type-signature"></span>compute<span class="signature">(lfc_threshold, compute_auc)</span><span class="type-signature"></span></h4>
 
     
 
@@ -837,7 +916,7 @@ Nothing is returned.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line190">line 190</a>
+        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line202">line 202</a>
     </li></ul></dd>
     
 
@@ -877,7 +956,8 @@ Nothing is returned.</p>
 
 
 <div class="description usertext">
-    <p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
+    <p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.
+Each argument is taken from the property of the same name in the <code>marker_detection</code> property of the <code>parameters</code> of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
 </div>
 
 
@@ -888,6 +968,79 @@ Nothing is returned.</p>
 
 
 
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>lfc_threshold</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>compute_auc</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Whether to compute the AUCs.
+Setting this to <code>false</code> will skip AUC calculations and improve speed and memory efficiency.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
 
 
 
@@ -934,7 +1087,7 @@ Nothing is returned.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line301">line 301</a>
+        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line327">line 327</a>
     </li></ul></dd>
     
 
@@ -1124,7 +1277,7 @@ e.g., Cohen's d for the RNA markers of the <code>right</code> selection are defi
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line177">line 177</a>
+        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line181">line 181</a>
     </li></ul></dd>
     
 
@@ -1229,7 +1382,7 @@ e.g., Cohen's d for the RNA markers of the <code>right</code> selection are defi
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line135">line 135</a>
+        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line139">line 139</a>
     </li></ul></dd>
     
 
@@ -1386,7 +1539,7 @@ The set of cells in the selection is denoted as group 1, while all cells outside
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line151">line 151</a>
+        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line155">line 155</a>
     </li></ul></dd>
     
 
@@ -1662,7 +1815,7 @@ use <code>CellFilteringState.undoFiltering</code> to convert them to indices on 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line166">line 166</a>
+        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line170">line 170</a>
     </li></ul></dd>
     
 
@@ -1773,7 +1926,7 @@ See <a href="CustomSelectionsState.html#fetchSelectionIndices"><code>fetchSelect
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line116">line 116</a>
+        <a href="steps_custom_selections.js.html">steps/custom_selections.js</a>, <a href="steps_custom_selections.js.html#line120">line 120</a>
     </li></ul></dd>
     
 
@@ -1923,7 +2076,7 @@ Nothing is returned.</p>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Thu Dec 15 2022 11:47:39 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Fri Dec 16 2022 03:02:13 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

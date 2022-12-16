@@ -132,7 +132,11 @@ export class CustomSelectionsState {
             let v = this.#norm_states[k];
             if (v.valid()) {
                 let mat = v.fetchNormalizedMatrix();
-                res[k] = scran.scoreMarkers(mat, buffer, { block: this.#filter.fetchFilteredBlock() }); 
+                res[k] = scran.scoreMarkers(mat, buffer, { 
+                    block: this.#filter.fetchFilteredBlock(),
+                    lfcThreshold: this.#parameters.lfc_threshold,
+                    computeAuc: this.#parameters.compute_auc
+                }); 
             }
         }
               
@@ -221,7 +225,10 @@ export class CustomSelectionsState {
      * @return {object} Object containing the parameters.
      */
     fetchParameters() {
-        return {};
+        return {
+            lfc_threshold: this.#parameters.lfc_threshold,
+            compute_auc: this.#parameters.compute_auc
+        };
     }
 
     /***************************
@@ -230,36 +237,52 @@ export class CustomSelectionsState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `marker_detection` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @param {number} lfc_threshold - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
+     * @param {boolean} compute_auc - Whether to compute the AUCs.
+     * Setting this to `false` will skip AUC calculations and improve speed and memory efficiency.
      *
      * @return The state is updated by removing stale selections if the QC filter was altered.
      */
-    compute() {
+    compute(lfc_threshold, compute_auc) {
         this.changed = false;
 
         /* If the QC filter was re-run, all of the selections are invalidated as
          * the identity of the indices may have changed.
          */
         if (this.#filter.changed) {
-            for (const key of Object.entries(this.#cache.results)) {
+            for (const key of Object.keys(this.#cache.results)) {
                 this.#liberate(key);
             }
             this.#parameters.selections = {};
             this.#cache.results = {};
-            markers.freeVersusResults(this.#cache);
+            markers.freeVersusResults(this.#cache.versus);
             this.changed = true;
         }
 
-        /*
+        /* If the parameters changed, we recompute all the per-selection markers.
          * Technically we would need to re-run detection on the existing selections
          * if the normalization changed but the QC was the same. In practice, this
          * never happens, so we'll deal with it later.
          */
+        if (lfc_threshold !== this.#parameters.lfc_threshold || compute_auc != this.#parameters.compute_auc) {
+            this.#parameters.lfc_threshold = lfc_threshold;
+            this.#parameters.compute_auc = compute_auc;
+            for (const [key, value] of Object.entries(this.#parameters.selections)) {
+                this.addSelection(key, value, { copy: false });
+            }
+            this.changed = true;
+        }
 
         return;
     }
 
     static defaults() {
-        return {};
+        return {
+            lfc_threshold: 0,
+            compute_auc: true
+        };
     }
 
     /*******************************
@@ -280,6 +303,9 @@ export class CustomSelectionsState {
      * @param {object} [options.cache={}] - Cache for the results.
      * @param {?Int32WasmArray} [options.block=null] - Blocking factor of length equal to the number of cells in `mat`, 
      * see {@linkcode CellFilteringState#fetchFilteredBlock CellFilteringState.fetchFilteredBlock}.
+     * @param {number} [options.lfc_threshold=0] - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
+     * @param {boolean} [options.compute_auc=true] - Whether to compute the AUCs.
+     * Setting this to `false` will skip AUC calculations and improve speed and memory efficiency.
      *
      * @return {object} Object containing:
      *
@@ -290,7 +316,7 @@ export class CustomSelectionsState {
      * - `right`: index of the group corresponding to the `right` selection in each ScoreMarkersResults object.
      *    e.g., Cohen's d for the RNA markers of the `right` selection are defined as `output.results.RNA.cohen(output.right)`.
      */
-    static computeVersusCustom(left, right, matrices, selections, { cache = {}, block = null } = {}) {
+    static computeVersusCustom(left, right, matrices, selections, { cache = {}, block = null, lfc_threshold = 0, compute_auc = true } = {}) {
         let cache_info = markers.locateVersusCache(left, right, cache);
         let left_index = (cache_info.left_small ? 0 : 1);
         let right_index = (cache_info.left_small ? 1 : 0);
@@ -318,7 +344,7 @@ export class CustomSelectionsState {
             let keep = triplets.map(x => x.index);
             let new_clusters = triplets.map(x => x.cluster);
 
-            markers.computeVersusResults(matrices, new_clusters, block, keep, cache_info.cached);
+            markers.computeVersusResults(matrices, new_clusters, block, keep, cache_info.cached, lfc_threshold, compute_auc);
         }
 
         return { 
@@ -362,7 +388,9 @@ export class CustomSelectionsState {
 
         return this.constructor.computeVersusCustom(left, right, matrices, this.#parameters.selections, { 
             cache: this.#cache.versus, 
-            block: block
+            block: block,
+            lfc_threshold: this.#parameters.lfc_threshold,
+            compute_auc: this.#parameters.compute_auc
         });
     }
 
@@ -375,6 +403,9 @@ export class CustomSelectionsState {
 
         {
             let phandle = ghandle.createGroup("parameters");
+            phandle.writeDataSet("lfc_threshold", "Float64", [], this.#parameters.lfc_threshold)
+            phandle.writeDataSet("compute_auc", "Uint8", [], (this.#parameters.compute_auc ? 1 : 0));
+
             let shandle = phandle.createGroup("selections");
             for (const [key, val] of Object.entries(this.#parameters.selections)) {
                 shandle.writeDataSet(String(key), "Int32", null, val);
@@ -388,7 +419,7 @@ export class CustomSelectionsState {
                 let ihandle = phandle.createGroup(key);
                 for (const [key2, val2] of Object.entries(val.raw)) {
                     let ahandle = ihandle.createGroup(key2);
-                    markers.serializeGroupStats(ahandle, val2, 1, { no_summaries: true });
+                    markers.serializeGroupStats(ahandle, val2, 1, { no_summaries: true, compute_auc: this.#parameters.compute_auc  });
                 }
             }
         }
@@ -408,10 +439,16 @@ class CustomMarkersMimic {
         if (group != 1) {
             throw "only group 1 is supported for custom marker mimics";
         }
+        let curgroup = this.results[group];
+
         if (summary != 1) {
             throw "only the mean effect size is supported for custom marker mimics";
         }
-        let chosen = this.results[group][key];
+
+        if (!(key in curgroup)) {
+            throw new Error("effect size '" + key + "' was not computed");
+        }
+        let chosen = curgroup[key];
         return utils.mimicGetter(chosen, copy);
     }
 
@@ -450,11 +487,18 @@ class CustomMarkersMimic {
 export function unserialize(handle, permuters, filter, norm_states) {
     let ghandle = handle.open("custom_selections");
 
-    let parameters = { selections: {} };
+    let parameters = CustomSelectionsState.defaults();
     {
         let phandle = ghandle.open("parameters");
-        let shandle = phandle.open("selections");
+        if ("lfc_threshold" in phandle.children) {
+            parameters.lfc_threshold = phandle.open("lfc_threshold", { load: true }).values[0];
+        }
+        if ("compute_auc" in phandle.children) {
+            parameters.compute_auc = phandle.open("compute_auc", { load: true }).values[0] > 0;
+        }
 
+        parameters.selections = {};
+        let shandle = phandle.open("selections");
         for (const key of Object.keys(shandle.children)) {
             let vals = shandle.open(key, { load: true }).values;
 
@@ -478,7 +522,7 @@ export function unserialize(handle, permuters, filter, norm_states) {
             // before v2.0
             let mhandle = rhandle.open("markers");
             for (const sel of Object.keys(mhandle.children)) {
-                let current = markers.unserializeGroupStats(mhandle.open(sel), permuters["RNA"], { no_summaries: true });
+                let current = markers.unserializeGroupStats(mhandle.open(sel), permuters["RNA"], { no_summaries: true, compute_auc: parameters.compute_auc });
                 cache.results[sel] = { raw: { RNA: new CustomMarkersMimic({ 1 : current }) } };
             }
         } else {
@@ -488,7 +532,7 @@ export function unserialize(handle, permuters, filter, norm_states) {
                 let shandle = phandle.open(sel);
                 let collected = {};
                 for (const feat of Object.keys(shandle.children)) {
-                    let current = markers.unserializeGroupStats(shandle.open(feat), permuters[feat], { no_summaries: true });
+                    let current = markers.unserializeGroupStats(shandle.open(feat), permuters[feat], { no_summaries: true, compute_auc: parameters.compute_auc });
                     collected[feat] = new CustomMarkersMimic({ 1 : current });
                 }
                 cache.results[sel] = { raw: collected };
@@ -513,7 +557,7 @@ export function unserialize(handle, permuters, filter, norm_states) {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Thu Dec 15 2022 11:47:39 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Fri Dec 16 2022 03:02:13 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

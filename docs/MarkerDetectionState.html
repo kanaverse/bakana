@@ -102,7 +102,7 @@ The clustering is obtained from the <code>choose_clustering</code> step.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line145">line 145</a>
+        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line156">line 156</a>
     </li></ul></dd>
     
 
@@ -472,6 +472,85 @@ see <a href="CellFilteringState.html#fetchFilteredBlock"><code>CellFilteringStat
         </tr>
 
     
+
+        <tr>
+            
+                <td class="name"><code>lfc_threshold</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>0</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>compute_auc</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>true</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Whether to compute the AUCs.
+Setting this to <code>false</code> will skip AUC calculations and improve speed and memory efficiency.</p></td>
+        </tr>
+
+    
     </tbody>
 </table>
 
@@ -535,7 +614,7 @@ e.g., Cohen's d for the RNA markers of the <code>right</code> cluster are define
 
     
 
-    <h4 class="name" id="compute"><span class="type-signature"></span>compute<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="compute"><span class="type-signature"></span>compute<span class="signature">(lfc_threshold, compute_auc)</span><span class="type-signature"></span></h4>
 
     
 
@@ -547,7 +626,7 @@ e.g., Cohen's d for the RNA markers of the <code>right</code> cluster are define
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line85">line 85</a>
+        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line90">line 90</a>
     </li></ul></dd>
     
 
@@ -587,7 +666,8 @@ e.g., Cohen's d for the RNA markers of the <code>right</code> cluster are define
 
 
 <div class="description usertext">
-    <p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
+    <p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.
+Each argument is taken from the property of the same name in the <code>marker_detection</code> property of the <code>parameters</code> of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
 </div>
 
 
@@ -598,6 +678,79 @@ e.g., Cohen's d for the RNA markers of the <code>right</code> cluster are define
 
 
 
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>lfc_threshold</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>compute_auc</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Whether to compute the AUCs.
+Setting this to <code>false</code> will skip AUC calculations and improve speed and memory efficiency.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
 
 
 
@@ -644,7 +797,7 @@ e.g., Cohen's d for the RNA markers of the <code>right</code> cluster are define
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line196">line 196</a>
+        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line207">line 207</a>
     </li></ul></dd>
     
 
@@ -1050,7 +1203,7 @@ This is available after running <a href="MarkerDetectionState.html#compute"><cod
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Thu Dec 15 2022 11:47:39 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Fri Dec 16 2022 03:02:13 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
