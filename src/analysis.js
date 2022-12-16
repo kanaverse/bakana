@@ -306,7 +306,10 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
 
     /*** Markers and labels ***/
     await quickStart(step_markers);
-    state[step_markers].compute();
+    state[step_markers].compute(
+        params[step_markers]["lfc_threshold"],
+        params[step_markers]["compute_auc"]
+    );
     await quickFinish(step_markers);
 
     {
@@ -319,7 +322,10 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
     }
 
     await quickStart(step_custom);
-    state[step_custom].compute();
+    state[step_custom].compute(
+        params[step_custom]["lfc_threshold"],
+        params[step_custom]["compute_auc"]
+    );
     await quickFinish(step_custom);
 
     await Promise.all(promises);

@@ -87,6 +87,31 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     expect(new_params.combine_embeddings.weights).toBeNull();
     expect(new_params.batch_correction.num_neighbors).toBeGreaterThan(0);
 
+    // Saving and loading works correctly when AUCs are skipped.
+    // This should probably go somewhere else, but I don't know where.
+    {
+        let params2 = utils.baseParams();
+        params2.marker_detection.compute_auc = false;
+        await bakana.runAnalysis(state, null, params2);
+        expect(() => state.marker_detection.fetchResults().RNA.auc(0)).toThrow("AUC"); 
+
+        const path = "TEST_state_MatrixMarket.h5";
+        let collected = await bakana.saveAnalysis(state, path);
+        //utils.validateState(path); // TODO: respect missing AUCs.
+
+        let offsets = utils.mockOffsets(collected.collected);
+        let reloaded = await bakana.loadAnalysis(
+            path, 
+            (offset, size) => offsets[offset]
+        );
+
+        expect(reloaded.marker_detection.fetchParameters().compute_auc).toBe(false);
+        let reres = reloaded.marker_detection.fetchResults();
+        expect(() => reres.RNA.auc(0)).toThrow("'auc' was not computed"); 
+
+        await bakana.freeAnalysis(reloaded);
+    }
+
     // Release me!
     await bakana.freeAnalysis(state);
     await bakana.freeAnalysis(reloaded);

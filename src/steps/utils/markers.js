@@ -3,13 +3,17 @@ import * as scran from "scran.js";
 export const summaries2int = { "min": 0, "mean": 1, "min_rank": 4 };
 export const int2summaries = { 0: "min", 1: "mean", 4: "min_rank" };
 
-export function serializeGroupStats(ihandle, obj, group, { no_summaries = false } = {}) {
+export function serializeGroupStats(ihandle, obj, group, { no_summaries = false, compute_auc = true } = {}) {
     for (const x of [ "means", "detected" ]) {
         let y= obj[x](group, { copy: "hdf5" });
         ihandle.writeDataSet(x, "Float64", null, y);
     }
 
     for (const i of [ "lfc", "delta_detected", "auc", "cohen" ]) {
+        if (i == "auc" && !compute_auc) {
+            continue;
+        }
+
         let i0 = i;
         if (i == "delta_detected") {
             i0 = "deltaDetected";
@@ -29,7 +33,7 @@ export function serializeGroupStats(ihandle, obj, group, { no_summaries = false 
     }
 }
 
-export function unserializeGroupStats(handle, permuter, { no_summaries = false } = {}) {
+export function unserializeGroupStats(handle, permuter, { no_summaries = false, compute_auc = true } = {}) {
     let output = {};
     for (const x of [ "means", "detected" ]) {
         output[x] = handle.open(x, { load: true }).values;
@@ -37,6 +41,10 @@ export function unserializeGroupStats(handle, permuter, { no_summaries = false }
     }
 
     for (const i of [ "lfc", "delta_detected", "auc", "cohen" ]) {
+        if (i == "auc" && !compute_auc) {
+            continue;
+        }
+
         if (no_summaries) {
             output[i] = handle.open(i, { load: true }).values;
         } else {
@@ -168,11 +176,13 @@ export function freeVersusResults(cache) {
                 }
             }
         }
-        delete cache.versus;
+        for (const k of Object.keys(cache)) {
+            delete cache[k];
+        }
     }
 }
 
-export function computeVersusResults(matrices, clusters, block, keep, cache) {
+export function computeVersusResults(matrices, clusters, block, keep, cache, lfc_threshold, compute_auc) {
     let new_block = null;
     if (block !== null) {
         new_block = scran.subsetBlock(block, keep);
@@ -184,7 +194,7 @@ export function computeVersusResults(matrices, clusters, block, keep, cache) {
         let sub;
         try {
             sub = scran.subsetColumns(modmat, keep);
-            cache[modality] = scran.scoreMarkers(sub, clusters, { block: new_block });
+            cache[modality] = scran.scoreMarkers(sub, clusters, { block: new_block, lfcThreshold: lfc_threshold, computeAuc: compute_auc });
         } finally {
             scran.free(sub);
         }
