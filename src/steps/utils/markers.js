@@ -1,11 +1,10 @@
 import * as scran from "scran.js";
 
 export const summaries2int = { "min": 0, "mean": 1, "min_rank": 4 };
-export const int2summaries = { 0: "min", 1: "mean", 4: "min_rank" };
 
 export function serializeGroupStats(ihandle, obj, group, { no_summaries = false, compute_auc = true } = {}) {
     for (const x of [ "means", "detected" ]) {
-        let y= obj[x](group, { copy: "hdf5" });
+        let y = obj[x](group, { copy: "view" });
         ihandle.writeDataSet(x, "Float64", null, y);
     }
 
@@ -19,7 +18,7 @@ export function serializeGroupStats(ihandle, obj, group, { no_summaries = false,
             i0 = "deltaDetected";
         }
 
-        let extractor = (index) => obj[i0](group, { summary: index, copy: "hdf5" });
+        let extractor = (index) => obj[i0](group, { summary: index, copy: "view" });
         if (no_summaries) {
             let y = extractor(summaries2int["mean"]);
             ihandle.writeDataSet(i, "Float64", null, y);
@@ -50,7 +49,7 @@ export function unserializeGroupStats(handle, permuter, { no_summaries = false, 
         } else {
             let rhandle = handle.open(i);
             let current = {};
-            for (const j of Object.keys(summaries2int)) {
+            for (const j of Object.keys(rhandle.children)) {
                 current[j] = rhandle.open(j, { load: true }).values;
                 permuter(current[j]);
             }
@@ -59,6 +58,29 @@ export function unserializeGroupStats(handle, permuter, { no_summaries = false, 
     }
 
     return output;
+}
+
+export function fillGroupStats(object, i, vals) {
+    object.means(i, { copy: false }).set(vals.means);
+    object.detected(i, { copy: false }).set(vals.detected);
+
+    for (const [s, v] of Object.entries(vals.cohen)) {
+        object.cohen(i, { summary: summaries2int[s], copy: false }).set(v);
+    }
+
+    for (const [s, v] of Object.entries(vals.lfc)) {
+        object.lfc(i, { summary: summaries2int[s], copy: false }).set(v);
+    }
+
+    for (const [s, v] of Object.entries(vals.delta_detected)) {
+        object.deltaDetected(i, { summary: summaries2int[s], copy: false }).set(v);
+    }
+
+    if ("auc" in vals) {
+        for (const [s, v] of Object.entries(vals.auc)) {
+            object.auc(i, { summary: summaries2int[s], copy: false }).set(v);
+        }
+    }
 }
 
 /**

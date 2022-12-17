@@ -212,9 +212,14 @@ export function unserialize(handle, filter, norm, feat) {
         choose_hvgs(parameters.num_hvgs, feat, cache);
 
         let rhandle = ghandle.open("results");
+        let pcs_handle = rhandle.open("pcs", { load: true });
+        let pcs = pcs_handle.values;
         let var_exp = rhandle.open("var_exp", { load: true }).values;
-        let pcs = rhandle.open("pcs", { load: true }).values;
-        cache.pcs = new putils.PcaMimic(pcs, var_exp);
+
+        cache.pcs = scran.emptyRunPCAResults(pcs_handle.shape[0], pcs_handle.shape[1]);
+        cache.pcs.principalComponents({ copy: false }).set(pcs);
+        cache.pcs.varianceExplained({ copy: false }).set(var_exp);
+        cache.pcs.setTotalVariance(1); // because the file only stores proportions.
 
         output = new PcaState(filter, norm, feat, parameters, cache);
     } catch (e) {

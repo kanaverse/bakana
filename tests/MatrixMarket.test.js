@@ -93,7 +93,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         let params2 = utils.baseParams();
         params2.marker_detection.compute_auc = false;
         await bakana.runAnalysis(state, null, params2);
-        expect(() => state.marker_detection.fetchResults().RNA.auc(0)).toThrow("AUC"); 
+        expect(() => state.marker_detection.fetchResults().RNA.auc(0)).toThrow("no AUC"); 
 
         const path = "TEST_state_MatrixMarket.h5";
         let collected = await bakana.saveAnalysis(state, path);
@@ -107,7 +107,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 
         expect(reloaded.marker_detection.fetchParameters().compute_auc).toBe(false);
         let reres = reloaded.marker_detection.fetchResults();
-        expect(() => reres.RNA.auc(0)).toThrow("'auc' was not computed"); 
+        expect(() => reres.RNA.auc(0)).toThrow("no AUCs"); 
 
         await bakana.freeAnalysis(reloaded);
     }

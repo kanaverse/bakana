@@ -165,21 +165,6 @@ export class SnnGraphClusterState {
  ******** Loading *********
  **************************/
 
-class SNNClusterMimic {
-    constructor(clusters) {
-        this.buffer = scran.createInt32WasmArray(clusters.length);
-        this.buffer.set(clusters);
-    }
-
-    membership({ copy }) {
-        return utils.mimicGetter(this.buffer, copy);
-    }
-
-    free() {
-        this.buffer.free();
-    }
-}
-
 export function unserialize(handle, index) {
     let ghandle = handle.open("snn_graph_cluster");
 
@@ -201,7 +186,8 @@ export function unserialize(handle, index) {
         let rhandle = ghandle.open("results");
         if ("clusters" in rhandle.children) {
             let clusters = rhandle.open("clusters", { load: true }).values;
-            cache.clusters = new SNNClusterMimic(clusters);
+            cache.clusters = scran.emptyClusterSNNGraphResults(clusters.length, 1);
+            cache.clusters.membership({ copy: false }).set(clusters);
         }
     }
 

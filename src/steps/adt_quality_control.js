@@ -212,10 +212,10 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
 
             if ("filters" in this.#cache) { // if skip=true, thresholds may not be reported... but if they are, we save them anyway.
                 let thandle = rhandle.createGroup("thresholds");
-                thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "hdf5" }));
-                thandle.writeDataSet("igg_total", "Float64", null, this.#cache.filters.thresholdsSubsetTotals(0, { copy: "hdf5" }));
+                thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "view" }));
+                thandle.writeDataSet("igg_total", "Float64", null, this.#cache.filters.thresholdsSubsetTotals(0, { copy: "view" }));
 
-                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.filters.discardOverall({ copy: "hdf5" }));
+                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.filters.discardOverall({ copy: "view" }));
             }
         }
     }
@@ -224,39 +224,6 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
 /**************************
  ******** Loading *********
  **************************/
-
-class AdtQcFiltersMimic {
-    constructor(detected, igg_total, discards) {
-        this.detected_ = detected;
-        this.igg_total_ = igg_total;
-        try {
-            this.discards = scran.createUint8WasmArray(discards.length);
-            this.discards.set(discards);
-        } catch (e) {
-            utils.freeCache(this.discards);
-            throw e;
-        }
-    }
-
-    thresholdsDetected({ copy }) {
-        return utils.mimicGetter(this.detected_, copy);
-    }
-
-    thresholdsSubsetTotals(index, { copy }) {
-        if (index != 0) {
-            throw "only 'index = 0' is supported for mimics";
-        }
-        return utils.mimicGetter(this.igg_total_, copy);
-    }
-
-    discardOverall({ copy }) {
-        return utils.mimicGetter(this.discards, copy);
-    }
-
-    free() {
-        this.discards.free();
-    }
-}
 
 export function unserialize(handle, inputs) {
     let cache = {};
@@ -295,13 +262,12 @@ export function unserialize(handle, inputs) {
                 let thandle = rhandle.open("thresholds");
                 let thresholds_detected = thandle.open("detected", { load: true }).values;
                 let thresholds_igg_total = thandle.open("igg_total", { load: true }).values;
-
                 let discards = rhandle.open("discards", { load: true }).values; 
-                cache.filters = new AdtQcFiltersMimic(
-                    thresholds_detected,
-                    thresholds_igg_total,
-                    discards
-                );
+
+                cache.filters = scran.emptyPerCellAdtQcFiltersResults(discards.length, 1, thresholds_detected.length);
+                cache.filters.discardOverall({ copy: false }).set(discards);
+                cache.filters.thresholdsDetected({ copy: false }).set(thresholds_detected);
+                cache.filters.thresholdsSubsetTotals(0, { copy: false }).set(thresholds_igg_total);
             }
 
             output = new AdtQualityControlState(inputs, parameters, cache);

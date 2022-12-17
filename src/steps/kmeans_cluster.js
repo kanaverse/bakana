@@ -121,21 +121,6 @@ export class KmeansClusterState {
  ******** Loading *********
  **************************/
 
-class KmeansMimic {
-    constructor(clusters) {
-        this.buffer = scran.createInt32WasmArray(clusters.length);
-        this.buffer.set(clusters);
-    }
-
-    clusters({ copy }) {
-        return utils.mimicGetter(this.buffer, copy);
-    }
-
-    free() {
-        this.buffer.free();
-    }
-}
-
 export function unserialize(handle, pca) {
     let parameters = {
         k: 10
@@ -155,7 +140,8 @@ export function unserialize(handle, pca) {
             let rhandle = ghandle.open("results");
             if ("clusters" in rhandle.children) {
                 let clusters = rhandle.open("clusters", { load: true }).values;
-                cache.raw = new KmeansMimic(clusters);
+                cache.raw = scran.emptyClusterKmeansResults(clusters.length, parameters.k, pca.fetchNumberOfDimensions());
+                cache.raw.clusters({ copy: false }).set(clusters);
             }
         }
     }
