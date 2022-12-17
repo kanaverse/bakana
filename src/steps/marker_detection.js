@@ -262,69 +262,36 @@ export class MarkerDetectionState {
  ******** Loading *********
  **************************/
 
-class ScoreMarkersMimic {
-    constructor(clusters, nblocks) {
-        this.clusters = clusters;
-        this.num_blocks = nblocks;
-    }
 
-    effect_grabber(key, group, summary, copy) {
-        if (!(group in this.clusters)) {
-            throw new Error("no markers for group " + String(group));
+function fill_results(stats, num_blocks) {
+    let keys = Object.keys(stats);
+    let ngenes = stats[keys[0]].means.length;
+    let current = scran.emptyScoreMarkersResults(ngenes, keys.length, num_blocks);
+
+    for (const k of keys) {
+        let vals = stats[keys[0]];
+        object.means(i, { copy: false }).set(vals.means);
+        object.detected(i, { copy: false }).set(vals.detected);
+
+        for (const [s, v] of Object.entries(vals.cohen)) {
+            object.cohen(i, { summary: summaries2int[s], copy: false }).set(v);
         }
-        let curgroup = this.clusters[group];
 
-        if (!(key in curgroup)) {
-            throw new Error("effect size '" + key + "' was not computed");
+        for (const [s, v] of Object.entries(vals.lfc)) {
+            object.lfc(i, { summary: summaries2int[s], copy: false }).set(v);
         }
-        let cureffect = curgroup[key];
 
-        let sidx = markers.int2summaries[summary];
-        if (!(sidx in cureffect)) {
-            throw new Error("effect size summary " + String(summary) + " is not available");
+        for (const [s, v] of Object.entries(vals.delta_detected)) {
+            object.deltaDetected(i, { summary: summaries2int[s], copy: false }).set(v);
         }
-        let chosen = cureffect[sidx];
-        return utils.mimicGetter(chosen, copy);
-    }
 
-    lfc(group, { summary = 1, copy = true } = {}) {
-        return this.effect_grabber("lfc", group, summary, copy);
+        if ("auc" in vals) {
+            for (const [s, v] of Object.entries(vals.auc)) {
+                object.auc(i, { summary: summaries2int[s], copy: false }).set(v);
+            }
+        }
     }
-
-    deltaDetected(group, { summary = 1, copy = true } = {}) {
-        return this.effect_grabber("delta_detected", group, summary, copy);
-    }
-
-    cohen(group, { summary = 1, copy = true } = {}) {
-        return this.effect_grabber("cohen", group, summary, copy);
-    }
-
-    auc(group, { summary = 1, copy = true } = {}) {
-        return this.effect_grabber("auc", group, summary, copy);
-    }
-
-    stat_grabber(key, group, copy) {
-        let chosen = this.clusters[group][key];
-        return utils.mimicGetter(chosen, copy);
-    }
-
-    means(group, { copy = true } = {}) {
-        return this.stat_grabber("means", group, copy);
-    }
-
-    detected(group, { copy = true } = {}) {
-        return this.stat_grabber("detected", group, copy);
-    }
-
-    numberOfGroups() {
-        return Object.keys(this.clusters).length;
-    }
-
-    numberOfBlocks() {
-        return this.num_blocks;
-    }
-
-    free() {}
+    return current;
 }
 
 export function unserialize(handle, permuters, filter, norm_states, choice) {
@@ -358,6 +325,7 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
     let cache = {};
     {
         let rhandle = ghandle.open("results");
+        cache.raw = {};
 
         if ("clusters" in rhandle.children) { 
             // below v2.0
@@ -366,20 +334,20 @@ export function unserialize(handle, permuters, filter, norm_states, choice) {
             for (const cl of Object.keys(chandle.children)) {
                 clusters[Number(cl)] = markers.unserializeGroupStats(chandle.open(cl), permuters["RNA"], { compute_auc: parameters.compute_auc });
             }
-            cache.raw = { RNA: new ScoreMarkersMimic(clusters, num_blocks) };
+            cache.raw.RNA = fill_results(clusters, num_blocks);
         } else {
             // after v2.0.
             let chandle = rhandle.open("per_cluster");
-            cache.raw = {};
             for (const a of Object.keys(chandle.children)) {
                 let clusters = {};
                 let ahandle = chandle.open(a);
                 for (const cl of Object.keys(ahandle.children)) {
                     clusters[Number(cl)] = markers.unserializeGroupStats(ahandle.open(cl), permuters[a], { compute_auc: parameters.compute_auc });
                 }
-                cache.raw[a] = new ScoreMarkersMimic(clusters, num_blocks);
+                cache.raw[a] = fill_results(clusters, num_blocks);
             }
         }
+ 
     }
 
     return new MarkerDetectionState(filter, norm_states, choice, parameters, cache);

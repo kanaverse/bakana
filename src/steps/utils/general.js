@@ -1,30 +1,5 @@
 import * as scran from "scran.js";
 
-export function mimicGetter(value, copy) {
-    // Inheritance seems to be namespaced by module,
-    // so we can't use instanceof.
-    if ("className" in value.constructor && value.constructor.className.endsWith("WasmArray")) { 
-        if (copy == "view" || copy == "hdf5") {
-            return value.view();
-        } else if (copy) {
-            return value.slice();
-        } else {
-            return value.array();
-        }
-    } else {
-        if (copy === true) {
-            return value.slice();
-        } else if (copy == "view") {
-            // If the caller actually wanted a WasmArray, they would
-            // have generated a WasmArray during the unserialization.
-            throw new Error("'copy: \"view\"' not supported for mimics");
-        } else {
-            // Includes copy = "hdf5", where a TypedArray or WasmArray can be used.
-            return value;
-        }
-    }
-}
-
 export function freeCache(object) {
     // Just an alias for simplicity.
     scran.safeFree(object);
@@ -177,15 +152,5 @@ export function checkIndices(indices, max) {
         if (indices[i] <= indices[i-1]) {
             throw new Error("subset indices must be sorted and unique");
         }
-    }
-}
-
-export function prepareWasmArrayOutput(x, unsafe) {
-    if (unsafe === "view") {
-        return x;
-    } else if (unsafe) {
-        return x.array();
-    } else {
-        return x.slice();
     }
 }

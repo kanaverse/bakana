@@ -384,58 +384,32 @@ export class CustomSelectionsState {
  ******** Loading *********
  **************************/
 
-class CustomMarkersMimic {
-    constructor(results) {
-        this.results = results;
+function fill_results(stats) {
+    let ngenes = stats.means.length;
+    let current = scran.emptyScoreMarkersResults(ngenes, /* number of groups */ 2, /* number of blocks */ 1);
+
+    object.means(i, { copy: false }).set(stats.means);
+    object.detected(i, { copy: false }).set(stats.detected);
+
+    for (const [s, v] of Object.entries(stats.cohen)) {
+        object.cohen(1, { summary: summaries2int[s], copy: false }).set(v);
     }
 
-    effect_grabber(key, group, summary, copy) {
-        if (group != 1) {
-            throw "only group 1 is supported for custom marker mimics";
+    for (const [s, v] of Object.entries(stats.lfc)) {
+        object.lfc(1, { summary: summaries2int[s], copy: false }).set(v);
+    }
+
+    for (const [s, v] of Object.entries(stats.delta_detected)) {
+        object.deltaDetected(1, { summary: summaries2int[s], copy: false }).set(v);
+    }
+
+    if ("auc" in stats) {
+        for (const [s, v] of Object.entries(stats.auc)) {
+            object.auc(1, { summary: summaries2int[s], copy: false }).set(v);
         }
-        let curgroup = this.results[group];
-
-        if (summary != 1) {
-            throw "only the mean effect size is supported for custom marker mimics";
-        }
-
-        if (!(key in curgroup)) {
-            throw new Error("effect size '" + key + "' was not computed");
-        }
-        let chosen = curgroup[key];
-        return utils.mimicGetter(chosen, copy);
     }
 
-    lfc(group, { summary = 1, copy = true } = {}) {
-        return this.effect_grabber("lfc", group, summary, copy);
-    }
-
-    deltaDetected(group, { summary = 1, copy = true } = {}) {
-        return this.effect_grabber("delta_detected", group, summary, copy);
-    }
-
-    cohen(group, { summary = 1, copy = true } = {}) {
-        return this.effect_grabber("cohen", group, summary, copy);
-    }
-
-    auc(group, { summary = 1, copy = true } = {}) {
-        return this.effect_grabber("auc", group, summary, copy);
-    }
-
-    stat_grabber(key, group, copy) {
-        let chosen = this.results[group][key];
-        return utils.mimicGetter(chosen, copy);
-    }
-
-    means(group, { copy = true } = {}) {
-        return this.stat_grabber("means", group, copy);
-    }
-
-    detected(group, { copy = true } = {}) {
-        return this.stat_grabber("detected", group, copy);
-    }
-
-    free() {}
+    return current;
 }
 
 export function unserialize(handle, permuters, filter, norm_states) {
@@ -477,7 +451,7 @@ export function unserialize(handle, permuters, filter, norm_states) {
             let mhandle = rhandle.open("markers");
             for (const sel of Object.keys(mhandle.children)) {
                 let current = markers.unserializeGroupStats(mhandle.open(sel), permuters["RNA"], { no_summaries: true, compute_auc: parameters.compute_auc });
-                cache.results[sel] = { raw: { RNA: new CustomMarkersMimic({ 1 : current }) } };
+                cache.results[sel] = { raw: { RNA: fill_results(current) } };
             }
         } else {
             // after v2.0.
@@ -487,7 +461,7 @@ export function unserialize(handle, permuters, filter, norm_states) {
                 let collected = {};
                 for (const feat of Object.keys(shandle.children)) {
                     let current = markers.unserializeGroupStats(shandle.open(feat), permuters[feat], { no_summaries: true, compute_auc: parameters.compute_auc });
-                    collected[feat] = new CustomMarkersMimic({ 1 : current });
+                    collected[feat] = fill_results(current);
                 }
                 cache.results[sel] = { raw: collected };
             }
