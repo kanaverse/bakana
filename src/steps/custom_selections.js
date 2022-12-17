@@ -386,30 +386,25 @@ export class CustomSelectionsState {
 
 function fill_results(stats) {
     let ngenes = stats.means.length;
-    let current = scran.emptyScoreMarkersResults(ngenes, /* number of groups */ 2, /* number of blocks */ 1);
+    let object = scran.emptyScoreMarkersResults(ngenes, 
+        /* number of groups */ 2, 
+        /* number of blocks */ 1,
+        { computeAuc: ("auc" in stats) }
+    );
 
-    object.means(i, { copy: false }).set(stats.means);
-    object.detected(i, { copy: false }).set(stats.detected);
+    object.means(1, { copy: false }).set(stats.means);
+    object.detected(1, { copy: false }).set(stats.detected);
 
-    for (const [s, v] of Object.entries(stats.cohen)) {
-        object.cohen(1, { summary: summaries2int[s], copy: false }).set(v);
-    }
-
-    for (const [s, v] of Object.entries(stats.lfc)) {
-        object.lfc(1, { summary: summaries2int[s], copy: false }).set(v);
-    }
-
-    for (const [s, v] of Object.entries(stats.delta_detected)) {
-        object.deltaDetected(1, { summary: summaries2int[s], copy: false }).set(v);
-    }
-
-    if ("auc" in stats) {
-        for (const [s, v] of Object.entries(stats.auc)) {
-            object.auc(1, { summary: summaries2int[s], copy: false }).set(v);
+    for (const index of Object.values(markers.summaries2int)) {
+        object.cohen(1, { summary: index, copy: false }).set(stats.cohen);
+        object.lfc(1, { summary: index, copy: false }).set(stats.lfc);
+        object.deltaDetected(1, { summary: index, copy: false }).set(stats.delta_detected);
+        if ("auc" in stats) {
+            object.auc(1, { summary: index, copy: false }).set(stats.auc);
         }
     }
 
-    return current;
+    return object;
 }
 
 export function unserialize(handle, permuters, filter, norm_states) {

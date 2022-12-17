@@ -154,7 +154,7 @@ export function unserialize(handle, permuter, filter, norm) {
 
         cache.results = scran.emptyModelGeneVarResults(reloaded.means.length, 1);
         cache.results.means({ copy : false }).set(reloaded.means);
-        cache.results.variances({ copy : false }).set(reloaded.variances);
+        cache.results.variances({ copy : false }).set(reloaded.vars);
         cache.results.fitted({ copy : false }).set(reloaded.fitted);
         cache.results.residuals({ copy : false }).set(reloaded.resids);
     }

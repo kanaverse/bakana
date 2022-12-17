@@ -262,36 +262,38 @@ export class MarkerDetectionState {
  ******** Loading *********
  **************************/
 
-
 function fill_results(stats, num_blocks) {
     let keys = Object.keys(stats);
-    let ngenes = stats[keys[0]].means.length;
-    let current = scran.emptyScoreMarkersResults(ngenes, keys.length, num_blocks);
+    let first = stats[keys[0]];
+    let ngenes = first.means.length;
+    let object = scran.emptyScoreMarkersResults(ngenes, keys.length, num_blocks, { computeAuc: ("auc" in first) });
 
     for (const k of keys) {
-        let vals = stats[keys[0]];
+        let i = Number(k);
+        let vals = stats[k];
         object.means(i, { copy: false }).set(vals.means);
         object.detected(i, { copy: false }).set(vals.detected);
 
         for (const [s, v] of Object.entries(vals.cohen)) {
-            object.cohen(i, { summary: summaries2int[s], copy: false }).set(v);
+            object.cohen(i, { summary: markers.summaries2int[s], copy: false }).set(v);
         }
 
         for (const [s, v] of Object.entries(vals.lfc)) {
-            object.lfc(i, { summary: summaries2int[s], copy: false }).set(v);
+            object.lfc(i, { summary: markers.summaries2int[s], copy: false }).set(v);
         }
 
         for (const [s, v] of Object.entries(vals.delta_detected)) {
-            object.deltaDetected(i, { summary: summaries2int[s], copy: false }).set(v);
+            object.deltaDetected(i, { summary: markers.summaries2int[s], copy: false }).set(v);
         }
 
         if ("auc" in vals) {
             for (const [s, v] of Object.entries(vals.auc)) {
-                object.auc(i, { summary: summaries2int[s], copy: false }).set(v);
+                object.auc(i, { summary: markers.summaries2int[s], copy: false }).set(v);
             }
         }
     }
-    return current;
+
+    return object;
 }
 
 export function unserialize(handle, permuters, filter, norm_states, choice) {
