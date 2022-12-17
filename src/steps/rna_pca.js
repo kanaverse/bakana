@@ -1,11 +1,10 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
-import * as putils from "./utils/pca.js";
 import * as filter_module from "./cell_filtering.js";
-import * as norm_module from "./normalization.js";
+import * as norm_module from "./rna_normalization.js";
 import * as feat_module from "./feature_selection.js";
 
-export const step_name = "pca";
+export const step_name = "rna_pca";
 
 /**
  * This step performs a principal components analysis (PCA) to compact and denoise the data.
@@ -15,7 +14,7 @@ export const step_name = "pca";
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class PcaState extends putils.PcaStateBase {
+export class RnaPcaState { 
     #filter;
     #norm;
     #feat;
@@ -23,20 +22,18 @@ export class PcaState extends putils.PcaStateBase {
     #parameters;
 
     constructor(filter, norm, feat, parameters = null, cache = null) {
-        super();
-
         if (!(filter instanceof filter_module.CellFilteringState)) {
-            throw new Error("'filter' should be a State object from './cell_filtering.js'");
+            throw new Error("'filter' should be a CellFilteringState object");
         }
         this.#filter = filter;
 
-        if (!(norm instanceof norm_module.NormalizationState)) {
-            throw new Error("'norm' should be a State object from './normalization.js'");
+        if (!(norm instanceof norm_module.RnaNormalizationState)) {
+            throw new Error("'norm' should be an RnaNormalizationState object");
         }
         this.#norm = norm;
 
         if (!(feat instanceof feat_module.FeatureSelectionState)) {
-            throw new Error("'feat' should be a State object from './feature_selection.js'");
+            throw new Error("'feat' should be a FeatureSelectionState object");
         }
         this.#feat = feat;
 
@@ -132,7 +129,7 @@ export class PcaState extends putils.PcaStateBase {
      *************************/
 
     serialize(handle) {
-        let ghandle = handle.createGroup(step_name);
+        let ghandle = handle.createGroup("pca");
 
         {
             let phandle = ghandle.createGroup("parameters"); 
@@ -185,7 +182,7 @@ function choose_hvgs(num_hvgs, feat, cache) {
  **************************/
 
 export function unserialize(handle, filter, norm, feat) {
-    let ghandle = handle.open(step_name);
+    let ghandle = handle.open("pca");
 
     let parameters = {};
     {
@@ -221,7 +218,7 @@ export function unserialize(handle, filter, norm, feat) {
         cache.pcs.varianceExplained({ copy: false }).set(var_exp);
         cache.pcs.setTotalVariance(1); // because the file only stores proportions.
 
-        output = new PcaState(filter, norm, feat, parameters, cache);
+        output = new RnaPcaState(filter, norm, feat, parameters, cache);
     } catch (e) {
         utils.freeCache(cache.hvg_buffer);
         utils.freeCache(cache.pcs);

@@ -1,10 +1,9 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import * as qcutils from "./utils/quality_control.js";
 import { mito } from "./mito.js";
 import * as inputs_module from "./inputs.js";
 
-export const step_name = "quality_control";
+export const step_name = "rna_quality_control";
 
 /**
  * This step applies quality control on the RNA count matrix.
@@ -14,16 +13,14 @@ export const step_name = "quality_control";
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class QualityControlState extends qcutils.QualityControlStateBase {
+export class RnaQualityControlState {
     #inputs;
     #cache;
     #parameters;
 
     constructor(inputs, parameters = null, cache = null) {
-        super();
-
         if (!(inputs instanceof inputs_module.InputsState)) {
-            throw new Error("'inputs' should be a State object from './inputs.js'");
+            throw new Error("'inputs' should be an InputsState object");
         }
         this.#inputs = inputs;
 
@@ -43,7 +40,8 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
      ***************************/
     
     valid() {
-        return true;
+        let input = this.#inputs.fetchCountMatrix();
+        return input.has("RNA");
     }
 
     skipped() {
@@ -121,16 +119,14 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
                 delete this.#cache.metrics;
             } else {
                 var mat = this.#inputs.fetchCountMatrix().get("RNA");
-
-                // TODO: add more choices.
-                var nsubsets = 1;
-                var subsets = utils.allocateCachedArray(mat.numberOfRows() * nsubsets, "Uint8Array", this.#cache, "metrics_buffer");
-                subsets.fill(0);
+                var gene_info = this.#inputs.fetchFeatureAnnotations()["RNA"];
 
                 // Finding the prefix.
-                // TODO: use the guessed features to narrow the Ensembl/symbol search.
-                var gene_info = this.#inputs.fetchFeatureAnnotations()["RNA"];
+                var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
+                subsets.fill(0);
                 var sub_arr = subsets.array();
+
+                // TODO: use the guessed features to narrow the Ensembl/symbol search.
                 for (const key of gene_info.columnNames()) {
                     let val = gene_info.column(key);
                     if (use_mito_default) {
@@ -187,7 +183,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
      *************************/
 
     serialize(handle) {
-        let ghandle = handle.createGroup(step_name);
+        let ghandle = handle.createGroup("quality_control");
 
         {
             let phandle = ghandle.createGroup("parameters"); 
@@ -226,7 +222,7 @@ export class QualityControlState extends qcutils.QualityControlStateBase {
 export function unserialize(handle, inputs) {
     let ghandle = handle.open("quality_control");
 
-    let parameters = QualityControlState.defaults(); 
+    let parameters = RnaQualityControlState.defaults(); 
     {
         let phandle = ghandle.open("parameters"); 
         parameters.use_mito_default = phandle.open("use_mito_default", { load: true }).values[0] > 0;
@@ -270,7 +266,7 @@ export function unserialize(handle, inputs) {
             cache.filters.thresholdsSubsetProportions(0, { copy: false }).set(thresholds_proportion);
         }
 
-        output = new QualityControlState(inputs, parameters, cache);
+        output = new RnaQualityControlState(inputs, parameters, cache);
     } catch (e) {
         utils.freeCache(cache.metrics);
         utils.freeCache(cache.filters)

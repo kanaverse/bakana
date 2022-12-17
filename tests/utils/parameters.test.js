@@ -5,19 +5,19 @@ test("configureBatchCorrection works as expected", () => {
 
     params.configureBatchCorrection(stuff, "none");
     expect(stuff.batch_correction.method).toEqual('none');
-    expect(stuff.pca.block_method).toEqual('none');
+    expect(stuff.rna_pca.block_method).toEqual('none');
     expect(stuff.adt_pca.block_method).toEqual('none');
     expect(params.guessBatchCorrectionConfig(stuff)).toBe("none");
 
     params.configureBatchCorrection(stuff, "regress");
     expect(stuff.batch_correction.method).toEqual('none');
-    expect(stuff.pca.block_method).toEqual('regress');
+    expect(stuff.rna_pca.block_method).toEqual('regress');
     expect(stuff.adt_pca.block_method).toEqual('regress');
     expect(params.guessBatchCorrectionConfig(stuff)).toBe("regress");
 
     params.configureBatchCorrection(stuff, "mnn");
     expect(stuff.batch_correction.method).toEqual('mnn');
-    expect(stuff.pca.block_method).toEqual('weight');
+    expect(stuff.rna_pca.block_method).toEqual('weight');
     expect(stuff.adt_pca.block_method).toEqual('weight');
     expect(params.guessBatchCorrectionConfig(stuff)).toBe("mnn");
 
@@ -32,16 +32,16 @@ test("guessBatchCorrection handles ambiguity properly", () => {
     expect(params.guessBatchCorrectionConfig(stuff, { strict: true })).toBeNull();
 
     stuff.batch_correction.method = "none";
-    stuff.pca.block_method = "regress";
+    stuff.rna_pca.block_method = "regress";
     expect(params.guessBatchCorrectionConfig(stuff)).toBe("regress");
     expect(params.guessBatchCorrectionConfig(stuff, { strict: true })).toBeNull();
 
-    stuff.pca.block_method = "none";
+    stuff.rna_pca.block_method = "none";
     stuff.adt_pca.block_method = "weight";
     expect(params.guessBatchCorrectionConfig(stuff)).toBe("none");
     expect(params.guessBatchCorrectionConfig(stuff, { strict: true })).toBeNull();
 
-    stuff.pca.block_method = "weight";
+    stuff.rna_pca.block_method = "weight";
     expect(params.guessBatchCorrectionConfig(stuff)).toBe("none");
     expect(params.guessBatchCorrectionConfig(stuff, { strict: true })).toBeNull();
 });

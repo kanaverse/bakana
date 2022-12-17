@@ -1,9 +1,9 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
-import * as nutils from "./utils/normalization.js";
 import * as markers from "./utils/markers.js";
 import * as filter_module from "./cell_filtering.js";
-import * as norm_module from "./normalization.js";
+import * as rna_norm_module from "./rna_normalization.js";
+import * as adt_norm_module from "./adt_normalization.js";
 
 export const step_name = "custom_selections";
 
@@ -23,14 +23,15 @@ export class CustomSelectionsState {
 
     constructor(filter, norm_states, parameters = null, cache = null) {
         if (!(filter instanceof filter_module.CellFilteringState)) {
-            throw new Error("'filter' should be a State object from './cell_filtering.js'");
+            throw new Error("'filter' should be a CellFilteringState object");
         }
         this.#filter = filter;
 
-        for (const norm of Object.values(norm_states)) {
-            if (!(norm instanceof nutils.NormalizationStateBase)) {
-                throw new Error("'norm' should be a NormalizationStateBase object");
-            }
+        if (!(norm_states.RNA instanceof rna_norm_module.RnaNormalizationState)) {
+            throw new Error("'norm_states.RNA' should be an RnaNormalizationState object");
+        }
+        if (!(norm_states.ADT instanceof adt_norm_module.AdtNormalizationState)) {
+            throw new Error("'norm_states.ADT' should be an AdtNormalizationState object");
         }
         this.#norm_states = norm_states;
 

@@ -1,6 +1,7 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
-import * as putils from "./utils/pca.js";
+import * as rna_pca_module from "./rna_pca.js";
+import * as adt_pca_module from "./adt_pca.js";
 
 export const step_name = "combine_embeddings";
 
@@ -17,12 +18,14 @@ export class CombineEmbeddingsState {
     #cache;
 
     constructor(pca_states, parameters = null, cache = null) {
-        for (const x of Object.values(pca_states)) {
-            if (!(x instanceof putils.PcaStateBase)) {
-                throw new Error("each entry of 'pc_states' should be a PcaStateBase object");
-            }
+        if (!(pca_states.RNA instanceof rna_pca_module.RnaPcaState)) {
+            throw new Error("'pca_states.RNA' should be an RnaPcaState object");
+        }
+        if (!(pca_states.ADT instanceof adt_pca_module.AdtPcaState)) {
+            throw new Error("'pca_states.ADT' should be an AdtPcaState object");
         }
         this.#pca_states = pca_states;
+
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
         this.changed = false;
@@ -104,12 +107,14 @@ export class CombineEmbeddingsState {
     compute(weights, approximate) {
         this.changed = false;
 
-        for (const [k, v] of Object.entries(this.#pca_states)) {
-            if (v.changed) { // include possible changes from valid to invalid.
+        for (const v of Object.values(this.#pca_states)) {
+            if (v.changed) {
                 this.changed = true;
+                break;
             }
         }
-        let to_use = utils.findValidUpstreamStates(this.#pca_states, "PCA");
+
+        let to_use = utils.findValidUpstreamStates(this.#pca_states);
         let needs_combining = to_use.length > 1;
 
         if (needs_combining) {
@@ -261,7 +266,7 @@ export function unserialize(handle, pca_states) {
             // and create a view on it so that our fetchPCs() works properly.
             // (v1 and earlier also implicitly falls in this category.)
 
-            let to_use = utils.findValidUpstreamStates(pca_states, "PCA");
+            let to_use = utils.findValidUpstreamStates(pca_states);
 
             if (to_use.length > 1 && parameters.weights !== null) {
                 let has_nonzero_weight = [];

@@ -113,7 +113,7 @@ test("runAnalysis works correctly (10X)", async () => {
         state.combine_embeddings.compute({ "RNA": 1, "ADT": 0 }, true);
         let pcs = state.combine_embeddings.fetchCombined();
         expect(pcs.owner !== null).toBe(true);
-        expect(state.combine_embeddings.fetchNumberOfDimensions()).toBe(state.pca.fetchPCs().numberOfPCs());
+        expect(state.combine_embeddings.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
 
         const path = "TEST_state_combine-embed.h5";
         let fhandle = scran.createNewHDF5File(path);
@@ -121,15 +121,15 @@ test("runAnalysis works correctly (10X)", async () => {
 
         {
             let ncells = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
-            let npcs_rna = state.pca.fetchPCs().numberOfPCs();
+            let npcs_rna = state.rna_pca.fetchPCs().numberOfPCs();
             let npcs_adt = state.adt_pca.fetchPCs().numberOfPCs();
             valkana.validateCombineEmbeddingsState(path, ncells, ["RNA"], npcs_rna + npcs_adt, bakana.kanaFormatVersion);
         }
 
-        let reloaded = combine.unserialize(fhandle, {"RNA": state.pca, "ADT": state.adt_pca});
+        let reloaded = combine.unserialize(fhandle, {"RNA": state.rna_pca, "ADT": state.adt_pca});
         let repcs = reloaded.fetchCombined();
         expect(repcs.owner !== null).toBe(true);
-        expect(reloaded.fetchNumberOfDimensions()).toBe(state.pca.fetchPCs().numberOfPCs());
+        expect(reloaded.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
 
         reloaded.free();
     }

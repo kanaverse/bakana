@@ -49,12 +49,12 @@ test("reanalysis from a reloaded analysis works correctly", async () => {
             (offset, size) => offsets[offset]
         );
         let new_params2 = bakana.retrieveParameters(reloaded2);
-        new_params2.quality_control.nmads = 2.5;
+        new_params2.rna_quality_control.nmads = 2.5;
 
         await bakana.runAnalysis(reloaded2, null, new_params2);
 
         expect(reloaded2.inputs.changed).toBe(false);
-        expect(reloaded2.quality_control.changed).toBe(true);
+        expect(reloaded2.rna_quality_control.changed).toBe(true);
 
         await bakana.freeAnalysis(reloaded2);
     }

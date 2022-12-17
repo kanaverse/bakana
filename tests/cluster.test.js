@@ -35,7 +35,7 @@ test("switching between clustering methods (SNN first)", async () => {
     paramcopy.choose_clustering.method = "kmeans";
 
     await bakana.runAnalysis(state, files, paramcopy);
-    expect(state.pca.changed).toBe(false);
+    expect(state.rna_pca.changed).toBe(false);
     expect(state.snn_graph_cluster.changed).toBe(false);
     expect(state.kmeans_cluster.changed).toBe(true);
     expect(state.choose_clustering.changed).toBe(true);
@@ -59,7 +59,7 @@ test("switching between clustering methods (SNN first)", async () => {
     paramcopy.snn_graph_cluster.resolution = 0.77;
 
     await bakana.runAnalysis(state, files, paramcopy);
-    expect(state.pca.changed).toBe(false);
+    expect(state.rna_pca.changed).toBe(false);
     expect(state.snn_graph_cluster.changed).toBe(true);
     expect(state.kmeans_cluster.changed).toBe(false);
     expect(state.choose_clustering.changed).toBe(false);

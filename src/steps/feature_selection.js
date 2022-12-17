@@ -1,7 +1,7 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
 import * as filter_module from "./cell_filtering.js";
-import * as norm_module from "./normalization.js";
+import * as norm_module from "./rna_normalization.js";
 
 /**
  * Feature selection is performed by modelling the per-gene variance and finding highly variable genes.
@@ -18,12 +18,12 @@ export class FeatureSelectionState {
 
     constructor(filter, norm, parameters = null, cache = null) {
         if (!(filter instanceof filter_module.CellFilteringState)) {
-            throw new Error("'filter' should be a State object from './cell_filtering.js'");
+            throw new Error("'filter' should be a CellFilteringState object");
         }
         this.#filter = filter;
 
-        if (!(norm instanceof norm_module.NormalizationState)) {
-            throw new Error("'norm' should be a State object from './normalization.js'");
+        if (!(norm instanceof norm_module.RnaNormalizationState)) {
+            throw new Error("'norm' should be an RnaNormalizationState object");
         }
         this.#norm = norm;
 

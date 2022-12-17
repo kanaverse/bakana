@@ -1,5 +1,5 @@
 import * as bakana from "../src/index.js";
-import * as qc from "../src/steps/quality_control.js";
+import * as qc from "../src/steps/rna_quality_control.js";
 import * as aqc from "../src/steps/adt_quality_control.js";
 import * as scran from "scran.js";
 import * as valkana from "valkana";
@@ -16,12 +16,12 @@ test("analysis works when we skip the QC steps", async () => {
     // Running the analysis with skipped QC.
     let state = await bakana.createAnalysis();
     let paramcopy = utils.baseParams();
-    paramcopy.quality_control.skip = true;
+    paramcopy.rna_quality_control.skip = true;
     paramcopy.adt_quality_control.skip = true;
 
     await bakana.runAnalysis(state, files, paramcopy);
-    expect(state.quality_control.valid()).toBe(true);
-    expect(state.quality_control.skipped()).toBe(true);
+    expect(state.rna_quality_control.valid()).toBe(true);
+    expect(state.rna_quality_control.skipped()).toBe(true);
     expect(state.adt_quality_control.valid()).toBe(true);
     expect(state.adt_quality_control.skipped()).toBe(true);
 
@@ -53,8 +53,8 @@ test("analysis works when we skip the QC steps", async () => {
         );
         let new_params = bakana.retrieveParameters(reloaded);
 
-        expect(reloaded.quality_control.skipped()).toBe(true);
-        expect(new_params.quality_control.skip).toBe(true);
+        expect(reloaded.rna_quality_control.skipped()).toBe(true);
+        expect(new_params.rna_quality_control.skip).toBe(true);
 
         expect(reloaded.adt_quality_control.skipped()).toBe(true);
         expect(new_params.adt_quality_control.skip).toBe(true);
@@ -65,8 +65,9 @@ test("analysis works when we skip the QC steps", async () => {
     // Forcing the upstream to be non-changed.
     await state.inputs.compute(files, null, null);
 
-    for (const stepname of [ "quality_control", "adt_quality_control" ]) {
+    for (const stepname of [ "rna_quality_control", "adt_quality_control" ]) {
         let curstep = state[stepname];
+        let group_name = stepname.startsWith("rna_") ? "quality_control" : "adt_quality_control"; // TODO: fix.
 
         // Setting up some functions to run things automatically for RNA and ADT.
         let rerun;
@@ -147,7 +148,7 @@ test("analysis works when we skip the QC steps", async () => {
             }
 
             let handle = new scran.H5File(path);
-            let qhandle = handle.open(stepname);
+            let qhandle = handle.open(group_name);
             let qrhandle = qhandle.open("results");
             expect("metrics" in qrhandle.children).toBe(true);
             expect("discards" in qrhandle.children).toBe(true);
@@ -192,7 +193,7 @@ test("analysis works when we skip the QC steps", async () => {
 
         {
             let handle = new scran.H5File(path);
-            let qhandle = handle.open(stepname);
+            let qhandle = handle.open(group_name);
             let qrhandle = qhandle.open("results");
             expect("metrics" in qrhandle.children).toBe(true);
             expect("thresholds" in qrhandle.children).toBe(false);

@@ -1,6 +1,5 @@
 import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
-import * as putils from "./utils/pca.js";
 import * as filter_module from "./cell_filtering.js";
 import * as norm_module from "./adt_normalization.js";
 
@@ -14,15 +13,13 @@ export const step_name = "adt_pca";
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class AdtPcaState extends putils.PcaStateBase {
+export class AdtPcaState {
     #filter;
     #norm;
     #cache;
     #parameters;
 
     constructor(filter, norm, parameters = null, cache = null) {
-        super();
-
         if (!(filter instanceof filter_module.CellFilteringState)) {
             throw new Error("'filter' should be a CellFilteringState object");
         }
