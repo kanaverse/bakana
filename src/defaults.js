@@ -1,10 +1,10 @@
 import * as inputs from "./steps/inputs.js";
-import * as qc from "./steps/quality_control.js";
+import * as qc from "./steps/rna_quality_control.js";
 import * as qcadt from "./steps/adt_quality_control.js";
 import * as filter from "./steps/cell_filtering.js";
-import * as norm from "./steps/normalization.js";
+import * as norm from "./steps/rna_normalization.js";
 import * as normadt from "./steps/adt_normalization.js";
-import * as pca from "./steps/pca.js";
+import * as pca from "./steps/rna_pca.js";
 import * as pcaadt from "./steps/adt_pca.js";
 import * as combine from "./steps/combine_embeddings.js";
 import * as correct from "./steps/batch_correction.js";
@@ -19,11 +19,14 @@ import * as custom from "./steps/custom_selections.js";
  * See the documentation for each step's `compute` method for more details:
  * 
  * - {@linkcode InputsState#compute inputs}
- * - {@linkcode QualityControlState#compute quality_control}
+ * - {@linkcode RnaQualityControlState#compute rna_quality_control}
  * - {@linkcode AdtQualityControlState#compute adt_quality_control}
  * - {@linkcode CellFiltering#compute cell_filtering}
+ * - {@linkcode RnaNormalizationState#compute rna_normalization}
+ * - {@linkcode AdtNormalizationState#compute adt_normalization}
  * - {@linkcode FeatureSelectionState#compute feature_selection}
- * - {@linkcode PcaState#compute pca}
+ * - {@linkcode RnaPcaState#compute rna_pca}
+ * - {@linkcode AdtPcaState#compute adt_pca}
  * - {@linkcode NeighborIndexState#compute neighbor_index}
  * - {@linkcode TsneState#compute tsne}
  * - {@linkcode UmapState#compute umap}
@@ -75,14 +78,14 @@ export function analysisDefaults() {
 
     output[inputs.step_name] = inputs.InputsState.defaults();
 
-    output[qc.step_name] = qc.QualityControlState.defaults();
+    output[qc.step_name] = qc.RnaQualityControlState.defaults();
     output[qcadt.step_name] = qcadt.AdtQualityControlState.defaults();
     output[filter.step_name] = filter.CellFilteringState.defaults();
 
-    output[norm.step_name] = norm.NormalizationState.defaults();
+    output[norm.step_name] = norm.RnaNormalizationState.defaults();
     output[normadt.step_name] = normadt.AdtNormalizationState.defaults();
 
-    output[pca.step_name] = pca.PcaState.defaults();
+    output[pca.step_name] = pca.RnaPcaState.defaults();
     output[pcaadt.step_name] = pcaadt.AdtPcaState.defaults();
 
     output[combine.step_name] = combine.CombineEmbeddingsState.defaults();

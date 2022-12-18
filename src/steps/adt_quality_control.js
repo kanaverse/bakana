@@ -1,7 +1,6 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
 import * as inputs_module from "./inputs.js";
-import * as qcutils from "./utils/quality_control.js";
 
 export const step_name = "adt_quality_control";
 
@@ -13,14 +12,12 @@ export const step_name = "adt_quality_control";
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class AdtQualityControlState extends qcutils.QualityControlStateBase {
+export class AdtQualityControlState {
     #inputs;
     #cache;
     #parameters;
 
     constructor(inputs, parameters = null, cache = null) {
-        super();
-
         if (!(inputs instanceof inputs_module.InputsState)) {
             throw new Error("'inputs' should be a State object from './inputs.js'");
         }
@@ -29,8 +26,6 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
         this.changed = false;
-
-        this.#parameters.target_matrix = "ADT";
     }
 
     free() {
@@ -45,7 +40,7 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
 
     valid() {
         let input = this.#inputs.fetchCountMatrix();
-        return input.has(this.#parameters.target_matrix);
+        return input.has("ADT");
     }
 
     skipped() {
@@ -56,9 +51,7 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
      * @return {object} Object containing the parameters.
      */
     fetchParameters() {
-        let output = { ...this.#parameters }; // avoid pass-by-reference links.
-        delete output.target_matrix;
-        return output;
+        return { ...this.#parameters }; // avoid pass-by-reference links.
     }
 
     /**
@@ -91,12 +84,6 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
     /***************************
      ******** Compute **********
      ***************************/
-
-    useRNAMatrix() {
-        // For testing only!
-        this.#parameters.target_matrix = "RNA";
-        return;
-    }
 
     static defaults() {
         return {
@@ -136,13 +123,14 @@ export class AdtQualityControlState extends qcutils.QualityControlStateBase {
                 // can re-run this step later via unskip_metrics = true.
                 delete this.#cache.metrics;
             } else {
-                var mat = this.#inputs.fetchCountMatrix().get(this.#parameters.target_matrix);
-                var gene_info = this.#inputs.fetchFeatureAnnotations()[this.#parameters.target_matrix];
+                var mat = this.#inputs.fetchCountMatrix().get("ADT");
+                var gene_info = this.#inputs.fetchFeatureAnnotations()["ADT"];
 
                 // Finding the prefix.
                 var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
                 subsets.fill(0);
                 var sub_arr = subsets.array();
+
                 var lower_igg = igg_prefix.toLowerCase();
                 for (const key of gene_info.columnNames()) {
                     let val = gene_info.column(key);

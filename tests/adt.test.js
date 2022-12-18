@@ -113,7 +113,7 @@ test("runAnalysis works correctly (10X)", async () => {
         state.combine_embeddings.compute({ "RNA": 1, "ADT": 0 }, true);
         let pcs = state.combine_embeddings.fetchCombined();
         expect(pcs.owner !== null).toBe(true);
-        expect(state.combine_embeddings.fetchNumberOfDimensions()).toBe(state.pca.fetchPCs().numberOfPCs());
+        expect(state.combine_embeddings.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
 
         const path = "TEST_state_combine-embed.h5";
         let fhandle = scran.createNewHDF5File(path);
@@ -121,15 +121,15 @@ test("runAnalysis works correctly (10X)", async () => {
 
         {
             let ncells = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
-            let npcs_rna = state.pca.fetchPCs().numberOfPCs();
+            let npcs_rna = state.rna_pca.fetchPCs().numberOfPCs();
             let npcs_adt = state.adt_pca.fetchPCs().numberOfPCs();
             valkana.validateCombineEmbeddingsState(path, ncells, ["RNA"], npcs_rna + npcs_adt, bakana.kanaFormatVersion);
         }
 
-        let reloaded = combine.unserialize(fhandle, {"RNA": state.pca, "ADT": state.adt_pca});
+        let reloaded = combine.unserialize(fhandle, {"RNA": state.rna_pca, "ADT": state.adt_pca});
         let repcs = reloaded.fetchCombined();
         expect(repcs.owner !== null).toBe(true);
-        expect(reloaded.fetchNumberOfDimensions()).toBe(state.pca.fetchPCs().numberOfPCs());
+        expect(reloaded.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
 
         reloaded.free();
     }
@@ -197,3 +197,41 @@ test("runAnalysis works for ADTs with blocking", async () => {
     // Freeing everyone.
     await bakana.freeAnalysis(state);
 })
+
+test("ADT-only runAnalysis works correctly", async () => {
+    let state = await bakana.createAnalysis();
+    let params = utils.baseParams();
+    let files = { 
+        default: new bakana.TenxMatrixMarketDataset(mtx, feats, "files/datasets/immune_3.0.0-barcodes.tsv.gz", {
+            featureTypeRnaName: null
+        })
+    };
+
+    await bakana.runAnalysis(state, files, params);
+
+    expect(state.rna_quality_control.valid()).toBe(false);
+    expect(state.rna_normalization.valid()).toBe(false);
+    expect(state.rna_pca.valid()).toBe(false);
+    expect(state.adt_quality_control.valid()).toBe(true);
+    expect(state.adt_normalization.valid()).toBe(true);
+    expect(state.adt_pca.valid()).toBe(true);
+
+//    await utils.checkStateResultsAdt(state, { skipBasic: true });
+
+    // Can save and reload.
+    const path = "TEST_state_adt_only.h5";
+    let collected = await bakana.saveAnalysis(state, path);
+    //utils.validateState(path);
+    expect(collected.collected.length).toBe(3);
+    expect(typeof(collected.collected[0])).toBe("string");
+
+    let offsets = utils.mockOffsets(collected.collected);
+    let reloaded = await bakana.loadAnalysis(
+        path, 
+        (offset, size) => offsets[offset]
+    );
+
+    await bakana.freeAnalysis(state);
+    await bakana.freeAnalysis(reloaded);
+})
+

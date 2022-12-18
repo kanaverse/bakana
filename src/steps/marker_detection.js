@@ -1,9 +1,10 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import * as nutils from "./utils/normalization.js";
 import * as markers from "./utils/markers.js";
 import * as filter_module from "./cell_filtering.js";
 import * as choice_module from "./choose_clustering.js";
+import * as rna_norm_module from "./rna_normalization.js";
+import * as adt_norm_module from "./adt_normalization.js";
 
 export const step_name = "marker_detection";
 
@@ -28,10 +29,11 @@ export class MarkerDetectionState {
         }
         this.#filter = filter;
 
-        for (const norm of Object.values(norm_states)) {
-            if (!(norm instanceof nutils.NormalizationStateBase)) {
-                throw new Error("'norm' should be a NormalizationStateBase object");
-            }
+        if (!(norm_states.RNA instanceof rna_norm_module.RnaNormalizationState)) {
+            throw new Error("'norm_states.RNA' should be an RnaNormalizationState object");
+        }
+        if (!(norm_states.ADT instanceof adt_norm_module.AdtNormalizationState)) {
+            throw new Error("'norm_states.ADT' should be an AdtNormalizationState object");
         }
         this.#norm_states = norm_states;
 
@@ -89,13 +91,14 @@ export class MarkerDetectionState {
      */
     compute(lfc_threshold, compute_auc) {
         this.changed = false;
+        let changed_params = (lfc_threshold !== this.#parameters.lfc_threshold || compute_auc !== this.#parameters.compute_auc);
 
         for (const [k, v] of Object.entries(this.#norm_states)) {
             if (!v.valid()) {
                 continue;
             }
 
-            if (v.changed || this.#choice.changed || lfc_threshold !== this.#parameters.lfc_threshold || compute_auc != this.#parameters.compute_auc) {
+            if (this.#choice.changed || v.changed || changed_params) {
                 var mat = v.fetchNormalizedMatrix();
                 var clusters = this.#choice.fetchClusters();
                 var block = this.#filter.fetchFilteredBlock();
@@ -211,10 +214,10 @@ export class MarkerDetectionState {
         // No need to free this afterwards; we don't own the normalized matrices anyway.
         let matrices = new scran.MultiMatrix;
         for (const [modality, state] of Object.entries(this.#norm_states)) {
-            let curmat = state.fetchNormalizedMatrix();
-            if (curmat !== null) {
-                matrices.add(modality, curmat);
+            if (!state.valid()) {
+                continue;
             }
+            matrices.add(modality, state.fetchNormalizedMatrix());
         }
 
         if (!("versus" in this.#cache)) {

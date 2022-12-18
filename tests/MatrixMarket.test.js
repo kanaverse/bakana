@@ -37,9 +37,9 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     let res = await bakana.runAnalysis(state, files, params, { startFun: started, finishFun: finished });
 
     // Check that the callbacks are actually called.
-    expect(attempts.has("quality_control")).toBe(true);
-    expect(attempts.has("pca")).toBe(true);
-    expect(completed.has("pca")).toBe(true);
+    expect(attempts.has("rna_quality_control")).toBe(true);
+    expect(attempts.has("rna_pca")).toBe(true);
+    expect(completed.has("rna_pca")).toBe(true);
     expect(completed.has("feature_selection")).toBe(true);
     expect(completed.has("cell_labelling")).toBe(true);
 
@@ -139,7 +139,7 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
 
     // No annotations, so no mitochondrial proportions.
     expect(state.inputs.fetchFeatureAnnotations()["RNA"].numberOfColumns()).toBe(0);
-    expect(state.quality_control.fetchFilters().thresholdsSubsetProportions()[0]).toBe(0);
+    expect(state.rna_quality_control.fetchFilters().thresholdsSubsetProportions()[0]).toBe(0);
 
     // Saving and loading.
     const path = "TEST_state_MatrixMarket.h5";

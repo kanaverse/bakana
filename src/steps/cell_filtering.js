@@ -1,19 +1,20 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import * as qcutils from "./utils/quality_control.js";
+import * as rna_qc_module from "./rna_quality_control.js";
+import * as adt_qc_module from "./adt_quality_control.js";
 import * as inputs_module from "./inputs.js";
 
 export const step_name = "cell_filtering";
 
-function findUsefulUpstreamStates(states, msg) {
-    let is_valid = utils.findValidUpstreamStates(states, msg);
-    let useful = [];
-    for (const v of is_valid) {
-        if (!states[v].skipped()) {
-            useful.push(v);
+function find_usable_upstream_states(qc_states) {
+    let tmp = utils.findValidUpstreamStates(qc_states);
+    let to_use = [];
+    for (const k of tmp) {
+        if (!qc_states[k].skipped()) {
+            to_use.push(qc_states[k]);
         }
     }
-    return useful;
+    return to_use;
 }
 
 /**
@@ -32,14 +33,15 @@ export class CellFilteringState {
 
     constructor(inputs, qc_states, parameters = null, cache = null) {
         if (!(inputs instanceof inputs_module.InputsState)) {
-            throw new Error("'inputs' should be an InputsState");
+            throw new Error("'inputs' should be an InputsState object");
         }
         this.#inputs = inputs;
 
-        for (const v of Object.values(qc_states)) {
-            if (!(v instanceof qcutils.QualityControlStateBase)) {
-                throw new Error("'qc_states' should contain QualityControlStateBase objects");
-            }
+        if (!(qc_states.RNA instanceof rna_qc_module.RnaQualityControlState)) {
+            throw new Error("'qc_states.RNA' should be a RnaQualityControlState object");
+        }
+        if (!(qc_states.ADT instanceof adt_qc_module.AdtQualityControlState)) {
+            throw new Error("'qc_states.ADT' should be a AdtQualityControlState object");
         }
         this.#qc_states = qc_states;
 
@@ -154,22 +156,27 @@ export class CellFilteringState {
     compute() {
         this.changed = false;
 
-        // Checking upstreams.
-        if (this.#inputs.changed) {
+        if (this.#inputs.changed)  {
             this.changed = true;
         }
-        for (const x of Object.values(this.#qc_states)) {
-            if (x.changed) {
-                this.changed = true;
+
+        // Checking upstreams. Need to do this even if it was skipped,
+        // because the act of skipping is itself a possible change.
+        if (!this.changed) {
+            for (const v of Object.values(this.#qc_states)) {
+                if (v.changed) {
+                    this.changed = true;
+                    break;
+                }
             }
         }
 
         if (this.changed) {
-            let to_use = findUsefulUpstreamStates(this.#qc_states, "QC");
+            let to_use = find_usable_upstream_states(this.#qc_states);
 
             if (to_use.length > 0) {
                 let disc_buffer;
-                let first = this.#qc_states[to_use[0]].fetchDiscards({ unsafe: "view" });
+                let first = to_use[0].fetchDiscards();
 
                 if (to_use.length > 1) {
                     // A discard signal in any modality causes the cell to be removed. 
@@ -178,7 +185,7 @@ export class CellFilteringState {
                     disc_arr.fill(0);
 
                     for (const u of to_use) {
-                        this.#qc_states[u].fetchDiscards({ unsafe: "view" }).forEach((y, i) => { disc_arr[i] |= y; });
+                        u.fetchDiscards().forEach((y, i) => { disc_arr[i] |= y; });
                     }
                 } else {
                     // If there's only one valid modality, we just create a view on it
@@ -306,14 +313,13 @@ export function unserialize(handle, inputs, qc_states) {
         } 
 
         if (!("discard_buffer" in cache)) {
-            let to_use = findUsefulUpstreamStates(qc_states, "QC");
+            let to_use = find_usable_upstream_states(qc_states);
 
             if (to_use.length == 1) {
                 // We figure out which upstream QC state contains the discard vector
                 // and create a view on it so that our discard_buffer checks work properly.
                 // (v1 and earlier also implicitly falls in this category.)
-                let use_state = qc_states[to_use[0]];
-                cache.discard_buffer = use_state.fetchDiscards({ unsafe: "view" }).view();
+                cache.discard_buffer = to_use[0].fetchDiscards().view();
             } else if (to_use.length == 0) {
                 // No-op; we don't need to define discard_buffer.
                 ;

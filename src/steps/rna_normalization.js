@@ -1,10 +1,10 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
 import * as nutils from "./utils/normalization.js";
-import * as qc_module from "./quality_control.js";
+import * as qc_module from "./rna_quality_control.js";
 import * as filter_module from "./cell_filtering.js";
 
-export const step_name = "normalization";
+export const step_name = "rna_normalization";
 
 /**
  * This step performs normalization and log-transformation on the QC-filtered matrix from the {@linkplain QualityControlState}.
@@ -13,22 +13,20 @@ export const step_name = "normalization";
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class NormalizationState extends nutils.NormalizationStateBase {
+export class RnaNormalizationState {
     #qc
     #filter;
     #parameters;
     #cache;
 
     constructor(qc, filter, parameters = null, cache = null) {
-        super();
-
-        if (!(qc instanceof qc_module.QualityControlState)) {
-            throw new Error("'filt' should be a State object from './quality_control.js'");
+        if (!(qc instanceof qc_module.RnaQualityControlState)) {
+            throw new Error("'qc' should be a RnaQualityControlState object");
         }
         this.#qc = qc;
 
         if (!(filter instanceof filter_module.CellFilteringState)) {
-            throw new Error("'filt' should be a State object from './cell_filtering.js'");
+            throw new Error("'filter' should be a CellFilteringState object");
         }
         this.#filter = filter;
 
@@ -47,11 +45,13 @@ export class NormalizationState extends nutils.NormalizationStateBase {
      ***************************/
 
     valid() {
-        return true;
+        let filtered = this.#filter.fetchFilteredMatrix();
+        return filtered.has("RNA");
     }
 
     /**
-     * @return {ScranMatrix} A ScranMatrix object containing the normalized expression values.
+     * @return {ScranMatrix} A ScranMatrix object containing the normalized expression values,
+     * available after running {@linkcode RnaNormalizationState#compute compute}.
      */
     fetchNormalizedMatrix() {
         if (!("matrix" in this.#cache)) {
@@ -63,6 +63,7 @@ export class NormalizationState extends nutils.NormalizationStateBase {
     /**
      * @return {Float64WasmArray} Array of length equal to the number of cells, 
      * containing the gene expression size factor for each cell.
+     * This is available after running {@linkcode RnaNormalizationState#compute compute}.
      */
     fetchSizeFactors() {
         return this.#cache.sum_buffer;
@@ -97,7 +98,9 @@ export class NormalizationState extends nutils.NormalizationStateBase {
     compute() {
         this.changed = false;
         if (this.#qc.changed || this.#filter.changed) {
-            this.changed = true;
+            if (this.valid()) {
+                this.changed = true;
+            }
         } 
 
         if (this.changed) {
@@ -127,5 +130,5 @@ export class NormalizationState extends nutils.NormalizationStateBase {
  **************************/
 
 export function unserialize(handle, qc, filter) {
-    return new NormalizationState(qc, filter);
+    return new RnaNormalizationState(qc, filter);
 }

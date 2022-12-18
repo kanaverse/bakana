@@ -18,7 +18,7 @@ export function baseParams() {
     let output = bakana.analysisDefaults();
 
     // Cut down on the work.
-    output.pca.num_pcs = 10;
+    output.rna_pca.num_pcs = 10;
 
     // Avoid getting held up by pointless iterations.
     output.tsne.iterations = 10;
@@ -168,7 +168,7 @@ export async function checkStateResultsBase(state, { mimic = false } = {}) {
 
     // Quality control:
     {
-        let metres = state.quality_control.fetchMetrics();
+        let metres = state.rna_quality_control.fetchMetrics();
         expect(metres instanceof scran.PerCellQCMetricsResults).toBe(true);
 
         let sumvec = metres.sums();
@@ -176,7 +176,7 @@ export async function checkStateResultsBase(state, { mimic = false } = {}) {
         let ncells = state.inputs.fetchCountMatrix().numberOfColumns();
         expect(sumvec.length).toBe(ncells);
 
-        let filtres = state.quality_control.fetchFilters();
+        let filtres = state.rna_quality_control.fetchFilters();
         expect(filtres.discardOverall().length).toEqual(ncells);
         if (!mimic) {
             expect(filtres instanceof scran.PerCellQCFiltersResults).toBe(true);
@@ -187,7 +187,7 @@ export async function checkStateResultsBase(state, { mimic = false } = {}) {
 
     // Cell filtering:
     {
-        let detvec = state.quality_control.fetchMetrics().detected();
+        let detvec = state.rna_quality_control.fetchMetrics().detected();
         expect(detvec.length).toBeGreaterThan(nfiltered);
         let refiltered = state.cell_filtering.applyFilter(detvec);
         expect(refiltered.length).toEqual(nfiltered);
@@ -207,12 +207,12 @@ export async function checkStateResultsBase(state, { mimic = false } = {}) {
 
     // Normalization:
     {
-        let normed = state.normalization.fetchNormalizedMatrix();
+        let normed = state.rna_normalization.fetchNormalizedMatrix();
         // expect(normed instanceof scran.ScranMatrix).toBe(true);
         expect(normed.numberOfColumns()).toBe(nfiltered);
         expect(normed.numberOfRows()).toBe(ngenes);
 
-        let sf = state.normalization.fetchSizeFactors();
+        let sf = state.rna_normalization.fetchSizeFactors();
         expect(sf instanceof wa.Float64WasmArray).toBe(true);
         expect(sf.length).toBe(nfiltered);
     }
@@ -234,12 +234,12 @@ export async function checkStateResultsBase(state, { mimic = false } = {}) {
 
     // PCA:
     {
-        let pcs = state.pca.fetchPCs();
+        let pcs = state.rna_pca.fetchPCs();
         if (!mimic) {
             expect(pcs instanceof scran.RunPCAResults).toBe(true);
         }
         expect(pcs.numberOfCells()).toBe(nfiltered);
-        expect(pcs.numberOfPCs()).toBe(state.pca.fetchParameters().num_pcs);
+        expect(pcs.numberOfPCs()).toBe(state.rna_pca.fetchParameters().num_pcs);
     }
 
     // Combine embeddings:
@@ -248,7 +248,7 @@ export async function checkStateResultsBase(state, { mimic = false } = {}) {
         expect(nc).toEqual(nfiltered);
 
         let nd = state.combine_embeddings.fetchNumberOfDimensions();
-        expect(nd).toBeGreaterThanOrEqual(state.pca.fetchPCs().numberOfPCs());
+        expect(nd).toBeGreaterThanOrEqual(state.rna_pca.fetchPCs().numberOfPCs());
 
         let com = state.combine_embeddings.fetchCombined();
         expect(com.length).toEqual(nc * nd);
@@ -326,7 +326,7 @@ export async function checkStateResultsSimple(state, { skipBasic = false, mimic 
 
     // Quality control.
     {
-        let filtres = state.quality_control.fetchFilters();
+        let filtres = state.rna_quality_control.fetchFilters();
         expect(filtres.thresholdsSums().length).toBe(1);
     }
 
@@ -338,7 +338,7 @@ export async function checkStateResultsSimple(state, { skipBasic = false, mimic 
     // Combined embeddings (no-op).
     {
         let nd = state.combine_embeddings.fetchNumberOfDimensions();
-        expect(nd).toEqual(state.pca.fetchPCs().numberOfPCs());
+        expect(nd).toEqual(state.rna_pca.fetchPCs().numberOfPCs());
         let com = state.combine_embeddings.fetchCombined();
         expect(com.owner).toEqual({});
     }
@@ -358,8 +358,8 @@ export async function checkStateResultsSimple(state, { skipBasic = false, mimic 
     // ADTs are no-ops.
     {
         expect(state.adt_quality_control.fetchMetrics()).toBeUndefined();
-        expect(state.adt_normalization.fetchSizeFactors()).toBeNull();
-        expect(state.adt_pca.fetchPCs()).toBeNull();
+        expect(state.adt_normalization.fetchSizeFactors()).toBeUndefined();
+        expect(state.adt_pca.fetchPCs()).toBeUndefined();
     }
 
     return;
@@ -389,7 +389,7 @@ export async function checkStateResultsBatched(state, { skipBasic = false, mimic
 
     // Check that multiple QC thresholds exist.
     {
-        let res = state.quality_control.fetchFilters();
+        let res = state.rna_quality_control.fetchFilters();
         let props = res.thresholdsSubsetProportions(0);
         expect(props.length).toEqual(nlevels);
     }
@@ -438,7 +438,7 @@ export async function checkStateResultsAdt(state, { skipBasic = false, mimic = f
     let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
     {
         let rna_only = 0;
-        state.quality_control.fetchDiscards().forEach(x => { rna_only += (x > 0); });
+        state.rna_quality_control.fetchDiscards().forEach(x => { rna_only += (x > 0); });
 
         let adt_only = 0;
         state.adt_quality_control.fetchDiscards().forEach(x => { adt_only += (x > 0); });
@@ -470,7 +470,7 @@ export async function checkStateResultsAdt(state, { skipBasic = false, mimic = f
 
     // Combined embeddings.
     {
-        let rna_dims = state.pca.fetchPCs().numberOfPCs();
+        let rna_dims = state.rna_pca.fetchPCs().numberOfPCs();
         let adt_dims = state.adt_pca.fetchPCs().numberOfPCs();
         expect(state.combine_embeddings.fetchNumberOfDimensions()).toEqual(rna_dims + adt_dims);
         expect(state.combine_embeddings.fetchNumberOfCells()).toEqual(nfiltered);
@@ -531,14 +531,14 @@ export async function compareStates(left, right) {
 
     // Quality control:
     {
-        let lmetrics = left.quality_control.fetchMetrics();
-        let rmetrics = right.quality_control.fetchMetrics();
+        let lmetrics = left.rna_quality_control.fetchMetrics();
+        let rmetrics = right.rna_quality_control.fetchMetrics();
         expect(lmetrics.sums()).toEqual(rmetrics.sums());
         expect(lmetrics.detected()).toEqual(rmetrics.detected());
         expect(lmetrics.subsetProportions(0)).toEqual(rmetrics.subsetProportions(0));
 
-        let lfilters = left.quality_control.fetchFilters();
-        let rfilters = right.quality_control.fetchFilters();
+        let lfilters = left.rna_quality_control.fetchFilters();
+        let rfilters = right.rna_quality_control.fetchFilters();
         expect(lfilters.discardOverall()).toEqual(rfilters.discardOverall());
         expect(lfilters.thresholdsSums()).toEqual(rfilters.thresholdsSums());
     }
@@ -565,16 +565,16 @@ export async function compareStates(left, right) {
 
     // Normalization:
     {
-        let lmat = left.normalization.fetchNormalizedMatrix();
-        let rmat = right.normalization.fetchNormalizedMatrix();
+        let lmat = left.rna_normalization.fetchNormalizedMatrix();
+        let rmat = right.rna_normalization.fetchNormalizedMatrix();
 
         let NR = lmat.numberOfRows();
         expect(NR).toEqual(rmat.numberOfRows());
         expect(lmat.row(0)).toEqual(rmat.row(0));
         expect(lmat.row(NR-1)).toEqual(rmat.row(NR-1));
 
-        let lsf = left.normalization.fetchSizeFactors();
-        let rsf = right.normalization.fetchSizeFactors();
+        let lsf = left.rna_normalization.fetchSizeFactors();
+        let rsf = right.rna_normalization.fetchSizeFactors();
         expect(lsf.array()).toEqual(rsf.array());
     }
 
@@ -593,8 +593,8 @@ export async function compareStates(left, right) {
 
     // PCA:
     {
-        let lpcs = left.pca.fetchPCs();
-        let rpcs = right.pca.fetchPCs();
+        let lpcs = left.rna_pca.fetchPCs();
+        let rpcs = right.rna_pca.fetchPCs();
         expect(lpcs.principalComponents()).toEqual(rpcs.principalComponents());
 
         let lvp = lpcs.varianceExplained();

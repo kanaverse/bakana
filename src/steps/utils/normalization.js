@@ -8,10 +8,7 @@ export function subsetSums(qc, filter, mat, cache, name) {
     let output = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", cache, name);
     let discards = filter.fetchDiscards();
 
-    // unsafe, so no more Wasm allocations past this point. Unfortunately, we
-    // can't use copy: view here, because the sums in the QC state may not be a
-    // WasmArray if it's a reloaded mimic, in which case a copy: view request
-    // would fail. Hence, copy: false.
+    // unsafe, so no more Wasm allocations past this point. 
     let sums = qc.fetchMetrics().sums({ copy: false }); 
 
     if (discards == null) {
@@ -35,5 +32,3 @@ export function subsetSums(qc, filter, mat, cache, name) {
 
     return output;
 }
-
-export class NormalizationStateBase {}

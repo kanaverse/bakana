@@ -13,15 +13,13 @@ export const step_name = "adt_normalization";
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  */
-export class AdtNormalizationState extends nutils.NormalizationStateBase {
+export class AdtNormalizationState {
     #qc;
     #filter;
     #parameters;
     #cache;
 
     constructor(qc, filter, parameters = null, cache = null) {
-        super();
-
         if (!(qc instanceof qc_module.AdtQualityControlState)) {
             throw new Error("'qc' should be a AdtQualityControlState object");
         }
@@ -35,8 +33,6 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
         this.changed = false;
-
-        this.#parameters.target_matrix = "ADT";
     }
 
     free() {
@@ -51,23 +47,17 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
 
     valid() {
         let filtered = this.#filter.fetchFilteredMatrix();
-        return filtered.has(this.#parameters.target_matrix);
+        return filtered.has("ADT");
     }
 
     /**
-     * @return {?ScranMatrix} A ScranMatrix object containing the normalized ADT values,
+     * @return {ScranMatrix} A ScranMatrix object containing the normalized ADT values,
      * available after running {@linkcode AdtNormalizationState#compute compute}.
-     * Alternatively `null`, if no ADTs are present in the dataset.
      */
     fetchNormalizedMatrix() {
-        if (!this.valid()) {
-            return null;
-        }
-
         if (!("matrix" in this.#cache)) {
             this.#raw_compute();
         }
-
         return this.#cache.matrix;
     }
 
@@ -75,37 +65,24 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
      * @return {?Float64WasmArray} Array of length equal to the number of cells, 
      * containing the ADT-derived size factor for each cell in the (QC-filtered) dataset.
      * This is available after running {@linkcode AdtNormalizationState#compute compute}.
-     * Alternatively `null`, if no ADTs are present in the dataset.
      */
     fetchSizeFactors() {
-        if (!this.valid()) {
-            return null;
-        } else {
-            return this.#cache.sf_buffer;
-        }
+        return this.#cache.sf_buffer;
     }
 
     /**
      * @return {object} Object containing the parameters.
      */
     fetchParameters() {
-        let output = { ...this.#parameters }; // avoid pass-by-reference links.
-        delete output.target_matrix;
-        return output;
+        return { ...this.#parameters }; // avoid pass-by-reference links.
     }
 
     /***************************
      ******** Compute **********
      ***************************/
 
-    useRNAMatrix() {
-        // For testing only!
-        this.#parameters.target_matrix = "RNA";
-        return;
-    }
-
     #raw_compute() {
-        var mat = this.#filter.fetchFilteredMatrix().get(this.#parameters.target_matrix);
+        var mat = this.#filter.fetchFilteredMatrix().get("ADT");
         var block = this.#filter.fetchFilteredBlock();
 
         var buffer = this.#cache.sf_buffer;
@@ -131,12 +108,18 @@ export class AdtNormalizationState extends nutils.NormalizationStateBase {
 
         if (this.#qc.changed || this.#filter.changed || num_pcs !== this.#parameters.num_pcs || num_clusters != this.#parameters.num_clusters) {
             if (this.valid()) {
-                var mat = this.#filter.fetchFilteredMatrix().get(this.#parameters.target_matrix);
+                var mat = this.#filter.fetchFilteredMatrix().get("ADT");
                 let total_buffer = nutils.subsetSums(this.#qc, this.#filter, mat, this.#cache, "total_buffer");
 
                 var block = this.#filter.fetchFilteredBlock();
                 var sf_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "sf_buffer");
-                scran.quickAdtSizeFactors(mat, { totals: total_buffer, block: block, buffer: sf_buffer, numberOfPCs: num_pcs, numberOfClusters: num_clusters });
+                scran.quickAdtSizeFactors(mat, { 
+                    totals: total_buffer, 
+                    block: block, 
+                    buffer: sf_buffer, 
+                    numberOfPCs: num_pcs, 
+                    numberOfClusters: num_clusters 
+                });
 
                 this.changed = true;
             }

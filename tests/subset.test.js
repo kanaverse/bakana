@@ -370,7 +370,7 @@ test("end-to-end run works with subsetting", async () => {
 
     let res = await bakana.runAnalysis(state, files, params);
     expect(state.inputs.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
-    expect(state.quality_control.fetchDiscards().length).toBe(subset.length);
+    expect(state.rna_quality_control.fetchDiscards().length).toBe(subset.length);
 
     await utils.checkStateResultsBase(state);
 
