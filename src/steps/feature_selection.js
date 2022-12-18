@@ -40,6 +40,10 @@ export class FeatureSelectionState {
      ******** Getters **********
      ***************************/
 
+    valid() {
+        return this.#norm.valid();
+    }
+
     /**
      * @return {ModelGeneVarResults} Variance modelling results,
      * available after running {@linkcode FeatureSelectionState#compute compute}.
@@ -82,15 +86,18 @@ export class FeatureSelectionState {
         if (this.#norm.changed || span != this.#parameters.span) {
             utils.freeCache(this.#cache.results);
 
-            let mat = this.#norm.fetchNormalizedMatrix();
-            let block = this.#filter.fetchFilteredBlock();
-            this.#cache.results = scran.modelGeneVar(mat, { span: span, block: block });
+            if (this.valid()) {
+                let mat = this.#norm.fetchNormalizedMatrix();
+                let block = this.#filter.fetchFilteredBlock();
+                this.#cache.results = scran.modelGeneVar(mat, { span: span, block: block });
 
-            this.#cache.sorted_residuals = this.#cache.results.residuals().slice(); // a separate copy.
-            this.#cache.sorted_residuals.sort();
+                this.#cache.sorted_residuals = this.#cache.results.residuals().slice(); // a separate copy.
+                this.#cache.sorted_residuals.sort();
+
+                this.changed = true;
+            }
 
             this.#parameters.span = span;
-            this.changed = true;
         }
 
         return;
@@ -109,16 +116,19 @@ export class FeatureSelectionState {
         }
 
         {
-            let res = {
-                "means": this.#cache.results.means({ copy: "hdf5" }),
-                "vars": this.#cache.results.variances({ copy: "hdf5" }),
-                "fitted": this.#cache.results.fitted({ copy: "hdf5" }),
-                "resids": this.#cache.results.residuals({copy: "hdf5" })
-            };
-
             let rhandle = ghandle.createGroup("results"); 
-            for (const [k, v] of Object.entries(res)) {
-                rhandle.writeDataSet(k, "Float64", null, v);
+
+            if (this.valid()) {
+                let res = {
+                    "means": this.#cache.results.means({ copy: "hdf5" }),
+                    "vars": this.#cache.results.variances({ copy: "hdf5" }),
+                    "fitted": this.#cache.results.fitted({ copy: "hdf5" }),
+                    "resids": this.#cache.results.residuals({copy: "hdf5" })
+                };
+
+                for (const [k, v] of Object.entries(res)) {
+                    rhandle.writeDataSet(k, "Float64", null, v);
+                }
             }
         }
     }
@@ -142,25 +152,27 @@ export function unserialize(handle, permuter, filter, norm) {
     let cache = {};
     {
         let rhandle = ghandle.open("results");
-        let reloaded = {};
 
-        // Possibly permuting it to match the new permutation order;
-        // see 'unserialize' in 'inputs.js'.
-        for (const key of [ "means", "vars", "fitted", "resids" ]) {
-            let value = rhandle.open(key, { load: true }).values;
-            permuter(value);
-            reloaded[key] = value;
+        if ("means" in rhandle.children) {
+            // Possibly permuting it to match the new permutation order;
+            // see 'unserialize' in 'inputs.js'.
+            let reloaded = {};
+            for (const key of [ "means", "vars", "fitted", "resids" ]) {
+                let value = rhandle.open(key, { load: true }).values;
+                permuter(value);
+                reloaded[key] = value;
+            }
+
+            cache.results = scran.emptyModelGeneVarResults(reloaded.means.length, 1);
+            cache.results.means({ copy : false }).set(reloaded.means);
+            cache.results.variances({ copy : false }).set(reloaded.vars);
+            cache.results.fitted({ copy : false }).set(reloaded.fitted);
+            cache.results.residuals({ copy : false }).set(reloaded.resids);
+
+            cache.sorted_residuals = cache.results.residuals({ copy: true });
+            cache.sorted_residuals.sort();
         }
-
-        cache.results = scran.emptyModelGeneVarResults(reloaded.means.length, 1);
-        cache.results.means({ copy : false }).set(reloaded.means);
-        cache.results.variances({ copy : false }).set(reloaded.vars);
-        cache.results.fitted({ copy : false }).set(reloaded.fitted);
-        cache.results.residuals({ copy : false }).set(reloaded.resids);
     }
-
-    cache.sorted_residuals = cache.results.residuals({ copy: true });
-    cache.sorted_residuals.sort();
 
     return new FeatureSelectionState(filter, norm, parameters, cache);
 }

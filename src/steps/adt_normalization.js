@@ -51,19 +51,13 @@ export class AdtNormalizationState {
     }
 
     /**
-     * @return {?ScranMatrix} A ScranMatrix object containing the normalized ADT values,
+     * @return {ScranMatrix} A ScranMatrix object containing the normalized ADT values,
      * available after running {@linkcode AdtNormalizationState#compute compute}.
-     * Alternatively `null`, if no ADTs are present in the dataset.
      */
     fetchNormalizedMatrix() {
-        if (!this.valid()) {
-            return null;
-        }
-
         if (!("matrix" in this.#cache)) {
             this.#raw_compute();
         }
-
         return this.#cache.matrix;
     }
 
@@ -71,14 +65,9 @@ export class AdtNormalizationState {
      * @return {?Float64WasmArray} Array of length equal to the number of cells, 
      * containing the ADT-derived size factor for each cell in the (QC-filtered) dataset.
      * This is available after running {@linkcode AdtNormalizationState#compute compute}.
-     * Alternatively `null`, if no ADTs are present in the dataset.
      */
     fetchSizeFactors() {
-        if (!this.valid()) {
-            return null;
-        } else {
-            return this.#cache.sf_buffer;
-        }
+        return this.#cache.sf_buffer;
     }
 
     /**

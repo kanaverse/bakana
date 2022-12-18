@@ -879,8 +879,15 @@ export async function unserialize(handle, embeddedLoader) {
     let solofile = (fohandle.shape.length == 0);
 
     if (solofile) {
+        let solo_options = [];
+        if ("options" in phandle.children) {
+            solo_options = JSON.parse(phandle.open("options", { load: true }).values[0]);
+        } else {
+            solo_options = {};
+        }
+
         let format = fohandle.values[0];
-        readers["default"] = await unserialize_Dataset(format, all_files, {}, embeddedLoader);
+        readers["default"] = await unserialize_Dataset(format, all_files, solo_options, embeddedLoader);
         if ("sample_factor" in phandle.children) {
             parameters.sample_factor = phandle.open("sample_factor", { load: true }).values[0];
         } else {

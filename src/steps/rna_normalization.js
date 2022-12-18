@@ -50,7 +50,8 @@ export class RnaNormalizationState {
     }
 
     /**
-     * @return {ScranMatrix} A ScranMatrix object containing the normalized expression values.
+     * @return {ScranMatrix} A ScranMatrix object containing the normalized expression values,
+     * available after running {@linkcode RnaNormalizationState#compute compute}.
      */
     fetchNormalizedMatrix() {
         if (!("matrix" in this.#cache)) {
@@ -62,6 +63,7 @@ export class RnaNormalizationState {
     /**
      * @return {Float64WasmArray} Array of length equal to the number of cells, 
      * containing the gene expression size factor for each cell.
+     * This is available after running {@linkcode RnaNormalizationState#compute compute}.
      */
     fetchSizeFactors() {
         return this.#cache.sum_buffer;
@@ -96,7 +98,9 @@ export class RnaNormalizationState {
     compute() {
         this.changed = false;
         if (this.#qc.changed || this.#filter.changed) {
-            this.changed = true;
+            if (this.valid()) {
+                this.changed = true;
+            }
         } 
 
         if (this.changed) {

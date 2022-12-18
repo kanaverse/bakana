@@ -18,13 +18,25 @@ export function reportFeatures(rawFeatures, typeField) {
     }
 }
 
+function is_subset_noop(indices, full_length) {
+    if (indices.length != full_length) {
+        return false;
+    }
+    for (var i = 0; i < full_length; i++) {
+        if (i !== indices[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, featureTypeMapping, featureTypeDefault) {
     let output = { matrix: new scran.MultiMatrix };
 
     try {
         let out_mat = loaded.matrix;
         let out_ids = loaded.row_ids;
-        output.matrix.add(featureTypeDefault, out_mat);
+        output.matrix.add("", out_mat);
 
         let current_features;
         if (out_ids !== null) {
@@ -47,13 +59,14 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
             }
 
             let type_keys = Object.keys(by_type);
+            let skip_subset = is_subset_noop(type_keys[0], out_mat.numberOfRows());
 
-            if (type_keys.length > 1) {
+            if (type_keys.length > 1 || !skip_subset) {
                 let replacement = new scran.MultiMatrix({ store: scran.splitRows(out_mat, by_type) });
                 scran.free(output.matrix);
                 output.matrix = replacement;
             } else {
-                output.matrix.rename(featureTypeDefault, type_keys[0]);
+                output.matrix.rename("", type_keys[0]);
             }
 
             delete current_features[typeField];
@@ -61,6 +74,7 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
             output.row_ids = bioc.SPLIT(out_ids, by_type);
 
         } else {
+            output.matrix.rename("", featureTypeDefault);
             output.row_ids = create_solo_default_object(out_ids, featureTypeDefault);
             output.features = create_solo_default_object(current_features, featureTypeDefault);
         }

@@ -73,6 +73,11 @@ export class CellLabellingState {
      ******** Getters **********
      ***************************/
 
+    valid() {
+        let mat = this.#inputs.fetchCountMatrix();
+        return mat.has("RNA");
+    }
+
     /**
      * @return {object} Object containing the parameters.
      */
@@ -229,121 +234,125 @@ export class CellLabellingState {
      * @return The object is updated with the new results.
      */
     compute(human_references, mouse_references) {
+        this.changed = false;
+
         if (!this.#inputs.changed && 
             !this.#markers.changed &&
             compare_arrays(human_references, this.#parameters.human_references) &&
             compare_arrays(mouse_references, this.#parameters.mouse_references)) 
         {
-            this.changed = false;
             return new Promise(resolve => resolve(null));
         }
 
-        if (this.#inputs.changed || !("features" in this.#cache)) {
-            let feat_out = choose_features(this.#inputs);
-            this.#cache.features = feat_out.features;
-            this.#cache.feature_details = feat_out.details;
-        }
-
-        // null species results in empty 'valid' and no further ops downstream.
-        let species = (this.#cache.feature_details !== null ? this.#cache.feature_details.species : null);
-
-        // Take ownership to avoid pass-by-reference shenanigans.
-        human_references = human_references.slice();
-        mouse_references = mouse_references.slice();
-
-        // Fetching all of the references. This is effectively a no-op
-        // if the inputs have not changed, so we do it to fill up 'valid'.
-        let valid = {};
-        if (species == "human") {
-            for (const ref of human_references) {
-                valid[ref] = this.#build_reference(ref, "human", this.#inputs.changed);
-            }
-        } else if (species == "mouse") {
-            for (const ref of mouse_references) {
-                valid[ref] = this.#build_reference(ref, "mouse", this.#inputs.changed);
-            }
-        }
-
-        // Creating a column-major array of mean vectors for each cluster.
-        let cluster_means = this.#cache.buffer;
-        let ngenes;
-        let ngroups;
-        if (this.#cache.features !== null) {
-            ngenes = this.#cache.features.length;
-            let marker_results = this.#markers.fetchResults()["RNA"];
-            ngroups = marker_results.numberOfGroups();
-
-            if (this.#markers.changed || typeof cluster_means === "undefined") {
-                cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", this.#cache);
-
-                for (var g = 0; g < ngroups; g++) {
-                    let means = marker_results.means(g, { copy: false }); // Warning: direct view in wasm space - be careful.
-                    let cluster_array = cluster_means.array();
-                    cluster_array.set(means, g * ngenes);
-                }
-            }
-        }
-
-        // Running classifications on the cluster means. Note that compute() itself
-        // cannot be async, as we need to make sure 'changed' is set and available for
-        // downstream steps; hence the explicit then().
         let promises = [];
-        this.#cache.results = {};
-        for (const [key, val] of Object.entries(valid)) {
-            let p = val.then(ref => {
-                let output = scran.labelCells(cluster_means, ref.built.raw, { numberOfFeatures: ngenes, numberOfCells: ngroups });
-                let labels = [];
-                for (const o of output) {
-                    labels.push(ref.loaded.labels[o]);
+        if (this.valid()) {
+            if (this.#inputs.changed || !("features" in this.#cache)) {
+                let feat_out = choose_features(this.#inputs);
+                this.#cache.features = feat_out.features;
+                this.#cache.feature_details = feat_out.details;
+            }
+
+            // null species results in empty 'valid' and no further ops downstream.
+            let species = (this.#cache.feature_details !== null ? this.#cache.feature_details.species : null);
+
+            // Take ownership to avoid pass-by-reference shenanigans.
+            human_references = human_references.slice();
+            mouse_references = mouse_references.slice();
+
+            // Fetching all of the references. This is effectively a no-op
+            // if the inputs have not changed, so we do it to fill up 'valid'.
+            let valid = {};
+            if (species == "human") {
+                for (const ref of human_references) {
+                    valid[ref] = this.#build_reference(ref, "human", this.#inputs.changed);
                 }
-                return labels;
-            });
-            this.#cache.results[key] = p;
-            promises.push(p);
-        }
+            } else if (species == "mouse") {
+                for (const ref of mouse_references) {
+                    valid[ref] = this.#build_reference(ref, "mouse", this.#inputs.changed);
+                }
+            }
 
-        // Performing additional integration, if necessary. We don't really 
-        // need this if there's only one reference.
-        let used_refs = Object.keys(valid);
-        if (used_refs.length > 1) {
-            if (this.#inputs.changed || !compare_arrays(used_refs, this.#cache.used) || !("integrated" in this.#cache)) {
-                let used_vals = Object.values(valid);
+            // Creating a column-major array of mean vectors for each cluster.
+            let cluster_means = this.#cache.buffer;
+            let ngenes;
+            let ngroups;
+            if (this.#cache.features !== null) {
+                ngenes = this.#cache.features.length;
+                let marker_results = this.#markers.fetchResults()["RNA"];
+                ngroups = marker_results.numberOfGroups();
 
-                this.#cache.integrated = Promise.all(used_vals)
-                    .then(arr => {
-                        let loaded = arr.map(x => x.loaded.raw);
-                        let feats = arr.map(x => x.built.features);
-                        let built = arr.map(x => x.built.raw);
-                        return scran.integrateLabelledReferences(this.#cache.features, loaded, feats, built);
+                if (this.#markers.changed || typeof cluster_means === "undefined") {
+                    cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", this.#cache);
+
+                    for (var g = 0; g < ngroups; g++) {
+                        let means = marker_results.means(g, { copy: false }); // Warning: direct view in wasm space - be careful.
+                        let cluster_array = cluster_means.array();
+                        cluster_array.set(means, g * ngenes);
+                    }
+                }
+            }
+
+            // Running classifications on the cluster means. Note that compute() itself
+            // cannot be async, as we need to make sure 'changed' is set and available for
+            // downstream steps; hence the explicit then().
+            this.#cache.results = {};
+            for (const [key, val] of Object.entries(valid)) {
+                let p = val.then(ref => {
+                    let output = scran.labelCells(cluster_means, ref.built.raw, { numberOfFeatures: ngenes, numberOfCells: ngroups });
+                    let labels = [];
+                    for (const o of output) {
+                        labels.push(ref.loaded.labels[o]);
+                    }
+                    return labels;
+                });
+                this.#cache.results[key] = p;
+                promises.push(p);
+            }
+
+            // Performing additional integration, if necessary. We don't really 
+            // need this if there's only one reference.
+            let used_refs = Object.keys(valid);
+            if (used_refs.length > 1) {
+                if (this.#inputs.changed || !compare_arrays(used_refs, this.#cache.used) || !("integrated" in this.#cache)) {
+                    let used_vals = Object.values(valid);
+
+                    this.#cache.integrated = Promise.all(used_vals)
+                        .then(arr => {
+                            let loaded = arr.map(x => x.loaded.raw);
+                            let feats = arr.map(x => x.built.features);
+                            let built = arr.map(x => x.built.raw);
+                            return scran.integrateLabelledReferences(this.#cache.features, loaded, feats, built);
+                        }
+                    );
+                }
+
+                let p = this.#cache.integrated
+                    .then(async (integrated) => {
+                        let results = [];
+                        for (const key of used_refs) {
+                            results.push(await this.#cache.results[key]);
+                        }
+
+                        let out = scran.integrateCellLabels(cluster_means, results, integrated, { numberOfFeatures: ngenes, numberOfCells: ngroups });
+                        let as_names = [];
+                        out.forEach(i => {
+                            as_names.push(used_refs[i]);
+                        });
+                        return as_names;
                     }
                 );
+                this.#cache.integrated_results = p;
+                promises.push(p);
+            } else {
+                delete this.#cache.integrated_results;
             }
 
-            let p = this.#cache.integrated
-                .then(async (integrated) => {
-                    let results = [];
-                    for (const key of used_refs) {
-                        results.push(await this.#cache.results[key]);
-                    }
-
-                    let out = scran.integrateCellLabels(cluster_means, results, integrated, { numberOfFeatures: ngenes, numberOfCells: ngroups });
-                    let as_names = [];
-                    out.forEach(i => {
-                        as_names.push(used_refs[i]);
-                    });
-                    return as_names;
-                }
-            );
-            this.#cache.integrated_results = p;
-            promises.push(p);
-        } else {
-            delete this.#cache.integrated_results;
+            this.#cache.used = used_refs;
+            this.changed = true;
         }
 
-        this.#cache.used = used_refs;
         this.#parameters.human_references = human_references;
         this.#parameters.mouse_references = mouse_references;
-        this.changed = true;
 
         return Promise.all(promises).then(x => null);
     }
@@ -363,15 +372,17 @@ export class CellLabellingState {
 
         {
             let rhandle = ghandle.createGroup("results");
-            let res = await this.fetchResults();
+            if (this.valid()) {
+                let res = await this.fetchResults();
 
-            let perhandle = rhandle.createGroup("per_reference");
-            for (const [key, val] of Object.entries(res.per_reference)) {
-                perhandle.writeDataSet(key, "String", null, val);
-            }
+                let perhandle = rhandle.createGroup("per_reference");
+                for (const [key, val] of Object.entries(res.per_reference)) {
+                    perhandle.writeDataSet(key, "String", null, val);
+                }
 
-            if ("integrated" in res) {
-                rhandle.writeDataSet("integrated", "String", null, res.integrated);
+                if ("integrated" in res) {
+                    rhandle.writeDataSet("integrated", "String", null, res.integrated);
+                }
             }
         }
 
@@ -446,12 +457,15 @@ export function unserialize(handle, inputs, markers) {
 
         {
             let rhandle = ghandle.open("results");
-            let perhandle = rhandle.open("per_reference");
-            for (const key of Object.keys(perhandle.children)) {
-                cache.results[key] = perhandle.open(key, { load: true }).values;
-            }
-            if ("integrated" in rhandle.children) {
-                cache.integrated_results = rhandle.open("integrated", { load: true }).values;
+
+            if ("per_reference" in rhandle.children) {
+                let perhandle = rhandle.open("per_reference");
+                for (const key of Object.keys(perhandle.children)) {
+                    cache.results[key] = perhandle.open(key, { load: true }).values;
+                }
+                if ("integrated" in rhandle.children) {
+                    cache.integrated_results = rhandle.open("integrated", { load: true }).values;
+                }
             }
         }
     }

@@ -106,13 +106,14 @@ export class RnaQualityControlState {
 
         // If the metrics or filters aren't available and we're not skipping
         // this step, then we need to recreate them.
+        let skip_impossible = skip || !this.valid();
         let unskip_metrics = (!skip && !("metrics" in this.#cache));
         let unskip_filters = (!skip && !("filters" in this.#cache));
 
         if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix || unskip_metrics) {
             utils.freeCache(this.#cache.metrics);
 
-            if (skip) {
+            if (skip_impossible) {
                 // Delete anything existing, as it won't be valid as other
                 // things have changed upstream of us. This ensures that we
                 // can re-run this step later via unskip_metrics = true.
@@ -156,7 +157,7 @@ export class RnaQualityControlState {
         if (this.changed || nmads !== this.#parameters.nmads || unskip_filters) {
             utils.freeCache(this.#cache.filters);
 
-            if (skip) {
+            if (skip_impossible) {
                 // Again, upstream is invalidated.
                 delete this.#cache.filters;
             } else {

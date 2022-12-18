@@ -52,7 +52,7 @@ export class RnaPcaState {
      ***************************/
 
     valid() {
-        return true;
+        return this.#norm.valid();
     }
 
     /**
@@ -96,21 +96,27 @@ export class RnaPcaState {
         this.changed = false;
 
         if (this.#feat.changed || num_hvgs !== this.#parameters.num_hvgs) {
-            choose_hvgs(num_hvgs, this.#feat, this.#cache);
+            if (this.valid()) {
+                choose_hvgs(num_hvgs, this.#feat, this.#cache);
+                this.changed = true;
+            }
+
             this.#parameters.num_hvgs = num_hvgs;
-            this.changed = true;
         }
 
         if (this.changed || this.#norm.changed || num_pcs !== this.#parameters.num_pcs || block_method !== this.#parameters.block_method) { 
-            let sub = this.#cache.hvg_buffer;
-            let block = this.#filter.fetchFilteredBlock();
-            var mat = this.#norm.fetchNormalizedMatrix();
             utils.freeCache(this.#cache.pcs);
-            this.#cache.pcs = scran.runPCA(mat, { features: sub, numberOfPCs: num_pcs, block: block, blockMethod: block_method });
+
+            if (this.valid()) {
+                let sub = this.#cache.hvg_buffer;
+                let block = this.#filter.fetchFilteredBlock();
+                var mat = this.#norm.fetchNormalizedMatrix();
+                this.#cache.pcs = scran.runPCA(mat, { features: sub, numberOfPCs: num_pcs, block: block, blockMethod: block_method });
+                this.changed = true;
+            }
 
             this.#parameters.num_pcs = num_pcs;
             this.#parameters.block_method = block_method;
-            this.changed = true;
         }
 
         return;
@@ -141,17 +147,19 @@ export class RnaPcaState {
         {
             let rhandle = ghandle.createGroup("results");
 
-            let pcs = this.fetchPCs();
-            rhandle.writeDataSet(
-                "pcs", 
-                "Float64", 
-                [pcs.numberOfCells(), pcs.numberOfPCs()], // remember, it's transposed.
-                pcs.principalComponents({ copy: "view" })
-            ); 
+            if (this.valid()) {
+                let pcs = this.fetchPCs();
+                rhandle.writeDataSet(
+                    "pcs", 
+                    "Float64", 
+                    [pcs.numberOfCells(), pcs.numberOfPCs()], // remember, it's transposed.
+                    pcs.principalComponents({ copy: "view" })
+                ); 
 
-            let ve = pcs.varianceExplained();
-            ve.forEach((x, i) => { ve[i] = x/pcs.totalVariance(); });
-            rhandle.writeDataSet("var_exp", "Float64", null, ve);
+                let ve = pcs.varianceExplained();
+                ve.forEach((x, i) => { ve[i] = x/pcs.totalVariance(); });
+                rhandle.writeDataSet("var_exp", "Float64", null, ve);
+            }
         }
     }
 }
@@ -206,17 +214,21 @@ export function unserialize(handle, filter, norm, feat) {
     let output;
     let cache = {};
     try {
-        choose_hvgs(parameters.num_hvgs, feat, cache);
+        if (feat.valid()) {
+            choose_hvgs(parameters.num_hvgs, feat, cache);
 
-        let rhandle = ghandle.open("results");
-        let pcs_handle = rhandle.open("pcs", { load: true });
-        let pcs = pcs_handle.values;
-        let var_exp = rhandle.open("var_exp", { load: true }).values;
+            let rhandle = ghandle.open("results");
+            if ("pcs" in rhandle.children) {
+                let pcs_handle = rhandle.open("pcs", { load: true });
+                let pcs = pcs_handle.values;
+                let var_exp = rhandle.open("var_exp", { load: true }).values;
 
-        cache.pcs = scran.emptyRunPCAResults(pcs_handle.shape[0], pcs_handle.shape[1]);
-        cache.pcs.principalComponents({ copy: false }).set(pcs);
-        cache.pcs.varianceExplained({ copy: false }).set(var_exp);
-        cache.pcs.setTotalVariance(1); // because the file only stores proportions.
+                cache.pcs = scran.emptyRunPCAResults(pcs_handle.shape[0], pcs_handle.shape[1]);
+                cache.pcs.principalComponents({ copy: false }).set(pcs);
+                cache.pcs.varianceExplained({ copy: false }).set(var_exp);
+                cache.pcs.setTotalVariance(1); // because the file only stores proportions.
+            }
+        }
 
         output = new RnaPcaState(filter, norm, feat, parameters, cache);
     } catch (e) {
