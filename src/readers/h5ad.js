@@ -19,10 +19,14 @@ export class H5adDataset {
 
     #countAssayName;
     #featureTypeColumnName;
+
     #featureTypeRnaName;
     #featureTypeAdtName;
+    #featureTypeCrisprName;
+
     #primaryRnaFeatureIdColumn;
     #primaryAdtFeatureIdColumn;
+    #primaryCrisprFeatureIdColumn;
 
     #dump_summary(fun) {
         let files = [{ type: "h5", file: fun(this.#h5_file) }]; 
@@ -31,8 +35,10 @@ export class H5adDataset {
             featureTypeColumnName: this.#featureTypeColumnName,
             featureTypeRnaName: this.#featureTypeRnaName,
             featureTypeAdtName: this.#featureTypeAdtName,
+            featureTypeCrisprName: this.#featureTypeCrisprName,
             primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
-            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn
+            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn,
+            primaryCrisprFeatureIdColumn: this.#primaryCrisprFeatureIdColumn
         };
         return { files, options };
     }
@@ -46,10 +52,21 @@ export class H5adDataset {
      * @param {?string} [options.featureTypeColumnName=null] - See {@linkcode H5adDataset#setFeatureTypeColumnName setFeatureTypeColumnName}.
      * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode H5adDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
      * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode H5adDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
+     * @param {?string} [options.featureTypeCrisprName="CRISPR Guide Capture"] - See {@linkcode H5adDataset#setFeatureTypeCrisprName setFeatureTypeCrisprName}.
      * @param {?(string|number)} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
      * @param {?(string|number)} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
+     * @param {?(string|number)} [options.primaryCrisprFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
      */
-    constructor(h5File, { countAssayName = null, featureTypeColumnName = null, featureTypeRnaName = "Gene Expression", featureTypeAdtName = "Antibody Capture", primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0 } = {}) {
+    constructor(h5File, { 
+        countAssayName = null, 
+        featureTypeColumnName = null, 
+        featureTypeRnaName = "Gene Expression", 
+        featureTypeAdtName = "Antibody Capture", 
+        featureTypeCrisprName = "CRISPR Guide Capture", 
+        primaryRnaFeatureIdColumn = 0, 
+        primaryAdtFeatureIdColumn = 0,
+        primaryCrisprFeatureIdColumn = 0 
+    } = {}) {
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
         } else {
@@ -58,10 +75,14 @@ export class H5adDataset {
 
         this.#countAssayName = countAssayName;
         this.#featureTypeColumnName = featureTypeColumnName;
+        
         this.#featureTypeRnaName = featureTypeRnaName;
         this.#featureTypeAdtName = featureTypeAdtName;
+        this.#featureTypeCrisprName = featureTypeCrisprName;
+
         this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
         this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
+        this.#primaryCrisprFeatureIdColumn = primaryCrisprFeatureIdColumn;
 
         this.clear();
     }
@@ -103,6 +124,15 @@ export class H5adDataset {
     }
 
     /**
+     * @param {?string} name - Name of the feature type for CRISPR guides.
+     * Alternatively `null`, to indicate that no guides are to be loaded.
+     */
+    setFeatureTypeCrisprName(name) {
+        this.#featureTypeCrisprName = name;
+        return;
+    }
+
+    /**
      * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
      * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
@@ -117,6 +147,15 @@ export class H5adDataset {
      */
     setPrimaryAdtFeatureIdColumn(i) {
         this.#primaryAdtFeatureIdColumn = i;
+        return;
+    }
+
+    /**
+     * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     */
+    setPrimaryCrisprFeatureIdColumn(i) {
+        this.#primaryCrisprFeatureIdColumn = i;
         return;
     }
 
@@ -335,11 +374,19 @@ export class H5adDataset {
         }
         let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, chosen_assay);
 
-        let mappings = { RNA: this.#featureTypeRnaName, ADT: this.#featureTypeAdtName };
+        let mappings = { 
+            RNA: this.#featureTypeRnaName, 
+            ADT: this.#featureTypeAdtName,
+            CRISPR: this.#featureTypeCrisprName
+        };
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#featureTypeColumnName, mappings, "RNA");
         output.cells = this.#raw_cells;
 
-        let primaries = { RNA: this.#primaryRnaFeatureIdColumn, ADT: this.#primaryAdtFeatureIdColumn };
+        let primaries = { 
+            RNA: this.#primaryRnaFeatureIdColumn, 
+            ADT: this.#primaryAdtFeatureIdColumn,
+            CRISPR: this.#primaryCrisprFeatureIdColumn
+        };
         futils.decorateWithPrimaryIds(output.features, primaries);
 
         if (!cache) {

@@ -397,10 +397,15 @@ export class SummarizedExperimentDataset {
 
     #rnaCountAssay;
     #adtCountAssay;
+    #crisprCountAssay;
+
     #rnaExperiment;
     #adtExperiment;
+    #crisprExperiment;
+
     #primaryRnaFeatureIdColumn;
     #primaryAdtFeatureIdColumn;
+    #primaryCrisprFeatureIdColumn;
 
     #dump_summary(fun) {
         let files = [{ type: "rds", file: fun(this.#rds_file) }];
@@ -422,12 +427,25 @@ export class SummarizedExperimentDataset {
      * @param {object} [options={}] - Optional parameters.
      * @param {string|number} [options.rnaCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setRnaCountAssay setRnaCountAssay}.
      * @param {string|number} [options.adtCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setAdtCountAssay setAdtCountAssay}.
+     * @param {string|number} [options.crisprCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setCrisprCountAssay setCrisprCountAssay}.
      * @param {?(string|number)} [options.rnaExperiment=""] - See {@linkcode SummarizedExperimentDataset#setRnaExperiment setRnaExperiment}.
      * @param {?(string|number)} [options.adtExperiment="Antibody Capture"] - See {@linkcode SummarizedExperimentDataset#setAdtExperiment setAdtExperiment}.
+     * @param {?(string|number)} [options.crisprExperiment="CRISPR Guide Capture"] - See {@linkcode SummarizedExperimentDataset#setCrisprExperiment setCrisprExperiment}.
      * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
      * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
+     * @param {string|number} [options.primaryCrisprFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
      */
-    constructor(rdsFile, { rnaCountAssay = 0, adtCountAssay = 0, rnaExperiment = "", adtExperiment = "Antibody Capture", primaryRnaFeatureIdColumn = 0, primaryAdtFeatureIdColumn = 0 } = {}) {
+    constructor(rdsFile, { 
+        rnaCountAssay = 0, 
+        adtCountAssay = 0, 
+        crisprCountAssay = 0,
+        rnaExperiment = "", 
+        adtExperiment = "Antibody Capture", 
+        crisprExperiment = "CRISPR Guide Capture",
+        primaryRnaFeatureIdColumn = 0, 
+        primaryAdtFeatureIdColumn = 0,
+        primaryCrisprFeatureIdColumn = 0 
+    } = {}) {
         if (rdsFile instanceof afile.SimpleFile) {
             this.#rds_file = rdsFile;
         } else {
@@ -436,10 +454,15 @@ export class SummarizedExperimentDataset {
 
         this.#rnaCountAssay = rnaCountAssay;
         this.#adtCountAssay = adtCountAssay;
+        this.#crisprCountAssay = crisprCountAssay;
+
         this.#rnaExperiment = rnaExperiment;
         this.#adtExperiment = adtExperiment;
+        this.#crisprExperiment = crisprExperiment;
+
         this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
         this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
+        this.#primaryCrisprFeatureIdColumn = primaryCrisprFeatureIdColumn;
 
         this.clear();
     }
@@ -457,6 +480,14 @@ export class SummarizedExperimentDataset {
      * @param {string|number} i - Name or index of the assay containing the ADT count matrix.
      */
     setAdtCountAssay(i) {
+        this.#adtCountAssay = i;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the assay containing the CRISPR count matrix.
+     */
+    setCrisprCountAssay(i) {
         this.#adtCountAssay = i;
         return;
     }
@@ -480,6 +511,15 @@ export class SummarizedExperimentDataset {
     }
 
     /**
+     * @param {?(string|number)} i - Name or index of the alternative experiment containing CRISPR guide data.
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.
+     */
+    setCrisprExperiment(i) {
+        this.#crisprExperiment = i;
+        return;
+    }
+
+    /**
      * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
      * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
@@ -494,6 +534,15 @@ export class SummarizedExperimentDataset {
      */
     setPrimaryAdtFeatureIdColumn(i) {
         this.#primaryAdtFeatureIdColumn = i;
+        return;
+    }
+
+    /**
+     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     */
+    setPrimaryCrisprFeatureIdColumn(i) {
+        this.#primaryCrisprFeatureIdColumn = i;
         return;
     }
 
@@ -659,7 +708,8 @@ export class SummarizedExperimentDataset {
 
         let mapping = { 
             RNA: { exp: this.#rnaExperiment, assay: this.#rnaCountAssay },
-            ADT: { exp: this.#adtExperiment, assay: this.#adtCountAssay }
+            ADT: { exp: this.#adtExperiment, assay: this.#adtCountAssay },
+            CRISPR: { exp: this.#crisprExperiment, assay: this.#crisprCountAssay }
         };
 
         try {
@@ -693,6 +743,13 @@ export class SummarizedExperimentDataset {
                 output.row_ids[k] = out_ids;
                 output.features[k] = bioc.SLICE(this.#raw_features[name], out_ids);
             }
+
+            let primaries = { 
+                RNA: this.#primaryRnaFeatureIdColumn, 
+                ADT: this.#primaryAdtFeatureIdColumn,
+                CRISPR: this.#primaryCrisprFeatureIdColumn
+            };
+            futils.decorateWithPrimaryIds(output.features, primaries);
 
         } catch (e) {
             scran.free(output.matrix);

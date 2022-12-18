@@ -8,6 +8,7 @@ import * as filters from "./steps/cell_filtering.js";
 
 import * as normalization from "./steps/rna_normalization.js";
 import * as normadt from "./steps/adt_normalization.js";
+import * as normcrispr from "./steps/crispr_normalization.js";
 
 import * as variance from "./steps/feature_selection.js";
 
@@ -38,6 +39,7 @@ const step_qc_adt = qcadt.step_name;
 const step_filter = filters.step_name;
 const step_norm = normalization.step_name;
 const step_norm_adt = normadt.step_name;
+const step_norm_crispr = normcrispr.step_name;
 const step_feat = "feature_selection";
 const step_pca = pca.step_name;
 const step_pca_adt = pcaadt.step_name;
@@ -74,6 +76,7 @@ function create_analysis(input_state) {
 
     output[step_norm] = new normalization.RnaNormalizationState(output[step_qc], output[step_filter]);
     output[step_norm_adt] = new normadt.AdtNormalizationState(output[step_qc_adt], output[step_filter]);
+    output[step_norm_crispr] = new normadt.CrisprNormalizationState(output[step_filter]);
 
     output[step_feat] = new variance.FeatureSelectionState(output[step_filter], output[step_norm]);
 
@@ -91,7 +94,7 @@ function create_analysis(input_state) {
     output[step_snn] = new snn_cluster.SnnGraphClusterState(output[step_neighbors]);
     output[step_choice] = new cluster_choice.ChooseClusteringState(output[step_snn], output[step_kmeans]);
 
-    let norm_states = { "RNA": output[step_norm], "ADT": output[step_norm_adt] };
+    let norm_states = { "RNA": output[step_norm], "ADT": output[step_norm_adt], "CRISPR": output[step_norm_crispr] };
     output[step_markers] = new cluster_markers.MarkerDetectionState(output[step_filter], norm_states, output[step_choice]);
     output[step_labels] = new label_cells.CellLabellingState(output[step_inputs], output[step_markers]);
     output[step_custom] = new custom_markers.CustomSelectionsState(output[step_filter], norm_states);
@@ -545,7 +548,7 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     }
 
     /*** Markers and labels ***/
-    let norm_states = { "RNA": state[step_norm], "ADT": state[step_norm_adt] };
+    let norm_states = { "RNA": state[step_norm], "ADT": state[step_norm_adt], "CRISPR": state[step_norm_crispr] };
     {
         state[step_markers] = cluster_markers.unserialize(handle, permuters, state[step_filter], norm_states, state[step_choice]);
         await quickFun(step_markers);
