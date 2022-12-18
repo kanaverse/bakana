@@ -58,7 +58,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     }
 
     // Basic consistency checks.
-    await utils.checkStateResultsSimple(state);
+    await utils.overlordCheckStandard(state);
     utils.checkClusterVersusMode(state);
     await utils.triggerAnimation(state);
 
@@ -135,7 +135,7 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
     let res = await bakana.runAnalysis(state, minimal_files, params);
 
     // Basic consistency checks.
-    await utils.checkStateResultsSimple(state);
+    await utils.overlordCheckStandard(state);
 
     // No annotations, so no mitochondrial proportions.
     expect(state.inputs.fetchFeatureAnnotations()["RNA"].numberOfColumns()).toBe(0);

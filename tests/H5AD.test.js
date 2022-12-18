@@ -37,7 +37,7 @@ test("runAnalysis works correctly (H5AD)", async () => {
     }
 
     // Basic checks.
-    await utils.checkStateResultsSimple(state);
+    await utils.overlordCheckStandard(state);
     utils.checkClusterVersusMode(state);
     await utils.triggerAnimation(state);
 

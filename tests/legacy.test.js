@@ -12,7 +12,7 @@ test("reanalysis from a v0 analysis works correctly (10X)", async () => {
     // valkana.validateState(h5path, true, 0); // Gave up, doesn't look like a valid v0 file, actually.
 
     let reloaded = await bakana.loadAnalysis(h5path, loader);
-    await utils.checkStateResultsSimple(reloaded, { mimic: true });
+    await utils.overlordCheckStandard(reloaded);
 
     // Missing steps are filled in.
     let new_params = bakana.retrieveParameters(reloaded);
@@ -29,7 +29,7 @@ test("reanalysis from a v0 analysis works correctly (MatrixMarket)", async () =>
     // valkana.validateState(h5path, true, 0); // Gave up, doesn't look like a valid v0 file, actually.
 
     let reloaded = await bakana.loadAnalysis(h5path, loader);
-    await utils.checkStateResultsSimple(reloaded, { mimic: true });
+    await utils.overlordCheckStandard(reloaded);
 
     // Missing steps are filled in.
     let new_params = bakana.retrieveParameters(reloaded);
@@ -46,7 +46,7 @@ test("reanalysis from a v1.0 analysis works correctly (10X)", async () => {
     // valkana.validateState(h5path, true, 1000000); // Gave up, doesn't look like a valid v1.0 file, actually.
 
     let reloaded = await bakana.loadAnalysis(h5path, loader);
-    await utils.checkStateResultsSimple(reloaded, { mimic: true });
+    await utils.overlordCheckStandard(reloaded);
 
     // Missing steps are filled in.
     let new_params = bakana.retrieveParameters(reloaded);
@@ -64,7 +64,7 @@ test("reanalysis from a v1.1 analysis works correctly (10X combined)", async () 
     valkana.validateState(h5path, true, 1001000);
 
     let reloaded = await bakana.loadAnalysis(h5path, loader);
-    await utils.checkStateResultsBatched(reloaded, { mimic: true });
+    await utils.overlordCheckBlocked(reloaded);
 
     // Missing steps are filled in.
     let new_params = bakana.retrieveParameters(reloaded);
@@ -80,7 +80,7 @@ test("reanalysis from a v1.1 analysis works correctly (MatrixMarket)", async () 
     valkana.validateState(h5path, true, 1001000);
 
     let reloaded = await bakana.loadAnalysis(h5path, loader);
-    await utils.checkStateResultsSimple(reloaded, { mimic: true });
+    await utils.overlordCheckStandard(reloaded);
 
     // Missing steps are filled in.
     let new_params = bakana.retrieveParameters(reloaded);
@@ -96,7 +96,7 @@ test("reanalysis from a v1.2 analysis works correctly (10X combined)", async () 
     // valkana.validateState(h5path, true, 1002000); // Gave up, doesn't look like a valid 1.2 file, actually.
 
     let reloaded = await bakana.loadAnalysis(h5path, loader);
-    await utils.checkStateResultsBatched(reloaded, { mimic: true });
+    await utils.overlordCheckBlocked(reloaded);
 
     // Missing steps are filled in.
     let new_params = bakana.retrieveParameters(reloaded);
@@ -112,7 +112,7 @@ test("reanalysis from a v1.2 analysis works correctly (MatrixMarket)", async () 
     // valkana.validateState(h5path, true, 1002000); // Gave up, doesn't look like a valid 1.2 file, actually.
 
     let reloaded = await bakana.loadAnalysis(h5path, loader);
-    await utils.checkStateResultsSimple(reloaded, { mimic: true });
+    await utils.overlordCheckStandard(reloaded);
 
     // Missing steps are filled in.
     let new_params = bakana.retrieveParameters(reloaded);

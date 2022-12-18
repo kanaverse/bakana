@@ -47,7 +47,7 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
     }
 
     // Basic checks.
-    await utils.checkStateResultsSimple(state);
+    await utils.overlordCheckStandard(state);
     utils.checkClusterVersusMode(state);
     await utils.triggerAnimation(state);
 

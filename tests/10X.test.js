@@ -37,7 +37,7 @@ test("runAnalysis works correctly (10X)", async () => {
     }
 
     // Basic consistency checks.
-    await utils.checkStateResultsSimple(state);
+    await utils.overlordCheckStandard(state);
     utils.checkClusterVersusMode(state);
     await utils.triggerAnimation(state);
 

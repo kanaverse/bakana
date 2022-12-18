@@ -372,7 +372,10 @@ test("end-to-end run works with subsetting", async () => {
     expect(state.inputs.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
     expect(state.rna_quality_control.fetchDiscards().length).toBe(subset.length);
 
-    await utils.checkStateResultsBase(state);
+    // Basic checks.
+    await utils.checkStateResultsMinimal(state);
+    await utils.checkStateResultsRna(state, { exclusive: true });
+    await utils.checkStateResultsBlocked(state);
 
     // Saving and loading.
     const path = "TEST_subset-inputs.h5";

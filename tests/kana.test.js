@@ -18,7 +18,7 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
     let params = utils.baseParams();
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, files, params);
-    await utils.checkStateResultsSimple(state);
+    await utils.overlordCheckStandard(state);
 
     const path = "TEST_kana_state.h5";
     let collected = await bakana.saveAnalysis(state, path);
@@ -76,7 +76,7 @@ test("saving to and loading from a kana file works with links", async () => {
     let params = utils.baseParams();
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, files, params);
-    await utils.checkStateResultsSimple(state);
+    await utils.overlordCheckStandard(state);
 
     // Links just re-use the file path for our Node tests, which is unique enough!
     let old_create = bakana.setCreateLink((format, file) => format + ":" + file.content());

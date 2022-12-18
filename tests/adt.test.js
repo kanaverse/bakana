@@ -15,6 +15,13 @@ let files = {
     default: new bakana.TenxMatrixMarketDataset(mtx, feats, "files/datasets/immune_3.0.0-barcodes.tsv.gz")
 };
 
+async function overlord(state) {
+    await utils.checkStateResultsMinimal(state);
+    await utils.checkStateResultsRna(state);
+    await utils.checkStateResultsAdt(state);
+    await utils.checkStateResultsRnaPlusAdt(state);
+}
+
 test("ADT MatrixMarket summary works correctly", async () => {
     let summ = await files.default.summary();
     expect(summ.modality_features["Gene Expression"] instanceof bioc.DataFrame).toBe(true);
@@ -63,7 +70,8 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     }
 
     // Running through some basic checks.
-    await utils.checkStateResultsAdt(state);
+    await overlord(state);
+    await utils.checkStateResultsUnblocked(state);
 
     let vres = utils.checkClusterVersusMode(state);
     expect(vres.results.ADT.numberOfGroups()).toEqual(vres.results.RNA.numberOfGroups());
@@ -89,7 +97,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     let new_params = bakana.retrieveParameters(reloaded);
     expect(new_params).toEqual(params);
 
-    await utils.compareStates(state, reloaded);
+    await utils.compareStates(state, reloaded, { checkAdt: true });
 
     // Release me!
     await bakana.freeAnalysis(state);
@@ -106,7 +114,8 @@ test("runAnalysis works correctly (10X)", async () => {
         params
     );
 
-    await utils.checkStateResultsAdt(state);
+    await overlord(state);
+    await utils.checkStateResultsUnblocked(state);
 
     // What happens when one of the modalities has zero weight?
     {
@@ -169,8 +178,8 @@ test("runAnalysis works for ADTs with blocking", async () => {
         params
     );
 
-    await utils.checkStateResultsAdt(state);
-    await utils.checkStateResultsBatched(state, { skipBasic: true });
+    await overlord(state);
+    await utils.checkStateResultsBlocked(state);
 
     let vres = utils.checkClusterVersusMode(state);
     expect(vres.results.RNA.numberOfBlocks()).toEqual(nblocks);
@@ -209,14 +218,9 @@ test("ADT-only runAnalysis works correctly", async () => {
 
     await bakana.runAnalysis(state, files, params);
 
-    expect(state.rna_quality_control.valid()).toBe(false);
-    expect(state.rna_normalization.valid()).toBe(false);
-    expect(state.rna_pca.valid()).toBe(false);
-    expect(state.adt_quality_control.valid()).toBe(true);
-    expect(state.adt_normalization.valid()).toBe(true);
-    expect(state.adt_pca.valid()).toBe(true);
-
-//    await utils.checkStateResultsAdt(state, { skipBasic: true });
+    // Check the results.
+    await utils.checkStateResultsAdt(state, { exclusive: true });
+    await utils.checkStateResultsUnblocked(state);
 
     // Can save and reload.
     const path = "TEST_state_adt_only.h5";
@@ -230,6 +234,8 @@ test("ADT-only runAnalysis works correctly", async () => {
         path, 
         (offset, size) => offsets[offset]
     );
+
+    await utils.compareStates(state, reloaded, { checkRna: false, checkAdt: true });
 
     await bakana.freeAnalysis(state);
     await bakana.freeAnalysis(reloaded);

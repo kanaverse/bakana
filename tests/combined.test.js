@@ -51,7 +51,7 @@ test("multi-matrix analyses work correctly", async () => {
         expect(state.inputs.fetchRowIds()["RNA"]).toEqual(expected_ids);
     }
 
-    await utils.checkStateResultsBatched(state);
+    await utils.overlordCheckBlocked(state);
     expect(state.inputs.fetchBlockLevels()).toEqual(["3K", "4K"]); 
 
     let vres = utils.checkClusterVersusMode(state);
@@ -126,7 +126,7 @@ test("single-matrix multi-sample analyses work correctly", async () => {
         paramcopy
     );
 
-    await utils.checkStateResultsBatched(state);
+    await utils.overlordCheckBlocked(state);
 
     // Saving and loading.
     const path = "TEST_state_multi-sample.h5";
