@@ -331,10 +331,10 @@ export class CustomSelectionsState {
         // No need to free this afterwards; we don't own the normalized matrices anyway.
         let matrices = new scran.MultiMatrix;
         for (const [modality, state] of Object.entries(this.#norm_states)) {
-            let curmat = state.fetchNormalizedMatrix();
-            if (curmat !== null) {
-                matrices.add(modality, curmat);
+            if (!state.valid()) {
+                continue;
             }
+            matrices.add(modality, state.fetchNormalizedMatrix());
         }
 
         if (!("versus" in this.#cache)) {

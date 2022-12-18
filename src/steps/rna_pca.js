@@ -59,11 +59,7 @@ export class RnaPcaState {
      * @return {RunPCAResults} Results of the PCA on the normalized gene expression values.
      */
     fetchPCs() {
-        if (this.valid()) {
-            return this.#cache.pcs;
-        } else {
-            return null;
-        }
+        return this.#cache.pcs;
     }
 
     /**

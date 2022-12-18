@@ -48,16 +48,11 @@ export class AdtPcaState {
     }
 
     /**
-     * @return {?RunPCAResults} Results of the PCA on the normalized ADT matrix,
+     * @return {RunPCAResults} Results of the PCA on the normalized ADT matrix,
      * available after running {@linkcode AdtPcaState#compute compute}.
-     * Alternatively `null`, if no ADTs are available.
      */
     fetchPCs() {
-        if (this.valid()) {
-            return this.#cache.pcs;
-        } else {
-            return null;
-        }
+        return this.#cache.pcs;
     }
 
     /**
