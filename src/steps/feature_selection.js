@@ -164,10 +164,10 @@ export function unserialize(handle, permuter, filter, norm) {
             }
 
             cache.results = scran.emptyModelGeneVarResults(reloaded.means.length, 1);
-            cache.results.means({ copy : false }).set(reloaded.means);
-            cache.results.variances({ copy : false }).set(reloaded.vars);
-            cache.results.fitted({ copy : false }).set(reloaded.fitted);
-            cache.results.residuals({ copy : false }).set(reloaded.resids);
+            cache.results.means({ fillable: true }).set(reloaded.means);
+            cache.results.variances({ fillable: true }).set(reloaded.vars);
+            cache.results.fitted({ fillable: true }).set(reloaded.fitted);
+            cache.results.residuals({ fillable: true }).set(reloaded.resids);
 
             cache.sorted_residuals = cache.results.residuals({ copy: true });
             cache.sorted_residuals.sort();

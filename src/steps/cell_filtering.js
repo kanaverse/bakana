@@ -6,11 +6,11 @@ import * as inputs_module from "./inputs.js";
 
 export const step_name = "cell_filtering";
 
-function find_usable_upstream_states(qc_states) {
+function find_usable_upstream_states(qc_states, in_use) {
     let tmp = utils.findValidUpstreamStates(qc_states);
     let to_use = [];
     for (const k of tmp) {
-        if (!qc_states[k].skipped()) {
+        if (in_use[k]) {
             to_use.push(qc_states[k]);
         }
     }
@@ -151,20 +151,28 @@ export class CellFilteringState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * Each argument is taken from the property of the same name in the `cell_filtering` property of the `parameters` of {@linkcode runAnalysis}.
      *
+     * @param {boolean} use_rna - Whether to use the RNA-derived QC metrics for filtering.
+     * @param {boolean} use_adt - Whether to use the ADT-derived QC metrics for filtering.
+     *
      * @return The object is updated with the new results.
      */
-    compute() {
+    compute(use_rna, use_adt) {
         this.changed = false;
 
-        if (this.#inputs.changed)  {
+        if (this.#inputs.changed) {
             this.changed = true;
         }
 
-        // Checking upstreams. Need to do this even if it was skipped,
-        // because the act of skipping is itself a possible change.
+        if (this.#parameters.use_rna !== use_rna || this.#parameters.use_adt !== use_adt) {
+            this.#parameters.use_rna = use_rna;
+            this.#parameters.use_adt = use_adt;
+            this.changed = true;
+        }
+
+        let to_use = find_usable_upstream_states(this.#qc_states, { RNA: use_rna, ADT: use_rna });
         if (!this.changed) {
-            for (const v of Object.values(this.#qc_states)) {
-                if (v.changed) {
+            for (const u of to_use) {
+                if (u.changed) {
                     this.changed = true;
                     break;
                 }
@@ -172,27 +180,23 @@ export class CellFilteringState {
         }
 
         if (this.changed) {
-            let to_use = find_usable_upstream_states(this.#qc_states);
-
             if (to_use.length > 0) {
-                let disc_buffer;
                 let first = to_use[0].fetchDiscards();
 
                 if (to_use.length > 1) {
                     // A discard signal in any modality causes the cell to be removed. 
-                    disc_buffer = utils.allocateCachedArray(first.length, "Uint8Array", this.#cache, "discard_buffer");
-                    let disc_arr = disc_buffer.array();
-                    disc_arr.fill(0);
+                    let disc_buffer = utils.allocateCachedArray(first.length, "Uint8Array", this.#cache, "discard_buffer");
+                    disc_buffer.fill(0);
 
+                    let disc_arr = disc_buffer.array();
                     for (const u of to_use) {
                         u.fetchDiscards().forEach((y, i) => { disc_arr[i] |= y; });
                     }
                 } else {
                     // If there's only one valid modality, we just create a view on it
                     // to avoid unnecessary duplication.
-                    disc_buffer = first.view();
                     utils.freeCache(this.#cache.discard_buffer);
-                    this.#cache.discard_buffer = disc_buffer;
+                    this.#cache.discard_buffer = first.view();
                 }
 
             } else {
@@ -207,7 +211,10 @@ export class CellFilteringState {
     }
 
     static defaults() {
-        return {};
+        return {
+            use_rna: true,
+            use_adt: true
+        };
     }
 
     /**
@@ -275,7 +282,12 @@ export class CellFilteringState {
 
     serialize(handle) {
         let ghandle = handle.createGroup(step_name);
-        ghandle.createGroup("parameters"); // for tradition
+
+        {
+            let phandle = ghandle.createGroup("parameters"); 
+            phandle.writeDataSet("use_rna", "Uint8", [], this.#parameters.use_rna);
+            phandle.writeDataSet("use_adt", "Uint8", [], this.#parameters.use_adt);
+        }
 
         let rhandle = ghandle.createGroup("results"); 
 
@@ -304,6 +316,12 @@ export function unserialize(handle, inputs, qc_states) {
         if (step_name in handle.children) {
             let ghandle = handle.open(step_name);
 
+            if ("parameters" in ghandle.children) {
+                let phandle = ghandle.open("parameters");
+                parameters.use_rna = phandle.open("use_rna", { load: true }).values[0] > 0;
+                parameters.use_adt = phandle.open("use_adt", { load: true }).values[0] > 0;
+            }
+
             let rhandle = ghandle.open("results");
             if ("discards" in rhandle.children) {
                 let discards = rhandle.open("discards", { load: true }).values; 
@@ -313,7 +331,7 @@ export function unserialize(handle, inputs, qc_states) {
         } 
 
         if (!("discard_buffer" in cache)) {
-            let to_use = find_usable_upstream_states(qc_states);
+            let to_use = find_usable_upstream_states(qc_states, { RNA: parameters.use_rna, ADT: parameters.use_adt });
 
             if (to_use.length == 1) {
                 // We figure out which upstream QC state contains the discard vector

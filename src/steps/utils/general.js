@@ -1,8 +1,8 @@
 import * as scran from "scran.js";
 
 export function freeCache(object) {
-    // Just an alias for simplicity.
-    scran.safeFree(object);
+    // Just an alias for back-compatibility.
+    scran.free(object);
     return;
 }
 

@@ -6,7 +6,7 @@ export const step_name = "adt_quality_control";
 
 /**
  * This step applies quality control on the ADT count matrix.
- * Specifically, it computes the QC metrics and filtering thresholds, wrapping `computePerCellAdtQcMetrics` and `computePerCellAdtQcFilters` from [**scran.js**](https://github.com/jkanche/scran.js).
+ * Specifically, it computes the QC metrics and filtering thresholds, wrapping `perCellAdtQcMetrics` and `suggestAdtQcFilters` from [**scran.js**](https://github.com/jkanche/scran.js).
  * Note that the actual filtering is done by {@linkcode CellFilteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
@@ -104,40 +104,49 @@ export class AdtQualityControlState {
         if (this.#inputs.changed || igg_prefix !== this.#parameters.igg_prefix) {
             utils.freeCache(this.#cache.metrics);
 
-            var mat = this.#inputs.fetchCountMatrix().get("ADT");
-            var gene_info = this.#inputs.fetchFeatureAnnotations()["ADT"];
+            if (this.valid()) {
+                var mat = this.#inputs.fetchCountMatrix().get("ADT");
+                var gene_info = this.#inputs.fetchFeatureAnnotations()["ADT"];
 
-            // Finding the prefix.
-            var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
-            subsets.fill(0);
-            var sub_arr = subsets.array();
+                // Finding the prefix.
+                var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
+                subsets.fill(0);
+                var sub_arr = subsets.array();
 
-            var lower_igg = igg_prefix.toLowerCase();
-            for (const key of gene_info.columnNames()) {
-                let val = gene_info.column(key);
-                val.forEach((x, i) => { 
-                    if (x.toLowerCase().startsWith(lower_igg)) {
-                        sub_arr[i] = 1;                        
-                    }
-                });
+                var lower_igg = igg_prefix.toLowerCase();
+                for (const key of gene_info.columnNames()) {
+                    let val = gene_info.column(key);
+                    val.forEach((x, i) => { 
+                        if (x.toLowerCase().startsWith(lower_igg)) {
+                            sub_arr[i] = 1;                        
+                        }
+                    });
+                }
+
+                this.#cache.metrics = scran.perCellAdtQcMetrics(mat, [subsets]);
+                this.changed = true;
+            } else {
+                delete this.#cache.metrics;
             }
 
-            this.#cache.metrics = scran.computePerCellAdtQcMetrics(mat, [subsets]);
             this.#parameters.igg_prefix = igg_prefix;
-            this.changed = true;
         }
 
         if (this.changed || nmads !== this.#parameters.nmads || min_detected_drop !== this.#parameters.min_detected_drop) {
             utils.freeCache(this.#cache.filters);
 
-            let block = this.#inputs.fetchBlock();
-            this.#cache.filters = scran.computePerCellAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, minDetectedDrop: min_detected_drop, block: block });
-            var discard = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "discard_buffer");
-            this.#cache.filters.filter(this.#cache.metrics, { block: block, buffer: discard });
+            if (this.valid()) {
+                let block = this.#inputs.fetchBlock();
+                this.#cache.filters = scran.suggestAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, minDetectedDrop: min_detected_drop, block: block });
+                var discard = utils.allocateCachedArray(this.#cache.metrics.numberOfCells(), "Uint8Array", this.#cache, "discard_buffer");
+                this.#cache.filters.filter(this.#cache.metrics, { block: block, buffer: discard });
+                this.changed = true;
+            } else {
+                delete this.#cache.filters;
+            }
 
             this.#parameters.nmads = nmads;
             this.#parameters.min_detected_drop = min_detected_drop;
-            this.changed = true;
         }
 
         return;
@@ -155,21 +164,24 @@ export class AdtQualityControlState {
             phandle.writeDataSet("igg_prefix", "String", [], this.#parameters.igg_prefix);
             phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
             phandle.writeDataSet("min_detected_drop", "Float64", [], this.#parameters.min_detected_drop);
+            phandle.writeDataSet("skip", "Uint8", [], 0); // back-compatibility only.
         }
 
         {
             let rhandle = ghandle.createGroup("results"); 
+            
+            if (this.valid()) {
+                let mhandle = rhandle.createGroup("metrics");
+                mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
+                mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
+                mhandle.writeDataSet("igg_total", "Float64", null, this.#cache.metrics.subsetTotals(0, { copy: "view" }));
 
-            let mhandle = rhandle.createGroup("metrics");
-            mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
-            mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
-            mhandle.writeDataSet("igg_total", "Float64", null, this.#cache.metrics.subsetTotals(0, { copy: "view" }));
+                let thandle = rhandle.createGroup("thresholds");
+                thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "view" }));
+                thandle.writeDataSet("igg_total", "Float64", null, this.#cache.filters.thresholdsSubsetTotals(0, { copy: "view" }));
 
-            let thandle = rhandle.createGroup("thresholds");
-            thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "view" }));
-            thandle.writeDataSet("igg_total", "Float64", null, this.#cache.filters.thresholdsSubsetTotals(0, { copy: "view" }));
-
-            rhandle.writeDataSet("discards", "Uint8", null, this.#cache.discard_buffer);
+                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.discard_buffer);
+            }
         }
     }
 }

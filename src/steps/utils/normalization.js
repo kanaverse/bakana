@@ -1,10 +1,6 @@
 import * as utils from "./general.js";
 
 export function subsetSums(qc, filter, mat, cache, name) {
-    if (qc.skipped()) {
-        return null;
-    }
-
     let output = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", cache, name);
     let discards = filter.fetchDiscards();
 

@@ -139,7 +139,7 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
 
     // No annotations, so no mitochondrial proportions.
     expect(state.inputs.fetchFeatureAnnotations()["RNA"].numberOfColumns()).toBe(0);
-    expect(state.rna_quality_control.fetchFilters().thresholdsSubsetProportions()[0]).toBe(0);
+    expect(state.rna_quality_control.fetchFilters().thresholdsSubsetProportions(0)[0]).toBe(0);
 
     // Saving and loading.
     const path = "TEST_state_MatrixMarket.h5";

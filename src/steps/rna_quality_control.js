@@ -7,7 +7,7 @@ export const step_name = "rna_quality_control";
 
 /**
  * This step applies quality control on the RNA count matrix.
- * Specifically, it computes the QC metrics and filtering thresholds, wrapping `computePerCellQCMetrics` and `computePerCellQCFilters` from [**scran.js**](https://github.com/jkanche/scran.js).
+ * Specifically, it computes the QC metrics and filtering thresholds, wrapping `perCellRnaQcMetrics` and `suggestRnaQcFilters` from [**scran.js**](https://github.com/jkanche/scran.js).
  * Note that the actual filtering is done by {@linkcode CellFilteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
@@ -102,49 +102,58 @@ export class RnaQualityControlState {
         if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix) {
             utils.freeCache(this.#cache.metrics);
 
-            var mat = this.#inputs.fetchCountMatrix().get("RNA");
-            var gene_info = this.#inputs.fetchFeatureAnnotations()["RNA"];
+            if (this.valid()) {
+                var mat = this.#inputs.fetchCountMatrix().get("RNA");
+                var gene_info = this.#inputs.fetchFeatureAnnotations()["RNA"];
 
-            // Finding the prefix.
-            var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
-            subsets.fill(0);
-            var sub_arr = subsets.array();
+                // Finding the prefix.
+                var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
+                subsets.fill(0);
+                var sub_arr = subsets.array();
 
-            // TODO: use the guessed features to narrow the Ensembl/symbol search.
-            for (const key of gene_info.columnNames()) {
-                let val = gene_info.column(key);
-                if (use_mito_default) {
-                    val.forEach((x, i) => {
-                        if (mito.symbol.has(x) || mito.ensembl.has(x)) {
-                            sub_arr[i] = 1;
-                        }
-                    });
-                } else {
-                    var lower_mito = mito_prefix.toLowerCase();
-                    val.forEach((x, i) => {
-                        if(x.toLowerCase().startsWith(lower_mito)) {
-                            sub_arr[i] = 1;
-                        }
-                    });
+                // TODO: use the guessed features to narrow the Ensembl/symbol search.
+                for (const key of gene_info.columnNames()) {
+                    let val = gene_info.column(key);
+                    if (use_mito_default) {
+                        val.forEach((x, i) => {
+                            if (mito.symbol.has(x) || mito.ensembl.has(x)) {
+                                sub_arr[i] = 1;
+                            }
+                        });
+                    } else {
+                        var lower_mito = mito_prefix.toLowerCase();
+                        val.forEach((x, i) => {
+                            if(x.toLowerCase().startsWith(lower_mito)) {
+                                sub_arr[i] = 1;
+                            }
+                        });
+                    }
                 }
+
+                this.changed = true;
+            } else {
+                delete this.#cache.metrics;
             }
 
             this.#cache.metrics = scran.perCellRnaQcMetrics(mat, [subsets]);
             this.#parameters.use_mito_default = use_mito_default;
             this.#parameters.mito_prefix = mito_prefix;
-            this.changed = true;
         }
 
         if (this.changed || nmads !== this.#parameters.nmads) {
             utils.freeCache(this.#cache.filters);
 
-            let block = this.#inputs.fetchBlock();
-            this.#cache.filters = scran.suggestRnaQcFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
-            var discard = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "discard_buffer");
-            this.#cache.filters.filter(this.#cache.metrics, { block: block, buffer: discard });
+            if (this.valid()) {
+                let block = this.#inputs.fetchBlock();
+                this.#cache.filters = scran.suggestRnaQcFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
+                var discard = utils.allocateCachedArray(this.#cache.metrics.numberOfCells(), "Uint8Array", this.#cache, "discard_buffer");
+                this.#cache.filters.filter(this.#cache.metrics, { block: block, buffer: discard });
+                this.changed = true;
+            } else {
+                delete this.#cache.filters;
+            }
 
             this.#parameters.nmads = nmads;
-            this.changed = true;
         }
 
         return;
@@ -162,22 +171,25 @@ export class RnaQualityControlState {
             phandle.writeDataSet("use_mito_default", "Uint8", [], Number(this.#parameters.use_mito_default));
             phandle.writeDataSet("mito_prefix", "String", [], this.#parameters.mito_prefix);
             phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
+            phandle.writeDataSet("skip", "Uint8", [], 0); // back-compatibility only.
         }
 
         {
             let rhandle = ghandle.createGroup("results"); 
 
-            let mhandle = rhandle.createGroup("metrics");
-            mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
-            mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
-            mhandle.writeDataSet("proportion", "Float64", null, this.#cache.metrics.subsetProportions(0, { copy: "view" }));
+            if (this.valid()) {
+                let mhandle = rhandle.createGroup("metrics");
+                mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
+                mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
+                mhandle.writeDataSet("proportion", "Float64", null, this.#cache.metrics.subsetProportions(0, { copy: "view" }));
 
-            let thandle = rhandle.createGroup("thresholds");
-            thandle.writeDataSet("sums", "Float64", null, this.#cache.filters.thresholdsSums({ copy: "view" }));
-            thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "view" }));
-            thandle.writeDataSet("proportion", "Float64", null, this.#cache.filters.thresholdsSubsetProportions(0, { copy: "view" }));
+                let thandle = rhandle.createGroup("thresholds");
+                thandle.writeDataSet("sums", "Float64", null, this.#cache.filters.thresholdsSums({ copy: "view" }));
+                thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "view" }));
+                thandle.writeDataSet("proportion", "Float64", null, this.#cache.filters.thresholdsSubsetProportions(0, { copy: "view" }));
 
-            rhandle.writeDataSet("discards", "Uint8", null, this.#cache.discard_buffer);
+                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.discard_buffer);
+            }
         }
     }
 }
@@ -206,7 +218,7 @@ export function unserialize(handle, inputs) {
             let mhandle = rhandle.open("metrics");
             let sums = mhandle.open("sums", { load: true }).values;
 
-            cache.metrics = scran.emptyPerCellQCMetricsResults(sums.length, 1);
+            cache.metrics = scran.emptyPerCellRnaQcMetricsResults(sums.length, 1);
             cache.metrics.sums({ fillable: true }).set(sums);
 
             let detected = mhandle.open("detected", { load: true }).values;
@@ -225,7 +237,7 @@ export function unserialize(handle, inputs) {
             let thresholds_detected = thandle.open("detected", { load: true }).values;
             let thresholds_proportion = thandle.open("proportion", { load: true }).values;
 
-            cache.filters = scran.emptyPerCellQCFiltersResults(1, thresholds_sums.length);
+            cache.filters = scran.emptySuggestRnaQcFiltersResults(1, thresholds_sums.length);
             cache.filters.thresholdsSums({ fillable: true }).set(thresholds_sums);
             cache.filters.thresholdsDetected({ fillable: true }).set(thresholds_detected);
             cache.filters.thresholdsSubsetProportions(0, { fillable: true }).set(thresholds_proportion);
