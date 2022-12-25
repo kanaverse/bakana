@@ -33,6 +33,7 @@ export class RnaQualityControlState {
         utils.freeCache(this.#cache.metrics);
         utils.freeCache(this.#cache.filters);
         utils.freeCache(this.#cache.metrics_buffer);
+        utils.freeCache(this.#cache.discard_buffer);
     }
 
     /***************************
@@ -42,10 +43,6 @@ export class RnaQualityControlState {
     valid() {
         let input = this.#inputs.fetchCountMatrix();
         return input.has("RNA");
-    }
-
-    skipped() {
-        return this.#parameters.skip;
     }
 
     /**
@@ -60,18 +57,18 @@ export class RnaQualityControlState {
      * where each element is truthy if the corresponding cell is to be discarded.
      */
     fetchDiscards() {
-        return this.#cache.filters.discardOverall({ copy: "view" });
+        return this.#cache.discard_buffer;
     }
 
     /**
-     * @return {PerCellQCFiltersResults} Result of filtering on the RNA-derived QC metrics.
+     * @return {SuggestRnaQcFiltersResults} Result of filtering on the RNA-derived QC metrics.
      */
     fetchFilters() {
         return this.#cache.filters;
     }
 
     /**
-     * @return {PerCellQCMetricsResults} RNA-derived QC metrics.
+     * @return {PerCellRnaQcMetricsResults} RNA-derived QC metrics.
      */
     fetchMetrics() {
         return this.#cache.metrics;
@@ -83,7 +80,6 @@ export class RnaQualityControlState {
 
     static defaults () {
         return {
-            skip: false,
             use_mito_default: true,
             mito_prefix: "mt-",
             nmads: 3
@@ -94,86 +90,61 @@ export class RnaQualityControlState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * Each argument is taken from the property of the same name in the `quality_control` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {boolean} skip - Whether to skip the calculation of quality control statistics.
      * @param {boolean} use_mito_default - Whether the internal mitochondrial gene lists should be used.
      * @param {string} mito_prefix - Prefix of the identifiers for mitochondrial genes, when `use_mito_default = false`.
      * @param {number} nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
      *
      * @return The object is updated with the new results.
      */
-    compute(skip, use_mito_default, mito_prefix, nmads) {
+    compute(use_mito_default, mito_prefix, nmads) {
         this.changed = false;
 
-        // If the metrics or filters aren't available and we're not skipping
-        // this step, then we need to recreate them.
-        let skip_impossible = skip || !this.valid();
-        let unskip_metrics = (!skip && !("metrics" in this.#cache));
-        let unskip_filters = (!skip && !("filters" in this.#cache));
-
-        if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix || unskip_metrics) {
+        if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix) {
             utils.freeCache(this.#cache.metrics);
 
-            if (skip_impossible) {
-                // Delete anything existing, as it won't be valid as other
-                // things have changed upstream of us. This ensures that we
-                // can re-run this step later via unskip_metrics = true.
-                delete this.#cache.metrics;
-            } else {
-                var mat = this.#inputs.fetchCountMatrix().get("RNA");
-                var gene_info = this.#inputs.fetchFeatureAnnotations()["RNA"];
+            var mat = this.#inputs.fetchCountMatrix().get("RNA");
+            var gene_info = this.#inputs.fetchFeatureAnnotations()["RNA"];
 
-                // Finding the prefix.
-                var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
-                subsets.fill(0);
-                var sub_arr = subsets.array();
+            // Finding the prefix.
+            var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
+            subsets.fill(0);
+            var sub_arr = subsets.array();
 
-                // TODO: use the guessed features to narrow the Ensembl/symbol search.
-                for (const key of gene_info.columnNames()) {
-                    let val = gene_info.column(key);
-                    if (use_mito_default) {
-                        val.forEach((x, i) => {
-                            if (mito.symbol.has(x) || mito.ensembl.has(x)) {
-                                sub_arr[i] = 1;
-                            }
-                        });
-                    } else {
-                        var lower_mito = mito_prefix.toLowerCase();
-                        val.forEach((x, i) => {
-                            if(x.toLowerCase().startsWith(lower_mito)) {
-                                sub_arr[i] = 1;
-                            }
-                        });
-                    }
+            // TODO: use the guessed features to narrow the Ensembl/symbol search.
+            for (const key of gene_info.columnNames()) {
+                let val = gene_info.column(key);
+                if (use_mito_default) {
+                    val.forEach((x, i) => {
+                        if (mito.symbol.has(x) || mito.ensembl.has(x)) {
+                            sub_arr[i] = 1;
+                        }
+                    });
+                } else {
+                    var lower_mito = mito_prefix.toLowerCase();
+                    val.forEach((x, i) => {
+                        if(x.toLowerCase().startsWith(lower_mito)) {
+                            sub_arr[i] = 1;
+                        }
+                    });
                 }
-
-                this.#cache.metrics = scran.computePerCellQCMetrics(mat, [subsets]);
             }
 
+            this.#cache.metrics = scran.perCellRnaQcMetrics(mat, [subsets]);
             this.#parameters.use_mito_default = use_mito_default;
             this.#parameters.mito_prefix = mito_prefix;
             this.changed = true;
         }
 
-        if (this.changed || nmads !== this.#parameters.nmads || unskip_filters) {
+        if (this.changed || nmads !== this.#parameters.nmads) {
             utils.freeCache(this.#cache.filters);
 
-            if (skip_impossible) {
-                // Again, upstream is invalidated.
-                delete this.#cache.filters;
-            } else {
-                let block = this.#inputs.fetchBlock();
-                this.#cache.filters = scran.computePerCellQCFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
-            }
+            let block = this.#inputs.fetchBlock();
+            this.#cache.filters = scran.suggestRnaQcFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
+            var discard = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "discard_buffer");
+            this.#cache.filters.filter(this.#cache.metrics, { block: block, buffer: discard });
 
             this.#parameters.nmads = nmads;
             this.changed = true;
-        }
-
-        if (this.#parameters.skip !== skip) {
-            this.changed = true;
-            this.#parameters.skip = skip;
-        } else if (this.#parameters.skip && skip) {
-            this.changed = false; // there can never be any change if we were already skipping the results.
         }
 
         return;
@@ -188,7 +159,6 @@ export class RnaQualityControlState {
 
         {
             let phandle = ghandle.createGroup("parameters"); 
-            phandle.writeDataSet("skip", "Uint8", [], Number(this.#parameters.skip));
             phandle.writeDataSet("use_mito_default", "Uint8", [], Number(this.#parameters.use_mito_default));
             phandle.writeDataSet("mito_prefix", "String", [], this.#parameters.mito_prefix);
             phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
@@ -197,21 +167,17 @@ export class RnaQualityControlState {
         {
             let rhandle = ghandle.createGroup("results"); 
 
-            if ("metrics" in this.#cache) { // if skip=true, metrics may not be computed... but if they are, we save them anyway.
-                let mhandle = rhandle.createGroup("metrics");
-                mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
-                mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
-                mhandle.writeDataSet("proportion", "Float64", null, this.#cache.metrics.subsetProportions(0, { copy: "view" }));
-            }
+            let mhandle = rhandle.createGroup("metrics");
+            mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
+            mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
+            mhandle.writeDataSet("proportion", "Float64", null, this.#cache.metrics.subsetProportions(0, { copy: "view" }));
 
-            if ("filters" in this.#cache) { // if skip=true, thresholds may not be computed... but if they are, we save them anyway.
-                let thandle = rhandle.createGroup("thresholds");
-                thandle.writeDataSet("sums", "Float64", null, this.#cache.filters.thresholdsSums({ copy: "view" }));
-                thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "view" }));
-                thandle.writeDataSet("proportion", "Float64", null, this.#cache.filters.thresholdsSubsetProportions(0, { copy: "view" }));
+            let thandle = rhandle.createGroup("thresholds");
+            thandle.writeDataSet("sums", "Float64", null, this.#cache.filters.thresholdsSums({ copy: "view" }));
+            thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "view" }));
+            thandle.writeDataSet("proportion", "Float64", null, this.#cache.filters.thresholdsSubsetProportions(0, { copy: "view" }));
 
-                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.filters.discardOverall({ copy: "view" }));
-            }
+            rhandle.writeDataSet("discards", "Uint8", null, this.#cache.discard_buffer);
         }
     }
 }
@@ -229,10 +195,6 @@ export function unserialize(handle, inputs) {
         parameters.use_mito_default = phandle.open("use_mito_default", { load: true }).values[0] > 0;
         parameters.mito_prefix = phandle.open("mito_prefix", { load: true }).values[0];
         parameters.nmads = phandle.open("nmads", { load: true }).values[0];
-
-        if ("skip" in phandle.children) { // back-compatible.
-            parameters.skip = phandle.open("skip", { load: true }).values[0] > 0;
-        }
     }
 
     let output;
@@ -240,31 +202,33 @@ export function unserialize(handle, inputs) {
     try {
         let rhandle = ghandle.open("results");
 
-        if ("metrics" in rhandle.children) { // if skip=true, QC metrics may not be reported.
+        if ("metrics" in rhandle.children) { // QC metrics may not be reported if skipped.
             let mhandle = rhandle.open("metrics");
             let sums = mhandle.open("sums", { load: true }).values;
 
             cache.metrics = scran.emptyPerCellQCMetricsResults(sums.length, 1);
-            cache.metrics.sums({ copy: false }).set(sums);
+            cache.metrics.sums({ fillable: true }).set(sums);
 
             let detected = mhandle.open("detected", { load: true }).values;
-            cache.metrics.detected({ copy: false }).set(detected);
+            cache.metrics.detected({ fillable: true }).set(detected);
             let proportions = mhandle.open("proportion", { load: true }).values;
-            cache.metrics.subsetProportions(0, { copy: false }).set(proportions);
+            cache.metrics.subsetProportions(0, { fillable: true }).set(proportions);
         }
 
         if ("thresholds" in rhandle.children) { // if skip=true, QC thresholds may not be reported.
-            let thandle = rhandle.open("thresholds");
             let discards = rhandle.open("discards", { load: true }).values; 
+            cache.discard_buffer = scran.createUint8WasmArray(discards.length);
+            cache.discard_buffer.set(discards);
+
+            let thandle = rhandle.open("thresholds");
             let thresholds_sums = thandle.open("sums", { load: true }).values;
             let thresholds_detected = thandle.open("detected", { load: true }).values;
             let thresholds_proportion = thandle.open("proportion", { load: true }).values;
 
-            cache.filters = scran.emptyPerCellQCFiltersResults(discards.length, 1, thresholds_sums.length);
-            cache.filters.discardOverall({ copy: false }).set(discards);
-            cache.filters.thresholdsSums({ copy: false }).set(thresholds_sums);
-            cache.filters.thresholdsDetected({ copy: false }).set(thresholds_detected);
-            cache.filters.thresholdsSubsetProportions(0, { copy: false }).set(thresholds_proportion);
+            cache.filters = scran.emptyPerCellQCFiltersResults(1, thresholds_sums.length);
+            cache.filters.thresholdsSums({ fillable: true }).set(thresholds_sums);
+            cache.filters.thresholdsDetected({ fillable: true }).set(thresholds_detected);
+            cache.filters.thresholdsSubsetProportions(0, { fillable: true }).set(thresholds_proportion);
         }
 
         output = new RnaQualityControlState(inputs, parameters, cache);

@@ -393,15 +393,15 @@ function fill_results(stats) {
         { computeAuc: ("auc" in stats) }
     );
 
-    object.means(1, { copy: false }).set(stats.means);
-    object.detected(1, { copy: false }).set(stats.detected);
+    object.means(1, { fillable: true }).set(stats.means);
+    object.detected(1, { fillable: true }).set(stats.detected);
 
     for (const index of Object.values(markers.summaries2int)) {
-        object.cohen(1, { summary: index, copy: false }).set(stats.cohen);
-        object.lfc(1, { summary: index, copy: false }).set(stats.lfc);
-        object.deltaDetected(1, { summary: index, copy: false }).set(stats.delta_detected);
+        object.cohen(1, { summary: index, fillable: true }).set(stats.cohen);
+        object.lfc(1, { summary: index, fillable: true }).set(stats.lfc);
+        object.deltaDetected(1, { summary: index, fillable: true }).set(stats.delta_detected);
         if ("auc" in stats) {
-            object.auc(1, { summary: index, copy: false }).set(stats.auc);
+            object.auc(1, { summary: index, fillable: true }).set(stats.auc);
         }
     }
 

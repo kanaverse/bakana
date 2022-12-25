@@ -141,7 +141,7 @@ export function unserialize(handle, pca) {
             if ("clusters" in rhandle.children) {
                 let clusters = rhandle.open("clusters", { load: true }).values;
                 cache.raw = scran.emptyClusterKmeansResults(clusters.length, parameters.k, pca.fetchNumberOfDimensions());
-                cache.raw.clusters({ copy: false }).set(clusters);
+                cache.raw.clusters({ fillable: true }).set(clusters);
             }
         }
     }

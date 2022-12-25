@@ -274,24 +274,24 @@ function fill_results(stats, num_blocks) {
     for (const k of keys) {
         let i = Number(k);
         let vals = stats[k];
-        object.means(i, { copy: false }).set(vals.means);
-        object.detected(i, { copy: false }).set(vals.detected);
+        object.means(i, { fillable: true }).set(vals.means);
+        object.detected(i, { fillable: true }).set(vals.detected);
 
         for (const [s, v] of Object.entries(vals.cohen)) {
-            object.cohen(i, { summary: markers.summaries2int[s], copy: false }).set(v);
+            object.cohen(i, { summary: markers.summaries2int[s], fillable: true }).set(v);
         }
 
         for (const [s, v] of Object.entries(vals.lfc)) {
-            object.lfc(i, { summary: markers.summaries2int[s], copy: false }).set(v);
+            object.lfc(i, { summary: markers.summaries2int[s], fillable: true }).set(v);
         }
 
         for (const [s, v] of Object.entries(vals.delta_detected)) {
-            object.deltaDetected(i, { summary: markers.summaries2int[s], copy: false }).set(v);
+            object.deltaDetected(i, { summary: markers.summaries2int[s], fillable: true }).set(v);
         }
 
         if ("auc" in vals) {
             for (const [s, v] of Object.entries(vals.auc)) {
-                object.auc(i, { summary: markers.summaries2int[s], copy: false }).set(v);
+                object.auc(i, { summary: markers.summaries2int[s], fillable: true }).set(v);
             }
         }
     }

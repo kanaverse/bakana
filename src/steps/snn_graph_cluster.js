@@ -187,7 +187,7 @@ export function unserialize(handle, index) {
         if ("clusters" in rhandle.children) {
             let clusters = rhandle.open("clusters", { load: true }).values;
             cache.clusters = scran.emptyClusterSNNGraphResults(clusters.length, 1);
-            cache.clusters.membership({ copy: false }).set(clusters);
+            cache.clusters.membership({ fillable: true }).set(clusters);
         }
     }
 
