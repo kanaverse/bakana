@@ -50,9 +50,12 @@
         CellFilteringState
         </h2>
         
-            <div class="class-description usertext"><p>This step filters the count matrices to remove low-quality cells.
-It wraps the <code>filterCells</code> function from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.
-For multi-modal datasets, this combines the quality calls from all modalities; a cell is removed if it is considered low-quality in any individual modality.</p>
+            <div class="class-description usertext"><p>This step filters the count matrices to remove low-quality cells,
+based on metrics and thresholds computed in <a href="RnaQualityControlState.html">RnaQualityControlState</a> and friends.
+It wraps the <a href="https://jkanche.com/scran.js/global.html#filterCells"><code>filterCells</code></a> function
+from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.
+For multi-modal datasets, this can combine quality calls from all valid modalities;
+a cell is removed if it is considered low-quality in any individual modality.</p>
 <p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
         
     
@@ -102,7 +105,7 @@ For multi-modal datasets, this combines the quality calls from all modalities; a
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line230">line 230</a>
+        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line233">line 233</a>
     </li></ul></dd>
     
 
@@ -269,7 +272,7 @@ This will have number of columns equal to that of <a href="CellFilteringState.ht
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line159">line 159</a>
+        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line162">line 162</a>
     </li></ul></dd>
     
 
@@ -439,7 +442,7 @@ Each argument is taken from the property of the same name in the <code>cell_filt
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line93">line 93</a>
+        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line96">line 96</a>
     </li></ul></dd>
     
 
@@ -547,7 +550,7 @@ Alternatively <code>null</code>, if no upstream filtering steps were performed.<
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line80">line 80</a>
+        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line83">line 83</a>
     </li></ul></dd>
     
 
@@ -643,7 +646,7 @@ Alternatively <code>null</code> if no blocks are present in the dataset.</p>
 
     
 
-    <h4 class="name" id="fetchFilteredMatrix"><span class="type-signature"></span>fetchFilteredMatrix<span class="signature">()</span><span class="type-signature"> &rarr; {MultiMatrix}</span></h4>
+    <h4 class="name" id="fetchFilteredMatrix"><span class="type-signature"></span>fetchFilteredMatrix<span class="signature">()</span><span class="type-signature"> &rarr; {<a href="external-MultiMatrix.html">external:MultiMatrix</a>}</span></h4>
 
     
 
@@ -655,7 +658,7 @@ Alternatively <code>null</code> if no blocks are present in the dataset.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line67">line 67</a>
+        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line70">line 70</a>
     </li></ul></dd>
     
 
@@ -722,7 +725,7 @@ Alternatively <code>null</code> if no blocks are present in the dataset.</p>
 
         
 <div class="param-desc">
-    <p>A MultiMatrix object containing the filtered and normalized matrices for all modalities,
+    <p>A <a href="external-MultiMatrix.html">MultiMatrix</a> object containing the filtered and normalized matrices for all modalities,
 available after running <a href="CellFilteringState.html#compute"><code>compute</code></a>.</p>
 </div>
 
@@ -734,7 +737,7 @@ available after running <a href="CellFilteringState.html#compute"><code>compute<
     </dt>
     <dd>
         
-<span class="param-type">MultiMatrix</span>
+<span class="param-type"><a href="external-MultiMatrix.html">external:MultiMatrix</a></span>
 
 
     </dd>
@@ -761,7 +764,7 @@ available after running <a href="CellFilteringState.html#compute"><code>compute<
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line104">line 104</a>
+        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line107">line 107</a>
     </li></ul></dd>
     
 
@@ -866,7 +869,7 @@ available after running <a href="CellFilteringState.html#compute"><code>compute<
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line255">line 255</a>
+        <a href="steps_cell_filtering.js.html">steps/cell_filtering.js</a>, <a href="steps_cell_filtering.js.html#line258">line 258</a>
     </li></ul></dd>
     
 
@@ -1022,7 +1025,7 @@ Note that this will be modified in-place.</p></td>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Mon Dec 26 2022 06:48:49 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Mon Dec 26 2022 07:16:07 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
