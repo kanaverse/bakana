@@ -133,7 +133,7 @@ export class CustomSelectionsState {
      * @param {string} id - An identifier for the desired selection.
      *
      * @return {object} Object containing the markers for the desired selection.
-     * Each key is a modality name while each value is a ScoreMarkersResults object,
+     * Each key is a modality name while each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object,
      * containing the marker detection results across all features of the corresponding modality.
      * The set of cells in the selection is denoted as group 1, while all cells outside of the selection are denoted as group 0.
      */
@@ -265,7 +265,7 @@ export class CustomSelectionsState {
      * @return {object} Object containing:
      *
      * - `results`: object containing the marker statistics for the comparison between two clusters.
-     *    Each key is a modality name and each value is a ScoreMarkersResults object.
+     *    Each key is a modality name and each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object.
      * - `left`: index of the group corresponding to the `left` selection in each ScoreMarkersResults object.
      *    e.g., Cohen's d for the RNA markers of the `left` selection are defined as `output.results.RNA.cohen(output.left)`.
      * - `right`: index of the group corresponding to the `right` selection in each ScoreMarkersResults object.
@@ -319,7 +319,7 @@ export class CustomSelectionsState {
      * @return {object} Object containing:
      *
      * - `results`: object containing the marker statistics for the comparison between two clusters.
-     *    Each key is a modality name and each value is a ScoreMarkersResults object.
+     *    Each key is a modality name and each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object.
      * - `left`: index of the group corresponding to the `left` selection in each ScoreMarkersResults object.
      *    e.g., Cohen's d for the RNA markers of the `left` selection are defined as `output.results.RNA.cohen(output.left)`.
      * - `right`: index of the group corresponding to the `right` selection in each ScoreMarkersResults object.

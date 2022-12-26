@@ -48,7 +48,7 @@ export class AdtPcaState {
     }
 
     /**
-     * @return {RunPCAResults} Results of the PCA on the normalized ADT matrix,
+     * @return {external:RunPCAResults} Results of the PCA on the normalized ADT matrix,
      * available after running {@linkcode AdtPcaState#compute compute}.
      */
     fetchPCs() {

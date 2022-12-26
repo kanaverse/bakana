@@ -5,8 +5,25 @@ import * as inputs_module from "./inputs.js";
 export const step_name = "adt_quality_control";
 
 /**
+ * Results of computing per-cell ADT-derived QC metrics,
+ * see [here](https://www.jkanche.com/scran.js/PerCellAdtQcMetricsResults.html) for details.
+ *
+ * @external PerCellAdtQcMetricsResults
+ */
+
+/**
+ * Suggested filters for the ADT-derived QC metrics,
+ * see [here](https://www.jkanche.com/scran.js/SuggestAdtQcFiltersResults.html) for details.
+ *
+ * @external SuggestAdtQcFiltersResults
+ */
+
+/**
  * This step applies quality control on the ADT count matrix.
- * Specifically, it computes the QC metrics and filtering thresholds, wrapping `perCellAdtQcMetrics` and `suggestAdtQcFilters` from [**scran.js**](https://github.com/jkanche/scran.js).
+ * Specifically, it computes the QC metrics and filtering thresholds, 
+ * wrapping [`perCellAdtQcMetrics`](https://www.jkanche.com/scran.js/global.html#perCellAdtQcMetrics)
+ * and [`suggestAdtQcFilters`](https://www.jkanche.com/scran.js/global.html#suggestAdtQcFilters) 
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
  * Note that the actual filtering is done by {@linkcode CellFilteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
@@ -52,7 +69,7 @@ export class AdtQualityControlState {
     }
 
     /**
-     * @return {?PerCellAdtQcFiltersResults} Result of filtering on the ADT-derived QC metrics.
+     * @return {external:SuggestAdtQcFiltersResults} Result of filtering on the ADT-derived QC metrics.
      * This is available after running {@linkcode AdtQualityControlState#compute compute}.
      */
     fetchFilters() {
@@ -69,7 +86,7 @@ export class AdtQualityControlState {
     }
 
     /**
-     * @return {PerCellAdtQcMetricsResults} ADT-derived QC metrics,
+     * @return {external:PerCellAdtQcMetricsResults} ADT-derived QC metrics,
      * available after running {@linkcode AdtQualityControlState#compute compute}.
      */
     fetchMetrics() {

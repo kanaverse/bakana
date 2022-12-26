@@ -6,6 +6,20 @@ import * as inputs_module from "./inputs.js";
 export const step_name = "rna_quality_control";
 
 /**
+ * Results of computing per-cell RNA-derived QC metrics,
+ * see [here](https://www.jkanche.com/scran.js/PerCellRnaQcMetricsResults.html) for details.
+ *
+ * @external PerCellRnaQcMetricsResults
+ */
+
+/**
+ * Suggested filters for the RNA-derived QC metrics,
+ * see [here](https://www.jkanche.com/scran.js/SuggestRnaQcFiltersResults.html) for details.
+ *
+ * @external SuggestRnaQcFiltersResults
+ */
+
+/**
  * This step applies quality control on the RNA count matrix.
  * Specifically, it computes the QC metrics and filtering thresholds, wrapping `perCellRnaQcMetrics` and `suggestRnaQcFilters` from [**scran.js**](https://github.com/jkanche/scran.js).
  * Note that the actual filtering is done by {@linkcode CellFilteringState}.
@@ -61,14 +75,14 @@ export class RnaQualityControlState {
     }
 
     /**
-     * @return {SuggestRnaQcFiltersResults} Result of filtering on the RNA-derived QC metrics.
+     * @return {external:SuggestRnaQcFiltersResults} Result of filtering on the RNA-derived QC metrics.
      */
     fetchFilters() {
         return this.#cache.filters;
     }
 
     /**
-     * @return {PerCellRnaQcMetricsResults} RNA-derived QC metrics.
+     * @return {external:PerCellRnaQcMetricsResults} RNA-derived QC metrics.
      */
     fetchMetrics() {
         return this.#cache.metrics;

@@ -7,6 +7,13 @@ import * as feat_module from "./feature_selection.js";
 export const step_name = "rna_pca";
 
 /**
+ * Results of running PCA on some input matrix,
+ * see [here](https://www.jkanche.com/scran.js/RunPCAResults.html) for details.
+ *
+ * @external RunPCAResults
+ */
+
+/**
  * This step performs a principal components analysis (PCA) to compact and denoise the data.
  * The resulting PCs can be used as input to various per-cell analyses like clustering and dimensionality reduction.
  * It wraps the `runPCA` function from [**scran.js**](https://github.com/jkanche/scran.js).
@@ -56,7 +63,7 @@ export class RnaPcaState {
     }
 
     /**
-     * @return {RunPCAResults} Results of the PCA on the normalized gene expression values.
+     * @return {external:RunPCAResults} Results of the PCA on the normalized gene expression values.
      */
     fetchPCs() {
         return this.#cache.pcs;

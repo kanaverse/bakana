@@ -4,6 +4,13 @@ import * as filter_module from "./cell_filtering.js";
 import * as norm_module from "./rna_normalization.js";
 
 /**
+ * Results of per-gene variance modelling,
+ * see [here](https://www.jkanche.com/scran.js/ModelGeneVarResults.html) for details.
+ *
+ * @external ModelGeneVarResults
+ */
+
+/**
  * Feature selection is performed by modelling the per-gene variance and finding highly variable genes.
  * This wraps the `modelGeneVar` function from [**scran.js**](https://github.com/jkanche/scran.js).
  *
@@ -45,7 +52,7 @@ export class FeatureSelectionState {
     }
 
     /**
-     * @return {ModelGeneVarResults} Variance modelling results,
+     * @return {external:ModelGeneVarResults} Variance modelling results,
      * available after running {@linkcode FeatureSelectionState#compute compute}.
      */
     fetchResults() {
