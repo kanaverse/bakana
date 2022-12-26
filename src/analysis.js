@@ -269,7 +269,9 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
 
     await quickStart(step_combine);
     state[step_combine].compute(
-        params[step_combine]["weights"],
+        params[step_combine]["rna_weight"],
+        params[step_combine]["adt_weight"],
+        params[step_combine]["crispr_weight"],
         params[step_combine]["approximate"]
     );
     await quickFinish(step_combine);

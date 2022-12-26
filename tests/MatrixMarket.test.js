@@ -84,7 +84,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     // While the ADT itself is a no-op, the parameters should still be okay.
     expect(new_params.adt_normalization.num_pcs).toBeGreaterThan(0);
     expect(new_params.adt_normalization.num_clusters).toBeGreaterThan(0);
-    expect(new_params.combine_embeddings.weights).toBeNull();
+    expect(new_params.combine_embeddings.adt_weight).toBe(1);
     expect(new_params.batch_correction.num_neighbors).toBeGreaterThan(0);
 
     // Saving and loading works correctly when AUCs are skipped.
