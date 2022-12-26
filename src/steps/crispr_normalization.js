@@ -1,11 +1,13 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
+import * as nutils from "./utils/normalization.js";
+import * as qc_module from "./crispr_quality_control.js";
 import * as filter_module from "./cell_filtering.js";
 
 export const step_name = "crispr_normalization";
 
 /**
- * This step performs normalization and log-transformation on the QC-filtered CRISPR guide count matrix from the {@linkplain CellFilteringState}.
+ * This step performs normalization and log-transformation on the QC-filtered CRISPR count matrix from the {@linkplain CellFilteringState}.
  * It wraps the [`logNormCounts`](https://www.jkanche.com/scran.js/global.html#logNormCounts) functions
  * from [**scran.js**](https://github.com/jkanche/scran.js).
  *
@@ -13,11 +15,17 @@ export const step_name = "crispr_normalization";
  * @hideconstructor
  */
 export class CrisprNormalizationState {
+    #qc;
     #filter;
     #parameters;
     #cache;
 
-    constructor(filter, parameters = null, cache = null) {
+    constructor(qc, filter, parameters = null, cache = null) {
+        if (!(qc instanceof qc_module.CrisprQualityControlState)) {
+            throw new Error("'qc' should be a CrisprQualityControlState object");
+        }
+        this.#qc = qc;
+
         if (!(filter instanceof filter_module.CellFilteringState)) {
             throw new Error("'filter' should be a CellFilteringState object");
         }
@@ -30,6 +38,8 @@ export class CrisprNormalizationState {
 
     free() {
         utils.freeCache(this.#cache.matrix);
+        utils.freeCache(this.#cache.total_buffer);
+        utils.freeCache(this.#cache.sf_buffer);
     }
 
     /***************************
@@ -42,14 +52,23 @@ export class CrisprNormalizationState {
     }
 
     /**
-     * @return {ScranMatrix} A ScranMatrix object containing the normalized guide abundance values,
-     * available after running {@linkcode AdtNormalizationState#compute compute}.
+     * @return {external:ScranMatrix} A {@linkplain external:ScranMatrix ScranMatrix} object containing the normalized CRISPR abundances,
+     * available after running {@linkcode CrisprNormalizationState#compute compute}.
      */
     fetchNormalizedMatrix() {
         if (!("matrix" in this.#cache)) {
             this.#raw_compute();
         }
         return this.#cache.matrix;
+    }
+
+    /**
+     * @return {Float64WasmArray} Array of length equal to the number of cells, 
+     * containing the gene expression size factor for each cell.
+     * This is available after running {@linkcode RnaNormalizationState#compute compute}.
+     */
+    fetchSizeFactors() {
+        return this.#cache.sum_buffer;
     }
 
     /**
@@ -65,9 +84,11 @@ export class CrisprNormalizationState {
 
     #raw_compute() {
         var mat = this.#filter.fetchFilteredMatrix().get("CRISPR");
+        let buffer = nutils.subsetSums(this.#qc, this.#filter, mat, this.#cache, "sum_buffer");
+
         var block = this.#filter.fetchFilteredBlock();
         utils.freeCache(this.#cache.matrix);
-        this.#cache.matrix = scran.logNormCounts(mat, { block: block, allowZeros: true });
+        this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: block, allowZeros: true });
         return;
     }
 
@@ -78,13 +99,12 @@ export class CrisprNormalizationState {
      */
     compute() {
         this.changed = false;
-
-        if (this.#filter.changed) {
+        if (this.#qc.changed || this.#filter.changed) {
             if (this.valid()) {
                 this.#raw_compute();
                 this.changed = true;
             }
-        }
+        } 
 
         return;
     }
@@ -108,8 +128,6 @@ export class CrisprNormalizationState {
  ******** Loading *********
  **************************/
 
-export function unserialize(handle, filter) {
-    let cache = {};
-    let parameters = {};
-    return new CrisprNormalizationState(filter, parameters, cache);
+export function unserialize(handle, qc, filter) {
+    return new CrisprNormalizationState(qc, filter);
 }

@@ -26,8 +26,8 @@ export class CombineEmbeddingsState {
         if (!(pca_states.ADT instanceof adt_pca_module.AdtPcaState)) {
             throw new Error("'pca_states.ADT' should be an AdtPcaState object");
         }
-        if (!(pca_states.CRISPR instanceof crispr_pca_module.AdtPcaState)) {
-            throw new Error("'pca_states.CRISPR' should be an AdtPcaState object");
+        if (!(pca_states.CRISPR instanceof crispr_pca_module.CrisprPcaState)) {
+            throw new Error("'pca_states.CRISPR' should be an CrisprPcaState object");
         }
         this.#pca_states = pca_states;
 

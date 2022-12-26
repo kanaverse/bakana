@@ -78,12 +78,12 @@ function create_analysis(input_state) {
     output[step_qc_adt] = new qcadt.AdtQualityControlState(output[step_inputs]);
     output[step_qc_crispr] = new qccrispr.CrisprQualityControlState(output[step_inputs]);
 
-    let qc_states = { RNA: output[step_qc], ADT: output[step_qc_adt], CRISPR: output[step_qc_crispr] }
-    output[step_filter] = new filters.CellFilteringState(output[step_inputs], );
+    let qc_states = { "RNA": output[step_qc], "ADT": output[step_qc_adt], "CRISPR": output[step_qc_crispr] }
+    output[step_filter] = new filters.CellFilteringState(output[step_inputs], qc_states);
 
     output[step_norm] = new normalization.RnaNormalizationState(output[step_qc], output[step_filter]);
     output[step_norm_adt] = new normadt.AdtNormalizationState(output[step_qc_adt], output[step_filter]);
-    output[step_norm_crispr] = new normadt.CrisprNormalizationState(output[step_filter]);
+    output[step_norm_crispr] = new normcrispr.CrisprNormalizationState(output[step_qc_crispr], output[step_filter]);
 
     output[step_feat] = new variance.FeatureSelectionState(output[step_filter], output[step_norm]);
 
@@ -91,8 +91,8 @@ function create_analysis(input_state) {
     output[step_pca_adt] = new pcaadt.AdtPcaState(output[step_filter], output[step_norm_adt]);
     output[step_pca_crispr] = new pcacrispr.CrisprPcaState(output[step_filter], output[step_norm_crispr]);
 
-    let pca_states = { RNA: output[step_pca], ADT: output[step_pca_adt], CRISPR: output[step_pca_crispr] }
-    output[step_combine] = new combine.CombineEmbeddingsState();
+    let pca_states = { "RNA": output[step_pca], "ADT": output[step_pca_adt], "CRISPR": output[step_pca_crispr] }
+    output[step_combine] = new combine.CombineEmbeddingsState(pca_states);
     output[step_correct] = new correct.BatchCorrectionState(output[step_filter], output[step_combine]);
 
     output[step_neighbors] = new index.NeighborIndexState(output[step_correct]);

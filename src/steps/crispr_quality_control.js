@@ -111,10 +111,10 @@ export class CrisprQualityControlState {
      *
      * @return The object is updated with the new results.
      */
-    compute(igg_prefix, nmads, min_detected_drop) {
+    compute(nmads) {
         this.changed = false;
 
-        if (this.#inputs.changed || igg_prefix !== this.#parameters.igg_prefix) {
+        if (this.#inputs.changed) {
             utils.freeCache(this.#cache.metrics);
 
             if (this.valid()) {
@@ -153,7 +153,7 @@ export class CrisprQualityControlState {
         let ghandle = handle.createGroup(step_name);
 
         {
-            let phandle = ghandle.createGroup("parameters"); 
+            let phandle = ghandle.createGroup("parameters");
             phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
         }
 

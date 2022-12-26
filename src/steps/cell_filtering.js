@@ -47,7 +47,7 @@ export class CellFilteringState {
         if (!(qc_states.ADT instanceof adt_qc_module.AdtQualityControlState)) {
             throw new Error("'qc_states.ADT' should be a AdtQualityControlState object");
         }
-        if (!(qc_states.CRISPR instanceof crispr_qc_module.CrisprQualityControlState) {
+        if (!(qc_states.CRISPR instanceof crispr_qc_module.CrisprQualityControlState)) {
             throw new Error("'qc_states.CRISPR' should be a CrisprQualityControlState object");
         }
         this.#qc_states = qc_states;
@@ -171,13 +171,14 @@ export class CellFilteringState {
             this.changed = true;
         }
 
-        if (this.#parameters.use_rna !== use_rna || this.#parameters.use_adt !== use_adt) {
+        if (this.#parameters.use_rna !== use_rna || this.#parameters.use_adt !== use_adt || this.#parameters.use_crispr !== use_crispr) {
             this.#parameters.use_rna = use_rna;
             this.#parameters.use_adt = use_adt;
+            this.#parameters.use_crispr = use_crispr;
             this.changed = true;
         }
 
-        let to_use = find_usable_upstream_states(this.#qc_states, { RNA: use_rna, ADT: use_adt });
+        let to_use = find_usable_upstream_states(this.#qc_states, { RNA: use_rna, ADT: use_adt, CRISPR: use_crispr });
         if (!this.changed) {
             for (const u of to_use) {
                 if (u.changed) {
