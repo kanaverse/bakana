@@ -5,9 +5,26 @@ import * as inputs_module from "./inputs.js";
 export const step_name = "adt_quality_control";
 
 /**
+ * Results of computing per-cell ADT-derived QC metrics,
+ * see [here](https://www.jkanche.com/scran.js/PerCellAdtQcMetricsResults.html) for details.
+ *
+ * @external PerCellAdtQcMetricsResults
+ */
+
+/**
+ * Suggested filters for the ADT-derived QC metrics,
+ * see [here](https://www.jkanche.com/scran.js/SuggestAdtQcFiltersResults.html) for details.
+ *
+ * @external SuggestAdtQcFiltersResults
+ */
+
+/**
  * This step applies quality control on the ADT count matrix.
- * Specifically, it computes the QC metrics and filtering thresholds, wrapping `computePerCellAdtQcMetrics` and `computePerCellAdtQcFilters` from [**scran.js**](https://github.com/jkanche/scran.js).
- * Note that the actual filtering is done by {@linkcode CellFilteringState}.
+ * Specifically, it computes the QC metrics and filtering thresholds, 
+ * wrapping the [`perCellAdtQcMetrics`](https://www.jkanche.com/scran.js/global.html#perCellAdtQcMetrics)
+ * and [`suggestAdtQcFilters`](https://www.jkanche.com/scran.js/global.html#suggestAdtQcFilters) functions
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * Note that the actual filtering is done by {@linkplain CellFilteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -32,6 +49,7 @@ export class AdtQualityControlState {
         utils.freeCache(this.#cache.metrics);
         utils.freeCache(this.#cache.filters);
         utils.freeCache(this.#cache.metrics_buffer);
+        utils.freeCache(this.#cache.discard_buffer);
     }
 
     /***************************
@@ -43,10 +61,6 @@ export class AdtQualityControlState {
         return input.has("ADT");
     }
 
-    skipped() {
-        return this.#parameters.skip;
-    }
-
     /**
      * @return {object} Object containing the parameters.
      */
@@ -55,9 +69,8 @@ export class AdtQualityControlState {
     }
 
     /**
-     * @return {?PerCellAdtQcFiltersResults} Result of filtering on the ADT-derived QC metrics.
+     * @return {external:SuggestAdtQcFiltersResults} Result of filtering on the ADT-derived QC metrics.
      * This is available after running {@linkcode AdtQualityControlState#compute compute}.
-     * Alternatively `null`, if no ADTs are available or if this step was skipped.
      */
     fetchFilters() {
         return this.#cache.filters;
@@ -69,13 +82,12 @@ export class AdtQualityControlState {
      * This is available after running {@linkcode AdtQualityControlState#compute compute}.
      */
     fetchDiscards() {
-        return this.#cache.filters.discardOverall({ copy: "view" });
+        return this.#cache.discard_buffer;
     }
 
     /**
-     * @return {PerCellAdtQcMetricsResults} ADT-derived QC metrics,
+     * @return {external:PerCellAdtQcMetricsResults} ADT-derived QC metrics,
      * available after running {@linkcode AdtQualityControlState#compute compute}.
-     * Alternatively `null`, if no ADTs are available or if this step was skipped.
      */
     fetchMetrics() {
         return this.#cache.metrics;
@@ -87,7 +99,6 @@ export class AdtQualityControlState {
 
     static defaults() {
         return {
-            skip: false,
             igg_prefix: "IgG",
             nmads: 3,
             min_detected_drop: 0.1
@@ -98,31 +109,19 @@ export class AdtQualityControlState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * Each argument is taken from the property of the same name in the `adt_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {boolean} skip - Whether to skip the calculation of quality control statistics.
      * @param {string} igg_prefix - Prefix of the identifiers for isotype controls.
      * @param {number} nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
      * @param {number} min_detected_drop - Minimum proportional drop in the number of detected features before a cell is to be considered low-quality.
      *
      * @return The object is updated with the new results.
      */
-    compute(skip, igg_prefix, nmads, min_detected_drop) {
+    compute(igg_prefix, nmads, min_detected_drop) {
         this.changed = false;
 
-        // If the metrics or filters aren't available and we're not skipping
-        // this step, then we need to run this.
-        let skip_impossible = skip || !this.valid();
-        let unskip_metrics = (!skip_impossible && !("metrics" in this.#cache));
-        let unskip_filters = (!skip_impossible && !("filters" in this.#cache));
-
-        if (this.#inputs.changed || igg_prefix !== this.#parameters.igg_prefix || unskip_metrics) {
+        if (this.#inputs.changed || igg_prefix !== this.#parameters.igg_prefix) {
             utils.freeCache(this.#cache.metrics);
 
-            if (skip_impossible) {
-                // Delete anything existing, as it won't be valid as other
-                // things have changed upstream of us. This ensures that we
-                // can re-run this step later via unskip_metrics = true.
-                delete this.#cache.metrics;
-            } else {
+            if (this.valid()) {
                 var mat = this.#inputs.fetchCountMatrix().get("ADT");
                 var gene_info = this.#inputs.fetchFeatureAnnotations()["ADT"];
 
@@ -141,33 +140,30 @@ export class AdtQualityControlState {
                     });
                 }
 
-                this.#cache.metrics = scran.computePerCellAdtQcMetrics(mat, [subsets]);
+                this.#cache.metrics = scran.perCellAdtQcMetrics(mat, [subsets]);
+                this.changed = true;
+            } else {
+                delete this.#cache.metrics;
             }
 
             this.#parameters.igg_prefix = igg_prefix;
-            this.changed = true;
         }
 
-        if (this.changed || nmads !== this.#parameters.nmads || min_detected_drop !== this.#parameters.min_detected_drop || unskip_filters) {
+        if (this.changed || nmads !== this.#parameters.nmads || min_detected_drop !== this.#parameters.min_detected_drop) {
             utils.freeCache(this.#cache.filters);
 
-            if (skip_impossible) {
-                delete this.#cache.filters;
-            } else {
+            if (this.valid()) {
                 let block = this.#inputs.fetchBlock();
-                this.#cache.filters = scran.computePerCellAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, minDetectedDrop: min_detected_drop, block: block });
+                this.#cache.filters = scran.suggestAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, minDetectedDrop: min_detected_drop, block: block });
+                var discard = utils.allocateCachedArray(this.#cache.metrics.numberOfCells(), "Uint8Array", this.#cache, "discard_buffer");
+                this.#cache.filters.filter(this.#cache.metrics, { block: block, buffer: discard });
+                this.changed = true;
+            } else {
+                delete this.#cache.filters;
             }
 
             this.#parameters.nmads = nmads;
             this.#parameters.min_detected_drop = min_detected_drop;
-            this.changed = true;
-        }
-
-        if (this.#parameters.skip !== skip) {
-            this.changed = true;
-            this.#parameters.skip = skip;
-        } else if (this.#parameters.skip && skip) {
-            this.changed = false; // force this to be true, no matter what.
         }
 
         return;
@@ -182,28 +178,26 @@ export class AdtQualityControlState {
 
         {
             let phandle = ghandle.createGroup("parameters"); 
-            phandle.writeDataSet("skip", "Uint8", [], Number(this.#parameters.skip));
             phandle.writeDataSet("igg_prefix", "String", [], this.#parameters.igg_prefix);
             phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
             phandle.writeDataSet("min_detected_drop", "Float64", [], this.#parameters.min_detected_drop);
+            phandle.writeDataSet("skip", "Uint8", [], 0); // back-compatibility only.
         }
 
         {
             let rhandle = ghandle.createGroup("results"); 
-
-            if ("metrics" in this.#cache) { // if skip=true, metrics may not be computed... but if they are, we save them anyway.
+            
+            if (this.valid()) {
                 let mhandle = rhandle.createGroup("metrics");
                 mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
                 mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
                 mhandle.writeDataSet("igg_total", "Float64", null, this.#cache.metrics.subsetTotals(0, { copy: "view" }));
-            }
 
-            if ("filters" in this.#cache) { // if skip=true, thresholds may not be reported... but if they are, we save them anyway.
                 let thandle = rhandle.createGroup("thresholds");
                 thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "view" }));
                 thandle.writeDataSet("igg_total", "Float64", null, this.#cache.filters.thresholdsSubsetTotals(0, { copy: "view" }));
 
-                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.filters.discardOverall({ copy: "view" }));
+                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.discard_buffer);
             }
         }
     }
@@ -226,10 +220,6 @@ export function unserialize(handle, inputs) {
         parameters.nmads = phandle.open("nmads", { load: true }).values[0];
         parameters.min_detected_drop = phandle.open("min_detected_drop", { load: true }).values[0];
 
-        if ("skip" in phandle.children) {
-            parameters.skip = phandle.open("skip", { load: true }).values[0] > 0;
-        }
-
         try {
             let rhandle = ghandle.open("results");
 
@@ -238,24 +228,26 @@ export function unserialize(handle, inputs) {
 
                 let detected = mhandle.open("detected", { load: true }).values;
                 cache.metrics = scran.emptyPerCellAdtQcMetricsResults(detected.length, 1);
-                cache.metrics.detected({ copy: false }).set(detected);
+                cache.metrics.detected({ fillable: true }).set(detected);
 
                 let sums = mhandle.open("sums", { load: true }).values;
-                cache.metrics.sums({ copy: false }).set(sums);
+                cache.metrics.sums({ fillable: true }).set(sums);
                 let igg_total = mhandle.open("igg_total", { load: true }).values;
-                cache.metrics.subsetTotals(0, { copy: false }).set(igg_total);
+                cache.metrics.subsetTotals(0, { fillable: true }).set(igg_total);
             }
 
             if ("thresholds" in rhandle.children) { // if skip=true or valid() is false, QC thresholds may not be reported.
+                let discards = rhandle.open("discards", { load: true }).values; 
+                cache.discard_buffer = scran.createUint8WasmArray(discards.length);
+                cache.discard_buffer.set(discards);
+
                 let thandle = rhandle.open("thresholds");
                 let thresholds_detected = thandle.open("detected", { load: true }).values;
                 let thresholds_igg_total = thandle.open("igg_total", { load: true }).values;
-                let discards = rhandle.open("discards", { load: true }).values; 
 
-                cache.filters = scran.emptyPerCellAdtQcFiltersResults(discards.length, 1, thresholds_detected.length);
-                cache.filters.discardOverall({ copy: false }).set(discards);
-                cache.filters.thresholdsDetected({ copy: false }).set(thresholds_detected);
-                cache.filters.thresholdsSubsetTotals(0, { copy: false }).set(thresholds_igg_total);
+                cache.filters = scran.emptySuggestAdtQcFiltersResults(1, thresholds_detected.length);
+                cache.filters.thresholdsDetected({ fillable: true }).set(thresholds_detected);
+                cache.filters.thresholdsSubsetTotals(0, { fillable: true }).set(thresholds_igg_total);
             }
 
             output = new AdtQualityControlState(inputs, parameters, cache);

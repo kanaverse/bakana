@@ -4,8 +4,16 @@ import * as filter_module from "./cell_filtering.js";
 import * as norm_module from "./rna_normalization.js";
 
 /**
+ * Results of per-gene variance modelling,
+ * see [here](https://www.jkanche.com/scran.js/ModelGeneVarResults.html) for details.
+ *
+ * @external ModelGeneVarResults
+ */
+
+/**
  * Feature selection is performed by modelling the per-gene variance and finding highly variable genes.
- * This wraps the `modelGeneVar` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This wraps the [`modelGeneVar`](https://jkanche.com/scran.js/global.html#modelGeneVar) function 
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -45,7 +53,7 @@ export class FeatureSelectionState {
     }
 
     /**
-     * @return {ModelGeneVarResults} Variance modelling results,
+     * @return {external:ModelGeneVarResults} Variance modelling results,
      * available after running {@linkcode FeatureSelectionState#compute compute}.
      */
     fetchResults() {
@@ -164,10 +172,10 @@ export function unserialize(handle, permuter, filter, norm) {
             }
 
             cache.results = scran.emptyModelGeneVarResults(reloaded.means.length, 1);
-            cache.results.means({ copy : false }).set(reloaded.means);
-            cache.results.variances({ copy : false }).set(reloaded.vars);
-            cache.results.fitted({ copy : false }).set(reloaded.fitted);
-            cache.results.residuals({ copy : false }).set(reloaded.resids);
+            cache.results.means({ fillable: true }).set(reloaded.means);
+            cache.results.variances({ fillable: true }).set(reloaded.vars);
+            cache.results.fitted({ fillable: true }).set(reloaded.fitted);
+            cache.results.residuals({ fillable: true }).set(reloaded.resids);
 
             cache.sorted_residuals = cache.results.residuals({ copy: true });
             cache.sorted_residuals.sort();

@@ -183,7 +183,6 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
     /*** Quality control ***/
     await quickStart(step_qc);
     state[step_qc].compute(
-        params[step_qc]["skip"],
         params[step_qc]["use_mito_default"], 
         params[step_qc]["mito_prefix"], 
         params[step_qc]["nmads"]
@@ -192,7 +191,6 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
 
     await quickStart(step_qc_adt);
     state[step_qc_adt].compute(
-        params[step_qc_adt]["skip"],
         params[step_qc_adt]["igg_prefix"], 
         params[step_qc_adt]["nmads"],
         params[step_qc_adt]["min_detected_drop"]
@@ -200,7 +198,10 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
     await quickFinish(step_qc_adt);
 
     await quickStart(step_filter);
-    state[step_filter].compute();
+    state[step_filter].compute(
+        params[step_filter]["use_rna"], 
+        params[step_filter]["use_adt"]
+    );
     await quickFinish(step_filter);
 
     /*** Normalization ***/

@@ -42,7 +42,7 @@ export class InputsState {
      ***************************/
 
     /**
-     * @return {MultiMatrix} A MultiMatrix object containing the counts for one or more modalities.
+     * @return {external:MultiMatrix} A {@linkplain external:MultiMatrix MultiMatrix} object containing counts for one or more modalities.
      * Each modality is represented by a separate count matrix, where each row of the matrix represents a feature of that modality.
      * All matrices have the same number and ordering of cells in their columns.
      */
@@ -51,7 +51,7 @@ export class InputsState {
     }
 
     /**
-     * @return {object} Object where each key is the name of a modality and each value is a DataFrame.
+     * @return {object} Object where each key is the name of a modality and each value is a {@linkplain external:DataFrame DataFrame}.
      * Each row of the DataFrame corresponds to a feature in that modality 
      * (i.e., a row in the corresponding matrix from {@linkcode InputsState#fetchCountMatrix fetchCountMatrix})
      * and each column represents a per-feature annotation field.
@@ -69,7 +69,7 @@ export class InputsState {
     }
 
     /**
-     * @return {DataFrame} DataFrame containing per-cell annotations.
+     * @return {external:DataFrame} {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * Each row of the DataFrame corresponds to a cell in {@linkcode InputsState#fetchCountMatrix fetchCountMatrix},
      * and each column represents a per-cell annotation field.
      *

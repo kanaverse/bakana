@@ -3,8 +3,9 @@ import * as utils from "./utils/general.js";
 import * as neighbor_module from "./neighbor_index.js";
 
 /**
- * This step does SNN graph clustering based on the neighbor search index built by {@linkcode neighbor_index}.
- * This wraps `clusterSNNGraph` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This step does SNN graph clustering based on the neighbor search index built by {@linkplain NeighborIndexState}.
+ * This wraps [`clusterSNNGraph`](https://jkanche.com/scran.js/global.html#clusterSNNGraph) 
+ * and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -187,7 +188,8 @@ export function unserialize(handle, index) {
         if ("clusters" in rhandle.children) {
             let clusters = rhandle.open("clusters", { load: true }).values;
             cache.clusters = scran.emptyClusterSNNGraphResults(clusters.length, 1);
-            cache.clusters.membership({ copy: false }).set(clusters);
+            cache.clusters.setBest(0); // whatever.
+            cache.clusters.membership({ fillable: true }).set(clusters);
         }
     }
 

@@ -10,7 +10,8 @@ export const step_name = "custom_selections";
 /**
  * Applications can perform marker detection on custom selections of cells.
  * This allows users to dynamically select cells on a UI and quickly obtain a list of distinguishing markers for that selection.
- * This wraps the `scoreMarkers` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This wraps the [`scoreMarkers`](https://jkanche.com/scran.js/global.html#scoreMarkers) function 
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -133,7 +134,7 @@ export class CustomSelectionsState {
      * @param {string} id - An identifier for the desired selection.
      *
      * @return {object} Object containing the markers for the desired selection.
-     * Each key is a modality name while each value is a ScoreMarkersResults object,
+     * Each key is a modality name while each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object,
      * containing the marker detection results across all features of the corresponding modality.
      * The set of cells in the selection is denoted as group 1, while all cells outside of the selection are denoted as group 0.
      */
@@ -250,7 +251,7 @@ export class CustomSelectionsState {
      *
      * @param {string} left - Identifier of one selection.
      * @param {string} right - Identifier of another selection to be compared against `left`.
-     * @param {MultiMatrix} matrices - A MultiMatrix object containing log-normalized matrices for each modality.
+     * @param {external:MultiMatrix} matrices - A {@linkplain external:MultiMatrix MultiMatrix} object containing log-normalized matrices for each modality.
      * @param {object} selections - Object containing selections of cells.
      * Each key should be a selection identifier while each value is an Array, TypedArray or WasmArray.
      * Each array should contain integer column indices on `matrices`.
@@ -265,7 +266,7 @@ export class CustomSelectionsState {
      * @return {object} Object containing:
      *
      * - `results`: object containing the marker statistics for the comparison between two clusters.
-     *    Each key is a modality name and each value is a ScoreMarkersResults object.
+     *    Each key is a modality name and each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object.
      * - `left`: index of the group corresponding to the `left` selection in each ScoreMarkersResults object.
      *    e.g., Cohen's d for the RNA markers of the `left` selection are defined as `output.results.RNA.cohen(output.left)`.
      * - `right`: index of the group corresponding to the `right` selection in each ScoreMarkersResults object.
@@ -319,7 +320,7 @@ export class CustomSelectionsState {
      * @return {object} Object containing:
      *
      * - `results`: object containing the marker statistics for the comparison between two clusters.
-     *    Each key is a modality name and each value is a ScoreMarkersResults object.
+     *    Each key is a modality name and each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object.
      * - `left`: index of the group corresponding to the `left` selection in each ScoreMarkersResults object.
      *    e.g., Cohen's d for the RNA markers of the `left` selection are defined as `output.results.RNA.cohen(output.left)`.
      * - `right`: index of the group corresponding to the `right` selection in each ScoreMarkersResults object.
@@ -393,15 +394,15 @@ function fill_results(stats) {
         { computeAuc: ("auc" in stats) }
     );
 
-    object.means(1, { copy: false }).set(stats.means);
-    object.detected(1, { copy: false }).set(stats.detected);
+    object.means(1, { fillable: true }).set(stats.means);
+    object.detected(1, { fillable: true }).set(stats.detected);
 
     for (const index of Object.values(markers.summaries2int)) {
-        object.cohen(1, { summary: index, copy: false }).set(stats.cohen);
-        object.lfc(1, { summary: index, copy: false }).set(stats.lfc);
-        object.deltaDetected(1, { summary: index, copy: false }).set(stats.delta_detected);
+        object.cohen(1, { summary: index, fillable: true }).set(stats.cohen);
+        object.lfc(1, { summary: index, fillable: true }).set(stats.lfc);
+        object.deltaDetected(1, { summary: index, fillable: true }).set(stats.delta_detected);
         if ("auc" in stats) {
-            object.auc(1, { summary: index, copy: false }).set(stats.auc);
+            object.auc(1, { summary: index, fillable: true }).set(stats.auc);
         }
     }
 

@@ -8,7 +8,8 @@ export const step_name = "adt_pca";
 /**
  * This step performs a principal components analysis (PCA) to compact and denoise ADT data.
  * The resulting PCs can be used as input to various per-cell analyses like clustering and dimensionality reduction.
- * It wraps the `runPCA` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * It wraps the [`runPCA`](https://jkanche.com/scran.js/global.html#runPCA) function
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -48,7 +49,7 @@ export class AdtPcaState {
     }
 
     /**
-     * @return {RunPCAResults} Results of the PCA on the normalized ADT matrix,
+     * @return {external:RunPCAResults} Results of the PCA on the normalized ADT matrix,
      * available after running {@linkcode AdtPcaState#compute compute}.
      */
     fetchPCs() {
@@ -161,8 +162,8 @@ export function unserialize(handle, filter, norm) {
                 let var_exp = rhandle.open("var_exp", { load: true }).values;
 
                 cache.pcs = scran.emptyRunPCAResults(pcs_handle.shape[0], pcs_handle.shape[1]);
-                cache.pcs.principalComponents({ copy: false }).set(pcs);
-                cache.pcs.varianceExplained({ copy: false }).set(var_exp);
+                cache.pcs.principalComponents({ fillable: true }).set(pcs);
+                cache.pcs.varianceExplained({ fillable: true }).set(var_exp);
                 cache.pcs.setTotalVariance(1); // because the file only stores proportions.
             }
 

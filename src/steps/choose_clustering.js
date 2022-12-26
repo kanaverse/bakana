@@ -4,7 +4,7 @@ import * as snn_module from "./snn_graph_cluster.js";
 import * as kmeans_module from "./kmeans_cluster.js";
 
 /**
- * This step chooses between the k-means and SNN graph clusterings.
+ * This step chooses between the k-means and SNN graph clusterings from {@linkplain KmeansClusterState} and {@linkplain SnnGraphClusterState}, respectively.
  * We added this step to preserve the cache for each clustering step - 
  * specifically, each clustering does not need to be recomputed when a user changes their choice.
  *

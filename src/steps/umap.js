@@ -6,7 +6,8 @@ import * as aworkers from "./abstract/worker_parent.js";
 
 /**
  * This creates a UMAP embedding based on the neighbor index constructed at {@linkplain NeighborIndexState}.
- * This wraps `runUMAP` and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This wraps [`runUMAP`](https://jkanche.com/scran.js/global.html#runUMAP)
+ * and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
  * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor

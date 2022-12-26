@@ -6,7 +6,8 @@ export const step_name = "neighbor_index";
 
 /**
  * This step assembles the neighbor search indices from the PCs (see {@linkplain PcaState}) in preparation for nearest neighbor searches in downstream steps.
- * It wraps the `buildNeighborSearchIndex` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * It wraps the [`buildNeighborSearchIndex`](https://jkanche.com/scran.js/global.html#buildNeighborSearchIndex) function 
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
