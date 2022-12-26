@@ -169,7 +169,7 @@ export class CellFilteringState {
             this.changed = true;
         }
 
-        let to_use = find_usable_upstream_states(this.#qc_states, { RNA: use_rna, ADT: use_rna });
+        let to_use = find_usable_upstream_states(this.#qc_states, { RNA: use_rna, ADT: use_adt });
         if (!this.changed) {
             for (const u of to_use) {
                 if (u.changed) {

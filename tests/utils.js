@@ -171,12 +171,18 @@ export async function checkStateResultsMinimal(state) {
 
     // Cell filtering:
     {
+        let counts = state.inputs.fetchCountMatrix();
+        let discards = state.cell_filtering.fetchDiscards();
+        if (discards !== null) {
+            expect(discards.length).toBe(counts.numberOfColumns());
+            expect(discards instanceof wa.Uint8WasmArray).toBe(true);
+        }
+
         let last_filtered = nfiltered - 1;
         let idx = [0, last_filtered];
         state.cell_filtering.undoFilter(idx);
         expect(idx[1]).toBeGreaterThan(last_filtered);
 
-        let counts = state.inputs.fetchCountMatrix();
         let filtered = state.cell_filtering.fetchFilteredMatrix();
         expect(counts.available()).toEqual(filtered.available());
 
@@ -298,6 +304,10 @@ export async function checkStateResultsRna(state, { exclusive = false } = {}) {
         expect(detvec.length).toBeGreaterThan(nfiltered);
         let refiltered = state.cell_filtering.applyFilter(detvec);
         expect(refiltered.length).toEqual(nfiltered);
+
+        if (exclusive) {
+            expect(state.cell_filtering.fetchDiscards().owner).toBe(state.rna_quality_control.fetchDiscards()); // i.e. a view
+        }
 
         let last_filtered = nfiltered - 1;
         let idx = [0, last_filtered];
@@ -497,6 +507,10 @@ export function checkStateResultsAdt(state, { exclusive = false } = {}) {
         let refiltered = state.cell_filtering.applyFilter(detvec);
         expect(refiltered.length).toEqual(nfiltered);
 
+        if (exclusive) {
+            expect(state.cell_filtering.fetchDiscards().owner).toBe(state.adt_quality_control.fetchDiscards()); // i.e. a view
+        }
+
         let last_filtered = nfiltered - 1;
         let idx = [0, last_filtered];
         state.cell_filtering.undoFilter(idx);
@@ -565,6 +579,8 @@ export function checkStateResultsRnaPlusAdt(state) {
     // Cell filtering responds to both modalities.
     let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
     {
+        expect(state.cell_filtering.fetchDiscards().owner).toBeNull(); // i.e. not a view.
+
         let rna_only = 0;
         state.rna_quality_control.fetchDiscards().forEach(x => { rna_only += (x > 0); });
 
@@ -679,7 +695,11 @@ export async function compareStates(left, right, { checkRna = true, checkAdt = f
     {
         let ldiscard = left.cell_filtering.fetchDiscards();
         let rdiscard = right.cell_filtering.fetchDiscards();
-        expect(ldiscard).toEqual(rdiscard);
+        if (ldiscard == null) {
+            expect(rdiscard).toBeNull();
+        } else {
+            expect(ldiscard.array()).toEqual(rdiscard.array());
+        }
 
         let lfiltered = left.cell_filtering.fetchFilteredMatrix();
         let rfiltered = right.cell_filtering.fetchFilteredMatrix();
