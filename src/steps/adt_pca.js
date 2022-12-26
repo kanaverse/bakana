@@ -48,7 +48,7 @@ export class AdtPcaState {
     }
 
     /**
-     * @return {RunPCAResults} Results of the PCA on the normalized ADT matrix,
+     * @return {external:RunPCAResults} Results of the PCA on the normalized ADT matrix,
      * available after running {@linkcode AdtPcaState#compute compute}.
      */
     fetchPCs() {
@@ -161,8 +161,8 @@ export function unserialize(handle, filter, norm) {
                 let var_exp = rhandle.open("var_exp", { load: true }).values;
 
                 cache.pcs = scran.emptyRunPCAResults(pcs_handle.shape[0], pcs_handle.shape[1]);
-                cache.pcs.principalComponents({ copy: false }).set(pcs);
-                cache.pcs.varianceExplained({ copy: false }).set(var_exp);
+                cache.pcs.principalComponents({ fillable: true }).set(pcs);
+                cache.pcs.varianceExplained({ fillable: true }).set(var_exp);
                 cache.pcs.setTotalVariance(1); // because the file only stores proportions.
             }
 

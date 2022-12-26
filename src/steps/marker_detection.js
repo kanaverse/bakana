@@ -9,6 +9,13 @@ import * as adt_norm_module from "./adt_normalization.js";
 export const step_name = "marker_detection";
 
 /**
+ * Results of marker detection,
+ * see [here](https://www.jkanche.com/scran.js/ScoreMarkersResults.html) for details.
+ *
+ * @external ScoreMarkersResults
+ */
+
+/**
  * This step performs marker detection for each cluster of cells by performing pairwise comparisons to each other cluster.
  * This wraps the `scoreMarkers` function from [**scran.js**](https://github.com/jkanche/scran.js).
  * The clustering is obtained from the {@linkcode choose_clustering} step.
@@ -60,7 +67,7 @@ export class MarkerDetectionState {
 
     /**
      * @return {object} Marker detection results for the all modalities.
-     * Each key is a modality name and each value is a ScoreMarkersResults object,
+     * Each key is a modality name and each value is an {@linkplain external:ScoreMarkersResults ScoreMarkerResults} object,
      * containing marker detection statistics for all clusters.
      * This is available after running {@linkcode MarkerDetectionState#compute compute}.
      */
@@ -150,7 +157,7 @@ export class MarkerDetectionState {
      * @return {object} Object containing:
      *
      * - `results`: object containing the marker statistics for the comparison between two clusters.
-     *    Each key is a modality name and each value is a ScoreMarkersResults object.
+     *    Each key is a modality name and each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object.
      * - `left`: index of the group corresponding to the `left` cluster in each ScoreMarkersResults object.
      *    e.g., Cohen's d for the RNA markers of the `left` cluster are defined as `output.results.RNA.cohen(output.left)`.
      * - `right`: index of the group corresponding to the `right` cluster in each ScoreMarkersResults object.
@@ -201,7 +208,7 @@ export class MarkerDetectionState {
      * @return {object} Object containing:
      *
      * - `results`: object containing the marker statistics for the comparison between two clusters.
-     *    Each key is a modality name and each value is a ScoreMarkersResults object.
+     *    Each key is a modality name and each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object.
      * - `left`: index of the group corresponding to the `left` cluster in each ScoreMarkersResults object,
      *    e.g., Cohen's d for the RNA markers of the `left` cluster are defined as `output.results.RNA.cohen(output.left)`.
      * - `right`: index of the group corresponding to the `right` cluster in each ScoreMarkersResults object.
@@ -274,24 +281,24 @@ function fill_results(stats, num_blocks) {
     for (const k of keys) {
         let i = Number(k);
         let vals = stats[k];
-        object.means(i, { copy: false }).set(vals.means);
-        object.detected(i, { copy: false }).set(vals.detected);
+        object.means(i, { fillable: true }).set(vals.means);
+        object.detected(i, { fillable: true }).set(vals.detected);
 
         for (const [s, v] of Object.entries(vals.cohen)) {
-            object.cohen(i, { summary: markers.summaries2int[s], copy: false }).set(v);
+            object.cohen(i, { summary: markers.summaries2int[s], fillable: true }).set(v);
         }
 
         for (const [s, v] of Object.entries(vals.lfc)) {
-            object.lfc(i, { summary: markers.summaries2int[s], copy: false }).set(v);
+            object.lfc(i, { summary: markers.summaries2int[s], fillable: true }).set(v);
         }
 
         for (const [s, v] of Object.entries(vals.delta_detected)) {
-            object.deltaDetected(i, { summary: markers.summaries2int[s], copy: false }).set(v);
+            object.deltaDetected(i, { summary: markers.summaries2int[s], fillable: true }).set(v);
         }
 
         if ("auc" in vals) {
             for (const [s, v] of Object.entries(vals.auc)) {
-                object.auc(i, { summary: markers.summaries2int[s], copy: false }).set(v);
+                object.auc(i, { summary: markers.summaries2int[s], fillable: true }).set(v);
             }
         }
     }
