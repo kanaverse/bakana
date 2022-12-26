@@ -12,7 +12,8 @@ import * as norm_module from "./rna_normalization.js";
 
 /**
  * Feature selection is performed by modelling the per-gene variance and finding highly variable genes.
- * This wraps the `modelGeneVar` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This wraps the [`modelGeneVar`](https://jkanche.com/scran.js/global.html#modelGeneVar) function 
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor

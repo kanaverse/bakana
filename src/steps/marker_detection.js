@@ -17,8 +17,9 @@ export const step_name = "marker_detection";
 
 /**
  * This step performs marker detection for each cluster of cells by performing pairwise comparisons to each other cluster.
- * This wraps the `scoreMarkers` function from [**scran.js**](https://github.com/jkanche/scran.js).
- * The clustering is obtained from the {@linkcode choose_clustering} step.
+ * This wraps the [`scoreMarkers`](https://jkanche.com/scran.js/global.html#scoreMarkers) function 
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * The clustering is obtained from the upstream {@linkplain ChooseClusteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -143,7 +144,7 @@ export class MarkerDetectionState {
      *
      * @param {number} left - Index of one cluster. 
      * @param {number} right - Index of another cluster to be compared against `left`.
-     * @param {MultiMatrix} matrices - A MultiMatrix object containing log-normalized matrices for each modality.
+     * @param {external:MultiMatrix} matrices - A {@linkplain external:MultiMatrix MultiMatrix} object containing log-normalized matrices for each modality.
      * @param {Array|TypedArray|Int32WasmArray} clusters - Integer array of length equal to the number of cells in `matrices`,
      * containing the cluster assignments for all cells in `matrices`.
      * @param {object} [options={}] - Optional parameters.

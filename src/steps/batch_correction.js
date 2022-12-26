@@ -7,7 +7,8 @@ export const step_name = "batch_correction";
 
 /**
  * Correct for batch effects in PC space based on mutual nearest neighbors.
- * This wraps the `mnnCorrect` function from [**scran.js**](https://jkanche.com/scran.js).
+ * This wraps the [`mnnCorrect`](https://jkanche.com/scran.js/global.html#mnnCorrect) function
+ * from [**scran.js**](https://jkanche.com/scran.js).
  * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor

@@ -3,7 +3,9 @@ import * as utils from "./utils/general.js";
 import * as correct_module from "./batch_correction.js";
 
 /**
- * This step performs k-means clustering on the PCs, wrapping the `clusterKmeans` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This step performs k-means clustering on the PCs, 
+ * wrapping the [`clusterKmeans`](https://jkanche.com/scran.js/global.html#clusterKmeans) function 
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor

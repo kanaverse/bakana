@@ -8,7 +8,8 @@ export const step_name = "rna_normalization";
 
 /**
  * This step performs normalization and log-transformation on the QC-filtered matrix from the {@linkplain QualityControlState}.
- * It wraps the `logNormCounts` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * It wraps the [`logNormCounts`](https://www.jkanche.com/scran.js/global.html#logNormCounts) function
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -50,7 +51,7 @@ export class RnaNormalizationState {
     }
 
     /**
-     * @return {ScranMatrix} A ScranMatrix object containing the normalized expression values,
+     * @return {external:ScranMatrix} A {@linkplain external:ScranMatrix ScranMatrix} object containing normalized expression values,
      * available after running {@linkcode RnaNormalizationState#compute compute}.
      */
     fetchNormalizedMatrix() {

@@ -16,7 +16,8 @@ export const step_name = "rna_pca";
 /**
  * This step performs a principal components analysis (PCA) to compact and denoise the data.
  * The resulting PCs can be used as input to various per-cell analyses like clustering and dimensionality reduction.
- * It wraps the `runPCA` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * It wraps the [`runPCA`](https://jkanche.com/scran.js/global.html#runPCA) function
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor

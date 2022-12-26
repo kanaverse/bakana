@@ -7,8 +7,10 @@ import * as filter_module from "./cell_filtering.js";
 export const step_name = "adt_normalization";
 
 /**
- * This step performs normalization and log-transformation on the QC-filtered ADT matrix from the {@linkplain AdtQualityControlState}.
- * It wraps the `groupedSizeFactors` and `logNormCounts` functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This step performs normalization and log-transformation on the QC-filtered ADT matrix from the {@linkplain CellFilteringState}.
+ * It wraps the [`groupedSizeFactors`](https://www.jkanche.com/scran.js/global.html#groupedSizeFactors) 
+ * and [`logNormCounts`](https://www.jkanche.com/scran.js/global.html#logNormCounts) functions
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -51,7 +53,7 @@ export class AdtNormalizationState {
     }
 
     /**
-     * @return {ScranMatrix} A ScranMatrix object containing the normalized ADT values,
+     * @return {external:ScranMatrix} A {@linkplain external:ScranMatrix ScranMatrix} object containing the normalized ADT values,
      * available after running {@linkcode AdtNormalizationState#compute compute}.
      */
     fetchNormalizedMatrix() {

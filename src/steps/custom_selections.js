@@ -10,7 +10,8 @@ export const step_name = "custom_selections";
 /**
  * Applications can perform marker detection on custom selections of cells.
  * This allows users to dynamically select cells on a UI and quickly obtain a list of distinguishing markers for that selection.
- * This wraps the `scoreMarkers` function from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This wraps the [`scoreMarkers`](https://jkanche.com/scran.js/global.html#scoreMarkers) function 
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -250,7 +251,7 @@ export class CustomSelectionsState {
      *
      * @param {string} left - Identifier of one selection.
      * @param {string} right - Identifier of another selection to be compared against `left`.
-     * @param {MultiMatrix} matrices - A MultiMatrix object containing log-normalized matrices for each modality.
+     * @param {external:MultiMatrix} matrices - A {@linkplain external:MultiMatrix MultiMatrix} object containing log-normalized matrices for each modality.
      * @param {object} selections - Object containing selections of cells.
      * Each key should be a selection identifier while each value is an Array, TypedArray or WasmArray.
      * Each array should contain integer column indices on `matrices`.

@@ -21,8 +21,11 @@ export const step_name = "rna_quality_control";
 
 /**
  * This step applies quality control on the RNA count matrix.
- * Specifically, it computes the QC metrics and filtering thresholds, wrapping `perCellRnaQcMetrics` and `suggestRnaQcFilters` from [**scran.js**](https://github.com/jkanche/scran.js).
- * Note that the actual filtering is done by {@linkcode CellFilteringState}.
+ * Specifically, it computes the QC metrics and filtering thresholds, 
+ * wrapping the [`perCellRnaQcMetrics`](https://www.jkanche.com/scran.js/global.html#perCellRnaQcMetrics)
+ * and [`suggestRnaQcFilters`](https://www.jkanche.com/scran.js/global.html#suggestRnaQcFilters) functions
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * Note that the actual filtering is done by {@linkplain CellFilteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor

@@ -21,10 +21,10 @@ export const step_name = "adt_quality_control";
 /**
  * This step applies quality control on the ADT count matrix.
  * Specifically, it computes the QC metrics and filtering thresholds, 
- * wrapping [`perCellAdtQcMetrics`](https://www.jkanche.com/scran.js/global.html#perCellAdtQcMetrics)
- * and [`suggestAdtQcFilters`](https://www.jkanche.com/scran.js/global.html#suggestAdtQcFilters) 
+ * wrapping the [`perCellAdtQcMetrics`](https://www.jkanche.com/scran.js/global.html#perCellAdtQcMetrics)
+ * and [`suggestAdtQcFilters`](https://www.jkanche.com/scran.js/global.html#suggestAdtQcFilters) functions
  * from [**scran.js**](https://github.com/jkanche/scran.js).
- * Note that the actual filtering is done by {@linkcode CellFilteringState}.
+ * Note that the actual filtering is done by {@linkplain CellFilteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
