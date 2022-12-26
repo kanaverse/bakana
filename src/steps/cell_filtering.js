@@ -2,6 +2,7 @@ import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as rna_qc_module from "./rna_quality_control.js";
 import * as adt_qc_module from "./adt_quality_control.js";
+import * as crispr_qc_module from "./crispr_quality_control.js";
 import * as inputs_module from "./inputs.js";
 
 export const step_name = "cell_filtering";
@@ -45,6 +46,9 @@ export class CellFilteringState {
         }
         if (!(qc_states.ADT instanceof adt_qc_module.AdtQualityControlState)) {
             throw new Error("'qc_states.ADT' should be a AdtQualityControlState object");
+        }
+        if (!(qc_states.CRISPR instanceof crispr_qc_module.CrisprQualityControlState) {
+            throw new Error("'qc_states.CRISPR' should be a CrisprQualityControlState object");
         }
         this.#qc_states = qc_states;
 
@@ -156,10 +160,11 @@ export class CellFilteringState {
      *
      * @param {boolean} use_rna - Whether to use the RNA-derived QC metrics for filtering.
      * @param {boolean} use_adt - Whether to use the ADT-derived QC metrics for filtering.
+     * @param {boolean} use_crispr - Whether to use the CRISPR-derived QC metrics for filtering.
      *
      * @return The object is updated with the new results.
      */
-    compute(use_rna, use_adt) {
+    compute(use_rna, use_adt, use_crispr) {
         this.changed = false;
 
         if (this.#inputs.changed) {
@@ -216,7 +221,8 @@ export class CellFilteringState {
     static defaults() {
         return {
             use_rna: true,
-            use_adt: true
+            use_adt: true,
+            use_crispr: true
         };
     }
 
@@ -290,6 +296,7 @@ export class CellFilteringState {
             let phandle = ghandle.createGroup("parameters"); 
             phandle.writeDataSet("use_rna", "Uint8", [], this.#parameters.use_rna);
             phandle.writeDataSet("use_adt", "Uint8", [], this.#parameters.use_adt);
+            phandle.writeDataSet("use_crispr", "Uint8", [], this.#parameters.use_crispr);
         }
 
         let rhandle = ghandle.createGroup("results"); 
@@ -323,6 +330,7 @@ export function unserialize(handle, inputs, qc_states) {
                 let phandle = ghandle.open("parameters");
                 parameters.use_rna = phandle.open("use_rna", { load: true }).values[0] > 0;
                 parameters.use_adt = phandle.open("use_adt", { load: true }).values[0] > 0;
+                parameters.use_adt = phandle.open("use_crispr", { load: true }).values[0] > 0;
             }
 
             let rhandle = ghandle.open("results");

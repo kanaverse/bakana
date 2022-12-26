@@ -2,6 +2,7 @@ import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as rna_pca_module from "./rna_pca.js";
 import * as adt_pca_module from "./adt_pca.js";
+import * as crispr_pca_module from "./crispr_pca.js";
 
 export const step_name = "combine_embeddings";
 
@@ -24,6 +25,9 @@ export class CombineEmbeddingsState {
         }
         if (!(pca_states.ADT instanceof adt_pca_module.AdtPcaState)) {
             throw new Error("'pca_states.ADT' should be an AdtPcaState object");
+        }
+        if (!(pca_states.CRISPR instanceof crispr_pca_module.AdtPcaState)) {
+            throw new Error("'pca_states.CRISPR' should be an AdtPcaState object");
         }
         this.#pca_states = pca_states;
 

@@ -5,6 +5,7 @@ import * as filter_module from "./cell_filtering.js";
 import * as choice_module from "./choose_clustering.js";
 import * as rna_norm_module from "./rna_normalization.js";
 import * as adt_norm_module from "./adt_normalization.js";
+import * as crispr_norm_module from "./crispr_normalization.js";
 
 export const step_name = "marker_detection";
 
@@ -42,6 +43,9 @@ export class MarkerDetectionState {
         }
         if (!(norm_states.ADT instanceof adt_norm_module.AdtNormalizationState)) {
             throw new Error("'norm_states.ADT' should be an AdtNormalizationState object");
+        }
+        if (!(norm_states.CRISPR instanceof crispr_norm_module.CrisprNormalizationState)) {
+            throw new Error("'norm_states.CRISPR' should be an CrisprNormalizationState object");
         }
         this.#norm_states = norm_states;
 

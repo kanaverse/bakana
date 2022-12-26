@@ -4,6 +4,7 @@ import * as inputs from "./steps/inputs.js";
 
 import * as qc from "./steps/rna_quality_control.js";
 import * as qcadt from "./steps/adt_quality_control.js";
+import * as qccrispr from "./steps/crispr_quality_control.js";
 import * as filters from "./steps/cell_filtering.js";
 
 import * as normalization from "./steps/rna_normalization.js";
@@ -14,6 +15,7 @@ import * as variance from "./steps/feature_selection.js";
 
 import * as pca from "./steps/rna_pca.js";
 import * as pcaadt from "./steps/adt_pca.js";
+import * as pcacrispr from "./steps/crispr_pca.js";
 import * as combine from "./steps/combine_embeddings.js";
 import * as correct from "./steps/batch_correction.js";
 
@@ -36,6 +38,7 @@ export { CustomSelectionsState } from "./steps/custom_selections.js";
 const step_inputs = inputs.step_name;
 const step_qc = qc.step_name;
 const step_qc_adt = qcadt.step_name;
+const step_qc_crispr = qccrispr.step_name;
 const step_filter = filters.step_name;
 const step_norm = normalization.step_name;
 const step_norm_adt = normadt.step_name;
@@ -43,6 +46,7 @@ const step_norm_crispr = normcrispr.step_name;
 const step_feat = "feature_selection";
 const step_pca = pca.step_name;
 const step_pca_adt = pcaadt.step_name;
+const step_pca_crispr = pcacrispr.step_name;
 const step_combine = "combine_embeddings";
 const step_correct = "batch_correction";
 const step_neighbors = index.step_name;
@@ -72,7 +76,10 @@ function create_analysis(input_state) {
 
     output[step_qc] = new qc.RnaQualityControlState(output[step_inputs]);
     output[step_qc_adt] = new qcadt.AdtQualityControlState(output[step_inputs]);
-    output[step_filter] = new filters.CellFilteringState(output[step_inputs], { RNA: output[step_qc], ADT: output[step_qc_adt] });
+    output[step_qc_crispr] = new qccrispr.CrisprQualityControlState(output[step_inputs]);
+
+    let qc_states = { RNA: output[step_qc], ADT: output[step_qc_adt], CRISPR: output[step_qc_crispr] }
+    output[step_filter] = new filters.CellFilteringState(output[step_inputs], );
 
     output[step_norm] = new normalization.RnaNormalizationState(output[step_qc], output[step_filter]);
     output[step_norm_adt] = new normadt.AdtNormalizationState(output[step_qc_adt], output[step_filter]);
@@ -82,7 +89,10 @@ function create_analysis(input_state) {
 
     output[step_pca] = new pca.RnaPcaState(output[step_filter], output[step_norm], output[step_feat]);
     output[step_pca_adt] = new pcaadt.AdtPcaState(output[step_filter], output[step_norm_adt]);
-    output[step_combine] = new combine.CombineEmbeddingsState({ RNA: output[step_pca], ADT: output[step_pca_adt] });
+    output[step_pca_crispr] = new pcacrispr.CrisprPcaState(output[step_filter], output[step_norm_crispr]);
+
+    let pca_states = { RNA: output[step_pca], ADT: output[step_pca_adt], CRISPR: output[step_pca_crispr] }
+    output[step_combine] = new combine.CombineEmbeddingsState();
     output[step_correct] = new correct.BatchCorrectionState(output[step_filter], output[step_combine]);
 
     output[step_neighbors] = new index.NeighborIndexState(output[step_correct]);
@@ -197,10 +207,17 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
     );
     await quickFinish(step_qc_adt);
 
+    await quickStart(step_qc_crispr);
+    state[step_qc_crispr].compute(
+        params[step_qc_crispr]["nmads"]
+    );
+    await quickFinish(step_qc_crispr);
+
     await quickStart(step_filter);
     state[step_filter].compute(
         params[step_filter]["use_rna"], 
-        params[step_filter]["use_adt"]
+        params[step_filter]["use_adt"],
+        params[step_filter]["use_crispr"]
     );
     await quickFinish(step_filter);
 
@@ -215,6 +232,10 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
         params[step_norm_adt]["num_clusters"]    
     );
     await quickFinish(step_norm_adt);
+
+    await quickStart(step_norm_crispr);
+    state[step_norm_crispr].compute();
+    await quickFinish(step_norm_crispr);
 
     /*** Feature selection ***/
     await quickStart(step_feat);
@@ -238,6 +259,13 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
         params[step_pca_adt]["block_method"]
     );
     await quickFinish(step_pca_adt);
+
+    await quickStart(step_pca_crispr);
+    state[step_pca_crispr].compute(
+        params[step_pca_crispr]["num_pcs"],
+        params[step_pca_crispr]["block_method"]
+    );
+    await quickFinish(step_pca_crispr);
 
     await quickStart(step_combine);
     state[step_combine].compute(
@@ -382,11 +410,13 @@ export async function saveAnalysis(state, path, { embedded = true } = {}) {
     /*** Quality control ***/
     state[step_qc].serialize(handle);
     state[step_qc_adt].serialize(handle);
+    state[step_qc_crispr].serialize(handle);
     state[step_filter].serialize(handle);
 
     /*** Normalization ***/
     state[step_norm].serialize(handle);
     state[step_norm_adt].serialize(handle);
+    state[step_norm_crispr].serialize(handle);
 
     /*** Feature selection ***/
     state[step_feat].serialize(handle);
@@ -394,6 +424,7 @@ export async function saveAnalysis(state, path, { embedded = true } = {}) {
     /*** Dimensionality reduction ***/
     state[step_pca].serialize(handle);
     state[step_pca_adt].serialize(handle);
+    state[step_pca_crispr].serialize(handle);
     state[step_combine].serialize(handle);
     state[step_correct].serialize(handle);
 
@@ -473,7 +504,13 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     }
 
     {
-        state[step_filter] = filters.unserialize(handle, state[step_inputs], { RNA: state[step_qc], ADT: state[step_qc_adt] });
+        state[step_qc_crispr] = qccrispr.unserialize(handle, state[step_inputs]);
+        await quickFun(step_qc_crispr);
+    }
+
+    {
+        let qc_states = { RNA: state[step_qc], ADT: state[step_qc_adt], CRISPR: state[step_qc_crispr] };
+        state[step_filter] = filters.unserialize(handle, state[step_inputs], qc_states);
         await quickFun(step_filter);
     }
 
@@ -486,6 +523,11 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     {
         state[step_norm_adt] = normadt.unserialize(handle, state[step_qc_adt], state[step_filter]);
         await quickFun(step_norm_adt);
+    }
+
+    {
+        state[step_norm_crispr] = normcrispr.unserialize(handle, state[step_qc_crispr], state[step_filter]);
+        await quickFun(step_norm_crispr);
     }
 
     /*** Feature selection ***/
@@ -506,7 +548,13 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     }
 
     {
-        state[step_combine] = combine.unserialize(handle, { RNA: state[step_pca], ADT: state[step_pca_adt] });
+        state[step_pca_crispr] = pcacrispr.unserialize(handle, state[step_filter], state[step_norm_crispr]);
+        await quickFun(step_pca_crispr);
+    }
+
+    {
+        let pca_states = { RNA: state[step_pca], ADT: state[step_pca_adt], CRISPR: state[step_pca_crispr] };
+        state[step_combine] = combine.unserialize(handle, pca_states);
         await quickFun(step_combine);
     }
 
