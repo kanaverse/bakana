@@ -474,7 +474,7 @@ export function checkStateResultsAdt(state, { exclusive = false } = {}) {
     // Checking the QCs.
     {
         let amet = state.adt_quality_control.fetchMetrics();
-        expect(metres instanceof scran.PerCellAdtQcMetricsResults).toBe(true);
+        expect(amet instanceof scran.PerCellAdtQcMetricsResults).toBe(true);
 
         let positive_total = 0;
         amet.subsetTotals(0, { copy: false }).forEach(x => { positive_total += (x > 0); });

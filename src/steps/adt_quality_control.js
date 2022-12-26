@@ -228,7 +228,7 @@ export function unserialize(handle, inputs) {
                 let thresholds_detected = thandle.open("detected", { load: true }).values;
                 let thresholds_igg_total = thandle.open("igg_total", { load: true }).values;
 
-                cache.filters = scran.emptyPerCellAdtQcFiltersResults(1, thresholds_detected.length);
+                cache.filters = scran.emptySuggestAdtQcFiltersResults(1, thresholds_detected.length);
                 cache.filters.thresholdsDetected({ fillable: true }).set(thresholds_detected);
                 cache.filters.thresholdsSubsetTotals(0, { fillable: true }).set(thresholds_igg_total);
             }

@@ -130,12 +130,12 @@ export class RnaQualityControlState {
                     }
                 }
 
+                this.#cache.metrics = scran.perCellRnaQcMetrics(mat, [subsets]);
                 this.changed = true;
             } else {
                 delete this.#cache.metrics;
             }
 
-            this.#cache.metrics = scran.perCellRnaQcMetrics(mat, [subsets]);
             this.#parameters.use_mito_default = use_mito_default;
             this.#parameters.mito_prefix = mito_prefix;
         }
