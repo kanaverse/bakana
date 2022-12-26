@@ -331,7 +331,7 @@ export function unserialize(handle, inputs, qc_states) {
                 let phandle = ghandle.open("parameters");
                 parameters.use_rna = phandle.open("use_rna", { load: true }).values[0] > 0;
                 parameters.use_adt = phandle.open("use_adt", { load: true }).values[0] > 0;
-                parameters.use_adt = phandle.open("use_crispr", { load: true }).values[0] > 0;
+                parameters.use_crispr = phandle.open("use_crispr", { load: true }).values[0] > 0;
             }
 
             let rhandle = ghandle.open("results");
@@ -343,7 +343,7 @@ export function unserialize(handle, inputs, qc_states) {
         } 
 
         if (!("discard_buffer" in cache)) {
-            let to_use = find_usable_upstream_states(qc_states, { RNA: parameters.use_rna, ADT: parameters.use_adt });
+            let to_use = find_usable_upstream_states(qc_states, { RNA: parameters.use_rna, ADT: parameters.use_adt, CRISPR: parameters.use_crispr });
 
             if (to_use.length == 1) {
                 // We figure out which upstream QC state contains the discard vector

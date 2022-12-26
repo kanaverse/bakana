@@ -135,7 +135,7 @@ test("runAnalysis works correctly (10X)", async () => {
             valkana.validateCombineEmbeddingsState(path, ncells, ["RNA"], npcs_rna + npcs_adt, bakana.kanaFormatVersion);
         }
 
-        let reloaded = combine.unserialize(fhandle, {"RNA": state.rna_pca, "ADT": state.adt_pca});
+        let reloaded = combine.unserialize(fhandle, {"RNA": state.rna_pca, "ADT": state.adt_pca, CRISPR: state.crispr_pca });
         let repcs = reloaded.fetchCombined();
         expect(repcs.owner !== null).toBe(true);
         expect(reloaded.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());

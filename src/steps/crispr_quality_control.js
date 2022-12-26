@@ -230,6 +230,9 @@ export function unserialize(handle, inputs) {
             utils.freeCache(output);
             throw e;
         }
+    } else {
+        // Fallback if the results aren't available. 
+        output = new CrisprQualityControlState(inputs, parameters, cache);
     }
 
     return output;
