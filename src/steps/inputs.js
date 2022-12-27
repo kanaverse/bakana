@@ -470,7 +470,7 @@ export class InputsState {
  ******* Internals - loading ********
  ************************************/
 
-const known_modalities = [ "RNA", "ADT" ];
+const known_modalities = [ "RNA", "ADT", "CRISPR" ];
 
 function bind_single_modality(modality, loaded) {
     let output = {};

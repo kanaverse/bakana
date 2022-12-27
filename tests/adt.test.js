@@ -117,9 +117,9 @@ test("runAnalysis works correctly (10X)", async () => {
     await overlord(state);
     await utils.checkStateResultsUnblocked(state);
 
-    // What happens when one of the modalities has zero weight?
+    // What happens when only one of the modalities has non-zero weight?
     {
-        state.combine_embeddings.compute({ "RNA": 1, "ADT": 0 }, true);
+        state.combine_embeddings.compute(/* rna_weight = */ 1, /* adt_weight = */ 0, /* crispr_weight = */ 0, true);
         let pcs = state.combine_embeddings.fetchCombined();
         expect(pcs.owner !== null).toBe(true);
         expect(state.combine_embeddings.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
@@ -135,7 +135,7 @@ test("runAnalysis works correctly (10X)", async () => {
             valkana.validateCombineEmbeddingsState(path, ncells, ["RNA"], npcs_rna + npcs_adt, bakana.kanaFormatVersion);
         }
 
-        let reloaded = combine.unserialize(fhandle, {"RNA": state.rna_pca, "ADT": state.adt_pca});
+        let reloaded = combine.unserialize(fhandle, {"RNA": state.rna_pca, "ADT": state.adt_pca, CRISPR: state.crispr_pca });
         let repcs = reloaded.fetchCombined();
         expect(repcs.owner !== null).toBe(true);
         expect(reloaded.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());

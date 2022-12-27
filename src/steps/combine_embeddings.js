@@ -2,8 +2,20 @@ import * as scran from "scran.js";
 import * as utils from "./utils/general.js";
 import * as rna_pca_module from "./rna_pca.js";
 import * as adt_pca_module from "./adt_pca.js";
+import * as crispr_pca_module from "./crispr_pca.js";
 
 export const step_name = "combine_embeddings";
+
+function find_nonzero_upstream_states(pca_states, weights) {
+    let tmp = utils.findValidUpstreamStates(pca_states);
+    let to_use = [];
+    for (const k of tmp) {
+        if (weights[k] > 0) {
+            to_use.push(k);
+        }
+    }
+    return to_use;
+}
 
 /**
  * This step combines multiple embeddings from different modalities into a single matrix for downstream analysis.
@@ -24,6 +36,9 @@ export class CombineEmbeddingsState {
         }
         if (!(pca_states.ADT instanceof adt_pca_module.AdtPcaState)) {
             throw new Error("'pca_states.ADT' should be an AdtPcaState object");
+        }
+        if (!(pca_states.CRISPR instanceof crispr_pca_module.CrisprPcaState)) {
+            throw new Error("'pca_states.CRISPR' should be an CrisprPcaState object");
         }
         this.#pca_states = pca_states;
 
@@ -70,11 +85,7 @@ export class CombineEmbeddingsState {
      */
     fetchParameters() {
         // Avoid any pass-by-reference activity.
-        let out = { ...this.#parameters };
-        if (out.weights !== null) {
-            out.weights = { ...out.weights };
-        }
-        return out;
+        return { ...this.#parameters };
     }
 
     /***************************
@@ -83,7 +94,9 @@ export class CombineEmbeddingsState {
 
     static defaults() {
         return { 
-            weights: null,
+            rna_weight: 1,
+            adt_weight: 1,
+            crispr_weight: 0,
             approximate: true
         };
     }
@@ -98,14 +111,14 @@ export class CombineEmbeddingsState {
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
-     * @param {?Object} weights - Object containing the weights for each modality.
-     * Keys should be the name of the modality (e.g., `"RNA"`, `"ADT"`) while values should be non-negative numbers.
-     * Alternatively, if `null`, all modalities are given equal weight.
+     * @param {number} rna_weight - Relative weight of the RNA embeddings.
+     * @param {number} adt_weight - Relative weight of the ADT embeddings.
+     * @param {number} crispr_weight - Relative weight of the CRISPR embeddings.
      * @param {boolean} approximate - Whether an approximate nearest neighbor search should be used by `scaleByNeighbors`.
      *
      * @return The object is updated with new results.
      */
-    compute(weights, approximate) {
+    compute(rna_weight, adt_weight, crispr_weight, approximate) {
         this.changed = false;
 
         for (const v of Object.values(this.#pca_states)) {
@@ -115,62 +128,45 @@ export class CombineEmbeddingsState {
             }
         }
 
-        let to_use = utils.findValidUpstreamStates(this.#pca_states);
-        let needs_combining = to_use.length > 1;
+        if (approximate !== this.#parameters.approximate) {
+            this.#parameters.approximate = approximate;
+            this.changed = true;
+        }
 
-        if (needs_combining) {
-            if (this.changed || approximate !== this.#parameters.approximate || utils.changedParameters(weights, this.#parameters.weights)) {
-                let weight_arr = null;
+        if (rna_weight !== this.#parameters.rna_weight || adt_weight !== this.#parameters.adt_weight || crispr_weight !== this.#parameters.crispr_weight) {
+            this.#parameters.rna_weight = rna_weight;
+            this.#parameters.adt_weight = adt_weight;
+            this.#parameters.crispr_weight = crispr_weight;
+            this.changed = true;
+        }
 
-                if (weights !== null) {
-                    weight_arr = [];
-                    let has_pos_weight = [];
+        if (this.changed) { 
+            const weights = { RNA: rna_weight, ADT: adt_weight, CRISPR: crispr_weight };
+            let to_use = find_nonzero_upstream_states(this.#pca_states, weights);
 
-                    for (const x of to_use) {
-                        if (!(x in weights)) {
-                            throw new Error("no weight specified for '" + x + "'");
-                        }
-                        if (weights[x] > 0) {
-                            weight_arr.push(weights[x]);
-                            has_pos_weight.push(x);
-                        }
+            if (to_use.length > 1) {
+                let weight_arr = to_use.map(x => weights[x]);
+                let collected = [];
+                let total = 0;
+                let ncells = null;
+
+                for (const k of to_use) {
+                    let curpcs = this.#pca_states[k].fetchPCs();
+                    collected.push(curpcs.principalComponents({ copy: "view" }));
+                    if (ncells == null) {
+                        ncells = curpcs.numberOfCells();
+                    } else if (ncells !== curpcs.numberOfCells()) {
+                        throw new Error("number of cells should be consistent across all embeddings");
                     }
-
-                    to_use = has_pos_weight;
+                    total += curpcs.numberOfPCs();
                 }
 
-                if (to_use.length == 1) {
-                    // If only one modality has positive weight,
-                    // we can skip the calculation of combined embeddings.
-                    let pcs = this.#pca_states[to_use[0]].fetchPCs();
-                    this.constructor.createPcsView(this.#cache, pcs);
+                let buffer = utils.allocateCachedArray(ncells * total, "Float64Array", this.#cache, "combined_buffer");
+                scran.scaleByNeighbors(collected, ncells, { buffer: buffer, weights: weight_arr, approximate: approximate });
+                this.#cache.num_cells = ncells;
+                this.#cache.total_dims = total;
 
-                } else {
-                    let collected = [];
-                    let total = 0;
-                    let ncells = null;
-
-                    for (const k of to_use) {
-                        let curpcs = this.#pca_states[k].fetchPCs();
-                        collected.push(curpcs.principalComponents({ copy: "view" }));
-                        if (ncells == null) {
-                            ncells = curpcs.numberOfCells();
-                        } else if (ncells !== curpcs.numberOfCells()) {
-                            throw new Error("number of cells should be consistent across all embeddings");
-                        }
-                        total += curpcs.numberOfPCs();
-                    }
-
-                    let buffer = utils.allocateCachedArray(ncells * total, "Float64Array", this.#cache, "combined_buffer");
-                    scran.scaleByNeighbors(collected, ncells, { buffer: buffer, weights: weight_arr, approximate: approximate });
-                    this.#cache.num_cells = ncells;
-                    this.#cache.total_dims = total;
-                }
-
-                this.changed = true;
-            }
-        } else {
-            if (this.changed) {
+            } else {
                 // If there's only one embedding, we shouldn't respond to changes
                 // in parameters, because they won't have any effect.
                 let pcs = this.#pca_states[to_use[0]].fetchPCs();
@@ -180,11 +176,6 @@ export class CombineEmbeddingsState {
 
         // Updating all parameters anyway. This requires us to take ownership
         // of 'weights' to avoid pass-by-reference shenanigans.
-        if (weights !== null) {
-            weights = { ...weights };
-        }
-        this.#parameters.weights = weights;
-        this.#parameters.approximate = approximate;
         return;
     }
 
@@ -199,11 +190,9 @@ export class CombineEmbeddingsState {
             let phandle = ghandle.createGroup("parameters"); 
             phandle.writeDataSet("approximate", "Uint8", [], this.#parameters.approximate);
             let whandle = phandle.createGroup("weights");
-            if (this.#parameters.weights !== null) {
-                for (const [k, v] of Object.entries(this.#parameters.weights)) {
-                    whandle.writeDataSet(k, "Float64", [], v);
-                }
-            }
+            whandle.writeDataSet("RNA", "Float64", [], this.#parameters.rna_weight);
+            whandle.writeDataSet("ADT", "Float64", [], this.#parameters.adt_weight);
+            whandle.writeDataSet("CRISPR", "Float64", [], this.#parameters.crispr_weight);
         }
 
         {
@@ -237,14 +226,14 @@ export function unserialize(handle, pca_states) {
                 parameters.approximate = phandle.open("approximate", { load: true }).values[0] > 0;
 
                 let whandle = phandle.open("weights");
-                let keys = Object.keys(whandle.children);
-
-                // If it's empty, we just use the default of null.
-                if (keys.length) {
-                    parameters.weights = {};
-                    for (const k of keys) {
-                        parameters.weights[k] = whandle.open(k, { load: true }).values[0];
-                    }
+                if ("RNA" in whandle.children) {
+                    parameters.rna_weight = whandle.open("RNA", { load: true }).values[0];
+                }
+                if ("ADT" in whandle.children) {
+                    parameters.adt_weight = whandle.open("ADT", { load: true }).values[0];
+                }
+                if ("CRISPR" in whandle.children) {
+                    parameters.crispr_weight = whandle.open("CRISPR", { load: true }).values[0];
                 }
             }
 
@@ -266,18 +255,8 @@ export function unserialize(handle, pca_states) {
             // we figure out which upstream PCA state contains the PC vector
             // and create a view on it so that our fetchPCs() works properly.
             // (v1 and earlier also implicitly falls in this category.)
-
-            let to_use = utils.findValidUpstreamStates(pca_states);
-
-            if (to_use.length > 1 && parameters.weights !== null) {
-                let has_nonzero_weight = [];
-                for (const k of to_use) {
-                    if (parameters.weights[k] > 0) {
-                        has_nonzero_weight.push(k);
-                    }
-                }
-                to_use = has_nonzero_weight;
-            }
+            const weights = { RNA: parameters.rna_weight, ADT: parameters.adt_weight, CRISPR: parameters.crispr_weight };
+            let to_use = find_nonzero_upstream_states(pca_states, weights);
 
             if (to_use.length != 1) {
                 throw new Error("only one upstream PCA state should be valid with non-zero weight if 'combined' is not available");
