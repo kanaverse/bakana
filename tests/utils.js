@@ -1051,3 +1051,21 @@ export async function triggerAnimation(state) {
     expect(collected.umap.length).toBeGreaterThan(0);
     return;
 }
+
+export function mockBlocks(input, output, nblocks) {
+    // Mocking up a blocking file with pretend batches.
+    let f = fs.readFileSync(input);
+    let buff = f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
+    let stuff = bakana.readTable(new Uint8Array(buff));
+
+    let ncells = stuff.length;
+    let per_block = Math.ceil(ncells / nblocks);
+    let blocks = new Array(ncells);
+    for (var c = 0; c < ncells; c++) {
+        blocks[c] = 'A' + String(Math.floor(c / per_block));
+    }
+
+    fs.writeFileSync(output, blocks.join("\n"));
+    return "A0";
+}
+

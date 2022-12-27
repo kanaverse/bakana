@@ -3,7 +3,6 @@ import * as utils from "./utils.js";
 import * as scran from "scran.js";
 import * as valkana from "valkana";
 import * as bioc from "bioconductor";
-import * as fs from "fs";
 import * as combine from "../src/steps/combine_embeddings.js";
 
 beforeAll(utils.initializeAll);
@@ -11,9 +10,8 @@ afterAll(async () => await bakana.terminate());
 
 let mtx = "files/datasets/immune_3.0.0-matrix.mtx.gz";
 let feats = "files/datasets/immune_3.0.0-features.tsv.gz";
-let files = { 
-    default: new bakana.TenxMatrixMarketDataset(mtx, feats, "files/datasets/immune_3.0.0-barcodes.tsv.gz")
-};
+let bars = "files/datasets/immune_3.0.0-barcodes.tsv.gz";
+let files = { default: new bakana.TenxMatrixMarketDataset(mtx, feats, bars) };
 
 async function overlord(state) {
     await utils.checkStateResultsMinimal(state);
@@ -108,9 +106,7 @@ test("runAnalysis works correctly (10X)", async () => {
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
     let res = await bakana.runAnalysis(state, 
-        { 
-            default: new bakana.TenxHdf5Dataset("files/datasets/immune_3.0.0-tenx.h5")
-        },
+        { default: new bakana.TenxHdf5Dataset("files/datasets/immune_3.0.0-tenx.h5") },
         params
     );
 
@@ -135,7 +131,7 @@ test("runAnalysis works correctly (10X)", async () => {
             valkana.validateCombineEmbeddingsState(path, ncells, ["RNA"], npcs_rna + npcs_adt, bakana.kanaFormatVersion);
         }
 
-        let reloaded = combine.unserialize(fhandle, {"RNA": state.rna_pca, "ADT": state.adt_pca, CRISPR: state.crispr_pca });
+        let reloaded = combine.unserialize(fhandle, {"RNA": state.rna_pca, "ADT": state.adt_pca, "CRISPR": state.crispr_pca });
         let repcs = reloaded.fetchCombined();
         expect(repcs.owner !== null).toBe(true);
         expect(reloaded.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
@@ -154,27 +150,10 @@ test("runAnalysis works for ADTs with blocking", async () => {
     // Mocking up a blocking file with pretend batches.
     let exfile = "TEST_adt_block.tsv";
     let nblocks = 3;
-    {
-        let previous = "files/datasets/immune_3.0.0-barcodes.tsv.gz";
-        let f = fs.readFileSync(previous);
-        let buff = f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
-        let stuff = bakana.readTable(new Uint8Array(buff));
-
-        let ncells = stuff.length;
-        let per_block = Math.ceil(ncells / nblocks);
-        let blocks = new Array(ncells);
-        for (var c = 0; c < ncells; c++) {
-            blocks[c] = 'A' + String(Math.floor(c / per_block));
-        }
-
-        fs.writeFileSync(exfile, blocks.join("\n"));
-    }
-    params.inputs.sample_factor = "A0";
+    params.inputs.sample_factor = utils.mockBlocks(bars, exfile, nblocks);
 
     let res = await bakana.runAnalysis(state, 
-        {
-            "combined": new bakana.TenxMatrixMarketDataset("files/datasets/immune_3.0.0-matrix.mtx.gz", "files/datasets/immune_3.0.0-features.tsv.gz", exfile)
-        },
+        { "combined": new bakana.TenxMatrixMarketDataset(mtx, feats, exfile) },
         params
     );
 
@@ -190,19 +169,6 @@ test("runAnalysis works for ADTs with blocking", async () => {
     expect(custom.last.ADT.numberOfBlocks()).toEqual(nblocks);
     expect(custom.versus.results.ADT.numberOfBlocks()).toBeGreaterThan(1); // as subset might not actually have all 3 blocks.
 
-    // Check that multiple ADT-related QC thresholds exist.
-    {
-        let res = state.adt_quality_control.fetchFilters();
-        let props = res.thresholdsSubsetTotals(0);
-        expect(props.length).toEqual(nblocks);
-    }
-
-    // Checking that the ADT marker results show up with multiple blocks.
-    {
-        let res = state.marker_detection.fetchResults();
-        expect(res["ADT"].numberOfBlocks()).toEqual(nblocks);
-    }
-
     // Freeing everyone.
     await bakana.freeAnalysis(state);
 })
@@ -210,12 +176,7 @@ test("runAnalysis works for ADTs with blocking", async () => {
 test("ADT-only runAnalysis works correctly", async () => {
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
-    let files = { 
-        default: new bakana.TenxMatrixMarketDataset(mtx, feats, "files/datasets/immune_3.0.0-barcodes.tsv.gz", {
-            featureTypeRnaName: null
-        })
-    };
-
+    let files = { default: new bakana.TenxMatrixMarketDataset(mtx, feats, bars, { featureTypeRnaName: null }) };
     await bakana.runAnalysis(state, files, params);
 
     // Check the results.

@@ -3,7 +3,6 @@ import * as utils from "./utils.js";
 import * as scran from "scran.js";
 import * as valkana from "valkana";
 import * as bioc from "bioconductor";
-import * as fs from "fs";
 import * as combine from "../src/steps/combine_embeddings.js";
 
 beforeAll(utils.initializeAll);
@@ -11,6 +10,13 @@ afterAll(async () => await bakana.terminate());
 
 const h5file = "files/datasets/crispr_6.0.0-tenx.h5";
 let files = { default: new bakana.TenxHdf5Dataset(h5file) };
+
+async function overlord(state, use_embeddings) {
+    await utils.checkStateResultsMinimal(state);
+    await utils.checkStateResultsRna(state);
+    await utils.checkStateResultsCrispr(state, { use_embeddings });
+    await utils.checkStateResultsRnaPlusCrispr(state, { use_embeddings });
+}
 
 test("CRISPR MatrixMarket summary works correctly", async () => {
     let summ = await files.default.summary();
@@ -60,11 +66,9 @@ test("runAnalysis works correctly (10X)", async () => {
         simple.matrix.free();
     }
 
-    await utils.checkStateResultsMinimal(state);
+    // Simple checks, where CRISPR is used in the combined embeddings.
+    await overlord(state, true);
     await utils.checkStateResultsUnblocked(state);
-    await utils.checkStateResultsRna(state);
-    await utils.checkStateResultsCrispr(state);
-    await utils.checkStateResultsRnaPlusCrispr(state);
 
     // Saving and loading.
     const path = "TEST_state_crispr.h5";
@@ -100,32 +104,16 @@ test("runAnalysis works for CRISPR (MatrixMarket) with blocking", async () => {
     // Mocking up a blocking file with pretend batches.
     let exfile = "TEST_crispr_block.tsv";
     let nblocks = 3;
-    {
-        let f = fs.readFileSync(barfile);
-        let buff = f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
-        let stuff = bakana.readTable(new Uint8Array(buff));
-
-        let ncells = stuff.length;
-        let per_block = Math.ceil(ncells / nblocks);
-        let blocks = new Array(ncells);
-        for (var c = 0; c < ncells; c++) {
-            blocks[c] = 'A' + String(Math.floor(c / per_block));
-        }
-
-        fs.writeFileSync(exfile, blocks.join("\n"));
-    }
-    params.inputs.sample_factor = "A0";
+    params.inputs.sample_factor = utils.mockBlocks(barfile, exfile, nblocks);
 
     let res = await bakana.runAnalysis(state, 
         { "combined": new bakana.TenxMatrixMarketDataset(mtxfile, featfile, exfile) },
         params
     );
 
-    await utils.checkStateResultsMinimal(state);
+    // Simple checks. Remember, CRISPR is not used in the embeddings by default.
+    await overlord(state, false);
     await utils.checkStateResultsBlocked(state);
-    await utils.checkStateResultsRna(state);
-    await utils.checkStateResultsCrispr(state, { use_embeddings: false }); // CRISPR is not used in the embeddings by default.
-    await utils.checkStateResultsRnaPlusCrispr(state, { use_embeddings: false });
 
     // However, CRISPR should still show up in the marker analyses.
     let vres = utils.checkClusterVersusMode(state);
