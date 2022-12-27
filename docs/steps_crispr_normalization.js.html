@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>steps/utils/viz_parent.js - Documentation</title>
+    <title>steps/crispr_normalization.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -34,7 +34,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">steps/utils/viz_parent.js</h1>
+    <h1 class="page-title">steps/crispr_normalization.js</h1>
     
 
     
@@ -44,154 +44,138 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>import * as scran from "scran.js";
-import * as utils from "./general.js";
-import * as aworkers from "./abstract/workers_parent.js";
+            <pre class="prettyprint source linenums"><code>import * as scran from "scran.js"; 
+import * as utils from "./utils/general.js";
+import * as nutils from "./utils/normalization.js";
+import * as qc_module from "./crispr_quality_control.js";
+import * as filter_module from "./cell_filtering.js";
 
-var animateFun = (x, y, i) => null;
+export const step_name = "crispr_normalization";
 
 /**
- * Specify a function to handle animation iterations for the low-dimensional embeddings.
- * The exact nature of this handling is arbitrary - developers may post the contents to another thread, save them to file, etc.
+ * This step performs normalization and log-transformation on the QC-filtered CRISPR count matrix from the {@linkplain CellFilteringState}.
+ * It wraps the [`logNormCounts`](https://www.jkanche.com/scran.js/global.html#logNormCounts) functions
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
  *
- * @param {function} fun - Function to process each animation iteration.
- * This should accept four arguments, in the following order:
- * - A string containing either `"tsne"` or `"umap"`.
- * - A `Float64Array` containing the x-coordinates for each cell.
- * - A `Float64Array` containing the y-coordinates for each cell.
- * - An integer specifying the iteration number.
- *
- * @return `fun` is set as the global animator function for t-SNE and UMAP.
- * The _previous_ value of the animator is returned.
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ * @hideconstructor
  */
-export function setVisualizationAnimate(fun) {
-    let previous = animateFun;
-    animateFun = fun;
-    return previous;
-}
+export class CrisprNormalizationState {
+    #qc;
+    #filter;
+    #parameters;
+    #cache;
 
-export var scranOptions = { numberOfThreads: 1 };
-
-export function computeNeighbors(index, k) {
-    var nn_index = index.fetchIndex();
-
-    var output = { "num_obs": nn_index.numberOfCells() };
-    var results = null, rbuf = null, ibuf = null, dbuf = null;
-    try {
-        results = scran.findNearestNeighbors(nn_index, k);
-
-        rbuf = scran.createInt32WasmArray(results.numberOfCells());
-        ibuf = scran.createInt32WasmArray(results.size());
-        dbuf = scran.createFloat64WasmArray(results.size());
-
-        results.serialize({ runs: rbuf, indices: ibuf, distances: dbuf });
-        output["size"] = results.size();
-        output["runs"] = rbuf.array().slice();
-        output["indices"] = ibuf.array().slice();
-        output["distances"] = dbuf.array().slice();
-
-    } finally {
-        if (results !== null) {
-            results.free();
+    constructor(qc, filter, parameters = null, cache = null) {
+        if (!(qc instanceof qc_module.CrisprQualityControlState)) {
+            throw new Error("'qc' should be a CrisprQualityControlState object");
         }
-        if (rbuf !== null) {
-            rbuf.free();
+        this.#qc = qc;
+
+        if (!(filter instanceof filter_module.CellFilteringState)) {
+            throw new Error("'filter' should be a CellFilteringState object");
         }
-        if (ibuf !== null) {
-            ibuf.free();
-        }
-        if (dbuf !== null) {
-            dbuf.free();
-        }
+        this.#filter = filter;
+
+        this.#parameters = (parameters === null ? {} : parameters);
+        this.#cache = (cache === null ? {} : cache);
+        this.changed = false;
     }
 
-    return output;
-}
+    free() {
+        utils.freeCache(this.#cache.matrix);
+        utils.freeCache(this.#cache.total_buffer);
+        utils.freeCache(this.#cache.sf_buffer);
+    }
 
-const worker_registry = [];
-const worker_cache_registry = [];
+    /***************************
+     ******** Getters **********
+     ***************************/
 
-export function sendTask(worker_id, payload, transferrable = []) {
-    let worker = worker_registry[worker_id];
-    let cache = worker_cache_registry[worker_id];
+    valid() {
+        let filtered = this.#filter.fetchFilteredMatrix();
+        return filtered.has("CRISPR");
+    }
 
-    var i = cache.counter;
-    var p = new Promise((resolve, reject) => {
-        cache.promises[i] = { "resolve": resolve, "reject": reject };
-    });
-
-    cache.counter++;
-    payload.id = i;
-    aworkers.sendMessage(worker, payload, transferrable);
-    return p;
-}
-
-export function initializeWorker(worker, scranOptions) { 
-    let n = worker_registry.length;
-    worker_registry.push(worker);
-    let cache = { counter: 0, promises: {} };
-    worker_cache_registry.push(cache);
-
-    aworkers.registerCallback(worker, msg => {
-        var type = msg.data.type;
-        if (type.endsWith("_iter")) {
-            animateFun(type.slice(0, -5), msg.data.x, msg.data.y, msg.data.iteration);
-            return;
+    /**
+     * @return {external:ScranMatrix} A {@linkplain external:ScranMatrix ScranMatrix} object containing the normalized CRISPR abundances,
+     * available after running {@linkcode CrisprNormalizationState#compute compute}.
+     */
+    fetchNormalizedMatrix() {
+        if (!("matrix" in this.#cache)) {
+            this.#raw_compute();
         }
+        return this.#cache.matrix;
+    }
 
-        var id = msg.data.id;
-        var fun = cache.promises[id];
-        if (type == "error") {
-            fun.reject(msg.data.error);
-        } else {
-            fun.resolve(msg.data.data);
-        }
-        delete cache.promises[id];
-    });
+    /**
+     * @return {Float64WasmArray} Array of length equal to the number of cells, 
+     * containing the gene expression size factor for each cell.
+     * This is available after running {@linkcode RnaNormalizationState#compute compute}.
+     */
+    fetchSizeFactors() {
+        return this.#cache.sum_buffer;
+    }
 
-    return {
-        "worker_id": n,
-        "ready": sendTask(n, { "cmd": "INIT", scranOptions: scranOptions })
-    };
-}
+    /**
+     * @return {object} Object containing the parameters.
+     */
+    fetchParameters() {
+        return { ...this.#parameters }; // avoid pass-by-reference links.
+    }
 
-export async function killWorker(worker_id) {
-    await sendTask(worker_id, { "cmd": "KILL" });
-    let worker = worker_registry[worker_id];
-    worker_registry[worker_id] = null;
-    return aworkers.terminateWorker(worker);
-}
+    /***************************
+     ******** Compute **********
+     ***************************/
 
-export function killAllWorkers() {
-    let p = [];
-    for (var i = 0; i &lt; worker_registry.length; i++) {
-        if (worker_registry[i] !== null) {
-            let p_ = killWorker(i);
-            if (p_) { // not null, not undefined.
-                p.push(p_);
+    #raw_compute() {
+        var mat = this.#filter.fetchFilteredMatrix().get("CRISPR");
+        let buffer = nutils.subsetSums(this.#qc, this.#filter, mat, this.#cache, "sum_buffer");
+
+        var block = this.#filter.fetchFilteredBlock();
+        utils.freeCache(this.#cache.matrix);
+        this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: block, allowZeros: true });
+        return;
+    }
+
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     *
+     * @return The object is updated with new results.
+     */
+    compute() {
+        this.changed = false;
+        if (this.#qc.changed || this.#filter.changed) {
+            if (this.valid()) {
+                this.#raw_compute();
+                this.changed = true;
             }
-        }
+        } 
+
+        return;
     }
-    return Promise.all(p).then(x => null);
+
+    static defaults() {
+        return {};
+    }
+
+    /*************************
+     ******** Saving *********
+     *************************/
+
+    serialize(handle) {
+        let ghandle = handle.createGroup(step_name);
+        let phandle = ghandle.createGroup("parameters"); 
+        let rhandle = ghandle.createGroup("results"); 
+    }
 }
 
-export function runWithNeighbors(worker_id, args, nn_out) {
-    var run_msg = {
-        "cmd": "RUN",
-        "params": args 
-    };
+/**************************
+ ******** Loading *********
+ **************************/
 
-    var transferrable = [];
-    if (nn_out !== null) {
-        transferrable = [
-            nn_out.runs.buffer,
-            nn_out.indices.buffer,
-            nn_out.distances.buffer
-        ];
-        run_msg.neighbors = nn_out;
-    }
-
-    return sendTask(worker_id, run_msg, transferrable);
+export function unserialize(handle, qc, filter) {
+    return new CrisprNormalizationState(qc, filter);
 }
 </code></pre>
         </article>
