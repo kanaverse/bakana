@@ -69,11 +69,11 @@ function message_type(info) {
     return info.type;
 }
 
-function handle_message(resolve, reject, info) {
+function handle_message(functions, info) {
     if (message_type(info) == "error") {
-        reject(info.error);
+        functions.reject(info.error);
     } else {
-        resolve(info.data);
+        functions.resolve(info.data);
     }
 }
 
@@ -83,16 +83,17 @@ export function sendTask(worker_id, payload, transferrable = []) {
 
     var i = cache.counter;
     var p = new Promise((resolve, reject) => {
+        let functions = { "resolve": resolve, "reject": reject };
         if (i in cache.promises) {
             // Not sure if the JS engine guarantees that the resolve/reject is
             // set up before the worker returns the message; for all we know,
             // we could send the message (and hit the worker callback) before
             // we run the set-up code. If that's the case, we simply resolve 
             // this Promise using the information provided in the callback.
-            handle_message(resolve, reject, cache.promises[i]);
+            handle_message(functions, cache.promises[i]);
             delete cache.promises[i];
         } else {
-            cache.promises[i] = { "resolve": resolve, "reject": reject };
+            cache.promises[i] = functions;
         }
     });
 
@@ -117,8 +118,7 @@ export function initializeWorker(worker, scranOptions) {
 
         var id = msg.data.id;
         if (id in cache.promises) {
-            var fun = cache.promises[id];
-            handle_message(fun.resolve, fun.resolve, msg.data);
+            handle_message(cache.promises[id], msg.data);
             delete cache.promises[id];
         } else {
             // If the Promise setup in sendTask has not yet been scheduled in
