@@ -51,4 +51,4 @@ jobs:
 
     - name: Run tests
       run: npm run test
-      timeout-minutes: 10
+      timeout-minutes: 15
