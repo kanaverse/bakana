@@ -452,6 +452,11 @@ export async function checkStateResultsBlocked(state) {
         let props = res.thresholdsSubsetTotals(0);
         expect(props.length).toEqual(nlevels);
     }
+    if (state.crispr_quality_control.valid()) {
+        let res = state.crispr_quality_control.fetchFilters();
+        let props = res.thresholdsMaxCount();
+        expect(props.length).toEqual(nlevels);
+    }
 
     // Check that some correction actually occured.
     {
@@ -575,6 +580,104 @@ export function checkStateResultsAdt(state, { exclusive = false } = {}) {
     return;
 }
 
+export function checkStateResultsCrispr(state, { exclusive = false, use_embeddings = true } = {}) {
+    // Checking that CRISPR exists.
+    {
+        expect(state.inputs.fetchCountMatrix().has("CRISPR")).toBe(true);
+        let crisprmat = state.inputs.fetchCountMatrix().get("CRISPR");
+        expect(state.inputs.fetchFeatureAnnotations()["CRISPR"].numberOfRows()).toEqual(crisprmat.numberOfRows());
+        expect(state.inputs.fetchRowIds()["CRISPR"].length).toEqual(crisprmat.numberOfRows());
+    }
+
+    // Checking the QCs.
+    {
+        let cmet = state.crispr_quality_control.fetchMetrics();
+        expect(cmet instanceof scran.PerCellCrisprQcMetricsResults).toBe(true);
+
+        expect(state.crispr_quality_control.fetchDiscards().length).toEqual(state.inputs.fetchCountMatrix().numberOfColumns());
+
+        let cfilt = state.crispr_quality_control.fetchFilters();
+        expect(cfilt instanceof scran.SuggestCrisprQcFiltersResults).toBe(true);
+        expect(cfilt.thresholdsMaxCount()[0]).toBeGreaterThan(0);
+    }
+
+    let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
+
+    // Cell filtering:
+    {
+        let detvec = state.crispr_quality_control.fetchMetrics().detected();
+        expect(detvec.length).toBeGreaterThan(nfiltered);
+        let refiltered = state.cell_filtering.applyFilter(detvec);
+        expect(refiltered.length).toEqual(nfiltered);
+
+        if (exclusive) {
+            expect(state.cell_filtering.fetchDiscards().owner).toBe(state.crispr_quality_control.fetchDiscards()); // i.e. a view
+        }
+
+        let last_filtered = nfiltered - 1;
+        let idx = [0, last_filtered];
+        state.cell_filtering.undoFilter(idx);
+        expect(idx[1]).toBeGreaterThan(last_filtered);
+
+        let counts = state.inputs.fetchCountMatrix().get("CRISPR");
+        let filtered = state.cell_filtering.fetchFilteredMatrix().get("CRISPR");
+        expect(counts.column(idx[0])).toEqual(filtered.column(0));
+        expect(counts.column(idx[1])).toEqual(filtered.column(last_filtered));
+    }
+
+    // Normalization.
+    {
+        let sf = state.crispr_normalization.fetchSizeFactors();
+        expect(sf.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
+
+        let positive_total = 0;
+        sf.forEach(x => { positive_total += (x > 0); });
+        expect(positive_total).toBeGreaterThan(0);
+
+        let norm = state.crispr_normalization.fetchNormalizedMatrix();
+        expect(norm.numberOfColumns()).toEqual(sf.length);
+        expect(norm.numberOfRows()).toEqual(state.inputs.fetchCountMatrix().get("CRISPR").numberOfRows());
+    }
+
+    // PCA.
+    {
+        let pcs = state.crispr_pca.fetchPCs();
+        expect(pcs.numberOfCells()).toEqual(nfiltered);
+        expect(pcs.numberOfPCs()).toBeGreaterThan(0);
+        expect(pcs.numberOfPCs()).toEqual(state.crispr_pca.fetchParameters().num_pcs);
+    }
+
+    // Combined embeddings.
+    if (use_embeddings) {
+        let nd = state.combine_embeddings.fetchNumberOfDimensions();
+
+        if (exclusive) {
+            expect(nd).toEqual(state.crispr_pca.fetchPCs().numberOfPCs());
+            let com = state.combine_embeddings.fetchCombined();
+            expect(com.owner).toEqual({}); // a.k.a. it's a view.
+        } else {
+            expect(nd).toBeGreaterThanOrEqual(state.crispr_pca.fetchPCs().numberOfPCs());
+        }
+    }
+
+    // RNA are no-ops.
+    if (exclusive) {
+        expect(state.rna_quality_control.fetchMetrics()).toBeUndefined();
+        expect(state.rna_normalization.fetchSizeFactors()).toBeUndefined();
+        expect(state.rna_pca.fetchPCs()).toBeUndefined();
+
+        expect(state.rna_quality_control.valid()).toBe(false);
+        expect(state.rna_normalization.valid()).toBe(false);
+        expect(state.rna_pca.valid()).toBe(false);
+
+        expect(state.crispr_quality_control.valid()).toBe(true);
+        expect(state.crispr_normalization.valid()).toBe(true);
+        expect(state.crispr_pca.valid()).toBe(true);
+    }
+
+    return;
+}
+
 export function checkStateResultsRnaPlusAdt(state) {
     // Cell filtering responds to both modalities.
     let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
@@ -602,6 +705,33 @@ export function checkStateResultsRnaPlusAdt(state) {
     return;
 }
 
+export function checkStateResultsRnaPlusCrispr(state, { use_embeddings = true } = {}) {
+    // Cell filtering responds to both modalities.
+    let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
+    {
+        expect(state.cell_filtering.fetchDiscards().owner).toBeNull(); // i.e. not a view.
+
+        let rna_only = 0;
+        state.rna_quality_control.fetchDiscards().forEach(x => { rna_only += (x > 0); });
+
+        let crispr_only = 0;
+        state.crispr_quality_control.fetchDiscards().forEach(x => { crispr_only += (x > 0); });
+
+        expect(nfiltered).toBeGreaterThan(rna_only);
+        expect(nfiltered).toBeGreaterThan(crispr_only);
+    }
+
+    // Combined embeddings.
+    if (use_embeddings) {
+        let rna_dims = state.rna_pca.fetchPCs().numberOfPCs();
+        let crispr_dims = state.crispr_pca.fetchPCs().numberOfPCs();
+        expect(state.combine_embeddings.fetchNumberOfDimensions()).toEqual(rna_dims + crispr_dims);
+        expect(state.combine_embeddings.fetchNumberOfCells()).toEqual(nfiltered);
+    }
+
+    return;
+}
+
 export async function overlordCheckStandard(state) {
     await checkStateResultsMinimal(state);
     await checkStateResultsRna(state, { exclusive: true });
@@ -614,7 +744,7 @@ export async function overlordCheckBlocked(state) {
     await checkStateResultsBlocked(state);
 }
 
-export async function compareStates(left, right, { checkRna = true, checkAdt = false } = {}) {
+export async function compareStates(left, right, { checkRna = true, checkAdt = false, checkCrispr = false } = {}) {
     // Parameter checks.
     for (const step of Object.keys(left)) {
         let params = right[step].fetchParameters();
@@ -688,6 +818,22 @@ export async function compareStates(left, right, { checkRna = true, checkAdt = f
 
         let ldiscards = left.adt_quality_control.fetchDiscards().array();
         let rdiscards = right.adt_quality_control.fetchDiscards().array();
+        expect(ldiscards).toEqual(rdiscards);
+    }
+
+    if (checkCrispr) {
+        let lmetrics = left.crispr_quality_control.fetchMetrics();
+        let rmetrics = right.crispr_quality_control.fetchMetrics();
+        expect(lmetrics.sums()).toEqual(rmetrics.sums());
+        expect(lmetrics.detected()).toEqual(rmetrics.detected());
+        expect(lmetrics.maxProportions()).toEqual(rmetrics.maxProportions());
+
+        let lfilters = left.crispr_quality_control.fetchFilters();
+        let rfilters = right.crispr_quality_control.fetchFilters();
+        expect(lfilters.thresholdsMaxCount()).toEqual(rfilters.thresholdsMaxCount());
+
+        let ldiscards = left.crispr_quality_control.fetchDiscards().array();
+        let rdiscards = right.crispr_quality_control.fetchDiscards().array();
         expect(ldiscards).toEqual(rdiscards);
     }
 
@@ -774,6 +920,19 @@ export async function compareStates(left, right, { checkRna = true, checkAdt = f
     if (checkAdt) {
         let lpcs = left.adt_pca.fetchPCs();
         let rpcs = right.adt_pca.fetchPCs();
+        expect(lpcs.principalComponents()).toEqual(rpcs.principalComponents());
+
+        let lvp = lpcs.varianceExplained();
+        lvp.forEach((x, i) => { lvp[i] /= lpcs.totalVariance(); });
+        let rvp = rpcs.varianceExplained();
+        rvp.forEach((x, i) => { rvp[i] /= rpcs.totalVariance(); });
+
+        expect(lvp).toEqual(rvp);
+    }
+
+    if (checkCrispr) {
+        let lpcs = left.crispr_pca.fetchPCs();
+        let rpcs = right.crispr_pca.fetchPCs();
         expect(lpcs.principalComponents()).toEqual(rpcs.principalComponents());
 
         let lvp = lpcs.varianceExplained();
