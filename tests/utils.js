@@ -4,9 +4,12 @@ import * as bakana from "../src/index.js";
 import * as valkana from "valkana";
 import * as scran from "scran.js";
 import * as wa from "wasmarrays.js";
+import * as os from "os";
 
 export async function initializeAll() {
-    await bakana.initialize({ localFile: true, numberOfThreads: process.env.TEST_NCPUS || 1 });
+    let ncpus = os.cpus().length;
+    console.log(ncpus);
+    await bakana.initialize({ localFile: true, numberOfThreads: ncpus });
     await valkana.initialize({ localFile: true });
 }
 

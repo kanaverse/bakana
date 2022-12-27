@@ -52,5 +52,3 @@ jobs:
     - name: Run tests
       run: npm run test
       timeout-minutes: 15
-      with:
-        TEST_NCPUS: 2
