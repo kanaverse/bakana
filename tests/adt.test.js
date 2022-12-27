@@ -3,7 +3,6 @@ import * as utils from "./utils.js";
 import * as scran from "scran.js";
 import * as valkana from "valkana";
 import * as bioc from "bioconductor";
-import * as fs from "fs";
 import * as combine from "../src/steps/combine_embeddings.js";
 
 beforeAll(utils.initializeAll);
@@ -151,21 +150,7 @@ test("runAnalysis works for ADTs with blocking", async () => {
     // Mocking up a blocking file with pretend batches.
     let exfile = "TEST_adt_block.tsv";
     let nblocks = 3;
-    {
-        let f = fs.readFileSync(bars);
-        let buff = f.buffer.slice(f.byteOffset, f.byteOffset + f.byteLength);
-        let stuff = bakana.readTable(new Uint8Array(buff));
-
-        let ncells = stuff.length;
-        let per_block = Math.ceil(ncells / nblocks);
-        let blocks = new Array(ncells);
-        for (var c = 0; c < ncells; c++) {
-            blocks[c] = 'A' + String(Math.floor(c / per_block));
-        }
-
-        fs.writeFileSync(exfile, blocks.join("\n"));
-    }
-    params.inputs.sample_factor = "A0";
+    params.inputs.sample_factor = utils.mockBlocks(bars, exfile, nblocks);
 
     let res = await bakana.runAnalysis(state, 
         { "combined": new bakana.TenxMatrixMarketDataset(mtx, feats, exfile) },
