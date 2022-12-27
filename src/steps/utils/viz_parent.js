@@ -65,13 +65,36 @@ export function computeNeighbors(index, k) {
 const worker_registry = [];
 const worker_cache_registry = [];
 
+function message_type(info) {
+    return info.type;
+}
+
+function handle_message(functions, info) {
+    if (message_type(info) == "error") {
+        functions.reject(info.error);
+    } else {
+        functions.resolve(info.data);
+    }
+}
+
 export function sendTask(worker_id, payload, transferrable = []) {
     let worker = worker_registry[worker_id];
     let cache = worker_cache_registry[worker_id];
 
     var i = cache.counter;
     var p = new Promise((resolve, reject) => {
-        cache.promises[i] = { "resolve": resolve, "reject": reject };
+        let functions = { "resolve": resolve, "reject": reject };
+        if (i in cache.promises) {
+            // Not sure if the JS engine guarantees that the resolve/reject is
+            // set up before the worker returns the message; for all we know,
+            // we could send the message (and hit the worker callback) before
+            // we run the set-up code. If that's the case, we simply resolve 
+            // this Promise using the information provided in the callback.
+            handle_message(functions, cache.promises[i]);
+            delete cache.promises[i];
+        } else {
+            cache.promises[i] = functions;
+        }
     });
 
     cache.counter++;
@@ -87,20 +110,22 @@ export function initializeWorker(worker, scranOptions) {
     worker_cache_registry.push(cache);
 
     aworkers.registerCallback(worker, msg => {
-        var type = msg.data.type;
+        var type = message_type(msg.data);
         if (type.endsWith("_iter")) {
             animateFun(type.slice(0, -5), msg.data.x, msg.data.y, msg.data.iteration);
             return;
         }
 
         var id = msg.data.id;
-        var fun = cache.promises[id];
-        if (type == "error") {
-            fun.reject(msg.data.error);
+        if (id in cache.promises) {
+            handle_message(cache.promises[id], msg.data);
+            delete cache.promises[id];
         } else {
-            fun.resolve(msg.data.data);
+            // If the Promise setup in sendTask has not yet been scheduled in
+            // the event loop, we store the message so that it can be used
+            // directly to resolve the Promise during setup.
+            cache.promises[id] = msg.data;
         }
-        delete cache.promises[id];
     });
 
     return {

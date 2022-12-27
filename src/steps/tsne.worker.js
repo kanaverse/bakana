@@ -7,6 +7,7 @@ var cache = {};
 var init_changed = false;
 var init_parameters = {};
 var run_parameters = {};
+var dead = false;
 
 function rerun(animate, iterations) {
     var num_obs = cache.init.numberOfCells(); 
@@ -37,7 +38,15 @@ function rerun(animate, iterations) {
 var loaded;
 aworkers.registerCallback(msg => {
     var id = msg.data.id;
-  
+    if (dead) {
+        aworkers.sendMessage({
+            "id": id,
+            "type": "error",
+            "error": "t-SNE worker is dead and cannot process messages"
+        });
+        return;
+    }
+
     if (msg.data.cmd == "INIT") {
         loaded = scran.initialize(msg.data.scranOptions); 
         loaded
@@ -141,6 +150,7 @@ aworkers.registerCallback(msg => {
             });
 
     } else if (msg.data.cmd == "KILL") {
+        dead = true;
         loaded
             .then(x => {
                 scran.terminate();

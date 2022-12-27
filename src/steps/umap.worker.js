@@ -7,6 +7,7 @@ var cache = {};
 var init_changed = false;
 var init_parameters = {};
 var run_parameters = {};
+var dead = false;
 
 function rerun(animate) {
     var delay = vizutils.chooseDelay(animate);
@@ -36,6 +37,14 @@ function rerun(animate) {
 var loaded;
 aworkers.registerCallback(msg => {
     var id = msg.data.id;
+    if (dead) {
+        aworkers.sendMessage({
+            "id": id,
+            "type": "error",
+            "error": "UMAP worker is dead and cannot process messages"
+        });
+        return;
+    }
 
     if (msg.data.cmd == "INIT") {
         loaded = scran.initialize(msg.data.scranOptions);
@@ -140,6 +149,7 @@ aworkers.registerCallback(msg => {
             });
 
     } else if (msg.data.cmd == "KILL") {
+        dead = true;
         loaded
             .then(x => {
                 scran.terminate();
