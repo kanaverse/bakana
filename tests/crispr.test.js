@@ -11,6 +11,13 @@ afterAll(async () => await bakana.terminate());
 const h5file = "files/datasets/crispr_6.0.0-tenx.h5";
 let files = { default: new bakana.TenxHdf5Dataset(h5file) };
 
+async function overlord(state, use_embeddings) {
+    await utils.checkStateResultsMinimal(state);
+    await utils.checkStateResultsRna(state);
+    await utils.checkStateResultsCrispr(state, { use_embeddings });
+    await utils.checkStateResultsRnaPlusCrispr(state, { use_embeddings });
+}
+
 test("CRISPR MatrixMarket summary works correctly", async () => {
     let summ = await files.default.summary();
     expect(summ.modality_features["Gene Expression"] instanceof bioc.DataFrame).toBe(true);
@@ -59,11 +66,9 @@ test("runAnalysis works correctly (10X)", async () => {
         simple.matrix.free();
     }
 
-    await utils.checkStateResultsMinimal(state);
+    // Simple checks, where CRISPR is used in the combined embeddings.
+    await overlord(state, true);
     await utils.checkStateResultsUnblocked(state);
-    await utils.checkStateResultsRna(state);
-    await utils.checkStateResultsCrispr(state);
-    await utils.checkStateResultsRnaPlusCrispr(state);
 
     // Saving and loading.
     const path = "TEST_state_crispr.h5";
@@ -106,11 +111,9 @@ test("runAnalysis works for CRISPR (MatrixMarket) with blocking", async () => {
         params
     );
 
-    await utils.checkStateResultsMinimal(state);
+    // Simple checks. Remember, CRISPR is not used in the embeddings by default.
+    await overlord(state, false);
     await utils.checkStateResultsBlocked(state);
-    await utils.checkStateResultsRna(state);
-    await utils.checkStateResultsCrispr(state, { use_embeddings: false }); // CRISPR is not used in the embeddings by default.
-    await utils.checkStateResultsRnaPlusCrispr(state, { use_embeddings: false });
 
     // However, CRISPR should still show up in the marker analyses.
     let vres = utils.checkClusterVersusMode(state);
