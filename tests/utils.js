@@ -6,7 +6,7 @@ import * as scran from "scran.js";
 import * as wa from "wasmarrays.js";
 
 export async function initializeAll() {
-    await bakana.initialize({ localFile: true });
+    await bakana.initialize({ localFile: true, numberOfThreads: process.env.TEST_NCPUS || 1 });
     await valkana.initialize({ localFile: true });
 }
 
