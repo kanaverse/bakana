@@ -56,7 +56,7 @@ test("switching between clustering methods (SNN first)", async () => {
     // Checking that invalidation of the results behaves correctly.
     // If we change the parameters but we're still on the old set of
     // results, the SNN graph results don't get rerun and the results get wiped.
-    paramcopy.snn_graph_cluster.resolution = 0.77;
+    paramcopy.snn_graph_cluster.multilevel_resolution = 0.77;
 
     await bakana.runAnalysis(state, files, paramcopy);
     expect(state.rna_pca.changed).toBe(false);
@@ -83,16 +83,20 @@ test("switching between clustering methods (SNN first)", async () => {
     await bakana.freeAnalysis(state);
 });
 
-test("switching between clustering methods (k-means first)", async () => {
-    let files = {
-        default: new bakana.TenxMatrixMarketDataset("files/datasets/pbmc3k-matrix.mtx.gz", "files/datasets/pbmc3k-features.tsv.gz", null)
-    };
+let files_3k = {
+    default: new bakana.TenxMatrixMarketDataset(
+        "files/datasets/pbmc3k-matrix.mtx.gz", 
+        "files/datasets/pbmc3k-features.tsv.gz",
+        null
+    )
+};
 
+test("switching between clustering methods (k-means first)", async () => {
     let state = await bakana.createAnalysis();
     let paramcopy = utils.baseParams();
     paramcopy.choose_clustering = { method: "kmeans" };
 
-    await bakana.runAnalysis(state, files, paramcopy);
+    await bakana.runAnalysis(state, files_3k, paramcopy);
     expect(state.snn_graph_cluster.changed).toBe(true);
     expect(state.kmeans_cluster.changed).toBe(true);
 
@@ -113,7 +117,7 @@ test("switching between clustering methods (k-means first)", async () => {
     // Trying with a different clustering method.
     paramcopy.choose_clustering.method = "snn_graph"; 
 
-    await bakana.runAnalysis(state, files, paramcopy);
+    await bakana.runAnalysis(state, files_3k, paramcopy);
     expect(state.snn_graph_cluster.changed).toBe(true);
     expect(state.kmeans_cluster.changed).toBe(false);
 
@@ -133,7 +137,7 @@ test("switching between clustering methods (k-means first)", async () => {
     // Checking that invalidation works.
     paramcopy.kmeans_cluster.k = 7;
 
-    await bakana.runAnalysis(state, files, paramcopy);
+    await bakana.runAnalysis(state, files_3k, paramcopy);
     expect(state.snn_graph_cluster.changed).toBe(false);
     expect(state.kmeans_cluster.changed).toBe(true);
 
@@ -155,3 +159,33 @@ test("switching between clustering methods (k-means first)", async () => {
     // Freeing all states.
     await bakana.freeAnalysis(state);
 });
+
+test("trying some of the other SNN algorithms", async () => {
+    let state = await bakana.createAnalysis();
+    let paramcopy = utils.baseParams();
+
+    paramcopy.snn_graph_cluster.algorithm = "walktrap";
+    await bakana.runAnalysis(state, files_3k, paramcopy);
+
+    let copy = state.snn_graph_cluster.fetchClusters().slice();
+    expect(copy.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
+    expect(state.snn_graph_cluster.fetchParameters().algorithm).toEqual("walktrap");
+    expect(state.marker_detection.fetchResults().RNA.numberOfGroups()).toBeGreaterThan(1);
+
+    // Also trying with Leiden.
+    paramcopy.snn_graph_cluster.algorithm = "leiden";
+    await bakana.runAnalysis(state, files_3k, paramcopy);
+
+    expect(state.neighbor_index.changed).toBe(false);
+    expect(state.tsne.changed).toBe(false);
+    expect(state.marker_detection.changed).toBe(true);
+    expect(state.snn_graph_cluster.changed).toBe(true);
+
+    let copy2 = state.snn_graph_cluster.fetchClusters().slice();
+    expect(copy.length).toEqual(copy2.length);
+    expect(copy).not.toEqual(copy2);
+
+    // Freeing states.
+    await bakana.freeAnalysis(state);
+})
+

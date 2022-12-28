@@ -53,7 +53,7 @@ const step_neighbors = index.step_name;
 const step_tsne = "tsne";
 const step_umap = "umap";
 const step_kmeans = "kmeans_cluster";
-const step_snn = "snn_graph_cluster";
+const step_snn = snn_cluster.step_name;
 const step_choice = "choose_clustering";
 const step_markers = cluster_markers.step_name;
 const step_labels = "cell_labelling";
@@ -328,7 +328,10 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
         method == "snn_graph", 
         params[step_snn]["k"], 
         params[step_snn]["scheme"], 
-        params[step_snn]["resolution"]
+        params[step_snn]["algorithm"],
+        params[step_snn]["multilevel_resolution"],
+        params[step_snn]["leiden_resolution"],
+        params[step_snn]["walktrap_steps"]
     );
     await quickFinish(step_snn);
 

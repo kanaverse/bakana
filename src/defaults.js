@@ -12,6 +12,7 @@ import * as pcacrispr from "./steps/crispr_pca.js";
 import * as combine from "./steps/combine_embeddings.js";
 import * as correct from "./steps/batch_correction.js";
 import * as index from "./steps/neighbor_index.js";
+import * as snngraph from "./steps/snn_graph_cluster.js";
 import * as markers from "./steps/marker_detection.js";
 import * as custom from "./steps/custom_selections.js";
 
@@ -68,11 +69,6 @@ export function analysisDefaults() {
         kmeans_cluster: {
             k: 10
         },
-        snn_graph_cluster: {
-            k: 10,
-            scheme: "rank",
-            resolution: 1
-        },
         choose_clustering: {
             method: "snn_graph"
         },
@@ -101,6 +97,7 @@ export function analysisDefaults() {
     output[correct.step_name] = correct.BatchCorrectionState.defaults();
 
     output[index.step_name] = index.NeighborIndexState.defaults();
+    output[snngraph.step_name] = snngraph.SnnGraphClusterState.defaults();
 
     output[markers.step_name] = markers.MarkerDetectionState.defaults();
     output[custom.step_name] = custom.CustomSelectionsState.defaults();
