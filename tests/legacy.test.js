@@ -121,3 +121,56 @@ test("reanalysis from a v1.2 analysis works correctly (MatrixMarket)", async () 
     // Cleaning up.
     await bakana.freeAnalysis(reloaded);
 })
+
+test("reanalysis from a v2.1 analysis works correctly (10X single)", async () => {
+    const h5path = "TEST_v2.1_state.h5";
+    let loader = await bakana.parseKanaFile("files/legacy/zeisel_tenx_20230101.kana", h5path);
+    valkana.validateState(h5path, true, 2001000); 
+
+    let reloaded = await bakana.loadAnalysis(h5path, loader);
+    await utils.overlordCheckStandard(reloaded);
+
+    // New names are in use.
+    let new_params = bakana.retrieveParameters(reloaded);
+    expect("rna_quality_control" in new_params).toBe(true);
+    expect("rna_normalization" in new_params).toBe(true);
+    expect("rna_pca" in new_params).toBe(true);
+
+    // Cleaning up.
+    await bakana.freeAnalysis(reloaded);
+})
+
+test("reanalysis from a v2.1 analysis works correctly (10X multiple)", async () => {
+    const h5path = "TEST_v2.1_state.h5";
+    let loader = await bakana.parseKanaFile("files/legacy/pbmc-multiple_tenx_20230101.kana", h5path);
+    valkana.validateState(h5path, true, 2001000); 
+
+    let reloaded = await bakana.loadAnalysis(h5path, loader);
+    await utils.overlordCheckBlocked(reloaded);
+
+    // Correctly loads multiple blocks.
+    expect(reloaded.inputs.fetchBlock()).not.toBeNull();
+    expect(reloaded.inputs.fetchBlockLevels().length).toBe(2);
+
+    // Cleaning up.
+    await bakana.freeAnalysis(reloaded);
+})
+
+test("reanalysis from a v2.1 analysis works correctly (MatrixMarket combined)", async () => {
+    const h5path = "TEST_v2.1_state.h5";
+    let loader = await bakana.parseKanaFile("files/legacy/pbmc-combined_mtx_20230101.kana", h5path);
+    valkana.validateState(h5path, true, 2001000); 
+
+    let reloaded = await bakana.loadAnalysis(h5path, loader);
+    await utils.overlordCheckBlocked(reloaded);
+
+    // Correctly identifies the blocking factor.
+    expect(reloaded.inputs.fetchBlock()).not.toBeNull();
+    expect(reloaded.inputs.fetchBlockLevels().length).toBe(2);
+    expect(reloaded.inputs.fetchParameters().block_factor).toBe('3k');
+
+    // Cleaning up.
+    await bakana.freeAnalysis(reloaded);
+})
+
+
