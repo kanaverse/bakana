@@ -40,8 +40,11 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
         fs.mkdirSync(tmp);
 
         let loader = await bakana.parseKanaFile(kpath, round_trip, { stageDir: tmp });
+        expect(loader.version).toBe(bakana.kanaFormatVersion);
+        expect(loader.embedded).toBe(true);
+
         utils.validateState(round_trip);
-        let reloaded = await bakana.loadAnalysis(round_trip, loader);
+        let reloaded = await bakana.loadAnalysis(round_trip, loader.load);
         await utils.compareStates(state, reloaded);
 
         // Cleaning up.
@@ -59,7 +62,7 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
         let contents = fs.readFileSync(kpath); // Buffer is subclass of Uint8Array already!
         let loader = await bakana.parseKanaFile(contents, round_trip);
         utils.validateState(round_trip);
-        let reloaded = await bakana.loadAnalysis(round_trip, loader);
+        let reloaded = await bakana.loadAnalysis(round_trip, loader.load);
         await utils.compareStates(state, reloaded);
 
         // Cleaning up.
@@ -96,8 +99,11 @@ test("saving to and loading from a kana file works with links", async () => {
     // Alright - trying to unpack everything.
     const round_trip = "TEST_kana_state_again2.h5";
     let loader = await bakana.parseKanaFile(kpath, round_trip);
+    expect(loader.version).toBe(bakana.kanaFormatVersion);
+    expect(loader.embedded).toBe(false);
+
     utils.validateState(round_trip, false);
-    let reloaded = await bakana.loadAnalysis(round_trip, loader);
+    let reloaded = await bakana.loadAnalysis(round_trip, loader.load);
     await utils.compareStates(state, reloaded);
 
     // Reverting the linkers.

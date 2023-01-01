@@ -88,11 +88,17 @@ export function parseKanaFileFromBuffer(input, statePath) {
         scran.writeFile(statePath, statebuffer);
     }
 
+    let output = { 
+        version: parsed.version,
+        embedded: parsed.embedded,
+        load: null
+    };
+
     if (parsed.embedded) {
         // The buffer takes ownership of the embedded file to allow eventual
         // garbage collection of the input buffer.
-        return (offset, size) => input.slice(delta + offset, delta + offset + size);
-    } else {
-        return null;
+        output.load = (offset, size) => input.slice(delta + offset, delta + offset + size);
     }
+
+    return output;
 }

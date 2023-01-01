@@ -43,13 +43,18 @@ export function createKanaFile(statePath, inputFiles, options = {}) {
  * @param {object} [options] - Further options. 
  * For Node.js, callers can specify `stageDir`, a string containing a path to a staging directory for the extracted data files.
  *
- * @return The HDF5 state file is written to `statePath`.
-
- * In the browser, if `input` contains embedded files, a function is returned that extracts each data file given its offset and size.
- * (This should be used as `loadFun` in {@linkcode loadAnalysis}.)
- * If `input` contains linked files, `null` is returned.
+ * @return {object|Promise<object>}
+ * An object containing:
  *
- * For Node.js, a promise is returned that evaluates to the aforementioned function or `null`. 
+ * - `version`: the version number of the `kana` format, as XXXYYYZZZ for "X.Y.Z".
+ * - `embedded`: whether the data files are embedded in `input`. 
+ * - `loader`: a function that extracts each data file given its offset and size.
+ *   This should be used as `loadFun` in {@linkcode loadAnalysis}.
+ *   If `embedded = false`, this is set to `null` instead.
+ *
+ * For Node.js, a promise is returned that evaluates to the above object.
+ *
+ * The HDF5 state file is also written to `statePath`.
  */
 export function parseKanaFile(input, statePath, options = {}) {
     return aserialize.parseKanaFileInternal(input, statePath, options);

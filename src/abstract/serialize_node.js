@@ -90,10 +90,16 @@ export async function parseKanaFileInternal(input, statePath, { stageDir = null 
         });
     }
 
+    let output = { 
+        version: parsed.version,
+        embedded: parsed.embedded,
+        load: null
+    };
+
     if (parsed.embedded) {
         // Safest to just reopen the damn file and write it to the location.
         // However, if we already rewrote it, then we skip the process.
-        return async (offset, size) => {
+        output.load = async (offset, size) => {
             let opath = Path.join(stageDir, String(offset));
             if (!fs.existsSync(opath)) {
                 let istream = fs.createReadStream(input, { start: delta + offset, end: delta + offset + size - 1});
@@ -107,7 +113,7 @@ export async function parseKanaFileInternal(input, statePath, { stageDir = null 
             }
             return opath;
         };
-    } else {
-        return null;
     }
+
+    return output;
 }
