@@ -62,6 +62,8 @@ const step_markers = cluster_markers.step_name;
 const step_labels = "cell_labelling";
 const step_custom = custom_markers.step_name;
 
+const load_flag = "_loaded";
+
 /**
  * Create a new analysis state in preparation for calling {@linkcode runAnalysis}.
  * Multiple states can be created and used interchangeably within the same Javascript runtime.
@@ -126,6 +128,9 @@ function create_analysis(input_state) {
 export function freeAnalysis(state) {
     let promises = [];
     for (const [k, v] of Object.entries(state)) {
+        if (k == load_flag) {
+            continue;
+        }
         let p = v.free();
         if (p) { // not null, not undefined.
             promises.push(p); 
@@ -192,6 +197,19 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
         params[step_inputs]["subset"]
     );
     await quickFinish(step_inputs);
+
+    if (load_flag in state) {
+        // Force recompute for all downstream steps. This avoids mixing results
+        // from different versions if we're re-running off a reloaded state; if
+        // some steps rerun, but others don't, we end up with a bastard state
+        // from possibly different versions of this pipeline. It's also
+        // difficult to guarantee that enough results were saved for use in
+        // downstream steps, given that not everything is saved to file (and
+        // indeed, the requirements of downstream steps may change in future
+        // versions). So we just keep it simple and flush the whole state.
+        state[step_inputs].changed = true;
+        delete state[load_flag];
+    }
 
     /*** Quality control ***/
     await quickStart(step_qc);
@@ -628,6 +646,9 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
         await quickFun(step_custom);
     }
 
+    // Adding a tripwire for runAnalysis.
+    state[load_flag] = true;
+
     return state;
 }
 
@@ -641,6 +662,9 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
 export function retrieveParameters(state) {
     let params = {};
     for (const [k, v] of Object.entries(state)) {
+        if (k == load_flag) {
+            continue;
+        }
         params[k] = v.fetchParameters();
     }
     return params;
