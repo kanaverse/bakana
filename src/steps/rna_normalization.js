@@ -120,7 +120,7 @@ export class RnaNormalizationState {
 
     serialize(handle) {
         // Token effort.
-        let ghandle = handle.createGroup("normalization");
+        let ghandle = handle.createGroup("rna_normalization");
         ghandle.createGroup("parameters"); 
         ghandle.createGroup("results"); 
     }

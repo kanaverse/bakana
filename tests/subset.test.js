@@ -1,7 +1,6 @@
 import * as bakana from "../src/index.js";
 import * as inputs from "../src/steps/inputs.js";
 import * as scran from "scran.js";
-import * as valkana from "valkana";
 import * as utils from "./utils.js"
 import * as fs from "fs";
 
@@ -18,6 +17,20 @@ function createSaver(saved) {
             "size": size
         };
     };
+}
+
+function validateInputsState(partial_path) {
+    try {
+        // The partial_path is only guaranteed to have the 'inputs' state,
+        // so if there's nothing else, it should throw an error related to
+        // the next step, i.e., 'quality_control'. If that's the case, we
+        // ignore the error; otherwise, we rethrow.
+        utils.validateState(partial_path);
+    } catch (e) {
+        if (!e.message.match("quality_control")) {
+            throw e;
+        }
+    }
 }
 
 let h5path = "files/datasets/zeisel-brain.h5ad";
@@ -73,7 +86,7 @@ test("subsetting behaves correctly with indices", async () => {
     {
         let handle = scran.createNewHDF5File(path);
         await istate.serialize(handle, createSaver(saved));
-        valkana.validateInputsState(path, true, bakana.kanaFormatVersion);
+        validateInputsState(path);
     }
 
     let offsets = utils.mockOffsets(saved.collected);
@@ -145,7 +158,7 @@ test("subsetting behaves correctly with a factor", async () => {
     {
         let handle = scran.createNewHDF5File(path);
         await istate.serialize(handle, createSaver(saved));
-        valkana.validateInputsState(path, true, bakana.kanaFormatVersion);
+        validateInputsState(path);
     }
 
     let offsets = utils.mockOffsets(saved.collected);
@@ -226,7 +239,7 @@ test("subsetting behaves correctly with ranges", async () => {
     {
         let handle = scran.createNewHDF5File(path);
         await istate.serialize(handle, createSaver(saved));
-        valkana.validateInputsState(path, true, bakana.kanaFormatVersion);
+        validateInputsState(path);
     }
 
     let offsets = utils.mockOffsets(saved.collected);
@@ -274,7 +287,7 @@ test("subsetting behaves correctly with infinite ranges", async () => {
     {
         let handle = scran.createNewHDF5File(path);
         await istate.serialize(handle, createSaver(saved));
-        valkana.validateInputsState(path, true, bakana.kanaFormatVersion);
+        validateInputsState(path);
     }
 
     let offsets = utils.mockOffsets(saved.collected);
@@ -366,7 +379,7 @@ test("end-to-end run works with subsetting", async () => {
     let state = await bakana.createAnalysis();
     state.inputs.setDirectSubset(subset);
     let params = utils.baseParams();
-    params.inputs.sample_factor = "3k";
+    params.inputs.block_factor = "3k";
 
     let res = await bakana.runAnalysis(state, files, params);
     expect(state.inputs.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
@@ -435,7 +448,7 @@ test("end-to-end run works with subsetting", async () => {
 
         // Passing of '#abbreviated' avoids extra work on compute().
         expect(subx.inputs.changed).toBe(false);
-        subx.inputs.compute(files, params.inputs.sample_factor, params.inputs.subset);
+        subx.inputs.compute(files, params.inputs.block_factor, params.inputs.subset);
         expect(subx.inputs.changed).toBe(false);
 
         await bakana.freeAnalysis(subx);

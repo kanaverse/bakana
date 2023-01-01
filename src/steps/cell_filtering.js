@@ -329,9 +329,11 @@ export function unserialize(handle, inputs, qc_states) {
 
             if ("parameters" in ghandle.children) {
                 let phandle = ghandle.open("parameters");
-                parameters.use_rna = phandle.open("use_rna", { load: true }).values[0] > 0;
-                parameters.use_adt = phandle.open("use_adt", { load: true }).values[0] > 0;
-                parameters.use_crispr = phandle.open("use_crispr", { load: true }).values[0] > 0;
+                if ("use_rna" in phandle.children) {
+                    parameters.use_rna = phandle.open("use_rna", { load: true }).values[0] > 0;
+                    parameters.use_adt = phandle.open("use_adt", { load: true }).values[0] > 0;
+                    parameters.use_crispr = phandle.open("use_crispr", { load: true }).values[0] > 0;
+                }
             }
 
             let rhandle = ghandle.open("results");

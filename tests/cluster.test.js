@@ -74,7 +74,7 @@ test("switching between clustering methods (SNN first)", async () => {
 
         let shandle = handle.open("snn_graph_cluster");
         let sphandle = shandle.open("parameters");
-        expect(sphandle.open("resolution", { load: true }).values[0]).toEqual(0.77);
+        expect(sphandle.open("multilevel_resolution", { load: true }).values[0]).toEqual(0.77);
         let srhandle = shandle.open("results");
         expect("clusters" in srhandle.children).toBe(false);
     }
