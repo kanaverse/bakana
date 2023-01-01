@@ -10,6 +10,9 @@ then
     exit 1
 fi
 
+version=$(npm pkg get version)
+echo "export const bakana_version=${version}" > src/version.js
+
 if [ $mode == "main" ]
 then
     toss=web

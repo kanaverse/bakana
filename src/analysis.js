@@ -32,6 +32,7 @@ import * as label_cells from "./steps/cell_labelling.js";
 import * as custom_markers from "./steps/custom_selections.js";
 
 import { FORMAT_VERSION } from "./abstract/utils/serialize.js";
+import { bakana_version } from "./version.js";
 
 export { setCreateLink, setResolveLink } from "./steps/inputs.js";
 export { MarkerDetectionState } from "./steps/marker_detection.js";
@@ -457,7 +458,7 @@ export async function saveAnalysis(state, path, { embedded = true } = {}) {
     let mhandle = handle.createGroup("_metadata");
     mhandle.writeDataSet("format_version", "Int32", [], FORMAT_VERSION);
     mhandle.writeDataSet("application_name", "String", [], "bakana");
-    mhandle.writeDataSet("application_version", "String", [], "2.0.0-alpha.1");
+    mhandle.writeDataSet("application_version", "String", [], bakan_version);
 
     return saved;
 }
