@@ -370,7 +370,8 @@ export class InputsState {
                 let key = names[i];
                 let val = this.#cache.datasets[key];
 
-                curdhandle.writeDataSet("format", "String", [], val.constructor.format());
+                let dformat = val.constructor.format();
+                curdhandle.writeDataSet("format", "String", [], dformat);
                 curdhandle.writeDataSet("name", "String", [], key);
 
                 let { files, options } = await val.serialize();

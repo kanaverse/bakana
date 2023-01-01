@@ -72,17 +72,18 @@ test("multi-matrix analyses work correctly", async () => {
     {
         let handle = new scran.H5File(path);
         let ihandle = handle.open("inputs");
-        expect(ihandle.open("results").open("num_samples", { load: true }).values[0]).toEqual(2);
+        expect(ihandle.open("results").open("num_blocks", { load: true }).values[0]).toEqual(2);
 
         let phandle = ihandle.open("parameters");
-        let sample_names = phandle.open("sample_names", { load: true }).values;
-        expect(sample_names).toEqual(["3K", "4K"]); // again, should be sorted.
+        let dhandle = phandle.open("datasets");
+        expect(dhandle.open("0").open("name", { load: true }).values[0]).toBe("3K"); // should be sorted: 3K, then 4K.
+        expect(dhandle.open("1").open("name", { load: true }).values[0]).toBe("4K");
 
-        let sample_groups = phandle.open("sample_groups", { load: true }).values;
-        expect(Array.from(sample_groups)).toEqual([3, 1]); // 3 MatrixMarket files, one 10X file.
+        expect(dhandle.open("0").open("format", { load: true }).values[0]).toBe("MatrixMarket"); 
+        expect(dhandle.open("1").open("format", { load: true }).values[0]).toBe("10X");
 
-        let formats = phandle.open("format", { load: true }).values;
-        expect(formats).toEqual(["MatrixMarket", "10X"]); 
+        expect(Object.keys(dhandle.open("0").open("files").children).length).toBe(3);
+        expect(Object.keys(dhandle.open("1").open("files").children).length).toBe(1);
     }
 
     let offsets = utils.mockOffsets(collected.collected);

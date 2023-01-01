@@ -165,7 +165,7 @@ export class CrisprQualityControlState {
                 mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
                 mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
                 mhandle.writeDataSet("max_proportion", "Float64", null, this.#cache.metrics.maxProportions({ copy: "view" }));
-                mhandle.writeDataSet("max_index", "Float64", null, this.#cache.metrics.maxIndex({ copy: "view" }));
+                mhandle.writeDataSet("max_index", "Int32", null, this.#cache.metrics.maxIndex({ copy: "view" }));
 
                 let thandle = rhandle.createGroup("thresholds");
                 thandle.writeDataSet("max_count", "Float64", null, this.#cache.filters.thresholdsMaxCount({ copy: "view" }));

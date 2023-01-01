@@ -32,7 +32,7 @@ test("analysis works when we skip the QC steps", async () => {
     utils.validateState(path); 
     {
         let handle = new scran.H5File(path);
-        let qhandle = handle.open("quality_control");
+        let qhandle = handle.open("rna_quality_control");
         let qrhandle = qhandle.open("results");
         expect("metrics" in qrhandle.children).toBe(true);
         expect("discards" in qrhandle.children).toBe(true);
