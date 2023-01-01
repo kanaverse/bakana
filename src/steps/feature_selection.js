@@ -167,8 +167,7 @@ export function unserialize(handle, permuter, filter, norm) {
             let reloaded = {};
             for (const key of [ "means", "vars", "fitted", "resids" ]) {
                 let value = rhandle.open(key, { load: true }).values;
-                permuter(value);
-                reloaded[key] = value;
+                reloaded[key] = permuter(value);
             }
 
             cache.results = scran.emptyModelGeneVarResults(reloaded.means.length, 1);

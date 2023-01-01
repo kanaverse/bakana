@@ -31,6 +31,8 @@ import * as cluster_markers from "./steps/marker_detection.js";
 import * as label_cells from "./steps/cell_labelling.js";
 import * as custom_markers from "./steps/custom_selections.js";
 
+import { FORMAT_VERSION } from "./abstract/utils/serialize.js";
+
 export { setCreateLink, setResolveLink } from "./steps/inputs.js";
 export { MarkerDetectionState } from "./steps/marker_detection.js";
 export { CustomSelectionsState } from "./steps/custom_selections.js";
@@ -185,7 +187,7 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
     await quickStart(step_inputs);
     await state[step_inputs].compute(
         datasets,
-        params[step_inputs]["sample_factor"],
+        params[step_inputs]["block_factor"],
         params[step_inputs]["subset"]
     );
     await quickFinish(step_inputs);
@@ -381,7 +383,8 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
  * @param {boolean} [options.embedded] - Whether to store information for embedded data files.
  * If `false`, links to data files are stored instead, see {@linkcode setCreateLink}.
  * 
- * @return A HDF5 file is created at `path` containing the analysis parameters and results - see https://ltla.github.io/kanaval for more details on the structure.
+ * @return A HDF5 file is created at `path` containing the analysis parameters and results - 
+ * see https://github.com/LTLA/kanaval for more details on the structure.
  *
  * If `embedded = false`, a promise is returned that resolves to `null` when the saving is complete.
  * Otherwise, an object is returned containing:
@@ -449,6 +452,12 @@ export async function saveAnalysis(state, path, { embedded = true } = {}) {
     state[step_markers].serialize(handle);
     await state[step_labels].serialize(handle);
     state[step_custom].serialize(handle);
+
+    /** Metadata **/
+    let mhandle = handle.createGroup("_metadata");
+    mhandle.writeDataSet("format_version", "Int32", [], FORMAT_VERSION);
+    mhandle.writeDataSet("application_name", "String", [], "bakana");
+    mhandle.writeDataSet("application_version", "String", [], "2.0.0-alpha.1");
 
     return saved;
 }
