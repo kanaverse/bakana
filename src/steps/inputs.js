@@ -895,6 +895,7 @@ export async function unserialize(handle, embeddedLoader) {
 
     let readers = {};
     let parameters = { block_factor: null };
+    let solofile = false; // legacy argument.
 
     if ("datasets" in phandle.children) {
         let dhandle = phandle.open("datasets");
@@ -925,7 +926,7 @@ export async function unserialize(handle, embeddedLoader) {
 
         // Extracting the format and organizing the files.
         let fohandle = phandle.open("format", { load: true });
-        let solofile = (fohandle.shape.length == 0);
+        solofile = (fohandle.shape.length == 0);
 
         if (solofile) {
             let format = fohandle.values[0];

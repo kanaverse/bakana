@@ -1,7 +1,6 @@
 import * as bakana from "../src/index.js";
 import * as utils from "./utils.js";
 import * as scran from "scran.js";
-import * as valkana from "valkana";
 import * as bioc from "bioconductor";
 import * as combine from "../src/steps/combine_embeddings.js";
 
@@ -115,28 +114,38 @@ test("runAnalysis works correctly (10X)", async () => {
 
     // What happens when only one of the modalities has non-zero weight?
     {
-        state.combine_embeddings.compute(/* rna_weight = */ 1, /* adt_weight = */ 0, /* crispr_weight = */ 0, true);
+        params.combine_embeddings.rna_weight = 1;
+        params.combine_embeddings.adt_weight = 0;
+        params.combine_embeddings.crispr_weight = 0;
+
+        await bakana.runAnalysis(state, null, params);
+        expect(state.rna_pca.changed).toBe(false);
+        expect(state.adt_pca.changed).toBe(false);
+        expect(state.crispr_pca.changed).toBe(false);
+        expect(state.combine_embeddings.changed).toBe(true);
+        expect(state.snn_graph_cluster.changed).toBe(true); // downstream is changed.
+
+        // We should end up with a view.
         let pcs = state.combine_embeddings.fetchCombined();
         expect(pcs.owner !== null).toBe(true);
         expect(state.combine_embeddings.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
 
+        // Reloading should respect the view creation.
         const path = "TEST_state_combine-embed.h5";
-        let fhandle = scran.createNewHDF5File(path);
-        state.combine_embeddings.serialize(fhandle);
+        let collected = await bakana.saveAnalysis(state, path);
+        utils.validateState(path);
 
-        {
-            let ncells = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
-            let npcs_rna = state.rna_pca.fetchPCs().numberOfPCs();
-            let npcs_adt = state.adt_pca.fetchPCs().numberOfPCs();
-            valkana.validateCombineEmbeddingsState(path, ncells, ["RNA"], npcs_rna + npcs_adt, bakana.kanaFormatVersion);
-        }
+        let offsets = utils.mockOffsets(collected.collected);
+        let reloaded = await bakana.loadAnalysis(
+            path, 
+            (offset, size) => offsets[offset]
+        );
 
-        let reloaded = combine.unserialize(fhandle, {"RNA": state.rna_pca, "ADT": state.adt_pca, "CRISPR": state.crispr_pca });
-        let repcs = reloaded.fetchCombined();
+        let repcs = reloaded.combine_embeddings.fetchCombined();
         expect(repcs.owner !== null).toBe(true);
-        expect(reloaded.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
+        expect(reloaded.combine_embeddings.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
 
-        reloaded.free();
+        await bakana.freeAnalysis(reloaded);
     }
 
     // Release me!
@@ -150,7 +159,7 @@ test("runAnalysis works for ADTs with blocking", async () => {
     // Mocking up a blocking file with pretend batches.
     let exfile = "TEST_adt_block.tsv";
     let nblocks = 3;
-    params.inputs.sample_factor = utils.mockBlocks(bars, exfile, nblocks);
+    params.inputs.block_factor = utils.mockBlocks(bars, exfile, nblocks);
 
     let res = await bakana.runAnalysis(state, 
         { "combined": new bakana.TenxMatrixMarketDataset(mtx, feats, exfile) },
@@ -186,7 +195,7 @@ test("ADT-only runAnalysis works correctly", async () => {
     // Can save and reload.
     const path = "TEST_state_adt_only.h5";
     let collected = await bakana.saveAnalysis(state, path);
-    //utils.validateState(path);
+    utils.validateState(path);
     expect(collected.collected.length).toBe(3);
     expect(typeof(collected.collected[0])).toBe("string");
 

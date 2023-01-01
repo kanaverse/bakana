@@ -1,7 +1,6 @@
 import * as bakana from "../src/index.js";
 import * as utils from "./utils.js";
 import * as scran from "scran.js";
-import * as valkana from "valkana";
 import * as bioc from "bioconductor";
 import * as combine from "../src/steps/combine_embeddings.js";
 
@@ -73,7 +72,7 @@ test("runAnalysis works correctly (10X)", async () => {
     // Saving and loading.
     const path = "TEST_state_crispr.h5";
     let collected = await bakana.saveAnalysis(state, path);
-    // utils.validateState(path); // TODO: kanaval doesn't know anything about CRISPR yet.
+    utils.validateState(path); 
     expect(collected.collected.length).toBe(1);
     expect(typeof(collected.collected[0])).toBe("string");
 
@@ -104,7 +103,7 @@ test("runAnalysis works for CRISPR (MatrixMarket) with blocking", async () => {
     // Mocking up a blocking file with pretend batches.
     let exfile = "TEST_crispr_block.tsv";
     let nblocks = 3;
-    params.inputs.sample_factor = utils.mockBlocks(barfile, exfile, nblocks);
+    params.inputs.block_factor = utils.mockBlocks(barfile, exfile, nblocks);
 
     let res = await bakana.runAnalysis(state, 
         { "combined": new bakana.TenxMatrixMarketDataset(mtxfile, featfile, exfile) },
@@ -144,7 +143,7 @@ test("CRISPR-only runAnalysis works correctly", async () => {
     // Can save and reload.
     const path = "TEST_state_crispr_only.h5";
     let collected = await bakana.saveAnalysis(state, path);
-    //utils.validateState(path);
+    utils.validateState(path);
     expect(collected.collected.length).toBe(1);
     expect(typeof(collected.collected[0])).toBe("string");
 
