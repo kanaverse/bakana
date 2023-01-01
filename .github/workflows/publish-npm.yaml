@@ -14,6 +14,11 @@ jobs:
     - name: Checkout the repo
       uses: actions/checkout@v3
 
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 16
+        registry-url: 'https://registry.npmjs.org'
+
     # We run the various preparatory steps to ensure that they do, in fact, run.
     # This avoids nasty surprises when we actually do want to publish something.
     - name: Update node build 
@@ -26,18 +31,12 @@ jobs:
     - name: Extract package versions
       shell: bash
       run: |
-        current_version=$(cat package.json | grep "version" | sed -e 's/.*"\([0-9\.]*\)".*/\1/')
+        current_version=$(npm pkg get version | sed 's/"//g')
         echo "NEW_BAKANA_VERSION=${current_version}" >> $GITHUB_ENV
         old_version=$(npm view bakana version)
         update=0 && [[ $old_version != $current_version ]] && update=1
         echo "UPDATE_BAKANA=${update}" >> $GITHUB_ENV
         echo "Current version is ${current_version} (published ${old_version})"
-
-    - uses: actions/setup-node@v3
-      if: env.UPDATE_BAKANA == 1
-      with:
-        node-version: 16
-        registry-url: 'https://registry.npmjs.org'
 
     - name: Publish to NPM
       if: env.UPDATE_BAKANA == 1
