@@ -181,14 +181,13 @@ export class RnaQualityControlState {
      *************************/
 
     serialize(handle) {
-        let ghandle = handle.createGroup("quality_control");
+        let ghandle = handle.createGroup("rna_quality_control");
 
         {
             let phandle = ghandle.createGroup("parameters"); 
             phandle.writeDataSet("use_mito_default", "Uint8", [], Number(this.#parameters.use_mito_default));
             phandle.writeDataSet("mito_prefix", "String", [], this.#parameters.mito_prefix);
             phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
-            phandle.writeDataSet("skip", "Uint8", [], 0); // back-compatibility only.
         }
 
         {
@@ -216,7 +215,7 @@ export class RnaQualityControlState {
  **************************/
 
 export function unserialize(handle, inputs) {
-    let ghandle = handle.open("quality_control");
+    let ghandle = handle.open("rna_quality_control" in handle.children ? "rna_quality_control" : "quality_control");
 
     let parameters = RnaQualityControlState.defaults(); 
     {

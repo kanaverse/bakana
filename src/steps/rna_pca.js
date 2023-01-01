@@ -139,7 +139,7 @@ export class RnaPcaState {
      *************************/
 
     serialize(handle) {
-        let ghandle = handle.createGroup("pca");
+        let ghandle = handle.createGroup("rna_pca");
 
         {
             let phandle = ghandle.createGroup("parameters"); 
@@ -194,7 +194,7 @@ function choose_hvgs(num_hvgs, feat, cache) {
  **************************/
 
 export function unserialize(handle, filter, norm, feat) {
-    let ghandle = handle.open("pca");
+    let ghandle = handle.open("rna_pca" in handle.children ? "rna_pca" : "pca");
 
     let parameters = {};
     {
