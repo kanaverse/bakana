@@ -75,86 +75,68 @@ as well as serialization of the state for storage and distribution to other mach
 <h2>Running analyses</h2>
 <p>We perform an analysis with the following commands:</p>
 <pre class="prettyprint source lang-js"><code>import * as bakana from &quot;bakana&quot;;
-await bakana.initialize({ numberOfThreads: 8 });
+await bakana.initialize({ numberOfThreads: 8 }); 
 
 let state = await bakana.createAnalysis();
 let params = bakana.analysisDefaults();
 
 await bakana.runAnalysis(state, 
     // Specify files using paths (Node.js) or File objects (browser).
-    { my_data: new bakana.TenxHdf5Dataset(&quot;/some/file/path.h5&quot;) }
+    { my_data: new bakana.TenxHdf5Dataset(&quot;/some/file/path.h5&quot;) },
     params
 );
 </code></pre>
 <p>Each step is represented by a <code>*State</code> class instance as a property of <code>state</code>, containing the analysis results.
-We can extract summaries for diagnostics or display on a UI:</p>
-<pre class="prettyprint source lang-js"><code>state.quality_control.summary();
-// {
-//   data: {
-//     default: {
-//       sums: [Float64Array],
-//       detected: [Int32Array],
-//       proportion: [Float64Array]
-//     }
-//   },
-//   ...
-// }
+We can extract results from each state for further inspection.</p>
+<pre class="prettyprint source lang-js"><code>state.rna_normalization.fetchNormalizedMatrix(); 
+// ScranMatrix {}
 
-state.pca.summary():
-// {
-//   var_exp: Float64Array(20) [...]
-// }
+state.rna_quality_control.fetchMetrics(); 
+// PerCellRnaQcMetricsResults {}
 
-// Some summary() are promises, see the relevant documentation.
-await state.tsne.summary();
-// {
-//   x: [Float64Array],
-//   y: [Float64Array],
-//   iterations: 500
-// }
+state.rna_pca.fetchPCs(); 
+// RunPCAResults {}
 </code></pre>
-<p>Alternatively, we can supply a callback that processes summaries from each step as soon as it finishes.
+<p>We can also supply a callback that processes summaries from each step as soon as it finishes.
 This can be useful for, e.g., posting diagnostics to another system once they become available.</p>
-<pre class="prettyprint source lang-js"><code>function finisher(step, results) {
-    console.log(step);
-    // Do other stuff with 'results' here.
+<pre class="prettyprint source lang-js"><code>function finishCallback(step) {
+    if (state[step].changed) {
+        console.log(&quot;Running &quot; + step);
+        // Do other stuff with the state's results...
+    }
 }
 
 await bakana.runAnalysis(state, 
     { my_data: new bakana.TenxHdf5Dataset(&quot;/some/file/path.h5&quot;) }
     params,
-    { finishFun: finisher }
+    { finishFun: finishCallback }
 );
-// inputs
-// quality_control
-// normalizaton
-// feature_selection
-// pca
-// neighbor_index
-// kmeans_cluster
-// ...
 </code></pre>
 <p>If the analysis is re-run with different parameters, <strong>bakana</strong> will only re-run the affected steps.
 This includes all steps downstream of any step with changed parameters.</p>
-<pre class="prettyprint source lang-js"><code>params.pca.num_pcs = 15;
-
+<pre class="prettyprint source lang-js"><code>params.rna_pca.num_pcs = 15;
 await bakana.runAnalysis(state, 
     { my_data: new bakana.TenxHdf5Dataset(&quot;/some/file/path.h5&quot;) }
     params,
-    { finishFun: finisher }
+    { finishFun: finishCallback }
 );
-// pca
-// neighbor_index
+// Running rna_pca
+// Running combine_embeddings
+// Running batch_correction
+// Running neighbor_index
+// Running kmeans_cluster
+// Running snn_graph_cluster
 // ...
 </code></pre>
 <h2>Saving analyses</h2>
 <p>Given an analysis state, we can save the parameters and results to a HDF5 file.</p>
 <pre class="prettyprint source lang-js"><code>let collected = await bakana.saveAnalysis(state, &quot;whee.h5&quot;);
 </code></pre>
-<p><code>saveAnalysis</code> will return a promise that resolves to an array of paths (Node.js) or <code>File</code> objects for the original data files.
-These can be used to assemble a <code>*.kana</code>-format file following the <a href="https://ltla.github.io/kanaval"><strong>kanaval</strong> specification</a>.
+<p><code>saveAnalysis</code> will return a promise that resolves to an array of paths (Node.js) or buffers of file contents (web).
+These can be used to assemble a <code>*.kana</code>-format file following the <a href="https://github.coim/LTLA/kanaval"><strong>kanaval</strong> specification</a>.
 By default, this assumes that we are embedding the data files into the <code>*.kana</code> file.</p>
-<pre class="prettyprint source lang-js"><code>let res = await bakana.createKanaFile(&quot;whee.h5&quot;, collected.collected);
+<pre class="prettyprint source lang-js"><code>// Returns path to a new kana file on Node.js:
+let res = await bakana.createKanaFile(&quot;whee.h5&quot;, collected.collected);
 </code></pre>
 <p>Advanced users may prefer to store links to the data files rather than embedding them.
 This can be achieved using the <code>setCreateLink()</code> function to define a mechanism for creating application-specific links.
@@ -168,20 +150,34 @@ bakana.setResolveLink(load_from_some_db);
 </code></pre>
 <p>Once the <code>*.kana</code> file is parsed, we can reload the analysis state into memory.
 We can also report the parameters used at each step.</p>
-<pre class="prettyprint source lang-js"><code>let reloaded = await bakana.loadAnalysis(&quot;foo.h5&quot;, loader);
-let params = bakana.retrieveParameters(reloaded);
-</code></pre>
-<p>These can be used to perform a new analysis, possibly after modifying some parameters.</p>
-<pre class="prettyprint source lang-js"><code>params.pca.num_hvgs = 3000;
-await bakana.runAnalysis(new_state, null, new_params);
+<pre class="prettyprint source lang-js"><code>let reloaded = await bakana.loadAnalysis(&quot;foo.h5&quot;, loader.load);
+let reparams = bakana.retrieveParameters(reloaded);
+// {
+//   feature_selection: { span: 0.3 },
+//   combine_embeddings: { rna_weight: 1, adt_weight: 1, ... },
+//   batch_correction: { method: 'mnn', num_neighbors: 15, approximate: true },
+//   tsne: { perplexity: 30, iterations: 500, animate: false },
+//   umap: { num_neighbors: 15, num_epochs: 500, min_dist: 0.1, animate: false },
+//   kmeans_cluster: { k: 10 },
+//   ...
+// }
 </code></pre>
 <p>Again, we can supply a callback that runs on the results of each step as soon as they are loaded.</p>
-<pre class="prettyprint source lang-js"><code>let reloaded = await bakana.loadAnalysis(&quot;whee.h5&quot;, loader, { finishFun: finisher });
+<pre class="prettyprint source lang-js"><code>let reloaded2 = await bakana.loadAnalysis(&quot;whee.h5&quot;, loader.load, 
+    { finishFun: step => console.log(&quot;Loading &quot; + step) });
+// Loading inputs
+// Loading rna_quality_control
+// Loading adt_quality_control
+// Loading crispr_quality_control
+// Loading cell_filtering
+// ... 
 </code></pre>
 <p>If links are present, it is assumed that the application will use <code>setResolveLink()</code> to specify a mechanism to resolve each link to a data file.</p>
 <h2>Terminating analyses</h2>
 <p>Once a particular analysis is finished, we should free the resources of its state.</p>
 <pre class="prettyprint source lang-js"><code>bakana.freeAnalysis(state);
+bakana.freeAnalysis(reloaded);
+bakana.freeAnalysis(reloaded2);
 </code></pre>
 <p>If all analyses are complete, we can terminate the entire session.
 This is necessary on Node.js to allow the runtime to exit properly.</p>
@@ -190,8 +186,8 @@ This is necessary on Node.js to allow the runtime to exit properly.</p>
 <h2>Developer notes</h2>
 <p>See <a href="docs/related/custom_readers.md">here</a> for instructions on adding custom dataset readers.
 This allows us to use <strong>bakana</strong>'s analysis pipeline and serialization capabilities on datasets from other sources such as in-house databases.</p>
-<p>Testing requires some combination of the options below,
-depending on the version of Node.js available.</p>
+<p>Testing can be done with <code>npm run test</code> with Node 16+.
+For older versions of Node, it requires some combination of the options below:</p>
 <pre class="prettyprint source lang-sh"><code>node --experimental-vm-modules \
     --experimental-wasm-threads \
     --experimental-wasm-bulk-memory \
@@ -214,7 +210,7 @@ depending on the version of Node.js available.</p>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Mon Jan 02 2023 05:48:44 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Mon Jan 02 2023 07:29:16 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
