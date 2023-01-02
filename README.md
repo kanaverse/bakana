@@ -25,85 +25,66 @@ We perform an analysis with the following commands:
 
 ```js
 import * as bakana from "bakana";
-await bakana.initialize({ numberOfThreads: 8 });
+await bakana.initialize({ numberOfThreads: 8 }); 
 
 let state = await bakana.createAnalysis();
 let params = bakana.analysisDefaults();
 
 await bakana.runAnalysis(state, 
     // Specify files using paths (Node.js) or File objects (browser).
-    { my_data: new bakana.TenxHdf5Dataset("/some/file/path.h5") }
+    { my_data: new bakana.TenxHdf5Dataset("/some/file/path.h5") },
     params
 );
 ```
 
 Each step is represented by a `*State` class instance as a property of `state`, containing the analysis results.
-We can extract summaries for diagnostics or display on a UI:
+We can extract results from each state for further inspection.
 
 ```js
-state.quality_control.summary();
-// {
-//   data: {
-//     default: {
-//       sums: [Float64Array],
-//       detected: [Int32Array],
-//       proportion: [Float64Array]
-//     }
-//   },
-//   ...
-// }
+state.rna_normalization.fetchNormalizedMatrix(); 
+// ScranMatrix {}
 
-state.pca.summary():
-// {
-//   var_exp: Float64Array(20) [...]
-// }
+state.rna_quality_control.fetchMetrics(); 
+// PerCellRnaQcMetricsResults {}
 
-// Some summary() are promises, see the relevant documentation.
-await state.tsne.summary();
-// {
-//   x: [Float64Array],
-//   y: [Float64Array],
-//   iterations: 500
-// }
+state.rna_pca.fetchPCs(); 
+// RunPCAResults {}
 ```
 
-Alternatively, we can supply a callback that processes summaries from each step as soon as it finishes.
+We can also supply a callback that processes summaries from each step as soon as it finishes.
 This can be useful for, e.g., posting diagnostics to another system once they become available.
 
 ```js
-function finisher(step, results) {
-    console.log(step);
-    // Do other stuff with 'results' here.
+function finishCallback(step) {
+    if (state[step].changed) {
+        console.log("Running " + step);
+        // Do other stuff with the state's results...
+    }
 }
 
 await bakana.runAnalysis(state, 
     { my_data: new bakana.TenxHdf5Dataset("/some/file/path.h5") }
     params,
-    { finishFun: finisher }
+    { finishFun: finishCallback }
 );
-// inputs
-// quality_control
-// normalizaton
-// feature_selection
-// pca
-// neighbor_index
-// kmeans_cluster
-// ...
 ```
 
 If the analysis is re-run with different parameters, **bakana** will only re-run the affected steps.
 This includes all steps downstream of any step with changed parameters.
 
 ```js
-params.pca.num_pcs = 15;
-
+params.rna_pca.num_pcs = 15;
 await bakana.runAnalysis(state, 
     { my_data: new bakana.TenxHdf5Dataset("/some/file/path.h5") }
     params,
-    { finishFun: finisher }
+    { finishFun: finishCallback }
 );
-// pca
-// neighbor_index
+// Running rna_pca
+// Running combine_embeddings
+// Running batch_correction
+// Running neighbor_index
+// Running kmeans_cluster
+// Running snn_graph_cluster
 // ...
 ```
 
@@ -115,11 +96,12 @@ Given an analysis state, we can save the parameters and results to a HDF5 file.
 let collected = await bakana.saveAnalysis(state, "whee.h5");
 ```
 
-`saveAnalysis` will return a promise that resolves to an array of paths (Node.js) or `File` objects for the original data files.
-These can be used to assemble a `*.kana`-format file following the [**kanaval** specification](https://ltla.github.io/kanaval).
+`saveAnalysis` will return a promise that resolves to an array of paths (Node.js) or buffers of file contents (web).
+These can be used to assemble a `*.kana`-format file following the [**kanaval** specification](https://github.coim/LTLA/kanaval).
 By default, this assumes that we are embedding the data files into the `*.kana` file.
 
 ```js
+// Returns path to a new kana file on Node.js:
 let res = await bakana.createKanaFile("whee.h5", collected.collected);
 ```
 
@@ -144,21 +126,30 @@ Once the `*.kana` file is parsed, we can reload the analysis state into memory.
 We can also report the parameters used at each step.
 
 ```js
-let reloaded = await bakana.loadAnalysis("foo.h5", loader);
-let params = bakana.retrieveParameters(reloaded);
-```
-
-These can be used to perform a new analysis, possibly after modifying some parameters.
-
-```js
-params.pca.num_hvgs = 3000;
-await bakana.runAnalysis(new_state, null, new_params);
+let reloaded = await bakana.loadAnalysis("foo.h5", loader.load);
+let reparams = bakana.retrieveParameters(reloaded);
+// {
+//   feature_selection: { span: 0.3 },
+//   combine_embeddings: { rna_weight: 1, adt_weight: 1, ... },
+//   batch_correction: { method: 'mnn', num_neighbors: 15, approximate: true },
+//   tsne: { perplexity: 30, iterations: 500, animate: false },
+//   umap: { num_neighbors: 15, num_epochs: 500, min_dist: 0.1, animate: false },
+//   kmeans_cluster: { k: 10 },
+//   ...
+// }
 ```
 
 Again, we can supply a callback that runs on the results of each step as soon as they are loaded.
 
 ```js
-let reloaded = await bakana.loadAnalysis("whee.h5", loader, { finishFun: finisher });
+let reloaded2 = await bakana.loadAnalysis("whee.h5", loader.load, 
+    { finishFun: step => console.log("Loading " + step) });
+// Loading inputs
+// Loading rna_quality_control
+// Loading adt_quality_control
+// Loading crispr_quality_control
+// Loading cell_filtering
+// ... 
 ```
 
 If links are present, it is assumed that the application will use `setResolveLink()` to specify a mechanism to resolve each link to a data file.
@@ -169,6 +160,8 @@ Once a particular analysis is finished, we should free the resources of its stat
 
 ```js
 bakana.freeAnalysis(state);
+bakana.freeAnalysis(reloaded);
+bakana.freeAnalysis(reloaded2);
 ```
 
 If all analyses are complete, we can terminate the entire session.
@@ -183,8 +176,8 @@ bakana.terminate();
 See [here](docs/related/custom_readers.md) for instructions on adding custom dataset readers.
 This allows us to use **bakana**'s analysis pipeline and serialization capabilities on datasets from other sources such as in-house databases.
 
-Testing requires some combination of the options below,
-depending on the version of Node.js available.
+Testing can be done with `npm run test` with Node 16+.
+For older versions of Node, it requires some combination of the options below:
 
 ```sh
 node --experimental-vm-modules \
