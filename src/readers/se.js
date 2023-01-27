@@ -495,6 +495,7 @@ export class SummarizedExperimentDataset {
     /**
      * @param {?(string|number)} i - Name or index of the alternative experiment containing gene expression data.
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.
+     * If `i` is an empty string, the main experiment is assumed to contain the gene expression data.
      */
     setRnaExperiment(i) {
         this.#rnaExperiment = i;
@@ -504,6 +505,7 @@ export class SummarizedExperimentDataset {
     /**
      * @param {?(string|number)} i - Name or index of the alternative experiment containing ADT data.
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.
+     * If `i` is an empty string, the main experiment is assumed to contain the ADT data.
      */
     setAdtExperiment(i) {
         this.#adtExperiment = i;
@@ -513,6 +515,7 @@ export class SummarizedExperimentDataset {
     /**
      * @param {?(string|number)} i - Name or index of the alternative experiment containing CRISPR guide data.
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.
+     * If `i` is an empty string, the main experiment is assumed to contain the guide data.
      */
     setCrisprExperiment(i) {
         this.#crisprExperiment = i;

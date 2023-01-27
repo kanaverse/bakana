@@ -17,7 +17,7 @@ export class H5adDataset {
     #raw_cells;
     #assay_details;
 
-    #countAssayName;
+    #countMatrixName;
     #featureTypeColumnName;
 
     #featureTypeRnaName;
@@ -31,7 +31,7 @@ export class H5adDataset {
     #dump_summary(fun) {
         let files = [{ type: "h5", file: fun(this.#h5_file) }]; 
         let options = {
-            countAssayName: this.#countAssayName,
+            countMatrixName: this.#countMatrixName,
             featureTypeColumnName: this.#featureTypeColumnName,
             featureTypeRnaName: this.#featureTypeRnaName,
             featureTypeAdtName: this.#featureTypeAdtName,
@@ -48,7 +48,7 @@ export class H5adDataset {
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
      * @param {object} [options={}] - Optional parameters.
-     * @param {?string} [options.countAssayName=null] - See {@linkcode H5adDataset#setCountAssayName setCountAssayName}.
+     * @param {?string} [options.countMatrixName=null] - See {@linkcode H5adDataset#setCountMatrixName setCountMatrixName}.
      * @param {?string} [options.featureTypeColumnName=null] - See {@linkcode H5adDataset#setFeatureTypeColumnName setFeatureTypeColumnName}.
      * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode H5adDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
      * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode H5adDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
@@ -58,7 +58,7 @@ export class H5adDataset {
      * @param {?(string|number)} [options.primaryCrisprFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
      */
     constructor(h5File, { 
-        countAssayName = null, 
+        countMatrixName = null, 
         featureTypeColumnName = null, 
         featureTypeRnaName = "Gene Expression", 
         featureTypeAdtName = "Antibody Capture", 
@@ -73,7 +73,7 @@ export class H5adDataset {
             this.#h5_file = new afile.SimpleFile(h5File);
         }
 
-        this.#countAssayName = countAssayName;
+        this.#countMatrixName = countMatrixName;
         this.#featureTypeColumnName = featureTypeColumnName;
         
         this.#featureTypeRnaName = featureTypeRnaName;
@@ -88,11 +88,11 @@ export class H5adDataset {
     }
 
     /**
-     * @param {?string} name - Name of the assay containing the count matrix.
-     * If `null`, the first encountered assay or layer is used.
+     * @param {?string} name - Name of the layer containing the count matrix.
+     * If `null`, the "X" dataset is used if it is present in the file, or the first available layer if no "X" dataset is present.
      */
-    setCountAssayName(name) {
-        this.#countAssayName = name;
+    setCountMatrixName(name) {
+        this.#countMatrixName = name;
         return;
     }
 
@@ -368,7 +368,7 @@ export class H5adDataset {
         this.#cells();
         this.#fetch_assay_details();
 
-        let chosen_assay = this.#countAssayName;
+        let chosen_assay = this.#countMatrixName;
         if (chosen_assay == null) {
             chosen_assay = this.#assay_details.names[0];
         }
