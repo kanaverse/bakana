@@ -15,6 +15,7 @@ import * as index from "./steps/neighbor_index.js";
 import * as snngraph from "./steps/snn_graph_cluster.js";
 import * as markers from "./steps/marker_detection.js";
 import * as custom from "./steps/custom_selections.js";
+import * as enrichment from "./steps/feature_set_enrichment.js";
 
 /**
  * Generate an object containing all of the default analysis parameters.
@@ -101,6 +102,8 @@ export function analysisDefaults() {
 
     output[markers.step_name] = markers.MarkerDetectionState.defaults();
     output[custom.step_name] = custom.CustomSelectionsState.defaults();
+
+    output[enrichment.step_name] = enrichment.FeatureSetEnrichmentState.defaults();
 
     return output;
 }
