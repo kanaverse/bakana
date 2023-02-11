@@ -29,12 +29,19 @@ export function baseParams() {
         mouse_references: [ "ImmGen" ],
         human_references: [ "BlueprintEncode" ]
     };
+
+    output.feature_set_enrichment.feature_sets = [ "mouse-GO_3.16.0", "human-GO_3.16.0" ];
     return output;
 }
 
 bakana.setCellLabellingDownload(url => {
     let fpath = path.basename(url);
     return fs.readFileSync("files/references/" + fpath).slice(); // Mimic a buffer from fetch().
+});
+
+bakana.setFeatureSetEnrichmentDownload(url => {
+    let fpath = path.basename(url);
+    return fs.readFileSync("files/feature-sets/" + fpath).slice(); // Mimic a buffer from fetch().
 });
 
 export function mockOffsets(paths) {

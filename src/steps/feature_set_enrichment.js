@@ -109,7 +109,7 @@ export class FeatureSetEnrichmentState {
 
             let gene_info = {};
             {
-                let genes = rutils.readTable2(contents[0].content(), { delim: "," });
+                let genes = await rutils.readTable2(contents[0].content(), { delim: "," });
                 let headers = genes.shift();
                 for (const x of headers) {
                     gene_info[x] = [];
@@ -125,7 +125,7 @@ export class FeatureSetEnrichmentState {
             let set_name = [];
             let set_description = [];
             {
-                let features = rutils.readLines2(contents[1].content());
+                let features = await rutils.readLines2(contents[1].content());
                 for (const line of features) {
                     let values = line.split("\t");
                     set_name.push(values[0]);
@@ -138,7 +138,7 @@ export class FeatureSetEnrichmentState {
                         members.push(latest);
                         last = latest;
                     }
-                    set.members.push(members);
+                    set_members.push(members);
                 }
             }
 
@@ -155,7 +155,7 @@ export class FeatureSetEnrichmentState {
 
     #remap_feature_set(name, data_id, ref_id) {
         if (!(name in this.#cache.mapped)) {
-            let feats = this.#inputs.fetchFeatureAnnotations();
+            let feats = this.#inputs.fetchFeatureAnnotations()["RNA"];
             if (!feats.hasColumn(data_id)) {
                 throw new Error("no column '" + data_id + " in the feature annotations");
             }
@@ -181,7 +181,7 @@ export class FeatureSetEnrichmentState {
             let out_sets = [];
             for (var i = 0; i < mapped.sets.length; i++) {
                 let x = mapped.sets[i];
-                if (x.length >= min_size || x.length <= max_size) {
+                if (x.length >= min_size && x.length <= max_size) {
                     out_sets.push(x);
                     out_names.push(loaded.name[i]);
                     out_desc.push(loaded.description[i]);
@@ -208,7 +208,7 @@ export class FeatureSetEnrichmentState {
         for (const x of feature_sets) {
             let loaded = await this.#load_feature_set(x);
             let remapped = this.#remap_feature_set(x, dataset_id_column, reference_id_column);
-            collected.push(this.#filter_feature_set(x, minimum_set_size, maximum_set_size));
+            collected[x] = this.#filter_feature_set(x, minimum_set_size, maximum_set_size);
         }
         return collected;
     }
@@ -272,12 +272,17 @@ export class FeatureSetEnrichmentState {
             this.changed = true;
         }
 
+        if (!this.valid()) {
+            return;
+        }
+
         if (minimum_set_size !== this.#parameters.minimum_set_size || maximum_set_size !== this.#parameters.maximum_set_size) {
             this.#cache.filtered = {};
             this.changed = true;
         }
 
         let collected = await this.#prepare_feature_sets(feature_sets, dataset_id_column, reference_id_column, minimum_set_size, maximum_set_size);
+        console.log(collected);
 
         if (utils.changedParameters(this.#parameters.feature_sets, feature_sets) ||
             this.#parameters.dataset_id_column !== dataset_id_column ||

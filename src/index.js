@@ -6,6 +6,7 @@ export * from "./readers/index.js";
 export { setVisualizationAnimate } from "./steps/utils/viz_parent.js";
 export { formatMarkerResults } from "./steps/utils/markers.js";
 export { setCellLabellingDownload } from "./steps/cell_labelling.js";
+export { setFeatureSetEnrichmentDownload } from "./steps/feature_set_enrichment.js";
 
 import * as scran from "scran.js";
 import * as vizutils from "./steps/utils/viz_parent.js";
