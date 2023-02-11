@@ -45,6 +45,11 @@ export class FeatureSetEnrichmentState {
         this.changed = false;
     }
 
+    free() {
+        this.#cache = {};
+        return; // nothing extra to free here.
+    }
+
     /***************************
      ******** Getters **********
      ***************************/
@@ -54,8 +59,6 @@ export class FeatureSetEnrichmentState {
             feature_sets: [],
             dataset_id_column: "id", 
             reference_id_column: "ENSEMBL", 
-            minimum_set_size: 5, 
-            maximum_set_size: 1000, 
             top_markers: 100
         };
     }
@@ -67,10 +70,10 @@ export class FeatureSetEnrichmentState {
 
     async fetchSetDetails() {
         let p = this.#parameters;
-        let collected = await this.#prepare_feature_sets(p.feature_sets, p.dataset_id_column, p.reference_id_column, p.minimum_set_size, p.maximum_set_size);
+        let collected = await this.#prepare_feature_sets(p.feature_sets, p.dataset_id_column, p.reference_id_column);
         let output = {};
         for (const [k, v] of Object.entries(collected)) {
-            output[k] = { name: v.name, description: v.description, size: v.size };
+            output[k] = { names: v.names, descriptions: v.descriptions, sizes: v.sizes, universe: v.indices.length };
         }
         return output;
     }
@@ -78,12 +81,13 @@ export class FeatureSetEnrichmentState {
     async fetchGroupResults(group, effect_size, summary) {
         let key = String(group) + ":" + effect_size + ":" + summary;
         if (!(key in this.#cache.adhoc_results)) {
-            let p = this.#parameters;
-            let collected = await this.#prepare_feature_sets(p.feature_sets, p.dataset_id_column, p.reference_id_column, p.minimum_set_size, p.maximum_set_size);
-            let output = this.#raw_compute(group, effect_size, summary, p.top_markers, collected);
-            this.#cache.adhoc_results[key] = output;
+            this.#cache.adhoc_results[key] = await this.#raw_compute(group, effect_size, summary, this.#parameters.top_markers);
         }
         return this.#cache.adhoc_results[key];
+    }
+
+    fetchParameters() {
+        return { ...this.#parameters };
     }
 
     /****************************************
@@ -145,8 +149,8 @@ export class FeatureSetEnrichmentState {
             this.#cache.loaded[name] = {
                 features: gene_info,
                 members: set_members,
-                name: set_name,
-                description: set_description
+                names: set_name,
+                descriptions: set_description
             };
         }
 
@@ -157,58 +161,38 @@ export class FeatureSetEnrichmentState {
         if (!(name in this.#cache.mapped)) {
             let feats = this.#inputs.fetchFeatureAnnotations()["RNA"];
             if (!feats.hasColumn(data_id)) {
-                throw new Error("no column '" + data_id + " in the feature annotations");
+                throw new Error("no column '" + data_id + "' in the feature annotations");
             }
             
             let loaded = this.#cache.loaded[name];
             if (!(ref_id in loaded.features)){
-                throw new Error("no column '" + ref_id + " in the feature set annotations");
+                throw new Error("no column '" + ref_id + "' in the feature set annotations");
             }
 
-            this.#cache.mapped[name] = scran.remapFeatureSets(feats.column(data_id), loaded.features[ref_id], loaded.members);
+            let output = scran.remapFeatureSets(feats.column(data_id), loaded.features[ref_id], loaded.members);
+            let sizes = new Int32Array(output.sets.length);
+            output.sets.forEach((x, i) => { sizes[i] = x.length });
+            output.sizes = sizes;
+
+            this.#cache.mapped[name] = output;
         }
 
         return this.#cache.mapped[name];
     }
 
-    #filter_feature_set(name, min_size, max_size) {
-        if (!(name in this.#cache.filtered)) {
-            let loaded = this.#cache.loaded[name];
-            let mapped = this.#cache.mapped[name];
-
-            let out_names = [];
-            let out_desc = [];
-            let out_sets = [];
-            for (var i = 0; i < mapped.sets.length; i++) {
-                let x = mapped.sets[i];
-                if (x.length >= min_size && x.length <= max_size) {
-                    out_sets.push(x);
-                    out_names.push(loaded.name[i]);
-                    out_desc.push(loaded.description[i]);
-                }
-            }
-
-            let sizes = new Int32Array(out_sets.length);
-            out_sets.forEach((x, i) => { sizes[i] = x.length });
-
-            this.#cache.filtered[name] = { 
-                name: out_names, 
-                description: out_desc,
-                size: sizes,
-                common_features: mapped.target_indices.length,
-                sets: out_sets 
-            };
-        }
-
-        return this.#cache.filtered[name];
-    }
-
-    async #prepare_feature_sets(feature_sets, dataset_id_column, reference_id_column, minimum_set_size, maximum_set_size) {
+    async #prepare_feature_sets(feature_sets, dataset_id_column, reference_id_column) {
         let collected = {};
         for (const x of feature_sets) {
             let loaded = await this.#load_feature_set(x);
-            let remapped = this.#remap_feature_set(x, dataset_id_column, reference_id_column);
-            collected[x] = this.#filter_feature_set(x, minimum_set_size, maximum_set_size);
+            let mapped = this.#remap_feature_set(x, dataset_id_column, reference_id_column);
+
+            collected[x] = {
+                names: loaded.names,
+                descriptions: loaded.descriptions,
+                indices: mapped.target_indices,
+                sets: mapped.sets,
+                sizes: mapped.sizes
+            };
         }
         return collected;
     }
@@ -217,8 +201,10 @@ export class FeatureSetEnrichmentState {
      ******** Compute **********
      ***************************/
 
-    #raw_compute(group, effect_size, summary, top_markers, collections) {
-        let res = this.#markers.fetchResults();
+    async #raw_compute(group, effect_size, summary, top_markers) {
+        let res = this.#markers.fetchResults()["RNA"];
+        let p = this.#parameters;
+        let collections = await this.#prepare_feature_sets(p.feature_sets, p.dataset_id_column, p.reference_id_column);
 
         if (effect_size == "delta_detected") {
             effect_size = "deltaDetected";
@@ -228,9 +214,9 @@ export class FeatureSetEnrichmentState {
         let sumidx = mutils.summaries2int[summary];
 
         let output = {};
-        for (const name of Object.keys(collections)) {
+        for (const [name, info] of Object.entries(collections)) {
             let stats = res[effect_size](group, { summary: sumidx, copy: false });
-            let curstats = bioc.SLICE(stats, collections[name].target_indices);
+            let curstats = bioc.SLICE(stats, info.indices);
 
             // TODO: remove the slice, allow copy = true as the default.
             let threshold = scran.computeTopThreshold(curstats.slice(), top_markers, { largest: use_largest, copy: false });
@@ -253,18 +239,18 @@ export class FeatureSetEnrichmentState {
                 });
             }
 
-            let res = scran.testFeatureSetEnrichment(in_set, collections[name].sets, curstats.length);
+            let computed = scran.testFeatureSetEnrichment(in_set, info.sets, curstats.length);
             output[name] = { 
-                count: res.count, 
-                pvalue: res.pvalue,
-                num_markers: curstats.length
+                counts: computed.count, 
+                pvalues: computed.pvalue,
+                num_markers: in_set.length
             };
         }
 
         return output;
     }
 
-    async compute(feature_sets, dataset_id_column, reference_id_column, minimum_set_size, maximum_set_size, top_markers) {
+    async compute(feature_sets, dataset_id_column, reference_id_column, top_markers) {
         this.changed = false;
         if (this.#inputs.changed) {
             this.#cache.mapped = {};
@@ -276,25 +262,15 @@ export class FeatureSetEnrichmentState {
             return;
         }
 
-        if (minimum_set_size !== this.#parameters.minimum_set_size || maximum_set_size !== this.#parameters.maximum_set_size) {
-            this.#cache.filtered = {};
-            this.changed = true;
-        }
-
-        let collected = await this.#prepare_feature_sets(feature_sets, dataset_id_column, reference_id_column, minimum_set_size, maximum_set_size);
-        console.log(collected);
+        let collected = await this.#prepare_feature_sets(feature_sets, dataset_id_column, reference_id_column);
 
         if (utils.changedParameters(this.#parameters.feature_sets, feature_sets) ||
             this.#parameters.dataset_id_column !== dataset_id_column ||
-            this.#parameters.reference_id_column !== reference_id_column ||
-            this.#parameters.minimum_set_size !== minimum_set_size || 
-            this.#parameters.maximum_set_size !== maximum_set_size)
+            this.#parameters.reference_id_column !== reference_id_column)
         {
             this.#parameters.feature_sets = feature_sets;
             this.#parameters.dataset_id_column = dataset_id_column;
             this.#parameters.reference_id_column = reference_id_column;
-            this.#parameters.minimum_set_size = minimum_set_size;
-            this.#parameters.maximum_set_size = maximum_set_size;
             this.changed = true;
         }
 
@@ -317,90 +293,40 @@ export class FeatureSetEnrichmentState {
             phandle.writeDataSet("feature_sets", "String", null, this.#parameters.feature_sets);
             phandle.writeDataSet("dataset_id_column", "String", null, this.#parameters.dataset_id_column);
             phandle.writeDataSet("reference_id_column", "String", null, this.#parameters.reference_id_column);
-            phandle.writeDataSet("minimum_set_size", "Int32", null, this.#parameters.minimum_set_size);
-            phandle.writeDataSet("maximum_set_size", "Int32", null, this.#parameters.maximum_set_size);
             phandle.writeDataSet("top_markers", "Int32", null, this.#parameters.top_markers);
         }
 
         {
             let rhandle = ghandle.createGroup("results");
-//            if (this.valid()) {
-//                let res = await this.#results;
-//
-//                let deethandle = rhandle.createGroup("set_details");
-//                for (const k of this.#parameters.feature_sets) {
-//                    let curhandle = clusthandle.createGroup(k);
-//                    curhandle.writeDataSet("names", "String", null, this.#cache.filtered.name);
-//                    curhandle.writeDataSet("sizes", "Int32", null, this.#cache.filtered.size);
-//                    curhandle.writeDataSet("universe_size", "Int32", null, this.#cache.filtered.common_features);
-//                }
-//
-//                let perhandle = rhandle.createGroup("per_cluster");
-//                for (var i = 0; i < this.#cache.per_cluster.length; i++) {
-//                    let clusthandle = perhandle.createGroup(String(i));
-//                    for (const [k, v] of Object.entries(this.#cache.per_cluster[i])) {
-//                        let reshandle = clusthandle.createGroup(k);
-//                        reshandle.writeDataSet("count", "Float64Array", null, v.count);
-//                        reshandle.writeDataSet("pvalue", "Float64Array", null, v.pvalue);
-//                        reshandle.writeDataSet("num_markers", "Float64Array", null, v.num_markers);
-//                    }
-//                }
-//            }
         }
 
         return;
     }
 };
 
-///**************************
-// ******** Loading *********
-// **************************/
-//
-//export function unserialize(handle, inputs, markers) {
-//    let parameters = {};
-//    let cache = {};
-//
-//    // Protect against old analysis states that don't have cell_labelling.
-//    if ("feature_set_enrichment" in handle.children) {
-//        let ghandle = handle.open("feature_set_enrichment");
-//        
-//        {
-//            let phandle = ghandle.open("parameters");
-//            parameters.feature_sets = phandle.open("feature_sets", { load: true }).values;
-//            for (const k of [ "dataset_id_column", "reference_id_column", "minimum_set_size", "maximum_set_size", "effect_size", "summary", "top_markers" ]) {
-//                parameters[k] = phandle.open(k, { load: true }).values[0];
-//            }
-//        }
-//
-//        {
-//            let rhandle = ghandle.open("results");
-//
-//            if ("per_cluster" in rhandle.children) {
-//                let crhandle = rhandle.open("per_cluster");
-//                let clusters = Object.entries(crhandle.children);
-//                let output = new Array(clusters.length);
-//
-//                for (const [i, v] of clusters) {
-//                    let clusthandle = perhandle.open(i);
-//                    let curoutput = {};
-//                    for (const [k, v] of Object.entries(clusthandle.children)){ 
-//                        let reshandle = clusthandle.open(k);
-//                        curoutput[k] = {
-//                            count: reshandle.open("count", { load: true }).values,
-//                            pvalue: reshandle.open("pvalue", { load: true }).values,
-//                            num_markers: reshandle.open("num_markers", { load: true }).values[0]
-//                        };
-//                    }
-//                    output[Number(i)] = curoutput;
-//                }
-//
-//                cache.per_cluster = output;
-//            }
-//        }
-//    }
-//
-//    return new FeatureSetEnrichmentState(inputs, markers, parameters, cache);
-//}
+/**************************
+ ******** Loading *********
+ **************************/
+
+export function unserialize(handle, inputs, markers) {
+    let parameters = {};
+    let cache = {};
+
+    // Protect against old analysis states that don't have cell_labelling.
+    if ("feature_set_enrichment" in handle.children) {
+        let ghandle = handle.open("feature_set_enrichment");
+        
+        {
+            let phandle = ghandle.open("parameters");
+            parameters.feature_sets = phandle.open("feature_sets", { load: true }).values;
+            for (const k of [ "dataset_id_column", "reference_id_column", "top_markers" ]) {
+                parameters[k] = phandle.open(k, { load: true }).values[0];
+            }
+        }
+    }
+
+    return new FeatureSetEnrichmentState(inputs, markers, parameters, cache);
+}
 
 /**************************
  ******** Setters *********

@@ -396,8 +396,6 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
         params[step_enrichment]["feature_sets"],
         params[step_enrichment]["dataset_id_column"],
         params[step_enrichment]["reference_id_column"],
-        params[step_enrichment]["minimum_set_size"], 
-        params[step_enrichment]["maximum_set_size"], 
         params[step_enrichment]["top_markers"]
     );
     await quickFinish(step_enrichment);
@@ -487,6 +485,9 @@ export async function saveAnalysis(state, path, { embedded = true } = {}) {
     state[step_markers].serialize(handle);
     await state[step_labels].serialize(handle);
     state[step_custom].serialize(handle);
+
+    /*** Feature set enrichment ***/
+    state[step_enrichment].serialize(handle);
 
     /** Metadata **/
     let mhandle = handle.createGroup("_metadata");
@@ -660,6 +661,11 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     {
         state[step_custom] = custom_markers.unserialize(handle, permuters, state[step_filter], norm_states);
         await quickFun(step_custom);
+    }
+
+    /*** Faeture set enrichment ***/
+    {
+        state[step_enrichment] = feature_set_enrichment.unserialize(handle, state[step_inputs], state[step_markers]);
     }
 
     // Adding a tripwire for runAnalysis.

@@ -30,7 +30,6 @@ export function baseParams() {
         human_references: [ "BlueprintEncode" ]
     };
 
-    output.feature_set_enrichment.feature_sets = [ "mouse-GO_3.16.0", "human-GO_3.16.0" ];
     return output;
 }
 
