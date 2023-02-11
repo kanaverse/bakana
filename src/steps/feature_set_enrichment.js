@@ -111,9 +111,7 @@ export class FeatureSetEnrichmentState {
             for (const [name, info] of Object.entries(collections)) {
                 let stats = res[effect_size](group, { summary: sumidx, copy: false });
                 let curstats = bioc.SLICE(stats, info.indices);
-
-                // TODO: remove the slice, allow copy = true as the default.
-                let threshold = scran.computeTopThreshold(curstats.slice(), p.top_markers, { largest: use_largest, copy: false });
+                let threshold = scran.computeTopThreshold(curstats, p.top_markers, { largest: use_largest });
                 let in_set = [];
 
                 if (use_largest) {
@@ -152,12 +150,14 @@ export class FeatureSetEnrichmentState {
         let collected = await this.#prepare_collections(p.collections, p.dataset_id_column, p.reference_id_column);
         let current = collected[collection];
         let set = current.sets[set_index];
+        let indices = current.indices;
+        // console.log(bioc.SLICE(this.#inputs.fetchFeatureAnnotations().RNA.column("id"), bioc.SLICE(indices, set).sort()));
 
         let mat = this.#normalized.fetchNormalizedMatrix();
         let features = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "set_buffer");
         features.fill(0);
         let farr = features.array();
-        set.forEach(x => { farr[x] = 1; }); 
+        set.forEach(x => { farr[indices[x]] = 1; }); 
 
         return scran.scoreFeatureSet(mat, features, { block: this.#filter.fetchFilteredBlock() });
     }

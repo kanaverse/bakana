@@ -60,9 +60,9 @@ test("feature set enrichment works correctly for humans", async () => {
     // Check that the scores work correctly.
     {
         let chosen = -1;
-        let mouse_sizes = deets["human-GO_3.16.0"].sizes;
-        for (var i = 0; i < mouse_sizes.length; i++) {
-            if (mouse_sizes[i] > 5) {
+        let human_sizes = deets["human-GO_3.16.0"].sizes;
+        for (var i = 0; i < human_sizes.length; i++) {
+            if (human_sizes[i] > 20) {
                 chosen = i;
                 break;
             }
@@ -70,8 +70,7 @@ test("feature set enrichment works correctly for humans", async () => {
 
         expect(chosen).toBeGreaterThanOrEqual(0);
         let output = await state.feature_set_enrichment.fetchPerCellScores("human-GO_3.16.0", chosen);
-        console.log(output);
-        expect(output.weights.length).toEqual(mouse_sizes[chosen]);
+        expect(output.weights.length).toEqual(human_sizes[chosen]);
         expect(output.scores.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
     }
 
