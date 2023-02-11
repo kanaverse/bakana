@@ -117,7 +117,7 @@ function create_analysis(input_state) {
     output[step_labels] = new label_cells.CellLabellingState(output[step_inputs], output[step_markers]);
     output[step_custom] = new custom_markers.CustomSelectionsState(output[step_filter], norm_states);
 
-    output[step_enrichment] = new feature_set_enrichment.FeatureSetEnrichmentState(output[step_inputs], output[step_markers]);
+    output[step_enrichment] = new feature_set_enrichment.FeatureSetEnrichmentState(output[step_inputs], output[step_filter], output[step_norm], output[step_markers]);
 
     return Promise.all([output[step_tsne].ready(), output[step_umap].ready()]).then(val => output);
 }
@@ -665,7 +665,7 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
 
     /*** Faeture set enrichment ***/
     {
-        state[step_enrichment] = feature_set_enrichment.unserialize(handle, state[step_inputs], state[step_markers]);
+        state[step_enrichment] = feature_set_enrichment.unserialize(handle, state[step_inputs], state[step_filter], state[step_rna_norm], state[step_markers]);
     }
 
     // Adding a tripwire for runAnalysis.

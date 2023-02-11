@@ -4,6 +4,8 @@ import * as utils from "./utils/general.js";
 import * as mutils from "./utils/markers.js";
 import * as rutils from "../readers/index.js";
 import * as inputs_module from "./inputs.js";
+import * as filter_module from "./cell_filtering.js";
+import * as norm_module from "./rna_normalization.js";
 import * as markers_module from "./marker_detection.js";
 
 var downloadFun = async (url) => {
@@ -20,15 +22,27 @@ export const step_name = "feature_set_enrichment";
 
 export class FeatureSetEnrichmentState {
     #inputs;
+    #filter;
+    #normalized;
     #markers;
     #parameters;
     #cache;
 
-    constructor(inputs, markers, parameters = null, cache = null) {
+    constructor(inputs, filter, normalized, markers, parameters = null, cache = null) {
         if (!(inputs instanceof inputs_module.InputsState)) {
             throw new Error("'inputs' should be a State object from './inputs.js'");
         }
         this.#inputs = inputs;
+
+        if (!(filter instanceof filter_module.CellFilteringState)) {
+            throw new Error("'filter' should be a CellFilteringState object");
+        }
+        this.#filter = filter;
+
+        if (!(normalized instanceof norm_module.RnaNormalizationState)) {
+            throw new Error("'normalized' should be a RnaNormalizationState object from './rna_normalization.js'");
+        }
+        this.#normalized = normalized;
 
         if (!(markers instanceof markers_module.MarkerDetectionState)) {
             throw new Error("'markers' should be a State object from './marker_detection.js'");
@@ -56,7 +70,7 @@ export class FeatureSetEnrichmentState {
 
     static defaults() {
         return {
-            feature_sets: [],
+            collections: [],
             dataset_id_column: "id", 
             reference_id_column: "ENSEMBL", 
             top_markers: 100
@@ -68,9 +82,9 @@ export class FeatureSetEnrichmentState {
         return mat.has("RNA");
     }
 
-    async fetchSetDetails() {
+    async fetchCollectionDetails() {
         let p = this.#parameters;
-        let collected = await this.#prepare_feature_sets(p.feature_sets, p.dataset_id_column, p.reference_id_column);
+        let collected = await this.#prepare_collections(p.collections, p.dataset_id_column, p.reference_id_column);
         let output = {};
         for (const [k, v] of Object.entries(collected)) {
             output[k] = { names: v.names, descriptions: v.descriptions, sizes: v.sizes, universe: v.indices.length };
@@ -80,10 +94,72 @@ export class FeatureSetEnrichmentState {
 
     async fetchGroupResults(group, effect_size, summary) {
         let key = String(group) + ":" + effect_size + ":" + summary;
+
         if (!(key in this.#cache.adhoc_results)) {
-            this.#cache.adhoc_results[key] = await this.#raw_compute(group, effect_size, summary, this.#parameters.top_markers);
+            let res = this.#markers.fetchResults()["RNA"];
+            let p = this.#parameters;
+            let collections = await this.#prepare_collections(p.collections, p.dataset_id_column, p.reference_id_column);
+
+            if (effect_size == "delta_detected") {
+                effect_size = "deltaDetected";
+            }
+            let min_threshold = effect_size == "auc" ? 0.5 : 0;
+            let use_largest = effect_size !== "min_rank"; 
+            let sumidx = mutils.summaries2int[summary];
+
+            let output = {};
+            for (const [name, info] of Object.entries(collections)) {
+                let stats = res[effect_size](group, { summary: sumidx, copy: false });
+                let curstats = bioc.SLICE(stats, info.indices);
+
+                // TODO: remove the slice, allow copy = true as the default.
+                let threshold = scran.computeTopThreshold(curstats.slice(), p.top_markers, { largest: use_largest, copy: false });
+                let in_set = [];
+
+                if (use_largest) {
+                    if (threshold < min_threshold) {
+                        threshold = min_threshold;
+                    }
+                    curstats.forEach((x, i) => {
+                        if (x >= threshold) {
+                            in_set.push(i);
+                        }
+                    });
+                } else {
+                    curstats.forEach((x, i) => {
+                        if (x <= threshold) {
+                            in_set.push(i);
+                        }
+                    });
+                }
+
+                let computed = scran.testFeatureSetEnrichment(in_set, info.sets, curstats.length);
+                output[name] = { 
+                    counts: computed.count, 
+                    pvalues: computed.pvalue,
+                    num_markers: in_set.length
+                };
+            }
+
+            this.#cache.adhoc_results[key] = output;
         }
+
         return this.#cache.adhoc_results[key];
+    }
+
+    async fetchPerCellScores(collection, set_index) {
+        let p = this.#parameters;
+        let collected = await this.#prepare_collections(p.collections, p.dataset_id_column, p.reference_id_column);
+        let current = collected[collection];
+        let set = current.sets[set_index];
+
+        let mat = this.#normalized.fetchNormalizedMatrix();
+        let features = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "set_buffer");
+        features.fill(0);
+        let farr = features.array();
+        set.forEach(x => { farr[x] = 1; }); 
+
+        return scran.scoreFeatureSet(mat, features, { block: this.#filter.fetchFilteredBlock() });
     }
 
     fetchParameters() {
@@ -94,7 +170,7 @@ export class FeatureSetEnrichmentState {
      ******** Preparing references **********
      ****************************************/
 
-    async #load_feature_set(name) {
+    async #load_collection(name) {
         if (!(name in this.#cache.loaded)) {
             let suffixes = [
                 "features.csv.gz",
@@ -157,7 +233,7 @@ export class FeatureSetEnrichmentState {
         return this.#cache.loaded[name];
     }
 
-    #remap_feature_set(name, data_id, ref_id) {
+    #remap_collection(name, data_id, ref_id) {
         if (!(name in this.#cache.mapped)) {
             let feats = this.#inputs.fetchFeatureAnnotations()["RNA"];
             if (!feats.hasColumn(data_id)) {
@@ -180,11 +256,11 @@ export class FeatureSetEnrichmentState {
         return this.#cache.mapped[name];
     }
 
-    async #prepare_feature_sets(feature_sets, dataset_id_column, reference_id_column) {
+    async #prepare_collections(collections, dataset_id_column, reference_id_column) {
         let collected = {};
-        for (const x of feature_sets) {
-            let loaded = await this.#load_feature_set(x);
-            let mapped = this.#remap_feature_set(x, dataset_id_column, reference_id_column);
+        for (const x of collections) {
+            let loaded = await this.#load_collection(x);
+            let mapped = this.#remap_collection(x, dataset_id_column, reference_id_column);
 
             collected[x] = {
                 names: loaded.names,
@@ -201,56 +277,7 @@ export class FeatureSetEnrichmentState {
      ******** Compute **********
      ***************************/
 
-    async #raw_compute(group, effect_size, summary, top_markers) {
-        let res = this.#markers.fetchResults()["RNA"];
-        let p = this.#parameters;
-        let collections = await this.#prepare_feature_sets(p.feature_sets, p.dataset_id_column, p.reference_id_column);
-
-        if (effect_size == "delta_detected") {
-            effect_size = "deltaDetected";
-        }
-        let min_threshold = effect_size == "auc" ? 0.5 : 0;
-        let use_largest = effect_size !== "min_rank"; 
-        let sumidx = mutils.summaries2int[summary];
-
-        let output = {};
-        for (const [name, info] of Object.entries(collections)) {
-            let stats = res[effect_size](group, { summary: sumidx, copy: false });
-            let curstats = bioc.SLICE(stats, info.indices);
-
-            // TODO: remove the slice, allow copy = true as the default.
-            let threshold = scran.computeTopThreshold(curstats.slice(), top_markers, { largest: use_largest, copy: false });
-            let in_set = [];
-
-            if (use_largest) {
-                if (threshold < min_threshold) {
-                    threshold = min_threshold;
-                }
-                curstats.forEach((x, i) => {
-                    if (x >= threshold) {
-                        in_set.push(i);
-                    }
-                });
-            } else {
-                curstats.forEach((x, i) => {
-                    if (x <= threshold) {
-                        in_set.push(i);
-                    }
-                });
-            }
-
-            let computed = scran.testFeatureSetEnrichment(in_set, info.sets, curstats.length);
-            output[name] = { 
-                counts: computed.count, 
-                pvalues: computed.pvalue,
-                num_markers: in_set.length
-            };
-        }
-
-        return output;
-    }
-
-    async compute(feature_sets, dataset_id_column, reference_id_column, top_markers) {
+    async compute(collections, dataset_id_column, reference_id_column, top_markers) {
         this.changed = false;
         if (this.#inputs.changed) {
             this.#cache.mapped = {};
@@ -262,13 +289,13 @@ export class FeatureSetEnrichmentState {
             return;
         }
 
-        let collected = await this.#prepare_feature_sets(feature_sets, dataset_id_column, reference_id_column);
+        let collected = await this.#prepare_collections(collections, dataset_id_column, reference_id_column);
 
-        if (utils.changedParameters(this.#parameters.feature_sets, feature_sets) ||
+        if (utils.changedParameters(this.#parameters.collections, collections) ||
             this.#parameters.dataset_id_column !== dataset_id_column ||
             this.#parameters.reference_id_column !== reference_id_column)
         {
-            this.#parameters.feature_sets = feature_sets;
+            this.#parameters.collections = collections;
             this.#parameters.dataset_id_column = dataset_id_column;
             this.#parameters.reference_id_column = reference_id_column;
             this.changed = true;
@@ -308,7 +335,7 @@ export class FeatureSetEnrichmentState {
  ******** Loading *********
  **************************/
 
-export function unserialize(handle, inputs, markers) {
+export function unserialize(handle, inputs, filter, normalized, markers) {
     let parameters = {};
     let cache = {};
 
@@ -325,7 +352,7 @@ export function unserialize(handle, inputs, markers) {
         }
     }
 
-    return new FeatureSetEnrichmentState(inputs, markers, parameters, cache);
+    return new FeatureSetEnrichmentState(inputs, filter, normalized, markers, parameters, cache);
 }
 
 /**************************

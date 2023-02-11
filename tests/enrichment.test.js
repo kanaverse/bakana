@@ -21,7 +21,7 @@ test("feature set enrichment works correctly for humans", async () => {
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, hs_files, params);
 
-    let deets = await state.feature_set_enrichment.fetchSetDetails();
+    let deets = await state.feature_set_enrichment.fetchCollectionDetails();
     let nmouse = deets["mouse-GO_3.16.0"].names.length;
     expect(nmouse).toBeGreaterThan(0);
     expect(deets["mouse-GO_3.16.0"].universe).toBe(0);
@@ -57,6 +57,25 @@ test("feature set enrichment works correctly for humans", async () => {
         expect(stats["mouse-GO_3.16.0"].counts).toEqual(new Int32Array(nmouse));
     }
 
+    // Check that the scores work correctly.
+    {
+        let chosen = -1;
+        let mouse_sizes = deets["human-GO_3.16.0"].sizes;
+        for (var i = 0; i < mouse_sizes.length; i++) {
+            if (mouse_sizes[i] > 5) {
+                chosen = i;
+                break;
+            }
+        }
+
+        expect(chosen).toBeGreaterThanOrEqual(0);
+        let output = await state.feature_set_enrichment.fetchPerCellScores("human-GO_3.16.0", chosen);
+        console.log(output);
+        expect(output.weights.length).toEqual(mouse_sizes[chosen]);
+        expect(output.scores.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
+    }
+
+
     // Release me!
     await bakana.freeAnalysis(state);
 })
@@ -74,7 +93,7 @@ test("feature set enrichment works correctly for mice", async () => {
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, mm_files, params);
 
-    let deets = await state.feature_set_enrichment.fetchSetDetails();
+    let deets = await state.feature_set_enrichment.fetchCollectionDetails();
     let nmouse = deets["mouse-GO_3.16.0"].names.length;
     expect(nmouse).toBeGreaterThan(0);
     expect(deets["mouse-GO_3.16.0"].universe).toBeGreaterThan(0);
@@ -84,6 +103,23 @@ test("feature set enrichment works correctly for mice", async () => {
         expect(stats["mouse-GO_3.16.0"].counts.length).toBeGreaterThan(0);
         expect(stats["mouse-GO_3.16.0"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["mouse-GO_3.16.0"].counts).not.toEqual(new Int32Array(nmouse));
+    }
+
+    // Check that the scores work correctly.
+    {
+        let chosen = -1;
+        let mouse_sizes = deets["mouse-GO_3.16.0"].sizes;
+        for (var i = 0; i < mouse_sizes.length; i++) {
+            if (mouse_sizes[i] > 5) {
+                chosen = i;
+                break;
+            }
+        }
+
+        expect(chosen).toBeGreaterThanOrEqual(0);
+        let output = await state.feature_set_enrichment.fetchPerCellScores("mouse-GO_3.16.0", chosen);
+        expect(output.weights.length).toEqual(mouse_sizes[chosen]);
+        expect(output.scores.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
     }
 
     // Release me!
