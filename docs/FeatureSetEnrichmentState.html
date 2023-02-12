@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>readers/mtx.js - Documentation</title>
+    <title>FeatureSetEnrichmentState - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -34,427 +34,1068 @@
 
 <div id="main">
     
-    <h1 class="page-title">readers/mtx.js</h1>
+    <h1 class="page-title">FeatureSetEnrichmentState</h1>
     
 
     
 
 
 
+
+<section>
+
+<header>
     
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>import * as scran from "scran.js";
-import * as bioc from "bioconductor";
-import * as afile from "./abstract/file.js";
-import * as eutils from "./utils/extract.js";
-import * as futils from "./utils/features.js";
+        <h2>
+        FeatureSetEnrichmentState
+        </h2>
+        
+            <div class="class-description usertext"><p>This step tests for enrichment of particular feature sets in the set of top marker genes,
+based on marker rankings from <a href="MarkerDetectionState.html">MarkerDetectionState</a>.
+It wraps the <a href="https://jkanche.com/scran.js/global.html#testFeatureSetEnrichment"><code>testFeatureSetEnrichment</code></a>
+and <a href="https://jkanche.com/scran.js/global.html#scoreFeatureSet"><code>scoreFeatureSet</code></a> functions
+from <a href="https://github.com/jkanche/scran.js"><strong>scran.js</strong></a>.</p>
+<p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
+        
+    
+</header>
 
-/**
- * Dataset in the 10X Matrix Market format, see [here](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/advanced/matrices) for details.
- */
-export class TenxMatrixMarketDataset {
-    #matrix_file;
-    #feature_file;
-    #barcode_file;
+<article>
+    
 
-    #dimensions;
-    #raw_features;
-    #raw_cells;
+    
 
-    #featureTypeRnaName;
-    #featureTypeAdtName;
-    #featureTypeCrisprName;
+    
 
-    #primaryRnaFeatureIdColumn;
-    #primaryAdtFeatureIdColumn;
-    #primaryCrisprFeatureIdColumn;
+    
+        <h3 class="subsection-title">Classes</h3>
 
-    #dump_summary(fun) {
-        let files = [{ type: "mtx", file: fun(this.#matrix_file) }];
+        <dl>
+            <dt><a href="FeatureSetEnrichmentState.html">FeatureSetEnrichmentState</a></dt>
+            <dd></dd>
+        </dl>
+    
+    
+    
 
-        if (this.#feature_file !== null) {
-            files.push({ type: "genes", file: fun(this.#feature_file) });
-        }
+     
 
-        if (this.#barcode_file !== null) {
-            files.push({ type: "annotations", file: fun(this.#barcode_file) });
-        }
+    
 
-        let options = {
-            featureTypeRnaName: this.#featureTypeRnaName,
-            featureTypeAdtName: this.#featureTypeAdtName,
-            featureTypeCrisprName: this.#featureTypeCrisprName,
-            primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
-            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn,
-            primaryCrisprFeatureIdColumn: this.#primaryCrisprFeatureIdColumn
-        };
+    
 
-        return { files, options };
-    }
+    
+        <h3 class="subsection-title">Methods</h3>
 
-    /**
-     * @param {SimpleFile|string|Uint8Array|File} matrixFile - A Matrix Market file.
-     * On browsers, this may be a File object.
-     * On Node.js, this may also be a string containing a file path.
-     * @param {?(SimpleFile|string|Uint8Array|File)} featureFile - Contents of a feature annotation file.
-     * If `null`, it is assumed that no file was available.
-     * @param {?(SimpleFile|string|Uint8Array|File)} barcodeFile - Contents of a barcode annotation file.
-     * If `null`, it is assumed that no file was available.
-     * @param {object} [options={}] - Optional parameters.
-     * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
-     * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
-     * @param {?string} [options.featureTypeCrisprName="CRISPR Guide Capture"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeCrisprName setFeatureTypeCrisprName}.
-     * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode TenxMatrixMarketDataset#primaryRnaFeatureIdColumn primaryRnaFeatureIdColumn}.
-     * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode TenxMatrixMarketDataset#primaryAdtFeatureIdColumn primaryAdtFeatureIdColumn}.
-     * @param {string|number} [options.primaryCrisprFeatureIdColumn=0] - See {@linkcode TenxMatrixMarketDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
-     */
-    constructor(matrixFile, featureFile, barcodeFile, { 
-        featureTypeRnaName = "Gene Expression", 
-        featureTypeAdtName = "Antibody Capture", 
-        featureTypeCrisprName = "CRISPR Guide Capture", 
-        primaryRnaFeatureIdColumn = 0, 
-        primaryAdtFeatureIdColumn = 0,
-        primaryCrisprFeatureIdColumn = 0
-    } = {}) {
-        if (matrixFile instanceof afile.SimpleFile) {
-            this.#matrix_file = matrixFile;
-        } else {
-            this.#matrix_file = new afile.SimpleFile(matrixFile);
-        }
+        
+            
 
-        if (featureFile instanceof afile.SimpleFile || featureFile == null) {
-            this.#feature_file = featureFile;
-        } else {
-            this.#feature_file = new afile.SimpleFile(featureFile);
-        }
+    
 
-        if (barcodeFile instanceof afile.SimpleFile || barcodeFile == null) {
-            this.#barcode_file = barcodeFile;
-        } else {
-            this.#barcode_file = new afile.SimpleFile(barcodeFile);
-        }
+    <h4 class="name" id="compute"><span class="type-signature">(async) </span>compute<span class="signature">(collections, dataset_id_column, reference_id_column, top_markers)</span><span class="type-signature"></span></h4>
 
-        this.#featureTypeRnaName = featureTypeRnaName;
-        this.#featureTypeAdtName = featureTypeAdtName;
-        this.#featureTypeCrisprName = featureTypeCrisprName;
-
-        this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
-        this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
-        this.#primaryCrisprFeatureIdColumn = primaryCrisprFeatureIdColumn;
-
-        this.clear();
-    }
-
-    /**
-     * @param {?string} name - Name of the feature type for gene expression.
-     * Alternatively `null`, to indicate that no RNA features are to be loaded.
-     */
-    setFeatureTypeRnaName(name) {
-        this.#featureTypeRnaName = name;
-        return;
-    }
-
-    /**
-     * @param {?string} name - Name of the feature type for ADTs.
-     * Alternatively `null`, to indicate that no ADT features are to be loaded.
-     */
-    setFeatureTypeAdtName(name) {
-        this.#featureTypeAdtName = name;
-        return;
-    }
-
-    /**
-     * @param {?string} name - Name of the feature type for CRISPR guides.
-     * Alternatively `null`, to indicate that no guides are to be loaded.
-     */
-    setFeatureTypeCrisprName(name) {
-        this.#featureTypeCrisprName = name;
-        return;
-    }
-
-    /**
-     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
-     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
-     */
-    setPrimaryRnaFeatureIdColumn(i) {
-        this.#primaryRnaFeatureIdColumn = i;
-        return;
-    }
-
-    /**
-     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
-     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
-     */
-    setPrimaryAdtFeatureIdColumn(i) {
-        this.#primaryAdtFeatureIdColumn = i;
-        return;
-    }
-
-    /**
-     * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
-     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
-     */
-    setPrimaryCrisprFeatureIdColumn(i) {
-        this.#primaryCrisprFeatureIdColumn = i;
-        return;
-    }
+    
 
 
-    /**
-     * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode TenxMatrixMarketDataset#load load} or {@linkcodeTenxMatrixMarketDataset#summary summary}. 
-     */
-    clear() {
-        this.#dimensions = null;
-        this.#raw_features = null;
-        this.#raw_cells = null;
-    }
 
-    /**
-     * @return {string} Format of this dataset class.
-     * @static
-     */
-    static format() {
-        return "MatrixMarket";
-    }
 
-    /**
-     * @return {object} Object containing the abbreviated details of this dataset,
-     * in a form that can be cheaply stringified.
-     */
-    abbreviate(args) {
-        return this.#dump_summary(f => { return { name: f.name(), size: f.size() }; });
-    }
+<dl class="details">
 
-    #fetch_dimensions() {
-        if (this.#dimensions !== null) {
-            return;
-        }
-        var is_gz = this.#matrix_file.name().endsWith(".gz");
-        let headers = scran.extractMatrixMarketDimensions(this.#matrix_file.content(), { "compressed": is_gz });
-        this.#dimensions = [headers.rows, headers.columns];
-    }
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line356">line 356</a>
+    </li></ul></dd>
+    
 
-    async #features() {
-        if (this.#raw_features !== null) {
-            return;
-        }
+    
 
-        this.#fetch_dimensions();
-        let NR = this.#dimensions[0];
-        if (this.#feature_file == null) {
-            this.#raw_features = new bioc.DataFrame({}, { numberOfRows: NR });
-            return;
-        }
+    
 
-        let fname = this.#feature_file.name();
-        var is_gz = fname.endsWith(".gz");
-        let parsed = await eutils.readTable2(this.#feature_file.content(), { compression: (is_gz ? "gz" : "none") });
+    
 
-        if (parsed.length == NR + 1) {
-            // If it seems to have a header, we just use that directly.
-            let output = {};
-            let headers = parsed.shift();
-            headers.forEach((x, i) => {
-                output[x] = parsed.map(y => y[i]);
-            });
-            this.#raw_features = output;
-            return;
-        }
+    
 
-        // Otherwise, we assume it's standard 10X CellRanger output, without a header.
-        if (parsed.length !== NR) {
-            throw new Error("number of matrix rows is not equal to the number of rows in '" + fname + "'");
-        } 
+    
 
-        var ids = [], symb = [];
-        parsed.forEach(x => {
-            ids.push(x[0]);
-            symb.push(x[1]);
-        });
+    
 
-        let output = new bioc.DataFrame({}, { numberOfRows: NR }); // build it piece-by-piece for a well-defined order.
-        output.$setColumn("id", ids);
-        output.$setColumn("name", symb);
+    
 
-        if (parsed[0].length > 2) {
-            let types = [];
-            parsed.forEach(x => { types.push(x[2]); });
-            output.$setColumn("type", types);
-        }
+    
 
-        this.#raw_features = output;
-        return;
-    }
+    
 
-    async #cells() {
-        if (this.#raw_cells !== null) {
-            return;
-        }
+    
 
-        this.#fetch_dimensions();
-        if (this.#barcode_file == null) {
-            this.#raw_cells = new bioc.DataFrame({}, { numberOfRows: this.#dimensions[1] });
-            return;
-        }
+    
 
-        let bname = this.#barcode_file.name();
-        var is_gz = bname.endsWith(".gz");
-        let parsed = await eutils.readTable2(this.#barcode_file.content(), { compression: (is_gz ? "gz" : "none") });
+    
 
-        // Check if a header is present or not. Standard 10X output doesn't have a 
-        // header but we'd like to support some kind of customization.
-        let diff = this.#dimensions[1] - parsed.length;
-        let headers;
-        if (diff == 0) {
-            headers = parsed[0]; // whatever, just using the first row. Hope it's unique enough!
-        } else if (diff == -1) {
-            headers = parsed.shift();
-        } else {
-            throw new Error("number of matrix columns is not equal to the number of rows in '" + bname + "'");
-        }
+    
 
-        let annotations = {}
-        headers.forEach((x, i) => {
-            annotations[x] = parsed.map(y => y[i]);
-        });
+    
 
-        for (const [k, v] of Object.entries(annotations)) {
-            let conv = eutils.promoteToNumber(v);
-            if (conv !== null) {
-                annotations[k] = conv;
-            }
-        }
+    
+</dl>
 
-        this.#raw_cells = new bioc.DataFrame(annotations);
-        return;
-    }
 
-    /**
-     * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxMatrixMarketDataset#load load}.
-     * If `true`, users should consider calling {@linkcode TenxMatrixMarketDataset#clear clear} to release the memory once this dataset instance is no longer needed.
-     *
-     * @return {object} Object containing the per-feature and per-cell annotations.
-     * This has the following properties:
-     *
-     * - `modality_features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
-     *   Unlike {@linkcode TenxMatrixMarketDataset#load load}, modality names are arbitrary.
-     * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
-     *
-     * @async
-     */
-    async summary({ cache = false } = {}) {
-        await this.#features();
-        await this.#cells();
 
-        let output = {
-            "modality_features": futils.reportFeatures(this.#raw_features, "type"),
-            "cells": this.#raw_cells
-        };
 
-        if (!cache) {
-            this.clear();
-        }
-        return output;
-    }
 
-    /**
-     * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxMatrixMarketDataset#summary summary}.
-     * If `true`, users should consider calling {@linkcode TenxMatrixMarketDataset#clear clear} to release the memory once this dataset instance is no longer needed.
-     *
-     * @return {object} Object containing the per-feature and per-cell annotations.
-     * This has the following properties:
-     *
-     * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
-     * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
-     * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
-     * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
-     *
-     * Modality names are guaranteed to be one of `"RNA"` or `"ADT"`.
-     * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
-     * either in the constructor or in {@linkcode setFeatureTypeRnaName} and {@linkcode setFeatureTypeAdtName}.
-     *
-     * @async
-     */
-    async load({ cache = false } = {}) {
-        await this.#features();
-        await this.#cells();
+<div class="description usertext">
+    <p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.
+Each argument is taken from the property of the same name in the <code>feature_set_enrichment</code> property of the <code>parameters</code> of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
+</div>
 
-        var is_gz = this.#matrix_file.name().endsWith(".gz");
-        let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compressed": is_gz });
 
-        let mappings = { 
-            RNA: this.#featureTypeRnaName, 
-            ADT: this.#featureTypeAdtName,
-            CRISPR: this.#featureTypeCrisprName
-        };
-        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", mappings, "RNA"); 
-        output.cells = this.#raw_cells;
 
-        let primaries = { 
-            RNA: this.#primaryRnaFeatureIdColumn, 
-            ADT: this.#primaryAdtFeatureIdColumn,
-            CRISPR: this.#primaryCrisprFeatureIdColumn
-        };
-        futils.decorateWithPrimaryIds(output.features, primaries);
 
-        if (!cache) {
-            this.clear();
-        }
-        return output;
-    }
 
-    /**
-     * @return {object} Object describing this dataset, containing:
-     *
-     * - `files`: Array of objects representing the files used in this dataset.
-     *   Each object corresponds to a single file and contains:
-     *   - `type`: a string denoting the type.
-     *   - `file`: a {@linkplain SimpleFile} object representing the file contents.
-     * - `options`: An object containing additional options to saved.
-     */
-    async serialize() {
-        return this.#dump_summary(f => f);
-    }
 
-    /**
-     * @param {Array} files - Array of objects like that produced by {@linkcode TenxMatrixMarketDataset#serialize serialize}.
-     * @param {object} options - Object containing additional options to be passed to the constructor.
-     * @return {TenxMatrixMarketDataset} A new instance of this class.
-     * @static
-     */
-    static async unserialize(files, options) {
-        let args = {};
-        for (const x of files) {
-            if (x.type in args) {
-                throw new Error("duplicate file of type '" + x.type + "' detected during MatrixMarket unserialization");
-            }
-            args[x.type] = x.file;
-        }
 
-        if (!("mtx" in args)) {
-            throw new Error("expected file of type 'mtx' for during MatrixMarket unserialization");
-        }
 
-        let feat = null;
-        if ("genes" in args) {
-            feat = args.genes;
-        }
 
-        let barcode = null;
-        if ("annotations" in args) {
-            barcode = args.annotations;
-        }
 
-        return new TenxMatrixMarketDataset(args.mtx, feat, barcode, options);
-    }
-}
-</code></pre>
-        </article>
-    </section>
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>collections</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Array of strings containing the names of collections to be tested.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>dataset_id_column</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Name of the column of <a href="InputsState.html#fetchFeatureAnnotations"><code>InputsState.fetchFeatureAnnotations</code></a> containing the identity of each feature.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>reference_id_column</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Name of the column of each collection's <code>*_features.csv.gz</code> that contains the identity of each feature, to be matched against identities in <code>dataset_id_column</code>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>top_markers</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Number of top markers to use when testing for enrichment.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>The state is updated with new results.</p>
+</div>
+
+
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="fetchCollectionDetails"><span class="type-signature">(async) </span>fetchCollectionDetails<span class="signature">()</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line106">line 106</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Object where each entry corresponds to a feature set collection.
+Each value is itself an object containing:</p>
+<ul>
+<li><code>names</code>: Array of strings containing the names of the feature sets in the collection.</li>
+<li><code>descriptions</code>: Array of strings containing the set descriptions.</li>
+<li><code>sizes</code>: Int32Array containing the set sizes.</li>
+<li><code>universe</code>: number of features in the universe.</li>
+</ul>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="fetchFeatureSetIndices"><span class="type-signature">(async) </span>fetchFeatureSetIndices<span class="signature">(collection, set_index)</span><span class="type-signature"> &rarr; {Int32Array}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line195">line 195</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>collection</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Name of the collection.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>set_index</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Index of a feature set inside the specified collection.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Array containing the row indices of the RNA count matrix corresponding to the genes in the specified set.</p>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Int32Array</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="fetchGroupResults"><span class="type-signature">(async) </span>fetchGroupResults<span class="signature">(group, effect_size, summary)</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line132">line 132</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>group</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Cluster index of interest.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>effect_size</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Effect size to use for ranking.
+This should be one of <code>&quot;cohen&quot;</code>, <code>&quot;auc&quot;</code>, <code>&quot;lfc&quot;</code> or <code>&quot;delta_detected&quot;</code>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>summary</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Summary statistic to use for ranking.
+This should be one of <code>&quot;min&quot;</code>, <code>&quot;mean&quot;</code> or <code>&quot;min_rank&quot;</code>.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Object where each entry corresponds to a feature set collection.
+Each value is itself an object containing:</p>
+<ul>
+<li><code>counts</code>: Int32Array containing the number of markers present in each set.</li>
+<li><code>pvalues</code>: Float64Array containing the enrichment p-values for each set.</li>
+<li><code>num_markers</code>: number of markers selected for testing.</li>
+</ul>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="fetchParameters"><span class="type-signature"></span>fetchParameters<span class="signature">()</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line230">line 230</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Object containing the parameters.</p>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="fetchPerCellScores"><span class="type-signature">(async) </span>fetchPerCellScores<span class="signature">(collection, set_index)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line214">line 214</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>collection</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Name of the collection.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>set_index</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Index of a feature set inside the specified collection.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Object containing:</p>
+<ul>
+<li><code>indices</code>: Int32Array containing the row indices of the genes in the set, relative to the RNA count matrix.</li>
+<li><code>weights</code>: Float64Array containing the weights of each gene in the set.</li>
+<li><code>scores</code>: Float64Array containing the feature set score for each cell.</li>
+</ul>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+    
+
+    
+
+    
+</article>
+
+</section>
 
 
 
