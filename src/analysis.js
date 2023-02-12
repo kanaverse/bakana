@@ -31,6 +31,8 @@ import * as cluster_markers from "./steps/marker_detection.js";
 import * as label_cells from "./steps/cell_labelling.js";
 import * as custom_markers from "./steps/custom_selections.js";
 
+import * as feature_set_enrichment from "./steps/feature_set_enrichment.js";
+
 import { FORMAT_VERSION } from "./abstract/utils/serialize.js";
 import { bakana_version } from "./version.js";
 
@@ -61,6 +63,7 @@ const step_choice = "choose_clustering";
 const step_markers = cluster_markers.step_name;
 const step_labels = "cell_labelling";
 const step_custom = custom_markers.step_name;
+const step_enrichment = feature_set_enrichment.step_name;
 
 const load_flag = "_loaded";
 
@@ -113,6 +116,8 @@ function create_analysis(input_state) {
     output[step_markers] = new cluster_markers.MarkerDetectionState(output[step_filter], norm_states, output[step_choice]);
     output[step_labels] = new label_cells.CellLabellingState(output[step_inputs], output[step_markers]);
     output[step_custom] = new custom_markers.CustomSelectionsState(output[step_filter], norm_states);
+
+    output[step_enrichment] = new feature_set_enrichment.FeatureSetEnrichmentState(output[step_inputs], output[step_filter], output[step_norm], output[step_markers]);
 
     return Promise.all([output[step_tsne].ready(), output[step_umap].ready()]).then(val => output);
 }
@@ -386,6 +391,15 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
     );
     await quickFinish(step_custom);
 
+    await quickStart(step_enrichment);
+    await state[step_enrichment].compute(
+        params[step_enrichment]["collections"],
+        params[step_enrichment]["dataset_id_column"],
+        params[step_enrichment]["reference_id_column"],
+        params[step_enrichment]["top_markers"]
+    );
+    await quickFinish(step_enrichment);
+
     await Promise.all(promises);
     return null;
 }
@@ -471,6 +485,9 @@ export async function saveAnalysis(state, path, { embedded = true } = {}) {
     state[step_markers].serialize(handle);
     await state[step_labels].serialize(handle);
     state[step_custom].serialize(handle);
+
+    /*** Feature set enrichment ***/
+    state[step_enrichment].serialize(handle);
 
     /** Metadata **/
     let mhandle = handle.createGroup("_metadata");
@@ -644,6 +661,11 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     {
         state[step_custom] = custom_markers.unserialize(handle, permuters, state[step_filter], norm_states);
         await quickFun(step_custom);
+    }
+
+    /*** Faeture set enrichment ***/
+    {
+        state[step_enrichment] = feature_set_enrichment.unserialize(handle, state[step_inputs], state[step_filter], state[step_norm], state[step_markers]);
     }
 
     // Adding a tripwire for runAnalysis.
