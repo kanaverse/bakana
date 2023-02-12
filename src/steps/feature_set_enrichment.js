@@ -361,11 +361,9 @@ export class FeatureSetEnrichmentState {
             this.changed = true;
         }
 
-        if (!this.valid()) {
-            return;
+        if (this.valid()) {
+            await this.#prepare_collections(collections, dataset_id_column, reference_id_column);
         }
-
-        let collected = await this.#prepare_collections(collections, dataset_id_column, reference_id_column);
 
         if (utils.changedParameters(this.#parameters.collections, collections) ||
             this.#parameters.dataset_id_column !== dataset_id_column ||

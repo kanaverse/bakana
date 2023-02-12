@@ -42,6 +42,7 @@ import * as enrichment from "./steps/feature_set_enrichment.js";
  * - {@linkcode SnnGraphClusterState#compute snn_graph_cluster}
  * - {@linkcode ChooseClusteringState#compute choose_clustering}
  * - {@linkcode CellLabellingState#compute cell_labelling}
+ * - {@linkcode FeatureSetEnrichmentState#compute feature_set_enrichment}
  *
  * See also {@linkcode configureBatchCorrection} and {@linkcode configureApproximateNeighbors} to synchronize certain parameter settings across multiple steps.
  */
