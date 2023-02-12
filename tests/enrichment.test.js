@@ -16,7 +16,7 @@ let hs_files = {
 
 test("feature set enrichment works correctly for humans", async () => {
     let params = utils.baseParams();
-    params.feature_set_enrichment.feature_sets = [ "mouse-GO_3.16.0", "human-GO_3.16.0" ];
+    params.feature_set_enrichment.collections = [ "mouse-GO_3.16.0", "human-GO_3.16.0" ];
 
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, hs_files, params);
@@ -85,7 +85,7 @@ let mm_files = {
 
 test("feature set enrichment works correctly for mice", async () => {
     let params = utils.baseParams();
-    params.feature_set_enrichment.feature_sets = [ "mouse-GO_3.16.0", "human-GO_3.16.0" ];
+    params.feature_set_enrichment.collections = [ "mouse-GO_3.16.0", "human-GO_3.16.0" ];
     params.feature_set_enrichment.dataset_id_column = "_index";
     params.feature_set_enrichment.reference_id_column = "SYMBOL";
 

@@ -20,6 +20,16 @@ const base = "https://github.com/LTLA/kana-feature-sets/releases/download";
 
 export const step_name = "feature_set_enrichment";
 
+/**
+ * This step tests for enrichment of particular feature sets in the set of top marker genes,
+ * based on marker rankings from {@linkplain MarkerDetectionState}.
+ * It wraps the [`testFeatureSetEnrichment`](https://jkanche.com/scran.js/global.html#testFeatureSetEnrichment) 
+ * and [`scoreFeatureSet`](https://jkanche.com/scran.js/global.html#scoreFeatureSet) functions
+ * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * 
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ * @hideconstructor
+ */
 export class FeatureSetEnrichmentState {
     #inputs;
     #filter;
@@ -82,6 +92,17 @@ export class FeatureSetEnrichmentState {
         return mat.has("RNA");
     }
 
+    /**
+     * @return {object} Object where each entry corresponds to a feature set collection.
+     * Each value is itself an object containing:
+     *
+     * - `names`: Array of strings containing the names of the feature sets in the collection.
+     * - `descriptions`: Array of strings containing the set descriptions.
+     * - `sizes`: Int32Array containing the set sizes.
+     * - `universe`: number of features in the universe.
+     *
+     * @async
+     */
     async fetchCollectionDetails() {
         let p = this.#parameters;
         let collected = await this.#prepare_collections(p.collections, p.dataset_id_column, p.reference_id_column);
@@ -92,6 +113,22 @@ export class FeatureSetEnrichmentState {
         return output;
     }
 
+    /**
+     * @param {number} group - Cluster index of interest.
+     * @param {string} effect_size - Effect size to use for ranking.
+     * This should be one of `"cohen"`, `"auc"`, `"lfc"` or `"delta_detected"`.
+     * @param {string} summary - Summary statistic to use for ranking.
+     * This should be one of `"min"`, `"mean"` or `"min_rank"`.
+     *
+     * @return {object} Object where each entry corresponds to a feature set collection.
+     * Each value is itself an object containing:
+     *
+     * - `counts`: Int32Array containing the number of markers present in each set.
+     * - `pvalues`: Float64Array containing the enrichment p-values for each set.
+     * - `num_markers`: number of markers selected for testing.
+     * 
+     * @async
+     */
     async fetchGroupResults(group, effect_size, summary) {
         let key = String(group) + ":" + effect_size + ":" + summary;
 
@@ -103,7 +140,11 @@ export class FeatureSetEnrichmentState {
             if (effect_size == "delta_detected") {
                 effect_size = "deltaDetected";
             }
+
+            // Avoid picking down-regulated genes in the marker set.
             let min_threshold = effect_size == "auc" ? 0.5 : 0;
+
+            // Larger is better except for 'min_rank'.
             let use_largest = effect_size !== "min_rank"; 
             let sumidx = mutils.summaries2int[summary];
 
@@ -145,23 +186,47 @@ export class FeatureSetEnrichmentState {
         return this.#cache.adhoc_results[key];
     }
 
-    async fetchPerCellScores(collection, set_index) {
+    /**
+     * @param {string} collection - Name of the collection.
+     * @param {number} set_index - Index of a feature set inside the specified collection.
+     *
+     * @return {Int32Array} Array containing the row indices of the RNA count matrix corresponding to the genes in the specified set.
+     */
+    async fetchFeatureSetIndices(collection, set_index) {
         let p = this.#parameters;
-        let collected = await this.#prepare_collections(p.collections, p.dataset_id_column, p.reference_id_column);
+        let collected = await this.#prepare_collections([collection], p.dataset_id_column, p.reference_id_column);
         let current = collected[collection];
         let set = current.sets[set_index];
         let indices = current.indices;
-        // console.log(bioc.SLICE(this.#inputs.fetchFeatureAnnotations().RNA.column("id"), bioc.SLICE(indices, set).sort()));
+        return bioc.SLICE(indices, set);
+    }
+
+    /**
+     * @param {string} collection - Name of the collection.
+     * @param {number} set_index - Index of a feature set inside the specified collection.
+     *
+     * @return {Object} Object containing:
+     *
+     * - `indices`: Int32Array containing the row indices of the genes in the set, relative to the RNA count matrix.
+     * - `weights`: Float64Array containing the weights of each gene in the set.
+     * - `scores`: Float64Array containing the feature set score for each cell.
+     */
+    async fetchPerCellScores(collection, set_index) {
+        let indices = await this.fetchFeatureSetIndices(collection, set_index);
+        // console.log(bioc.SLICE(this.#inputs.fetchFeatureAnnotations().RNA.column("id"), indices));
 
         let mat = this.#normalized.fetchNormalizedMatrix();
         let features = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "set_buffer");
         features.fill(0);
         let farr = features.array();
-        set.forEach(x => { farr[indices[x]] = 1; }); 
+        indices.forEach(x => { farr[x] = 1; }); 
 
         return scran.scoreFeatureSet(mat, features, { block: this.#filter.fetchFilteredBlock() });
     }
 
+    /**
+     * @return {object} Object containing the parameters.
+     */
     fetchParameters() {
         return { ...this.#parameters };
     }
@@ -277,6 +342,17 @@ export class FeatureSetEnrichmentState {
      ******** Compute **********
      ***************************/
 
+    /**
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     * Each argument is taken from the property of the same name in the `feature_set_enrichment` property of the `parameters` of {@linkcode runAnalysis}.
+     *
+     * @param {Array} collections - Array of strings containing the names of collections to be tested.
+     * @param {string} dataset_id_column - Name of the column of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each feature.
+     * @param {string} reference_id_column - Name of the column of each collection's `*_features.csv.gz` that contains the identity of each feature, to be matched against identities in `dataset_id_column`.
+     * @param {number} top_markers - Number of top markers to use when testing for enrichment.
+     *
+     * @return The state is updated with new results.
+     */
     async compute(collections, dataset_id_column, reference_id_column, top_markers) {
         this.changed = false;
         if (this.#inputs.changed) {
@@ -317,7 +393,7 @@ export class FeatureSetEnrichmentState {
         
         {
             let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("feature_sets", "String", null, this.#parameters.feature_sets);
+            phandle.writeDataSet("collections", "String", null, this.#parameters.collections);
             phandle.writeDataSet("dataset_id_column", "String", null, this.#parameters.dataset_id_column);
             phandle.writeDataSet("reference_id_column", "String", null, this.#parameters.reference_id_column);
             phandle.writeDataSet("top_markers", "Int32", null, this.#parameters.top_markers);
@@ -345,7 +421,7 @@ export function unserialize(handle, inputs, filter, normalized, markers) {
         
         {
             let phandle = ghandle.open("parameters");
-            parameters.feature_sets = phandle.open("feature_sets", { load: true }).values;
+            parameters.collections = phandle.open("collections", { load: true }).values;
             for (const k of [ "dataset_id_column", "reference_id_column", "top_markers" ]) {
                 parameters[k] = phandle.open(k, { load: true }).values[0];
             }

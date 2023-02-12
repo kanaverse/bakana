@@ -393,7 +393,7 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
 
     await quickStart(step_enrichment);
     await state[step_enrichment].compute(
-        params[step_enrichment]["feature_sets"],
+        params[step_enrichment]["collections"],
         params[step_enrichment]["dataset_id_column"],
         params[step_enrichment]["reference_id_column"],
         params[step_enrichment]["top_markers"]
@@ -665,7 +665,7 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
 
     /*** Faeture set enrichment ***/
     {
-        state[step_enrichment] = feature_set_enrichment.unserialize(handle, state[step_inputs], state[step_filter], state[step_rna_norm], state[step_markers]);
+        state[step_enrichment] = feature_set_enrichment.unserialize(handle, state[step_inputs], state[step_filter], state[step_norm], state[step_markers]);
     }
 
     // Adding a tripwire for runAnalysis.
