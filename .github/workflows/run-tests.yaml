@@ -25,6 +25,12 @@ jobs:
         path: '**/files/datasets'
         key: datasets-${{ hashFiles('**/files/download-datasets.sh') }}
 
+    - name: Restore the feature set files 
+      uses: actions/cache@v3
+      with:
+        path: '**/files/feature-sets'
+        key: references-${{ hashFiles('**/files/download-feature-sets.sh') }}
+
     - name: Restore the reference files 
       uses: actions/cache@v3
       with:
@@ -45,6 +51,9 @@ jobs:
 
     - name: Download references
       run: cd files && bash download-references.sh
+
+    - name: Download feature sets
+      run: cd files && bash download-feature-sets.sh
 
     - name: Download legacy 
       run: cd files && bash download-legacy.sh
