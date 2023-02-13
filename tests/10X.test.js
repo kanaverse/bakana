@@ -36,6 +36,9 @@ test("runAnalysis works correctly (10X)", async () => {
         simple.matrix.free();
     }
 
+    let out = bakana.dumpToSingleCellExperiment(state);
+    console.log(out);
+
     // Basic consistency checks.
     await utils.overlordCheckStandard(state);
     utils.checkClusterVersusMode(state);
