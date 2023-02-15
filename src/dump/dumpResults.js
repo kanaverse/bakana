@@ -3,6 +3,42 @@ import * as writedf from "./writeDataFrame.js";
 
 const translate_effects = { "lfc": "lfc", "delta_detected": "deltaDetected", "auc": "auc", "cohen": "cohen" };
 
+function dump_pca_to_hdf5(pcs, forceArrayBuffer) {
+    let path = scran.chooseTemporaryPath({ extension: ".h5" });
+    let content = path;
+    let fhandle = scran.createNewHDF5File(path);
+
+    try {
+        fhandle.writeDataSet(
+            "data", 
+            "Float64", 
+            [pcs.numberOfCells(), pcs.numberOfPCs()], // remember, it's transposed.
+            pcs.principalComponents({ copy: "view" })
+        ); 
+
+        if (forceArrayBuffer) {
+            content = scran.readFile(path);
+            scran.removeFile(path);
+        }
+    } catch (e) {
+        scran.removeFile(path);
+        throw e;
+    }
+
+    return { 
+        metadata: {
+            "$schema": "hdf5_dense_array/v1.json",
+            "array": {
+                "dimensions": [pcs.numberOfCells(), numberOfPCs()]
+            },
+            "hdf5_dense_array": {
+                "group": "data",
+            }
+        },
+        contents: contents
+    };
+}
+
 export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } = {}) {
     let row_info = state.inputs.fetchFeatureAnnotations();
     let modalities = Object.keys(row_info);
@@ -259,7 +295,23 @@ export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } =
     }
 
     // Saving the dimensionality reduction results.
-    {
+    if ("RNA" in row_info) {
+        let pcs = state.rna_pca.fetchPCs();
+
+        rhandle.writeDataSet(
+            "pcs", 
+            "Float64", 
+            [pcs.numberOfCells(), pcs.numberOfPCs()], // remember, it's transposed.
+            pcs.principalComponents({ copy: "view" })
+        ); 
+    }
+
+    if ("ADT" in row_info) {
+
+    }
+
+    if ("CRISPR" in row_info) {
+
     }
 
     // Saving the metadata (including cluster labelling assignments).
