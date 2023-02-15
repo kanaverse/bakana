@@ -1,43 +1,8 @@
 import * as bioc from "bioconductor";
 import * as writedf from "./writeDataFrame.js";
+import * as reddim from "./dumpReducedDimensions.js";
 
 const translate_effects = { "lfc": "lfc", "delta_detected": "deltaDetected", "auc": "auc", "cohen": "cohen" };
-
-function dump_pca_to_hdf5(pcs, forceArrayBuffer) {
-    let path = scran.chooseTemporaryPath({ extension: ".h5" });
-    let content = path;
-    let fhandle = scran.createNewHDF5File(path);
-
-    try {
-        fhandle.writeDataSet(
-            "data", 
-            "Float64", 
-            [pcs.numberOfCells(), pcs.numberOfPCs()], // remember, it's transposed.
-            pcs.principalComponents({ copy: "view" })
-        ); 
-
-        if (forceArrayBuffer) {
-            content = scran.readFile(path);
-            scran.removeFile(path);
-        }
-    } catch (e) {
-        scran.removeFile(path);
-        throw e;
-    }
-
-    return { 
-        metadata: {
-            "$schema": "hdf5_dense_array/v1.json",
-            "array": {
-                "dimensions": [pcs.numberOfCells(), numberOfPCs()]
-            },
-            "hdf5_dense_array": {
-                "group": "data",
-            }
-        },
-        contents: contents
-    };
-}
 
 export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } = {}) {
     let row_info = state.inputs.fetchFeatureAnnotations();
@@ -266,7 +231,7 @@ export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } =
             let target = (m == main ? "" : altpath(m) + "/");
             let meta = {
                 "$schema": "hdf5_sparse_matrix/v1.json",
-                "path": target + "assay-1/matrix.h5",
+                "path": target + "assay-counts/matrix.h5",
                 "array": {
                     "dimensions": [mat.numberOfRows(), mat.numberOfColumns()]
                 },
@@ -295,23 +260,42 @@ export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } =
     }
 
     // Saving the dimensionality reduction results.
-    if ("RNA" in row_info) {
-        let pcs = state.rna_pca.fetchPCs();
+    {
+        let dump_pca = (m, pcs) => {
+            let saved = reddim.dump_pca_to_hdf5(pcs, forceArrayBuffer);
+            saved.metadata.path = altpath(m) + "reddim-pca/matrix.h5"
+            all_files.push(saved);
 
-        rhandle.writeDataSet(
-            "pcs", 
-            "Float64", 
-            [pcs.numberOfCells(), pcs.numberOfPCs()], // remember, it's transposed.
-            pcs.principalComponents({ copy: "view" })
-        ); 
-    }
+            let tv = pcs.totalVariance();
+            all_metadata[m].pca_variance_explained = pcs.varianceExplained({ copy: "view" }).map(x => x / tv);
+            all_meta[m].single_cell_experiment.reduced_dimensions.push({ name: "PCA", { resource: { type: "local", path: saved.metadata.path } } });
+        };
 
-    if ("ADT" in row_info) {
+        if ("RNA" in row_info) {
+            dump_pca("RNA", state.rna_pca.fetchPCs());
+        }
 
-    }
+        if ("ADT" in row_info) {
+            dump_pca("ADT", state.adt_pca.fetchPCs());
+        }
 
-    if ("CRISPR" in row_info) {
+        if ("CRISPR" in row_info) {
+            dump_pca("CRISPR", state.crispr_pca.fetchPCs());
+        }
 
+        {
+            let res = await state.tsne.fetchResults({ copy: false });
+            let saved = reddim.dumpOtherReducedDimensionsToHdf5([ res.x, res.y ], forceArrayBuffer);
+            saved.metadata.path = "reddim-tsne/matrix.h5"
+            all_meta[main].single_cell_experiment.reduced_dimensions.push({ name: "TSNE", { resource: { type: "local", path: saved.metadata.path } } });
+        }
+
+        {
+            let res = await state.umap.fetchResults({ copy: false });
+            let saved = reddim.dumpOtherReducedDimensionsToHdf5([ res.x, res.y ], forceArrayBuffer);
+            saved.metadata.path = "reddim-umap/matrix.h5"
+            all_meta[main].single_cell_experiment.reduced_dimensions.push({ name: "UMAP", { resource: { type: "local", path: saved.metadata.path } } });
+        }
     }
 
     // Saving the metadata (including cluster labelling assignments).
