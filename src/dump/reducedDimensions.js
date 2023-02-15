@@ -1,13 +1,13 @@
 import * as scran from "scran.js";
 
-export function dumpPcaResultsToHdf5(pcs, path, forceArrayBuffer) {
+export function dumpPcaResultsToHdf5(pcs, path, forceBuffer) {
     let ncells = pcs.numberOfCells();
     let npcs = pcs.numberOfPCs();
 
-    let path = scran.chooseTemporaryPath({ extension: ".h5" });
-    let content = path;
+    let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
+    let content = temppath;
 
-    let fhandle = scran.createNewHDF5File(path);
+    let fhandle = scran.createNewHDF5File(temppath);
     let buffer;
 
     try {
@@ -29,12 +29,12 @@ export function dumpPcaResultsToHdf5(pcs, path, forceArrayBuffer) {
             buffer
         ); 
 
-        if (forceArrayBuffer) {
-            content = scran.readFile(path);
-            scran.removeFile(path);
+        if (forceBuffer) {
+            content = scran.readFile(temppath);
+            scran.removeFile(temppath);
         }
     } catch (e) {
-        scran.removeFile(path);
+        scran.removeFile(temppath);
         throw e;
     } finally {
         scran.free(buffer);
@@ -51,18 +51,18 @@ export function dumpPcaResultsToHdf5(pcs, path, forceArrayBuffer) {
                 "group": "data",
             }
         },
-        contents: contents
+        contents: content
     };
 }
 
-export function dumpOtherReducedDimensionsToHdf5(dimensions, path, forceArrayBuffer) {
+export function dumpOtherReducedDimensionsToHdf5(dimensions, path, forceBuffer) {
     let ncells = dimensions[0].length;
     let ndims = dimensions.length;
 
-    let path = scran.chooseTemporaryPath({ extension: ".h5" });
-    let content = path;
+    let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
+    let content = temppath;
 
-    let fhandle = scran.createNewHDF5File(path);
+    let fhandle = scran.createNewHDF5File(temppath);
     let buffer;
 
     try {
@@ -82,12 +82,12 @@ export function dumpOtherReducedDimensionsToHdf5(dimensions, path, forceArrayBuf
             buffer
         ); 
 
-        if (forceArrayBuffer) {
-            content = scran.readFile(path);
-            scran.removeFile(path);
+        if (forceBuffer) {
+            content = scran.readFile(temppath);
+            scran.removeFile(temppath);
         }
     } catch (e) {
-        scran.removeFile(path);
+        scran.removeFile(temppath);
         throw e;
     } finally {
         scran.free(buffer);
@@ -104,7 +104,7 @@ export function dumpOtherReducedDimensionsToHdf5(dimensions, path, forceArrayBuf
                 "group": "data",
             }
         },
-        contents: contents
+        contents: content
     };
 }
 

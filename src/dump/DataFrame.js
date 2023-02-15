@@ -8,7 +8,7 @@ wa.Uint8WasmArray.prototype._bioconductor_LENGTH = function() { return this.leng
 wa.Int32WasmArray.prototype._bioconductor_LENGTH = function() { return this.length; };
 wa.Float64WasmArray.prototype._bioconductor_LENGTH = function() { return this.length; };
 
-export function writeHdf5DataFrame(x, path, { group = "data", forceArrayBuffer = false } = {}) {
+export function writeHdf5DataFrame(x, path, { group = "data", forceBuffer = false } = {}) {
     let metadata = {
         "path": path + "/simple.h5",
         "$schema": "hdf5_data_frame/v1.json",
@@ -146,8 +146,7 @@ export function writeHdf5DataFrame(x, path, { group = "data", forceArrayBuffer =
 
             } else if (curcol instanceof bioc.DataFrame) {
                 let subpath = path + "/column" + String(i);
-                console.log(subpath);
-                let child = writeHdf5DataFrame(curcol, subpath, { group, forceArrayBuffer });
+                let child = writeHdf5DataFrame(curcol, subpath, { group, forceBuffer });
                 coltypes.push({ name: colname, type: "other", resource: { type: "local", path: subpath } });
                 child.self.metadata.is_child = true;
                 children.push(child.self);
@@ -160,7 +159,7 @@ export function writeHdf5DataFrame(x, path, { group = "data", forceArrayBuffer =
             }
         }
 
-        if (forceArrayBuffer) {
+        if (forceBuffer) {
             contents = scran.readFile(temppath);
             scran.removeFile(temppath);
         }

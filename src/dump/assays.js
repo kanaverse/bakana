@@ -1,12 +1,12 @@
 import * as scran from "scran.js";
 
-export function dumpCountMatrix(mat, path, forceArrayBuffer) {
+export function dumpCountMatrix(mat, path, forceBuffer) {
     let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
     let contents = temppath;
 
     try {
         scran.writeSparseMatrixToHdf5(mat, temppath, "matrix", { format: "tenx_matrix" });
-        if (forceArrayBuffer) {
+        if (forceBuffer) {
             contents = scran.readFile(temppath);
             scran.removeFile(temppath);
         }

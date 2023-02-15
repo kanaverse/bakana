@@ -2,7 +2,7 @@ export * from "./defaults.js";
 export * from "./analysis.js";
 export * from "./serialize.js";
 export * from "./readers/index.js";
-export * from "./dump/dumpResults.js";
+export * from "./dump/SingleCellExperiment.js";
 
 export { setVisualizationAnimate } from "./steps/utils/viz_parent.js";
 export { formatMarkerResults } from "./steps/utils/markers.js";

@@ -36,7 +36,7 @@ test("runAnalysis works correctly (10X)", async () => {
         simple.matrix.free();
     }
 
-    let out = bakana.dumpToSingleCellExperiment(state);
+    let out = await bakana.dumpSingleCellExperiment(state);
     console.log(out);
 
     // Basic consistency checks.
