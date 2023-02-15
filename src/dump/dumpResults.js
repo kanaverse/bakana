@@ -223,8 +223,39 @@ export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } =
         }
     }
 
-    // Saving the assays.
+    // Saving the count assay.
     {
+        for (const m of modalities) {
+            let mat = state.cell_filtering.fetchFilteredMatrix().get(m);
+            let target = (m == main ? "" : altpath(m) + "/");
+            let meta = {
+                "$schema": "hdf5_sparse_matrix/v1.json",
+                "path": target + "assay-1/matrix.h5",
+                "array": {
+                    "dimensions": [mat.numberOfRows(), mat.numberOfColumns()]
+                },
+                "hdf5_sparse_matrix": {
+                    "group": "matrix",
+                    "format": "tenx_matrix"
+                }
+            };
+
+            let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
+            let contents = temppath;
+            try {
+                scran.writeSparseMatrixToHdf5(mat, temppath, "matrix", { format: "tenx_matrix" });
+                if (forceArrayBuffer) {
+                    contents = scran.readFile(temppath);
+                    scran.removeFile(temppath);
+                }
+            } catch (e) {
+                scran.removeFile(temppath);
+                throw e;
+            }
+
+            all_meta[m].summarized_experiment.assays.push({ name: "counts", resource: { type: "local", path: meta.path } });
+            all_files.push({ metadata: meta, contents: contents });
+        }
     }
 
     // Saving the dimensionality reduction results.
