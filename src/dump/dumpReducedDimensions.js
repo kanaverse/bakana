@@ -1,6 +1,6 @@
 import * as scran from "scran.js";
 
-export function dumpPcaResultsToHdf5(pcs, forceArrayBuffer) {
+export function dumpPcaResultsToHdf5(pcs, path, forceArrayBuffer) {
     let ncells = pcs.numberOfCells();
     let npcs = pcs.numberOfPCs();
 
@@ -43,6 +43,7 @@ export function dumpPcaResultsToHdf5(pcs, forceArrayBuffer) {
     return { 
         metadata: {
             "$schema": "hdf5_dense_array/v1.json",
+            "path": path + "/matrix.h5",
             "array": {
                 "dimensions": [ncells, npcs]
             },
@@ -54,7 +55,7 @@ export function dumpPcaResultsToHdf5(pcs, forceArrayBuffer) {
     };
 }
 
-export function dumpOtherReducedDimensionsToHdf5(dimensions, forceArrayBuffer) {
+export function dumpOtherReducedDimensionsToHdf5(dimensions, path, forceArrayBuffer) {
     let ncells = dimensions[0].length;
     let ndims = dimensions.length;
 
@@ -95,6 +96,7 @@ export function dumpOtherReducedDimensionsToHdf5(dimensions, forceArrayBuffer) {
     return { 
         metadata: {
             "$schema": "hdf5_dense_array/v1.json",
+            "path": path + "/matrix.h5",
             "array": {
                 "dimensions": [ncells, ndims]
             },

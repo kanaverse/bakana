@@ -1,6 +1,6 @@
 import * as scran from "scran.js";
 
-export function dumpCountMatrix(mat, forceArrayBuffer) {
+export function dumpCountMatrix(mat, path, forceArrayBuffer) {
     let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
     let contents = temppath;
 
@@ -18,6 +18,7 @@ export function dumpCountMatrix(mat, forceArrayBuffer) {
     return {
         metadata: {
             "$schema": "hdf5_sparse_matrix/v1.json",
+            "path": path + "/matrix.h5",
             "array": {
                 "dimensions": [mat.numberOfRows(), mat.numberOfColumns()]
             },

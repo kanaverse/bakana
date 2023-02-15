@@ -229,9 +229,9 @@ export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } =
     {
         for (const m of modalities) {
             let mat = state.cell_filtering.fetchFilteredMatrix().get(m);
-            let saved = dumpCountMatrix(mat, forceArrayBuffer);
-            saved.path = altpath(m) + "assay-counts/matrix.h5",
-            all_meta[m].summarized_experiment.assays.push({ name: "counts", resource: { type: "local", path: saved.path } });
+            let saved = dumpCountMatrix(mat, altpath(m) + "assay-counts", forceArrayBuffer);
+            saved.metadata.is_child = true;
+            all_meta[m].summarized_experiment.assays.push({ name: "counts", resource: { type: "local", path: saved.metadata.path } });
             all_files.push(saved);
         }
     }
@@ -239,8 +239,8 @@ export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } =
     // Saving the dimensionality reduction results.
     {
         let dump_pca = (m, pcs) => {
-            let saved = reddim.dump_pca_to_hdf5(pcs, forceArrayBuffer);
-            saved.metadata.path = altpath(m) + "reddim-pca/matrix.h5"
+            let saved = reddim.dump_pca_to_hdf5(pcs, altpath(m) + "reddim-pca", forceArrayBuffer);
+            saved.metadata.is_child = true;
             all_files.push(saved);
 
             let tv = pcs.totalVariance();
@@ -262,15 +262,15 @@ export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } =
 
         {
             let res = await state.tsne.fetchResults({ copy: false });
-            let saved = reddim.dumpOtherReducedDimensionsToHdf5([ res.x, res.y ], forceArrayBuffer);
-            saved.metadata.path = "reddim-tsne/matrix.h5"
+            let saved = reddim.dumpOtherReducedDimensionsToHdf5([ res.x, res.y ], "reddim-tsne", forceArrayBuffer);
+            saved.metadata.is_child = true;
             all_meta[main].single_cell_experiment.reduced_dimensions.push({ name: "TSNE", { resource: { type: "local", path: saved.metadata.path } } });
         }
 
         {
             let res = await state.umap.fetchResults({ copy: false });
-            let saved = reddim.dumpOtherReducedDimensionsToHdf5([ res.x, res.y ], forceArrayBuffer);
-            saved.metadata.path = "reddim-umap/matrix.h5"
+            let saved = reddim.dumpOtherReducedDimensionsToHdf5([ res.x, res.y ], "reddim-umap", forceArrayBuffer);
+            saved.metadata.is_child = true;
             all_meta[main].single_cell_experiment.reduced_dimensions.push({ name: "UMAP", { resource: { type: "local", path: saved.metadata.path } } });
         }
     }
