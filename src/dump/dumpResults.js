@@ -1,5 +1,6 @@
 import * as bioc from "bioconductor";
 import * as writedf from "./writeDataFrame.js";
+import * as assay from "./dumpAssays.js";
 import * as reddim from "./dumpReducedDimensions.js";
 
 const translate_effects = { "lfc": "lfc", "delta_detected": "deltaDetected", "auc": "auc", "cohen": "cohen" };
@@ -46,10 +47,12 @@ export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } =
         };
     }
 
-    let altpath = m => "altexp-" + m;
+    let altpath = m => { return (m == main ? "" : "altexp-" + m + "/");
     for (const m of modalities) {
         if (m !== main) {
-            all_meta[main].single_cell_experiment.alternative_experiments.push({ name: m, resource: { type: "local", path: altpath(m) } });
+            let sce_path = altpath(m) + "experiment.json";
+            all_meta[m].path = sce_path;
+            all_meta[main].single_cell_experiment.alternative_experiments.push({ name: m, resource: { type: "local", path: sce_path } });
         }
     }
 
@@ -115,8 +118,7 @@ export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } =
         all_coldata[main].$setColumn("clusters", state.choose_clustering.fetchClusters());
 
         for (const m of modalities) {
-            let target = (m == main ? "" : altpath(m) + "/");
-            let collected = writedf.writeHdf5DataFrame(all_coldata[m], target + "coldata", { forceArrayBuffer });
+            let collected = writedf.writeHdf5DataFrame(all_coldata[m], altpath(m) + "coldata", { forceArrayBuffer });
             all_meta[m].summarized_experiment.column_data.resource.path = collected.self.metadata.path;
             all_files.push(collected.self);
             for (const x of collected.children) {
@@ -213,8 +215,7 @@ export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } =
         }
 
         for (const m of modalities) {
-            let target = (m == main ? "" : altpath(m) + "/");
-            let collected = writedf.writeHdf5DataFrame(all_rowdata[m], target + "rowdata", { forceArrayBuffer });
+            let collected = writedf.writeHdf5DataFrame(all_rowdata[m], altpath(m) + "rowdata", { forceArrayBuffer });
             all_meta[m].summarized_experiment.row_data.resource.path = collected.self.metadata.path;
             all_files.push(collected.self);
             console.log(collected.children);
@@ -228,34 +229,10 @@ export function dumpToSingleCellExperiment(state, { forceArrayBuffer = false } =
     {
         for (const m of modalities) {
             let mat = state.cell_filtering.fetchFilteredMatrix().get(m);
-            let target = (m == main ? "" : altpath(m) + "/");
-            let meta = {
-                "$schema": "hdf5_sparse_matrix/v1.json",
-                "path": target + "assay-counts/matrix.h5",
-                "array": {
-                    "dimensions": [mat.numberOfRows(), mat.numberOfColumns()]
-                },
-                "hdf5_sparse_matrix": {
-                    "group": "matrix",
-                    "format": "tenx_matrix"
-                }
-            };
-
-            let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
-            let contents = temppath;
-            try {
-                scran.writeSparseMatrixToHdf5(mat, temppath, "matrix", { format: "tenx_matrix" });
-                if (forceArrayBuffer) {
-                    contents = scran.readFile(temppath);
-                    scran.removeFile(temppath);
-                }
-            } catch (e) {
-                scran.removeFile(temppath);
-                throw e;
-            }
-
-            all_meta[m].summarized_experiment.assays.push({ name: "counts", resource: { type: "local", path: meta.path } });
-            all_files.push({ metadata: meta, contents: contents });
+            let saved = dumpCountMatrix(mat, forceArrayBuffer);
+            saved.path = altpath(m) + "assay-counts/matrix.h5",
+            all_meta[m].summarized_experiment.assays.push({ name: "counts", resource: { type: "local", path: saved.path } });
+            all_files.push(saved);
         }
     }
 
