@@ -39,7 +39,7 @@ export class CrisprNormalizationState {
     free() {
         utils.freeCache(this.#cache.matrix);
         utils.freeCache(this.#cache.total_buffer);
-        utils.freeCache(this.#cache.sf_buffer);
+        utils.freeCache(this.#cache.centered_buffer);
     }
 
     /***************************
@@ -64,11 +64,16 @@ export class CrisprNormalizationState {
 
     /**
      * @return {Float64WasmArray} Array of length equal to the number of cells, 
-     * containing the gene expression size factor for each cell.
+     * containing the CRISPR-derived size factor for each cell.
      * This is available after running {@linkcode RnaNormalizationState#compute compute}.
      */
     fetchSizeFactors() {
-        return this.#cache.sum_buffer;
+        let buff;
+        if (this.#cache.sum_buffer) {
+            buff = utils.allocateCachedArray(this.#cache.sum_buffer.length, "Float64Array", this.#cache, "centered_buffer");
+            scran.centerSizeFactors(this.#cache.sum_buffer, { buffer: buff, block: this.#filter.fetchFilteredBlock() })
+        }
+        return buff;
     }
 
     /**

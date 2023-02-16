@@ -273,6 +273,24 @@ export async function checkStateResultsMinimal(state) {
     return;
 }
 
+function checkSizeFactors(raw, norm, sf) {
+    expect(sf instanceof wa.Float64WasmArray).toBe(true);
+    expect(sf.length).toBe(norm.numberOfColumns());
+    sf = sf.slice();
+
+    // Checking every 200'th cell for consistent normalization.
+    for (var c = 0; c < raw.numberOfColumns(); c += 200) {
+        let expected = norm.column(c);
+        let observed = raw.column(c);
+        observed.forEach((x, i) => { observed[i] = Math.log2(observed[i] / sf[c] + 1); });
+
+        // Cap precision for floating-point comparisons.
+        observed.forEach((x, i) => { observed[i] = Math.round(x * 1000000) / 1000000; });
+        expected.forEach((x, i) => { expected[i] = Math.round(x * 1000000) / 1000000; });
+        expect(observed).toEqual(expected);
+    }
+}
+
 export async function checkStateResultsRna(state, { exclusive = false } = {}) {
     // Inputs:
     {
@@ -336,8 +354,7 @@ export async function checkStateResultsRna(state, { exclusive = false } = {}) {
         expect(normed.numberOfRows()).toBe(ngenes);
 
         let sf = state.rna_normalization.fetchSizeFactors();
-        expect(sf instanceof wa.Float64WasmArray).toBe(true);
-        expect(sf.length).toBe(nfiltered);
+        checkSizeFactors(state.cell_filtering.fetchFilteredMatrix().get("RNA"), normed, sf);
     }
 
     // Feature selection:
@@ -536,8 +553,6 @@ export function checkStateResultsAdt(state, { exclusive = false } = {}) {
     // Normalization.
     {
         let sf = state.adt_normalization.fetchSizeFactors();
-        expect(sf.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
-
         let positive_total = 0;
         sf.forEach(x => { positive_total += (x > 0); });
         expect(positive_total).toBeGreaterThan(0);
@@ -545,6 +560,8 @@ export function checkStateResultsAdt(state, { exclusive = false } = {}) {
         let norm = state.adt_normalization.fetchNormalizedMatrix();
         expect(norm.numberOfColumns()).toEqual(sf.length);
         expect(norm.numberOfRows()).toEqual(state.inputs.fetchCountMatrix().get("ADT").numberOfRows());
+
+        checkSizeFactors(state.cell_filtering.fetchFilteredMatrix().get("ADT"), norm, sf);
     }
 
     // PCA.
@@ -634,8 +651,6 @@ export function checkStateResultsCrispr(state, { exclusive = false, use_embeddin
     // Normalization.
     {
         let sf = state.crispr_normalization.fetchSizeFactors();
-        expect(sf.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
-
         let positive_total = 0;
         sf.forEach(x => { positive_total += (x > 0); });
         expect(positive_total).toBeGreaterThan(0);
@@ -643,6 +658,8 @@ export function checkStateResultsCrispr(state, { exclusive = false, use_embeddin
         let norm = state.crispr_normalization.fetchNormalizedMatrix();
         expect(norm.numberOfColumns()).toEqual(sf.length);
         expect(norm.numberOfRows()).toEqual(state.inputs.fetchCountMatrix().get("CRISPR").numberOfRows());
+
+        checkSizeFactors(state.cell_filtering.fetchFilteredMatrix().get("CRISPR"), norm, sf);
     }
 
     // PCA.
