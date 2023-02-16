@@ -48,7 +48,7 @@ export function dumpPcaResultsToHdf5(pcs, path, forceBuffer) {
                 "dimensions": [ncells, npcs]
             },
             "hdf5_dense_array": {
-                "group": "data",
+                "dataset": "data",
             }
         },
         contents: content
@@ -101,7 +101,7 @@ export function dumpOtherReducedDimensionsToHdf5(dimensions, path, forceBuffer) 
                 "dimensions": [ncells, ndims]
             },
             "hdf5_dense_array": {
-                "group": "data",
+                "dataset": "data",
             }
         },
         contents: content

@@ -28,6 +28,8 @@ export function writeHdf5DataFrame(x, path, { group = "data", forceBuffer = fals
 
     let fhandle = scran.createNewHDF5File(temppath);
     try {
+        let ghandle = fhandle.createGroup(group);
+
         ghandle.writeDataSet("column_names", "String", null, x.columnNames());
         let rn = x.rowNames();
         if (rn !== null) {
@@ -145,7 +147,7 @@ export function writeHdf5DataFrame(x, path, { group = "data", forceBuffer = fals
             } else if (curcol instanceof bioc.DataFrame) {
                 let subpath = path + "/column" + String(i);
                 let child = writeHdf5DataFrame(curcol, subpath, { group, forceBuffer });
-                coltypes.push({ name: colname, type: "other", resource: { type: "local", path: subpath } });
+                coltypes.push({ name: colname, type: "other", resource: { type: "local", path: child.self.metadata.path } });
                 child.self.metadata.is_child = true;
                 children.push(child.self);
                 for (const x of child.children) {

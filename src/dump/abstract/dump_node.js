@@ -27,7 +27,7 @@ export function realizeDirectory(files, directory, path_) {
             suffix = "";
         }
 
-        fs.writeFileSync(full_path + suffix, JSON.stringify(x.metadata));
+        fs.writeFileSync(full_path + suffix, JSON.stringify(x.metadata, null, 2));
     }
 
     return;

@@ -287,10 +287,11 @@ export async function dumpSingleCellExperiment(state, path, { forceBuffer = fals
     }
 
     // Saving extra metadata (including cluster labelling assignments).
-    all_metadata[main].cell_labelling = state.cell_labelling.fetchResults();
+    all_metadata[main].cell_labelling = await state.cell_labelling.fetchResults();
 
     for (const [m, prefix] of Object.entries(all_prefixes)) {
         let saved = list.dumpList(all_metadata[m], prefix + "other");
+        all_top_meta[m].summarized_experiment.other_data.resource.path = saved.metadata.path;
         saved.metadata.is_child = true;
         all_files.push(saved);
     }

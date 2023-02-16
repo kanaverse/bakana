@@ -22,22 +22,22 @@ function dump_internal(x) {
 
             if (all_strings) {
                 output.type = "string";
-                output.values = v;
+                output.values = x;
             } else if (all_bools) {
                 output.type = "boolean";
-                output.values = v;
+                output.values = x;
             } else {
-                for (const e of v) {
+                for (const e of x) {
                     output.values.push(dump_internal(e));
                 }
             }
         }
 
-    } else if (x instanceof Object) {
+    } else if (x.constructor === Object) {
         output = { "type": "list", "values": [], "names": [] };
         for (const [k, v] of Object.entries(x)) {
             output.names.push(k);
-            output.values.push(dumpList(v));
+            output.values.push(dump_internal(v));
         }
 
     } else if (x instanceof Int32Array) {
@@ -62,7 +62,7 @@ function dump_internal(x) {
         output = { "type": "boolean", "values": [x] };
 
     } else {
-        throw new Error("don't know how to save entry '" + k + "' of type '" + typeof x + "'");
+        throw new Error("don't know how to save entry of type '" + typeof x + "'");
     }
 
     return output;
