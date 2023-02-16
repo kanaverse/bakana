@@ -247,25 +247,52 @@ export async function dumpSingleCellExperiment(state, path, { forceBuffer = fals
         all_files.push(saved);
     }
 
-    // Saving the dimensionality reduction results.
+    // Saving the log-normalized assay.
     for (const [m, prefix] of Object.entries(all_prefixes)) {
-        let pcs = null;
+        let step = null;
         switch (m) {
             case "RNA":
-                pcs = state.rna_pca.fetchPCs();
+                step = state.rna_normalization;
                 break;
             case "ADT":
-                pcs = state.adt_pca.fetchPCs();
+                step = state.adt_normalization;
                 break;
             case "CRISPR":
-                pcs = state.crispr_pca.fetchPCs();
+                step = state.crispr_normalization;
                 break;
         }
-
-        if (pcs == null) {
+        if (step == null) {
             continue;
         }
 
+        let mat = step.fetchNormalizedMatrix();
+        let sf = step.fetchSizeFactors();
+        let saved = assay.dumpNormalizedMatrix(mat, sf, prefix + "assay-logcounts", all_top_meta[m].summarized_experiment.assays[0].resource.path, forceBuffer);
+        saved.metadata.is_child = true;
+
+        all_top_meta[m].summarized_experiment.assays.push({ name: "logcounts", resource: { type: "local", path: saved.metadata.path } });
+        all_files.push(saved);
+    }
+
+    // Saving the dimensionality reduction results.
+    for (const [m, prefix] of Object.entries(all_prefixes)) {
+        let step = null;
+        switch (m) {
+            case "RNA":
+                step = state.rna_pca;
+                break;
+            case "ADT":
+                step = state.adt_pca;
+                break;
+            case "CRISPR":
+                step = state.crispr_pca;
+                break;
+        }
+        if (step == null) {
+            continue;
+        }
+
+        let pcs = step.fetchPCs();
         let saved = reddim.dumpPcaResultsToHdf5(pcs, prefix + "reddim-pca", forceBuffer);
         saved.metadata.is_child = true;
         all_files.push(saved);
