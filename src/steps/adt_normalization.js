@@ -41,6 +41,7 @@ export class AdtNormalizationState {
         utils.freeCache(this.#cache.matrix);
         utils.freeCache(this.#cache.total_buffer);
         utils.freeCache(this.#cache.sf_buffer);
+        utils.freeCache(this.#cache.centered_sf_buffer);
     }
 
     /***************************
@@ -64,12 +65,17 @@ export class AdtNormalizationState {
     }
 
     /**
-     * @return {?Float64WasmArray} Array of length equal to the number of cells, 
+     * @return {Float64WasmArray} Array of length equal to the number of cells, 
      * containing the ADT-derived size factor for each cell in the (QC-filtered) dataset.
      * This is available after running {@linkcode AdtNormalizationState#compute compute}.
      */
     fetchSizeFactors() {
-        return this.#cache.sf_buffer;
+        let buff;
+        if (this.#cache.sf_buffer) {
+            buff = utils.allocateCachedArray(this.#cache.sf_buffer.length, "Float64Array", this.#cache, "centered_sf_buffer");
+            scran.centerSizeFactors(this.#cache.sf_buffer, { buffer: buff, block: this.#filter.fetchFilteredBlock() })
+        }
+        return buff;
     }
 
     /**
