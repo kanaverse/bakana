@@ -95,7 +95,11 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
         }
     }
 
-    all_coldata[main_modality].$setColumn("clusters", state.choose_clustering.fetchClusters());
+    {
+        let clustersp1 = new Int32Array(retained);
+        state.choose_clustering.fetchClusters().forEach((x, i) => { clustersp1[i] = x + 1 }); // 1-based indices.
+        all_coldata[main_modality].$setColumn("clusters", clustersp1);
+    }
 
     // Dumping everything to file.
     for (const [name, prefix] of Object.entries(modality_prefixes)) {
@@ -188,7 +192,7 @@ function mockSingleCellExperimentMetadata(p) {
 /************************************************
  ************************************************/
 
-export async function dumpSingleCellExperiment(state, { forceBuffer = false } = {}) {
+export async function dumpSingleCellExperiment(state, path, { forceBuffer = false } = {}) {
     let row_info = state.inputs.fetchFeatureAnnotations();
 
     let modalities = Object.keys(row_info);
@@ -211,7 +215,10 @@ export async function dumpSingleCellExperiment(state, { forceBuffer = false } = 
     let all_metadata = {};
 
     for (const m of modalities) {
-        let mprefix = (m == main ? "" : "altexp-" + m + "/");
+        let mprefix = path + "/";
+        if (m != main) {
+            mprefix += "altexp-" + m + "/";
+        }
         all_prefixes[m] = mprefix;
 
         let sce_path = mprefix + "experiment.json";
@@ -272,7 +279,7 @@ export async function dumpSingleCellExperiment(state, { forceBuffer = false } = 
 
     for (const name of [ "tsne", "umap" ]) {
         let res = await state[name].fetchResults({ copy: false });
-        let saved = reddim.dumpOtherReducedDimensionsToHdf5([ res.x, res.y ], "reddim-" + name, forceBuffer);
+        let saved = reddim.dumpOtherReducedDimensionsToHdf5([ res.x, res.y ], all_prefixes[main] + "reddim-" + name, forceBuffer);
         saved.metadata.is_child = true;
 
         all_top_meta[main].single_cell_experiment.reduced_dimensions.push({ name: name.toUpperCase(), resource: { type: "local", path: saved.metadata.path } });

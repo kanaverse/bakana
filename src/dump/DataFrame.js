@@ -28,8 +28,6 @@ export function writeHdf5DataFrame(x, path, { group = "data", forceBuffer = fals
 
     let fhandle = scran.createNewHDF5File(temppath);
     try {
-        let ghandle = fhandle.createGroup(group);
-
         ghandle.writeDataSet("column_names", "String", null, x.columnNames());
         let rn = x.rowNames();
         if (rn !== null) {
