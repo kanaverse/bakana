@@ -28,7 +28,7 @@ export function dumpMarkerDetectionResults(state, modalities, all_rowdata) {
                 }
             }
 
-            rdf.$setColumn(String(group + 1), mdf); // use 1-based indices for cluster names.
+            rdf.$setColumn(String(group), mdf); 
         }
 
         all_rowdata[m].$setColumn("marker_detection", rdf);
@@ -41,17 +41,7 @@ export function dumpCustomSelectionResults(state, modalities, main, all_rowdata,
     const do_auc = state.custom_selections.fetchParameters().compute_auc;
 
     let all_sel = state.custom_selections.fetchSelections();
-    let replacement = {};
-    for (const [k, v] of Object.entries(all_sel)) {
-        if (!(v instanceof Int32Array)) {
-            v = new Int32Array(v);
-        } else {
-            v = v.slice();
-        }
-        v.forEach((x, i) => { v[i] = x + 1; }); // 1-based indices.
-        replacement[k] = v;
-    }
-    all_other_metadata[main] = { custom_selections: replacement };
+    all_other_metadata[main] = { custom_selections: all_sel };
 
     for (const m of modalities) {
         let nfeatures = all_rowdata[m].numberOfRows();

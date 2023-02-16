@@ -3,7 +3,7 @@ import * as adump from "./abstract/dump.js";
 
 /**
  * Save the results into a [language-agnostic representation](https://github.com/ArtifactDB/BiocObjectSchemas) of a SingleCellExperiment.
- * All row/column indices are converted into 1-based indices for consistency with R.
+ * Note that all row/column indices are 0-based and should be incremented by 1 before use in 1-based languages like R.
  *
  * @param {object} state - Existing analysis state containing results, after one or more runs of {@linkcode runAnalysis}.
  * @param {string} name - Name of the SingleCellExperiment to be saved.

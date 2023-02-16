@@ -73,33 +73,23 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
     }
 
     // Other bits and pieces.
-    {
-        let keepp1 = new Int32Array(keep.length);
-        keep.forEach((x, i) => { keepp1[i] = x + 1; }); // 1-based indices.
-        all_coldata[main_modality].$setColumn("retained", keepp1);
-    }
+    all_coldata[main_modality].$setColumn("retained", keep);
+    all_coldata[main_modality].$setColumn("clusters", state.choose_clustering.fetchClusters());
 
     {
         let block = state.cell_filtering.fetchFilteredBlock();
         if (block !== null) {
-            let realized = new Int32Array(block.length);
-            block.forEach((x, i) => { realized[i] = x + 1 }); // 1-based indices.
-            all_coldata[main_modality].$setColumn("block", realized);
+            all_coldata[main_modality].$setColumn("block", block);
 
             let stringy = new Array(block.length);
             let levels = state.inputs.fetchBlockLevels();
-            block.forEach((x, i) => { stringy[i] = levels[x]; }); // 1-based indices.
+            block.forEach((x, i) => { stringy[i] = levels[x]; }); 
             all_coldata[main_modality].$setColumn("named_block", stringy);
 
             all_other_metadata[main].block_levels = levels;
         }
     }
 
-    {
-        let clustersp1 = new Int32Array(retained);
-        state.choose_clustering.fetchClusters().forEach((x, i) => { clustersp1[i] = x + 1 }); // 1-based indices.
-        all_coldata[main_modality].$setColumn("clusters", clustersp1);
-    }
 
     // Dumping everything to file.
     for (const [name, prefix] of Object.entries(modality_prefixes)) {
