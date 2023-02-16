@@ -126,7 +126,7 @@ test("addition, fetching and removal of custom selections works correctly", asyn
         expect(Array.from(reloaded.custom_selections.fetchSelectionIndices("evens"))).toEqual([0,2,4,6,8]);
 
         let reres = reloaded.custom_selections.fetchResults("evens");
-        expect(() => reres.RNA.auc(1)).toThrow("no AUCs"); 
+        expect(reres.RNA.auc(1)).toBeNull(); //toThrow("no AUCs"); 
 
         await bakana.freeAnalysis(reloaded);
     }
