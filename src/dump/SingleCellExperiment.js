@@ -68,8 +68,16 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
     }
 
     // Size Factors.
+    if (state.rna_normalization.valid()) {
+        all_coldata.RNA.$setColumn("sizeFactor", state.rna_normalization.fetchSizeFactors());
+    }
+
     if (state.adt_normalization.valid()) {
         all_coldata.ADT.$setColumn("sizeFactor", state.adt_normalization.fetchSizeFactors());
+    }
+
+    if (state.crispr_normalization.valid()) {
+        all_coldata.CRISPR.$setColumn("sizeFactor", state.crispr_normalization.fetchSizeFactors());
     }
 
     // Other bits and pieces.
