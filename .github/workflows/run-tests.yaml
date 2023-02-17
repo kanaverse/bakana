@@ -61,3 +61,30 @@ jobs:
     - name: Run tests
       run: npm run test
       timeout-minutes: 10
+
+    - name: Upload saved results
+      uses: actions/upload-artifact@v3
+      with:
+        name: rds-files
+        path: results/from-tests/
+
+  reload: 
+    needs: test
+    runs-on: ubuntu-latest
+    container: ghcr.io/ArtifactDB/alabaster-docker/builder:latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Download saved results
+      uses: actions/download-artifact@v3
+      with:
+        name: rds-files
+        path: results/from-tests/
+
+    - name: Run tests
+      shell: Rscript {0}
+      run: |
+        setwd("miscellaneous")
+        testthat::test_file("reload.R", stop_on_failure=TRUE)
