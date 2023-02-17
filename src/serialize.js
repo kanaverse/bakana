@@ -67,7 +67,7 @@ export async function unserializeDatasets(serialized, loader) {
         if (!(val.format in known)) {
             throw new Error("unknown dataset format '" + val.format + "'");
         }
-        let cls = readers.availableReaders[format];
+        let cls = readers.availableReaders[val.format];
 
         let handles = [];
         for (const obj of val.files) {
@@ -99,15 +99,22 @@ export async function unserializeDatasets(serialized, loader) {
  *   - `custom_selections.selections` contains selections that can be used in {@linkcode CustomSelectionsState#addSelection CustomSelectionsState.addSelection} after {@linkcode runAnalysis}.
  */
 export async function serializeAnalysis(state, saver) {
-    return {
-        parameters: anal.retrieveParameters(state),
+    let parameters = anal.retrieveParameters(state);
+    let datasets = await serializeDatasets(state.inputs.fetchDatasets(), saver);
 
-        datasets: await serializeDatasets(state.inputs.fetchDatasets(), saver),
+    let isub = state.inputs.fetchDirectSubset({ copy: false });
+    if (isub !== null) {
+        isub = Array.from(isub);
+    }
+
+    return {
+        parameters: parameters,
+        datasets: datasets,
 
         // Other parameters that need special handling.
         other: {
             inputs: {
-                direct_subset: Array.from(state.inputs.fetchDirectSubset({ copy: false }))
+                direct_subset: isub,
             },
             custom_selections: {
                 selections: state.custom_selections.fetchSelections({ force: "Array" })

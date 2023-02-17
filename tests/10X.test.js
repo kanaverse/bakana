@@ -44,6 +44,20 @@ test("runAnalysis works correctly (10X)", async () => {
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "10X", { directory: "miscellaneous/from-tests" });
 
+    // Check reloading of the parameters/datasets.
+    {
+        let saved = [];
+        let saver = (n, k, f) => {
+            saved.push(f.content());
+            return String(saved.length);
+        };
+
+        let serialized = await bakana.serializeAnalysis(state, saver);
+        let reloaded = bakana.unserializeDatasets(serialized.datasets, x => saved[Number(x) - 1]); 
+        expect(reloaded.default instanceof bakana.TenxHdf5Dataset);
+        expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
+    }
+
     // Freeing.
     await bakana.freeAnalysis(state);
 })

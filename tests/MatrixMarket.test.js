@@ -65,6 +65,20 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "MatrixMarket", { directory: "miscellaneous/from-tests" });
 
+    // Check reloading of the parameters/datasets.
+    {
+        let saved = [];
+        let saver = (n, k, f) => {
+            saved.push(f.content());
+            return String(saved.length);
+        };
+
+        let serialized = await bakana.serializeAnalysis(state, saver);
+        let reloaded = bakana.unserializeDatasets(serialized.datasets, x => saved[Number(x) - 1]); 
+        expect(reloaded.default instanceof bakana.MatrixMarketDataset);
+        expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
+    }
+
     // Release me!
     await bakana.freeAnalysis(state);
 })
