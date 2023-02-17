@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>steps/batch_correction.js - Documentation</title>
+    <title>dump/index.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -34,7 +34,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">steps/batch_correction.js</h1>
+    <h1 class="page-title">dump/index.js</h1>
     
 
     
@@ -44,226 +44,66 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>import * as scran from "scran.js";
-import * as utils from "./utils/general.js";
-import * as filter_module from "./cell_filtering.js";
-import * as combine_module from "./combine_embeddings.js";
-
-export const step_name = "batch_correction";
+            <pre class="prettyprint source linenums"><code>import * as sce from "./SingleCellExperiment.js";
+import * as adump from "./abstract/dump.js";
 
 /**
- * Correct for batch effects in PC space based on mutual nearest neighbors.
- * This wraps the [`mnnCorrect`](https://jkanche.com/scran.js/global.html#mnnCorrect) function
- * from [**scran.js**](https://jkanche.com/scran.js).
- * 
- * Methods not documented here are not part of the stable API and should not be used by applications.
- * @hideconstructor
+ * Save the results into a [language-agnostic representation](https://github.com/ArtifactDB/BiocObjectSchemas) of a SingleCellExperiment.
+ * Note that all row/column indices are 0-based and should be incremented by 1 before use in 1-based languages like R.
+ *
+ * @param {object} state - Existing analysis state containing results, after one or more runs of {@linkcode runAnalysis}.
+ * @param {string} name - Name of the SingleCellExperiment to be saved.
+ * @param {object} [options={}] - Optional parameters.
+ * @param {boolean} [options.forceBuffer=true] - Whether to force all files to be loaded into memory as Uint8Array buffers.
+ * @param {?directory} [options.directory=null] - Project directory in which to save the file components of the SingleCellExperiment.
+ * Only used for Node.js; if supplied, it overrides any setting of `forceBuffer`.
+ *
+ * @return {Array} Array of objects where each object corresponds to a file in the SingleCellExperiment's representation.
+ * Each inner object contains `metadata`, another object containing the metadata for the corresponding file.
+ *
+ * For files that are not purely metadata, the inner object will also contain  `contents`, the contents of the file.
+ * The type of `contents` depends on the context and optional parameters.
+ *
+ * - If `forceBuffer = true`, `contents` is a Uint8Array of the file contents.
+ *   This is probably the most advisable setting for browser environments.
+ * - If `forceBuffer = false`, `contents` may be either a Uint8Array or a string to a temporary file path. 
+ *   In a browser context, the temporary path is located on the **scran.js** virtual file system,
+ *   see [here](https://jkanche.com/scran.js/global.html#readFile) to extract its contents and to clean up afterwards.
+ * - If the function is called from Node.js and `directory` is supplied, `contents` is a string to a file path inside `directory.
+ *   This overrides any expectations from the setting of `forceBuffer` and is the most efficient approach for Node.js.
  */
-export class BatchCorrectionState {
-    #filter;
-    #combined;
-    #parameters;
-    #cache;
+export async function saveSingleCellExperiment(state, name, { forceBuffer = null, directory = null } = {}) {
+    if (directory !== null) {
+        forceBuffer = false;
+    } 
 
-    constructor(filter, combined, parameters = null, cache = null) {
-        if (!(filter instanceof filter_module.CellFilteringState)) {
-            throw new Error("'filter' should be a CellFilteringState object");
-        }
-        this.#filter = filter;
+    let { metadata, files } = await sce.dumpSingleCellExperiment(state, name, { forceBuffer });
+    files.push({ metadata });
 
-        if (!(combined instanceof combine_module.CombineEmbeddingsState)) {
-            throw new Error("'pca' should be a CombineEmbeddingsState object");
-        }
-        this.#combined = combined;
-
-        this.#parameters = (parameters === null ? {} : parameters);
-        this.#cache = (cache === null ? {} : cache);
-        this.changed = false;
-    }
-
-    free() {
-        utils.freeCache(this.#cache.corrected);
-    }
-
-    /***************************
-     ******** Getters **********
-     ***************************/
-
-    /**
-     * @return {Float64WasmArray} Buffer containing the batch-corrected embeddings as a column-major dense matrix,
-     * where the rows are the dimensions and the columns are the cells.
-     * This is available after running {@linkcode BatchCorrectionState#compute compute}.
-     */
-    fetchCorrected() {
-        return this.#cache.corrected;
-    }
-
-    /**
-     * @return {number} Number of cells in {@linkcode BatchCorrectionState#fetchCorrected fetchCorrected}.
-     */
-    fetchNumberOfCells() {
-        return this.#combined.fetchNumberOfCells();
-    }
-
-    /**
-     * @return {number} Number of dimensions in {@linkcode BatchCorrectionState#fetchCorrected fetchCorrected}.
-     */
-    fetchNumberOfDimensions() {
-        return this.#combined.fetchNumberOfDimensions();
-    }
-
-    /**
-     * @return {object} Object containing the parameters.
-     */
-    fetchParameters() {
-        return { ...this.#parameters }; // avoid pass-by-reference links.
-    }
-
-    /***************************
-     ******** Compute **********
-     ***************************/
-
-    /**
-     * @param {string} method - The correction method to use.
-     * Currently this can be either `"mnn"` or `"none"`.
-     * If `"mnn"`, it is recommended that upstream PCA steps (i.e., {@linkplain PcaState} and {@linkplain AdtPcaState}) use `block_method = "weight"`.
-     * @param {number} num_neighbors - Number of neighbors to use during MNN correction.
-     * @param {boolean} approximate - Whether to use an approximate method to identify MNNs.
-     *
-     * @return The object is updated with new results.
-     */
-    compute(method, num_neighbors, approximate) {
-        this.changed = false;
-
-        if (this.#filter.changed || this.#combined.changed) {
-            this.changed = true;
-        }
-        let block = this.#filter.fetchFilteredBlock();
-        let needs_correction = (method == "mnn" &amp;&amp; block !== null);
-
-        if (this.changed || method !== this.#parameters.method || num_neighbors !== this.#parameters.num_neighbors || approximate !== this.#parameters.approximate) { 
-            if (needs_correction) {
-                let pcs = this.#combined.fetchCombined();
-                let corrected = utils.allocateCachedArray(pcs.length, "Float64Array", this.#cache, "corrected");
-                scran.mnnCorrect(pcs, block, { 
-                    k: num_neighbors, 
-                    buffer: corrected, 
-                    numberOfCells: this.#combined.fetchNumberOfCells(), 
-                    numberOfDims: this.#combined.fetchNumberOfDimensions(), 
-                    approximate: approximate 
-                });
-                this.changed = true;
+    // Added a redirection document.
+    files.push({
+        "metadata": {
+            "$schema": "redirection/v1.json",
+            "path": name,
+            "redirection": {
+                "targets": [
+                    {
+                        "type": "local",
+                        "location": metadata.path
+                    }
+                ]
             }
         }
+    });
 
-        if (this.changed) {
-            // If no correction is actually required, we shouldn't respond to
-            // changes in parameters, because they won't have any effect.
-            if (!needs_correction) {
-                utils.freeCache(this.#cache.corrected);
-                this.#cache.corrected = this.#combined.fetchCombined().view();
-            }
-        }
+    await adump.attachMd5sums(files);
 
-        // Updating all parameters, even if they weren't used.
-        this.#parameters.method = method;
-        this.#parameters.num_neighbors = num_neighbors;
-        this.#parameters.approximate = approximate;
-        return;
+    // Either dumping everything to file or returning all the buffers.
+    if (!forceBuffer &amp;&amp; directory !== null) {
+        await adump.realizeDirectory(files, directory, name);
     }
 
-    static defaults() {
-        return {
-            method: "mnn",
-            num_neighbors: 15,
-            approximate: true
-        };
-    }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup(step_name);
-
-        {
-            let phandle = ghandle.createGroup("parameters"); 
-            phandle.writeDataSet("method", "String", [], this.#parameters.method);
-            phandle.writeDataSet("num_neighbors", "Int32", [], this.#parameters.num_neighbors);
-            phandle.writeDataSet("approximate", "Uint8", [], Number(this.#parameters.approximate));
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results");
-            let pcs = this.fetchCorrected();
-            if (pcs.owner === null) {
-                // If it's not a view, we save it; otherwise we assume
-                // that we can recover it from the upstream state.
-                rhandle.writeDataSet(
-                    "corrected", 
-                    "Float64", 
-                    [this.fetchNumberOfCells(), this.fetchNumberOfDimensions()],
-                    pcs
-                );
-            }
-        }
-    }
-}
-
-/**************************
- ******** Loading *********
- **************************/
-
-export function unserialize(handle, filter, combined) {
-    let cache = {};
-    let parameters = BatchCorrectionState.defaults();
-    let output;
-    
-    if (step_name in handle.children) {
-        let ghandle = handle.open(step_name);
-
-        let phandle = ghandle.open("parameters"); 
-        parameters.method = phandle.open("method", { load: true }).values[0];
-        parameters.num_neighbors = phandle.open("num_neighbors", { load: true }).values[0];
-        parameters.approximate = phandle.open("approximate", { load: true }).values[0] > 0;
-
-        try {
-            let rhandle = ghandle.open("results");
-
-            if ("corrected" in rhandle.children) {
-                let corrected = rhandle.open("corrected", { load: true }).values;
-                cache.corrected = scran.createFloat64WasmArray(corrected.length);
-                cache.corrected.set(corrected);
-            } else {
-                // Creating a view from the upstream combined state.
-                let pcs = combined.fetchCombined();
-                cache.corrected = pcs.view();
-            }
-
-            output = new BatchCorrectionState(filter, combined, parameters, cache);
-        } catch (e) {
-            utils.freeCache(cache.corrected);
-            utils.freeCache(output);
-            throw e;
-        }
-    } else {
-        // Fallback for v1.
-        let ghandle = handle.open("pca");
-
-        let rhandle = ghandle.open("results");
-        if ("corrected" in rhandle.children) {
-            let corrected = rhandle.open("corrected", { load: true }).values;
-            let corbuffer = utils.allocateCachedArray(corrected.length, "Float64Array", cache, "corrected");
-            corbuffer.set(corrected);
-        } else {
-            cache.corrected = combined.fetchCombined().view();
-        }
-
-        output = new BatchCorrectionState(filter, combined, parameters, cache);
-    }
-
-    return output;
+    return files;
 }
 </code></pre>
         </article>
