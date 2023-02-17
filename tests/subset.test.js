@@ -55,12 +55,14 @@ test("subsetting behaves correctly with indices", async () => {
 
     // Unsetting works as expected.
     istate.setDirectSubset(null);
+    istate.compute(null, null, null);
     expect(istate.changed).toBe(true);
     expect(istate.fetchCountMatrix().numberOfColumns()).toBeGreaterThan(3000);
     expect(istate.fetchCountMatrix().get("RNA").column(1)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(1));
 
     // Resetting works as expected.
     istate.setDirectSubset(subset);
+    istate.compute(null, null, null);
     expect(istate.changed).toBe(true);
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
     expect(istate.fetchCountMatrix().get("RNA").column(3)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(6));
@@ -73,10 +75,11 @@ test("subsetting behaves correctly with a factor", async () => {
     let files = { default: new bakana.H5adDataset(h5path) };
 
     let istate = new inputs.InputsState;
-    await istate.compute(files, null, {
+    let sub =  {
         field: "level1class",
         values: [ "microglia", "interneurons" ]
-    });
+    };
+    await istate.compute(files, null, sub);
 
     let expected_num = 0;
     {
@@ -110,12 +113,14 @@ test("subsetting behaves correctly with a factor", async () => {
     }
 
     istate.setDirectSubset(subset);
+    istate.compute(files, null, sub);
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
     for (const [i, j] of Object.entries(subset)) {
         expect(istate.fetchCountMatrix().get("RNA").column(i)).toEqual(expected[j]);
     }
 
     istate.setDirectSubset(null);
+    istate.compute(files, null, sub);
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(expected_num);
     for (const i of subset) {
         expect(istate.fetchCountMatrix().get("RNA").column(i)).toEqual(expected[i]);
@@ -239,7 +244,7 @@ test("subsetting processes the blocking factors", async () => {
     fullstate.free();
 })
 
-test("end-to-end run works with subsetting", async () => {
+test("end-to-end run works with (direct) subsetting", async () => {
     let annopath = "files/datasets/pbmc-combined-barcodes.tsv.gz";
     let files = { 
         "default": new bakana.TenxMatrixMarketDataset(
@@ -272,6 +277,23 @@ test("end-to-end run works with subsetting", async () => {
     await utils.checkStateResultsMinimal(state);
     await utils.checkStateResultsRna(state, { exclusive: true });
     await utils.checkStateResultsBlocked(state);
+
+    // Serialization and reloading works as expected.
+    {
+        let saved = [];
+        let saver = (n, k, f) => {
+            saved.push(f.content());
+            return String(saved.length);
+        };
+
+        let serialized = await bakana.serializeAnalysis(state, saver);
+        expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
+        expect(serialized.other.inputs.direct_subset).toEqual(subset);
+
+        let reloaded = await bakana.unserializeAnalysis(serialized, x => saved[Number(x) - 1]);
+        await utils.compareStates(reloaded, state);
+        await bakana.freeAnalysis(reloaded);
+    }
 
     // subsetInputs works as expected. 
     let refcol = {};

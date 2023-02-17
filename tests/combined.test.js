@@ -76,7 +76,7 @@ test("multi-matrix analyses work correctly", async () => {
         let serialized = await bakana.serializeAnalysis(state, saver);
         let reloaded = bakana.unserializeDatasets(serialized.datasets, x => saved[Number(x) - 1]); 
         expect(reloaded["4K"] instanceof bakana.TenxHdf5Dataset);
-        expect(reloaded["3K"] instanceof bakana.MatrixMarketDataset);
+        expect(reloaded["3K"] instanceof bakana.TenxMatrixMarketDataset);
         expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
     }
 

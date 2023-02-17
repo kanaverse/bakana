@@ -150,7 +150,7 @@ export async function unserializeAnalysis(serialized, loader, { startFun = null,
     // Set this after the analysis is done, as the markers get computed directly.
     if ("other" in serialized && "custom_selections" in serialized.other && "selections" in serialized.other.custom_selections) {
         for (const [k, v] of Object.entries(serialized.other.custom_selections.selections)) {
-            state.addSelection(k, new Int32Array(v), { copy: false });
+            state.custom_selections.addSelection(k, new Int32Array(v), { copy: false });
         }
     }
 

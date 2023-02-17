@@ -75,7 +75,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 
         let serialized = await bakana.serializeAnalysis(state, saver);
         let reloaded = bakana.unserializeDatasets(serialized.datasets, x => saved[Number(x) - 1]); 
-        expect(reloaded.default instanceof bakana.MatrixMarketDataset);
+        expect(reloaded.default instanceof bakana.TenxMatrixMarketDataset);
         expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
     }
 

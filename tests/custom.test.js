@@ -83,6 +83,27 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "custom", { directory: "miscellaneous/from-tests" });
 
+    // Serialization and reloading works as expected.
+    {
+        let saved = [];
+        let saver = (n, k, f) => {
+            saved.push(f.content());
+            return String(saved.length);
+        };
+
+        let serialized = await bakana.serializeAnalysis(state, saver);
+        expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
+
+        expect(Object.keys(serialized.other.custom_selections.selections)).toEqual(["evens"]);
+        expect(serialized.other.custom_selections.selections.evens).toEqual([0,2,4,6,8]);
+
+        let reloaded = await bakana.unserializeAnalysis(serialized, x => saved[Number(x) - 1]);
+        await utils.compareStates(reloaded, state);
+        expect(reloaded.custom_selections.fetchResults("evens").RNA.cohen()).toEqual(state.custom_selections.fetchResults("evens").RNA.cohen());
+
+        await bakana.freeAnalysis(reloaded);
+    }
+
     // Freeing.
     await bakana.freeAnalysis(state);
 })

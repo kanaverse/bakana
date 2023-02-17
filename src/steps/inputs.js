@@ -205,7 +205,8 @@ export class InputsState {
             this.changed = true;
         }
 
-        if (this.changed || (!(RAW_SUBSET_OVERRIDE in this.#cache) && utils.changedParameters(subset, this.#parameters.subset))) {
+        // final condition handles loss of 'matrix' when setDirectSubset() is called.
+        if (this.changed || (!(RAW_SUBSET_OVERRIDE in this.#cache) && utils.changedParameters(subset, this.#parameters.subset)) || !("matrix" in this.#cache)) { 
             subset_and_cache(subset, this.#cache);
             this.#parameters.subset = this.constructor.#cloneSubset(subset);
             this.changed = true;
@@ -313,11 +314,9 @@ export class InputsState {
             delete this.#cache[RAW_SUBSET_OVERRIDE];            
         }
 
-        // If it's already got a matrix entry, we re-run it.
-        if ("matrix" in this.#cache) {
-            subset_and_cache(this.#parameters.subset, this.#cache);
-            this.changed = true;
-        }
+        // Flag that it needs to be rerun.
+        scran.free(this.#cache.matrix);
+        delete this.#cache.matrix;
     }
 
     createDirectSubset(indices, { copy = true, onOriginal = false } = {}) {
