@@ -168,39 +168,6 @@ export class AdtQualityControlState {
 
         return;
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup(step_name);
-
-        {
-            let phandle = ghandle.createGroup("parameters"); 
-            phandle.writeDataSet("igg_prefix", "String", [], this.#parameters.igg_prefix);
-            phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
-            phandle.writeDataSet("min_detected_drop", "Float64", [], this.#parameters.min_detected_drop);
-            phandle.writeDataSet("skip", "Uint8", [], 0); // back-compatibility only.
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results"); 
-            
-            if (this.valid()) {
-                let mhandle = rhandle.createGroup("metrics");
-                mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
-                mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
-                mhandle.writeDataSet("igg_total", "Float64", null, this.#cache.metrics.subsetTotals(0, { copy: "view" }));
-
-                let thandle = rhandle.createGroup("thresholds");
-                thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "view" }));
-                thandle.writeDataSet("igg_total", "Float64", null, this.#cache.filters.thresholdsSubsetTotals(0, { copy: "view" }));
-
-                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.discard_buffer);
-            }
-        }
-    }
 }
 
 /**************************

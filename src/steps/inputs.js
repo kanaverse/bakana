@@ -107,14 +107,22 @@ export class InputsState {
         return output;
     }
 
+    fetchDatasets() {
+        return this.#cache.datasets;
+    }
+
     /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.copy=true] - Whether to return a copy of the subsets to avoid pass-by-reference behaviors.
+     *
      * @return {?Int32Array} Array containing the indices to use for direct subsetting -
      * see {@linkcode InputsState#setDirectSubset setDirectSubset} for more information.
      * Alternatively `null`, if direct subsetting is not performed.
      */
-    fetchDirectSubset() {
+    fetchDirectSubset({ copy = true } = {}) {
         if (RAW_SUBSET_OVERRIDE in this.#cache) {
-            return this.#cache[RAW_SUBSET_OVERRIDE].slice();
+            let candidate = this.#cache[RAW_SUBSET_OVERRIDE];
+            return (copy ? candidate.slice() : candidate);
         } else {
             return null;
         }
@@ -197,7 +205,8 @@ export class InputsState {
             this.changed = true;
         }
 
-        if (this.changed || (!(RAW_SUBSET_OVERRIDE in this.#cache) && utils.changedParameters(subset, this.#parameters.subset))) {
+        // final condition handles loss of 'matrix' when setDirectSubset() is called.
+        if (this.changed || (!(RAW_SUBSET_OVERRIDE in this.#cache) && utils.changedParameters(subset, this.#parameters.subset)) || !("matrix" in this.#cache)) { 
             subset_and_cache(subset, this.#cache);
             this.#parameters.subset = this.constructor.#cloneSubset(subset);
             this.changed = true;
@@ -305,11 +314,9 @@ export class InputsState {
             delete this.#cache[RAW_SUBSET_OVERRIDE];            
         }
 
-        // If it's already got a matrix entry, we re-run it.
-        if ("matrix" in this.#cache) {
-            subset_and_cache(this.#parameters.subset, this.#cache);
-            this.changed = true;
-        }
+        // Flag that it needs to be rerun.
+        scran.free(this.#cache.matrix);
+        delete this.#cache.matrix;
     }
 
     createDirectSubset(indices, { copy = true, onOriginal = false } = {}) {
@@ -346,112 +353,6 @@ export class InputsState {
         new_params.subset = null;
 
         return new InputsState(new_params, new_cache, this.#abbreviated);
-    }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    async serialize(handle, embeddedSaver) {
-        let ghandle = handle.createGroup("inputs");
-
-        {
-            let phandle = ghandle.createGroup("parameters");
-
-            // Make sure we're in sorted order, for consistency with
-            // how the merge is done.
-            let names = Object.keys(this.#cache.datasets);
-            names.sort();
-
-            let dhandle = phandle.createGroup("datasets");
-
-            for (var i = 0; i < names.length; i++) {
-                let curdhandle = dhandle.createGroup(String(i));
-                let key = names[i];
-                let val = this.#cache.datasets[key];
-
-                let dformat = val.constructor.format();
-                curdhandle.writeDataSet("format", "String", [], dformat);
-                curdhandle.writeDataSet("name", "String", [], key);
-
-                let { files, options } = await val.serialize();
-                curdhandle.writeDataSet("options", "String", [], JSON.stringify(options));
-                let fhandle = curdhandle.createGroup("files");
-
-                for (var f = 0; f < files.length; f++) {
-                    let curfhandle = fhandle.createGroup(String(f));
-                    let obj = files[f];
-                    curfhandle.writeDataSet("type", "String", [], obj.type);
-                    curfhandle.writeDataSet("name", "String", [], obj.file.name());
-
-                    if (embeddedSaver === null) {
-                        if (file2link == null) {
-                            throw new Error("no valid linking function from 'setCreateLink'");
-                        }
-                        let id = await file2link(dformat, obj.file);
-                        curfhandle.writeDataSet("id", "String", [], id);
-                    } else {
-                        let saved = await embeddedSaver(obj.file.content(), obj.file.size());
-                        if (!(typeof saved.offset == "number") || !(typeof saved.size == "number")) {
-                            throw new Error("output of 'embeddedSaver' should contain 'offset' and 'size' numbers");
-                        }
-                        curfhandle.writeDataSet("offset", "Uint32", [], saved.offset);
-                        curfhandle.writeDataSet("size", "Uint32", [], saved.size);
-                    }
-                }
-            }
-
-            if (names.length == 1 && this.#parameters.block_factor !== null) {
-                phandle.writeDataSet("block_factor", "String", [], this.#parameters.block_factor);
-            }
-
-            if (this.#parameters.subset !== null || RAW_SUBSET_OVERRIDE in this.#cache) {
-                let shandle = phandle.createGroup("subset");
-                let schandle = shandle.createGroup("cells");
-
-                if (RAW_SUBSET_OVERRIDE in this.#cache) {
-                    schandle.writeDataSet("indices", "Int32", null, this.#cache[RAW_SUBSET_OVERRIDE]);
-                } else if ("field" in this.#parameters.subset) {
-                    schandle.writeDataSet("field", "String", [], this.#parameters.subset.field);
-
-                    if ("values" in this.#parameters.subset) {
-                        schandle.writeDataSet("values", "String", null, this.#parameters.subset.values);
-                    } else {
-                        let raw_ranges = this.#parameters.subset.ranges;
-                        let ranges = [].concat(...raw_ranges);
-                        check_subset_ranges(ranges);
-                        schandle.writeDataSet("ranges", "Float64", [ranges.length/2, 2], ranges);
-                    }
-                } else {
-                    throw new Error("unrecognized specification for 'subset'");
-                }
-            }
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results");
-            rhandle.writeDataSet("num_cells", "Int32", [], this.#cache.matrix.numberOfColumns());
-
-            // For diagnostic purposes, we store the number of blocks;
-            // this may not be captured by the parameters if we're dealing
-            // with a block_factor from a single file.
-            let blevels = this.#cache.block_levels;
-            rhandle.writeDataSet("num_blocks", "Int32", [], blevels == null ? 1 : blevels.length);
-
-            // Looping through all available modalities and saving the feature IDs and names.
-            let ihandle = rhandle.createGroup("feature_identities");
-            let nhandle = rhandle.createGroup("feature_names");
-            for (const a of this.#cache.matrix.available()) {
-                ihandle.writeDataSet(a, "Int32", null, this.#cache.row_ids[a]);
-
-                let names = this.#cache.genes[a].rowNames();
-                if (names !== null) {
-                    nhandle.writeDataSet(a, "String", null, names);
-                }
-            }
-        }
-
-        return;
     }
 }
 

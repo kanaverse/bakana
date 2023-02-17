@@ -81,27 +81,8 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "adt", { directory: "miscellaneous/from-tests" });
 
-    // Saving and loading.
-    const path = "TEST_state_adt.h5";
-    let collected = await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    expect(collected.collected.length).toBe(3);
-    expect(typeof(collected.collected[0])).toBe("string");
-
-    let offsets = utils.mockOffsets(collected.collected);
-    let reloaded = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
-
-    let new_params = bakana.retrieveParameters(reloaded);
-    expect(new_params).toEqual(params);
-
-    await utils.compareStates(state, reloaded, { checkAdt: true });
-
     // Release me!
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded);
 })
 
 test("runAnalysis works correctly (10X)", async () => {
@@ -132,23 +113,6 @@ test("runAnalysis works correctly (10X)", async () => {
         let pcs = state.combine_embeddings.fetchCombined();
         expect(pcs.owner !== null).toBe(true);
         expect(state.combine_embeddings.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
-
-        // Reloading should respect the view creation.
-        const path = "TEST_state_combine-embed.h5";
-        let collected = await bakana.saveAnalysis(state, path);
-        utils.validateState(path);
-
-        let offsets = utils.mockOffsets(collected.collected);
-        let reloaded = await bakana.loadAnalysis(
-            path, 
-            (offset, size) => offsets[offset]
-        );
-
-        let repcs = reloaded.combine_embeddings.fetchCombined();
-        expect(repcs.owner !== null).toBe(true);
-        expect(reloaded.combine_embeddings.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
-
-        await bakana.freeAnalysis(reloaded);
     }
 
     // Release me!
@@ -195,22 +159,7 @@ test("ADT-only runAnalysis works correctly", async () => {
     await utils.checkStateResultsAdt(state, { exclusive: true });
     await utils.checkStateResultsUnblocked(state);
 
-    // Can save and reload.
-    const path = "TEST_state_adt_only.h5";
-    let collected = await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    expect(collected.collected.length).toBe(3);
-    expect(typeof(collected.collected[0])).toBe("string");
-
-    let offsets = utils.mockOffsets(collected.collected);
-    let reloaded = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
-
-    await utils.compareStates(state, reloaded, { checkRna: false, checkAdt: true });
-
+    // Freeing.
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded);
 })
 

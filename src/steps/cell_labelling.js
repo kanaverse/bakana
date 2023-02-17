@@ -357,38 +357,6 @@ export class CellLabellingState {
 
         return Promise.all(promises).then(x => null);
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    async serialize(handle) {
-        let ghandle = handle.createGroup("cell_labelling");
-        
-        {
-            let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("mouse_references", "String", null, this.#parameters.mouse_references);
-            phandle.writeDataSet("human_references", "String", null, this.#parameters.human_references);
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results");
-            if (this.valid()) {
-                let res = await this.fetchResults();
-
-                let perhandle = rhandle.createGroup("per_reference");
-                for (const [key, val] of Object.entries(res.per_reference)) {
-                    perhandle.writeDataSet(key, "String", null, val);
-                }
-
-                if ("integrated" in res) {
-                    rhandle.writeDataSet("integrated", "String", null, res.integrated);
-                }
-            }
-        }
-
-        return;
-    }
 }
 
 /**************************

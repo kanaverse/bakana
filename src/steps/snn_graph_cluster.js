@@ -168,34 +168,6 @@ export class SnnGraphClusterState {
 
         return;
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup("snn_graph_cluster");
-
-        {
-            let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("k", "Int32", [], this.#parameters.k);
-            phandle.writeDataSet("scheme", "String", [], this.#parameters.scheme);
-            phandle.writeDataSet("algorithm", "String", [], this.#parameters.algorithm);
-            phandle.writeDataSet("multilevel_resolution", "Float64", [], this.#parameters.multilevel_resolution);
-            phandle.writeDataSet("leiden_resolution", "Float64", [], this.#parameters.leiden_resolution);
-            phandle.writeDataSet("walktrap_steps", "Int32", [], this.#parameters.walktrap_steps);
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results");
-            if (this.#valid()) {
-                let clusters = this.fetchClusters();
-                rhandle.writeDataSet("clusters", "Int32", null, clusters);
-            }
-        }
-
-        return;
-    }
 }
 
 /**************************

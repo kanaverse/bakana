@@ -70,27 +70,22 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "se", { directory: "miscellaneous/from-tests" });
 
-    // Saving and loading.
-    const path = "TEST_state_SummarizedExperiment.h5";
-    let collected = await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    expect(collected.collected.length).toBe(1);
-    expect(typeof(collected.collected[0])).toBe("string");
+    // Check reloading of the parameters/datasets.
+    {
+        let saved = [];
+        let saver = (n, k, f) => {
+            saved.push(f.content());
+            return String(saved.length);
+        };
 
-    let offsets = utils.mockOffsets(collected.collected);
-    let reloaded = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
-
-    await utils.compareStates(state, reloaded);
-
-    let new_params = bakana.retrieveParameters(reloaded);
-    expect(new_params).toEqual(params);
+        let serialized = await bakana.serializeConfiguration(state, saver);
+        let reloaded = bakana.unserializeDatasets(serialized.datasets, x => saved[Number(x) - 1]); 
+        expect(reloaded.default instanceof bakana.SummarizedExperimentDataset);
+        expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
+    }
 
     // Freeing.
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded);
 })
 
 test("RDS loaders work correctly for a base SummarizedExperiment", async () => {

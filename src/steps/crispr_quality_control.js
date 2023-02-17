@@ -144,36 +144,6 @@ export class CrisprQualityControlState {
 
         return;
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup(step_name);
-
-        {
-            let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results"); 
-            
-            if (this.valid()) {
-                let mhandle = rhandle.createGroup("metrics");
-                mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
-                mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
-                mhandle.writeDataSet("max_proportion", "Float64", null, this.#cache.metrics.maxProportions({ copy: "view" }));
-                mhandle.writeDataSet("max_index", "Int32", null, this.#cache.metrics.maxIndex({ copy: "view" }));
-
-                let thandle = rhandle.createGroup("thresholds");
-                thandle.writeDataSet("max_count", "Float64", null, this.#cache.filters.thresholdsMaxCount({ copy: "view" }));
-
-                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.discard_buffer);
-            }
-        }
-    }
 }
 
 /**************************

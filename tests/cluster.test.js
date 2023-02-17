@@ -15,20 +15,8 @@ test("switching between clustering methods (SNN first)", async () => {
     let state = await bakana.createAnalysis();
     let paramcopy = utils.baseParams();
     await bakana.runAnalysis(state, files, paramcopy);
-
-    const path = "TEST_state_clusters.h5";
-    await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    {
-        let handle = new scran.H5File(path);
-        let khandle = handle.open("kmeans_cluster");
-        let krhandle = khandle.open("results");
-        expect("clusters" in krhandle.children).toBe(false);
-
-        let shandle = handle.open("snn_graph_cluster");
-        let srhandle = shandle.open("results");
-        expect("clusters" in srhandle.children).toBe(true);
-    }
+    expect(state.snn_graph_cluster.fetchClusters().length).toBeGreaterThan(0);
+    expect(() => state.kmeans_cluster.fetchClusters()).toThrow("cannot fetch");
 
     // Now trying with k-means. This should cause both sets of
     // results to be saved, as both clusterings are still valid.
@@ -39,19 +27,8 @@ test("switching between clustering methods (SNN first)", async () => {
     expect(state.snn_graph_cluster.changed).toBe(false);
     expect(state.kmeans_cluster.changed).toBe(true);
     expect(state.choose_clustering.changed).toBe(true);
-
-    await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    {
-        let handle = new scran.H5File(path);
-        let khandle = handle.open("kmeans_cluster");
-        let krhandle = khandle.open("results");
-        expect("clusters" in krhandle.children).toBe(true);
-
-        let shandle = handle.open("snn_graph_cluster");
-        let srhandle = shandle.open("results");
-        expect("clusters" in srhandle.children).toBe(true);
-    }
+    expect(state.snn_graph_cluster.fetchClusters().length).toBeGreaterThan(0);
+    expect(state.kmeans_cluster.fetchClusters().length).toBeGreaterThan(0);
 
     // Checking that invalidation of the results behaves correctly.
     // If we change the parameters but we're still on the old set of
@@ -63,21 +40,8 @@ test("switching between clustering methods (SNN first)", async () => {
     expect(state.snn_graph_cluster.changed).toBe(true);
     expect(state.kmeans_cluster.changed).toBe(false);
     expect(state.choose_clustering.changed).toBe(false);
-
-    await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    {
-        let handle = new scran.H5File(path);
-        let khandle = handle.open("kmeans_cluster");
-        let krhandle = khandle.open("results");
-        expect("clusters" in krhandle.children).toBe(true);
-
-        let shandle = handle.open("snn_graph_cluster");
-        let sphandle = shandle.open("parameters");
-        expect(sphandle.open("multilevel_resolution", { load: true }).values[0]).toEqual(0.77);
-        let srhandle = shandle.open("results");
-        expect("clusters" in srhandle.children).toBe(false);
-    }
+    expect(() => state.snn_graph_cluster.fetchClusters()).toThrow("cannot fetch");
+    expect(state.kmeans_cluster.fetchClusters().length).toBeGreaterThan(0);
 
     // Freeing all states.
     await bakana.freeAnalysis(state);
@@ -99,20 +63,8 @@ test("switching between clustering methods (k-means first)", async () => {
     await bakana.runAnalysis(state, files_3k, paramcopy);
     expect(state.snn_graph_cluster.changed).toBe(true);
     expect(state.kmeans_cluster.changed).toBe(true);
-
-    const path = "TEST_state_clusters.h5";
-    await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    {
-        let handle = new scran.H5File(path);
-        let khandle = handle.open("kmeans_cluster");
-        let krhandle = khandle.open("results");
-        expect("clusters" in krhandle.children).toBe(true);
-
-        let shandle = handle.open("snn_graph_cluster");
-        let srhandle = shandle.open("results");
-        expect("clusters" in srhandle.children).toBe(false);
-    }
+    expect(() => state.snn_graph_cluster.fetchClusters()).toThrow("cannot fetch");
+    expect(state.kmeans_cluster.fetchClusters().length).toBeGreaterThan(0);
 
     // Trying with a different clustering method.
     paramcopy.choose_clustering.method = "snn_graph"; 
@@ -120,19 +72,8 @@ test("switching between clustering methods (k-means first)", async () => {
     await bakana.runAnalysis(state, files_3k, paramcopy);
     expect(state.snn_graph_cluster.changed).toBe(true);
     expect(state.kmeans_cluster.changed).toBe(false);
-
-    await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    {
-        let handle = new scran.H5File(path);
-        let khandle = handle.open("kmeans_cluster");
-        let krhandle = khandle.open("results");
-        expect("clusters" in krhandle.children).toBe(true);
-
-        let shandle = handle.open("snn_graph_cluster");
-        let srhandle = shandle.open("results");
-        expect("clusters" in srhandle.children).toBe(true);
-    }
+    expect(state.snn_graph_cluster.fetchClusters().length).toBeGreaterThan(0);
+    expect(state.kmeans_cluster.fetchClusters().length).toBeGreaterThan(0);
 
     // Checking that invalidation works.
     paramcopy.kmeans_cluster.k = 7;
@@ -140,21 +81,8 @@ test("switching between clustering methods (k-means first)", async () => {
     await bakana.runAnalysis(state, files_3k, paramcopy);
     expect(state.snn_graph_cluster.changed).toBe(false);
     expect(state.kmeans_cluster.changed).toBe(true);
-
-    await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    {
-        let handle = new scran.H5File(path);
-        let khandle = handle.open("kmeans_cluster");
-        let kphandle = khandle.open("parameters");
-        expect(kphandle.open("k", { load: true }).values[0]).toEqual(7);
-        let krhandle = khandle.open("results");
-        expect("clusters" in krhandle.children).toBe(false);
-
-        let shandle = handle.open("snn_graph_cluster");
-        let srhandle = shandle.open("results");
-        expect("clusters" in srhandle.children).toBe(true);
-    }
+    expect(state.snn_graph_cluster.fetchClusters().length).toBeGreaterThan(0);
+    expect(() => state.kmeans_cluster.fetchClusters().length).toThrow("cannot fetch");
 
     // Freeing all states.
     await bakana.freeAnalysis(state);

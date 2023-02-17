@@ -285,38 +285,11 @@ export class CellFilteringState {
             indices[i] = keep[x];
         });
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup(step_name);
-
-        {
-            let phandle = ghandle.createGroup("parameters"); 
-            phandle.writeDataSet("use_rna", "Uint8", [], this.#parameters.use_rna);
-            phandle.writeDataSet("use_adt", "Uint8", [], this.#parameters.use_adt);
-            phandle.writeDataSet("use_crispr", "Uint8", [], this.#parameters.use_crispr);
-        }
-
-        let rhandle = ghandle.createGroup("results"); 
-
-        // If it's not present, then none of the upstream QC states applied
-        // any filtering, so we don't really have anything to do here.
-        if ("discard_buffer" in this.#cache) {
-            let disc = this.#cache.discard_buffer;
-
-            // If it's present and it's not a view, we save it; otherwise, we
-            // skip it, under the assumption that only one of the upstream QC
-            // states contains the discard vector.
-            if (disc.owner === null) {
-                rhandle.writeDataSet("discards", "Uint8", null, disc);
-            }
-
-        }
-    }
 }
+
+/**************************
+ ******** Loading *********
+ **************************/
 
 export function unserialize(handle, inputs, qc_states) {
     let parameters = CellFilteringState.defaults();

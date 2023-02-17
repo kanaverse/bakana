@@ -175,39 +175,6 @@ export class RnaQualityControlState {
 
         return;
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup("rna_quality_control");
-
-        {
-            let phandle = ghandle.createGroup("parameters"); 
-            phandle.writeDataSet("use_mito_default", "Uint8", [], Number(this.#parameters.use_mito_default));
-            phandle.writeDataSet("mito_prefix", "String", [], this.#parameters.mito_prefix);
-            phandle.writeDataSet("nmads", "Float64", [], this.#parameters.nmads);
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results"); 
-
-            if (this.valid()) {
-                let mhandle = rhandle.createGroup("metrics");
-                mhandle.writeDataSet("sums", "Float64", null, this.#cache.metrics.sums({ copy: "view" }));
-                mhandle.writeDataSet("detected", "Int32", null, this.#cache.metrics.detected({ copy: "view" }));
-                mhandle.writeDataSet("proportion", "Float64", null, this.#cache.metrics.subsetProportions(0, { copy: "view" }));
-
-                let thandle = rhandle.createGroup("thresholds");
-                thandle.writeDataSet("sums", "Float64", null, this.#cache.filters.thresholdsSums({ copy: "view" }));
-                thandle.writeDataSet("detected", "Float64", null, this.#cache.filters.thresholdsDetected({ copy: "view" }));
-                thandle.writeDataSet("proportion", "Float64", null, this.#cache.filters.thresholdsSubsetProportions(0, { copy: "view" }));
-
-                rhandle.writeDataSet("discards", "Uint8", null, this.#cache.discard_buffer);
-            }
-        }
-    }
 }
 
 /**************************

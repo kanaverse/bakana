@@ -94,29 +94,6 @@ export class KmeansClusterState {
 
         return;
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup("kmeans_cluster");
-
-        {
-            let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("k", "Int32", [], this.#parameters.k);
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results");
-            if (this.#valid()) {
-                let clusters = this.fetchClusters();
-                rhandle.writeDataSet("clusters", "Int32", null, clusters);
-             }
-        }
-
-        return;
-    }
 }
 
 /**************************

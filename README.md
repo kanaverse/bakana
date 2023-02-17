@@ -88,71 +88,60 @@ await bakana.runAnalysis(state,
 // ...
 ```
 
-## Saving analyses
+## Saving results
 
-Given an analysis state, we can save the parameters and results to a HDF5 file.
-
-```js
-let collected = await bakana.saveAnalysis(state, "whee.h5");
-```
-
-`saveAnalysis` will return a promise that resolves to an array of paths (Node.js) or buffers of file contents (web).
-These can be used to assemble a `*.kana`-format file following the [**kanaval** specification](https://github.coim/LTLA/kanaval).
-By default, this assumes that we are embedding the data files into the `*.kana` file.
+Given an analysis state, we can dump its contents into a `SingleCellExperiment` for further examination:
 
 ```js
-// Returns path to a new kana file on Node.js:
-let res = await bakana.createKanaFile("whee.h5", collected.collected);
+await bakana.saveSingleCellExperiment(state, "sce", { directory: "output" });
 ```
 
-Advanced users may prefer to store links to the data files rather than embedding them.
-This can be achieved using the `setCreateLink()` function to define a mechanism for creating application-specific links.
-For example, the **kana** application uses IndexedDB to cache each file for later use in the browser.
+This stores the data and results into various fields of the `SingleCellExperiment`:
+
+- The assays contain the sparse (QC-filtered) count matrix and its corresponding log-transformed normalized matrix as a `DelayedArray`.
+- The row data contains gene identifiers along with variance modelling and marker detection results in nested `DataFrame`s.
+- The column data contains quality control metrics in nested `DataFrame`s, along with other pieces like the clustering and blocking.
+- The reduced dimensions contains PCA, t-SNE and UMAP results.
+- The alternative experiments contains further nested `SingleCellExperiment`s for other modalities.
+
+We use the [**alabaster**](https://github.com/ArtifactDB/alabaster.base) representation of a `SingleCellExperiment` to provide multi-language access to the results.
+For example, we can load the `SingleCellExperiment` back into an R session via the `loadObject()` function:
+
+```r
+library(alabaster)
+info <- acquireMetadata("output", "sce")
+sce <- loadObject(info, "output")
+```
+
+## Saving configurations
+
+Given an analysis state, we can save its configuration via the `serializeAnalysis()` function.
+This returns an object that contains the analysis parameters, which can then be converted to JSON and saved to file for later use.
 
 ```js
-bakana.setCreateLink(save_to_some_db);
-bakana.setResolveLink(load_from_some_db);
+let saved = [];
+let saveFileHandler = (k, f, file) => {
+    saved.push(file.buffer());
+    return String(saved.length);
+};
+
+let config = await bakana.serializeConfiguration(state, saveFileHandler);
 ```
 
-## Loading analyses
+Applications are responsible for deciding how to handle the input data files.
+In the example above, we just store the file contents in a `saved` array of Uint8Arrays, e.g., for inclusion in a tarball with the configuration JSON.
+More complex applications may create a staging directory on the file system in which to store the files (e.g., for Node.js),
+or may register the file contents in a database for later extraction.
 
-Given a `*.kana` file, it is straightforward to extract the various state and data files.
+These configurations can be used to create a new analysis state via the `unserializeConfiguration()` function.
+This will extract the parameters/data files and rerun the entire analysis via `runAnalysis()`,
+allowing us to recover the same analysis state that went into `serializeConfiguration()`.
+The example below uses a loading handler that just undoes the effect of `saveFileHandler`.
 
 ```js
-let loader = await bakana.parseKanaFile("something.kana", "foo.h5");
+let loadFileHandler = id => saved[Number(id) - 1];
+let reloaded = await bakana.unserializeConfiguration(config, loadFileHandler);
 ```
-
-Once the `*.kana` file is parsed, we can reload the analysis state into memory.
-We can also report the parameters used at each step.
-
-```js
-let reloaded = await bakana.loadAnalysis("foo.h5", loader.load);
-let reparams = bakana.retrieveParameters(reloaded);
-// {
-//   feature_selection: { span: 0.3 },
-//   combine_embeddings: { rna_weight: 1, adt_weight: 1, ... },
-//   batch_correction: { method: 'mnn', num_neighbors: 15, approximate: true },
-//   tsne: { perplexity: 30, iterations: 500, animate: false },
-//   umap: { num_neighbors: 15, num_epochs: 500, min_dist: 0.1, animate: false },
-//   kmeans_cluster: { k: 10 },
-//   ...
-// }
-```
-
-Again, we can supply a callback that runs on the results of each step as soon as they are loaded.
-
-```js
-let reloaded2 = await bakana.loadAnalysis("whee.h5", loader.load, 
-    { finishFun: step => console.log("Loading " + step) });
-// Loading inputs
-// Loading rna_quality_control
-// Loading adt_quality_control
-// Loading crispr_quality_control
-// Loading cell_filtering
-// ... 
-```
-
-If links are present, it is assumed that the application will use `setResolveLink()` to specify a mechanism to resolve each link to a data file.
 
 ## Terminating analyses
 
@@ -161,7 +150,6 @@ Once a particular analysis is finished, we should free the resources of its stat
 ```js
 bakana.freeAnalysis(state);
 bakana.freeAnalysis(reloaded);
-bakana.freeAnalysis(reloaded2);
 ```
 
 If all analyses are complete, we can terminate the entire session.

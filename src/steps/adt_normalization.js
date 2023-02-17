@@ -151,22 +151,6 @@ export class AdtNormalizationState {
            num_clusters: 20
         };
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup(step_name);
-        let phandle = ghandle.createGroup("parameters"); 
-        phandle.writeDataSet("num_pcs", "Int32", [], this.#parameters.num_pcs);
-        phandle.writeDataSet("num_clusters", "Int32", [], this.#parameters.num_clusters);
-
-        let rhandle = ghandle.createGroup("results"); 
-        if (this.valid()) {
-            rhandle.writeDataSet("size_factors", "Float64", null, this.#cache.sf_buffer);
-        }
-    }
 }
 
 /**************************

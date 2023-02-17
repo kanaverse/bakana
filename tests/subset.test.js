@@ -7,32 +7,6 @@ import * as fs from "fs";
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
-function createSaver(saved) {
-    return (serialized, size) => {
-        saved.collected.push(serialized);
-        let current = saved.total;
-        saved.total += size;
-        return {
-            "offset": current,
-            "size": size
-        };
-    };
-}
-
-function validateInputsState(partial_path) {
-    try {
-        // The partial_path is only guaranteed to have the 'inputs' state,
-        // so if there's nothing else, it should throw an error related to
-        // the next step, i.e., 'quality_control'. If that's the case, we
-        // ignore the error; otherwise, we rethrow.
-        utils.validateState(partial_path);
-    } catch (e) {
-        if (!e.message.match("quality_control")) {
-            throw e;
-        }
-    }
-}
-
 let h5path = "files/datasets/zeisel-brain.h5ad";
 
 test("subsetting behaves correctly with indices", async () => {
@@ -79,37 +53,16 @@ test("subsetting behaves correctly with indices", async () => {
         expect(istate.changed).toBe(false);
     }
 
-    // Checking the serialization and unserialization.
-    const path = "TEST_subset-inputs.h5";
-
-    let saved = { collected: [], total: 0 };
-    {
-        let handle = scran.createNewHDF5File(path);
-        await istate.serialize(handle, createSaver(saved));
-        validateInputsState(path);
-    }
-
-    let offsets = utils.mockOffsets(saved.collected);
-    {
-        let handle = new scran.H5File(path);
-        let restate = await inputs.unserialize(handle, (offset, size) => offsets[offset]);
-        expect(restate.state.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
-
-        let indices = restate.state.fetchDirectSubset();
-        expect(Array.from(indices)).toEqual(subset);
-        expect(restate.state.fetchParameters().subset).toBeNull();
-
-        restate.state.free();
-    }
-
     // Unsetting works as expected.
     istate.setDirectSubset(null);
+    istate.compute(null, null, null);
     expect(istate.changed).toBe(true);
     expect(istate.fetchCountMatrix().numberOfColumns()).toBeGreaterThan(3000);
     expect(istate.fetchCountMatrix().get("RNA").column(1)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(1));
 
     // Resetting works as expected.
     istate.setDirectSubset(subset);
+    istate.compute(null, null, null);
     expect(istate.changed).toBe(true);
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
     expect(istate.fetchCountMatrix().get("RNA").column(3)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(6));
@@ -122,10 +75,11 @@ test("subsetting behaves correctly with a factor", async () => {
     let files = { default: new bakana.H5adDataset(h5path) };
 
     let istate = new inputs.InputsState;
-    await istate.compute(files, null, {
+    let sub =  {
         field: "level1class",
         values: [ "microglia", "interneurons" ]
-    });
+    };
+    await istate.compute(files, null, sub);
 
     let expected_num = 0;
     {
@@ -151,29 +105,6 @@ test("subsetting behaves correctly with a factor", async () => {
         expect(uniq).toEqual(["interneurons", "microglia"]);
     }
 
-    // Checking the serialization and unserialization.
-    const path = "TEST_subset-inputs.h5";
-
-    let saved = { collected: [], total: 0 };
-    {
-        let handle = scran.createNewHDF5File(path);
-        await istate.serialize(handle, createSaver(saved));
-        validateInputsState(path);
-    }
-
-    let offsets = utils.mockOffsets(saved.collected);
-    {
-        let handle = new scran.H5File(path);
-        let restate = await inputs.unserialize(handle, (offset, size) => offsets[offset]);
-        expect(restate.state.fetchCountMatrix().numberOfColumns()).toBe(expected_num);
-
-        let new_params = restate.state.fetchParameters();
-        expect(new_params.subset.field).toEqual("level1class");
-        expect(new_params.subset.values).toEqual(["microglia", "interneurons"]);
-
-        restate.state.free();
-    }
-
     // Masked and unmasked when the direct subset changes.
     let subset = [1,10,100];
     let expected = {};
@@ -182,12 +113,14 @@ test("subsetting behaves correctly with a factor", async () => {
     }
 
     istate.setDirectSubset(subset);
+    istate.compute(files, null, sub);
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
     for (const [i, j] of Object.entries(subset)) {
         expect(istate.fetchCountMatrix().get("RNA").column(i)).toEqual(expected[j]);
     }
 
     istate.setDirectSubset(null);
+    istate.compute(files, null, sub);
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(expected_num);
     for (const i of subset) {
         expect(istate.fetchCountMatrix().get("RNA").column(i)).toEqual(expected[i]);
@@ -231,29 +164,6 @@ test("subsetting behaves correctly with ranges", async () => {
         }
         expect(failed).toBe(0);
     }
-
-    // Checking the serialization and unserialization.
-    const path = "TEST_subset-inputs.h5";
-
-    let saved = { collected: [], total: 0 };
-    {
-        let handle = scran.createNewHDF5File(path);
-        await istate.serialize(handle, createSaver(saved));
-        validateInputsState(path);
-    }
-
-    let offsets = utils.mockOffsets(saved.collected);
-    {
-        let handle = new scran.H5File(path);
-        let restate = await inputs.unserialize(handle, (offset, size) => offsets[offset]);
-        expect(restate.state.fetchCountMatrix().numberOfColumns()).toBe(expected_num);
-
-        let new_params = restate.state.fetchParameters();
-        expect(new_params.subset.field).toEqual("diameter");
-        expect(new_params.subset.ranges).toEqual([[5, 10], [20, 25], [100, 200]]);
-
-        restate.state.free();
-    }
 })
 
 test("subsetting behaves correctly with infinite ranges", async () => {
@@ -280,28 +190,6 @@ test("subsetting behaves correctly with infinite ranges", async () => {
 
     expect(expected_num).toBeGreaterThan(0);
     expect(istate.fetchCountMatrix().numberOfColumns()).toEqual(expected_num);
-
-    // Checking the serialization and unserialization.
-    const path = "TEST_subset-inputs.h5";
-    let saved = { collected: [], total: 0 };
-    {
-        let handle = scran.createNewHDF5File(path);
-        await istate.serialize(handle, createSaver(saved));
-        validateInputsState(path);
-    }
-
-    let offsets = utils.mockOffsets(saved.collected);
-    {
-        let handle = new scran.H5File(path);
-        let restate = await inputs.unserialize(handle, (offset, size) => offsets[offset]);
-        expect(restate.state.fetchCountMatrix().numberOfColumns()).toBe(expected_num);
-
-        let new_params = restate.state.fetchParameters();
-        expect(new_params.subset.field).toEqual("diameter");
-        expect(new_params.subset.ranges).toEqual([[-Infinity, 10], [100, Infinity]]);
-
-        restate.state.free();
-    }
 
     istate.free();
 })
@@ -356,7 +244,7 @@ test("subsetting processes the blocking factors", async () => {
     fullstate.free();
 })
 
-test("end-to-end run works with subsetting", async () => {
+test("end-to-end run works with (direct) subsetting", async () => {
     let annopath = "files/datasets/pbmc-combined-barcodes.tsv.gz";
     let files = { 
         "default": new bakana.TenxMatrixMarketDataset(
@@ -390,21 +278,22 @@ test("end-to-end run works with subsetting", async () => {
     await utils.checkStateResultsRna(state, { exclusive: true });
     await utils.checkStateResultsBlocked(state);
 
-    // Saving and loading.
-    const path = "TEST_subset-inputs.h5";
-    let collected = await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
+    // Serialization and reloading works as expected.
+    {
+        let saved = [];
+        let saver = (n, k, f) => {
+            saved.push(f.content());
+            return String(saved.length);
+        };
 
-    let offsets = utils.mockOffsets(collected.collected);
-    let reloaded = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
+        let serialized = await bakana.serializeConfiguration(state, saver);
+        expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
+        expect(serialized.other.inputs.direct_subset).toEqual(subset);
 
-    await utils.compareStates(state, reloaded);
-
-    expect(Array.from(state.inputs.fetchDirectSubset())).toEqual(subset);
-    expect(reloaded.inputs.fetchCountMatrix().numberOfColumns()).toEqual(subset.length);
+        let reloaded = await bakana.unserializeConfiguration(serialized, x => saved[Number(x) - 1]);
+        await utils.compareStates(reloaded, state);
+        await bakana.freeAnalysis(reloaded);
+    }
 
     // subsetInputs works as expected. 
     let refcol = {};
@@ -455,5 +344,4 @@ test("end-to-end run works with subsetting", async () => {
     }
 
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded);
 })

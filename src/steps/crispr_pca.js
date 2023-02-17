@@ -103,38 +103,6 @@ export class CrisprPcaState {
             block_method: "none"
         };
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup(step_name);
-
-        {
-            let phandle = ghandle.createGroup("parameters"); 
-            phandle.writeDataSet("num_pcs", "Int32", [], this.#parameters.num_pcs);
-            phandle.writeDataSet("block_method", "String", [], this.#parameters.block_method);
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results");
-
-            if (this.valid()) {
-                let pcs = this.fetchPCs();
-                rhandle.writeDataSet(
-                    "pcs", 
-                    "Float64", 
-                    [pcs.numberOfCells(), pcs.numberOfPCs()], // remember, it's transposed.
-                    pcs.principalComponents({ copy: "view" })
-                ); 
-
-                let ve = pcs.varianceExplained();
-                ve.forEach((x, i) => { ve[i] = x/pcs.totalVariance(); });
-                rhandle.writeDataSet("var_exp", "Float64", null, ve);
-            }
-        }
-    }
 }
 
 /**************************

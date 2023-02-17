@@ -405,98 +405,51 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
 }
 
 /**
- * Save the current analysis state into a HDF5 file.
- * This HDF5 file can then be embedded into a `*.kana` file for distribution.
+ * Retrieve analysis parameters from a state object.
  *
  * @param {object} state - Object containing the analysis state, produced by {@linkcode createAnalysis} or {@linkcode loadAnalysis}.
- * If produced by {@linkcode createAnalysis}, it should have been run through {@linkcode runAnalysis} beforehand.
- * @param {string} path - Path to the output HDF5 file.
- * On browsers, this will lie inside the virtual file system of the **scran.js** module.
- * @param {object} [options] - Optional parameters.
- * @param {boolean} [options.embedded] - Whether to store information for embedded data files.
- * If `false`, links to data files are stored instead, see {@linkcode setCreateLink}.
- * 
- * @return A HDF5 file is created at `path` containing the analysis parameters and results - 
- * see https://github.com/LTLA/kanaval for more details on the structure.
  *
- * If `embedded = false`, a promise is returned that resolves to `null` when the saving is complete.
- * Otherwise, an object is returned containing:
- * - `collected`: an array of length equal to the number of data files.
- *   Each element is a Uint8Array containing the file contents, which can be used to assemble an embedded `*.kana` file.
- *   On Node.js, each element may instead be a path to a file. 
- * - `total`: an integer containing the total length in bytes of all concatenated files in `collected`.
+ * @return {object} Object containing the analysis parameters for each step, similar to that created by {@linkcode analysisDefaults}.
  */
-export async function saveAnalysis(state, path, { embedded = true } = {}) {
-    let saver = null;
-    let saved = null;
-
-    if (embedded) {
-        saved = { collected: [], total: 0 };
-        saver = (serialized, size) => {
-            saved.collected.push(serialized);
-            let current = saved.total;
-            saved.total += size;
-            return {
-                "offset": current,
-                "size": size
-            };
-        };
+export function retrieveParameters(state) {
+    let params = {};
+    for (const [k, v] of Object.entries(state)) {
+        if (k == load_flag) {
+            continue;
+        }
+        params[k] = v.fetchParameters();
     }
-
-    let handle = scran.createNewHDF5File(path);
-
-    /*** Loading ***/
-    await state[step_inputs].serialize(handle, saver);
-
-    /*** Quality control ***/
-    state[step_qc].serialize(handle);
-    state[step_qc_adt].serialize(handle);
-    state[step_qc_crispr].serialize(handle);
-    state[step_filter].serialize(handle);
-
-    /*** Normalization ***/
-    state[step_norm].serialize(handle);
-    state[step_norm_adt].serialize(handle);
-    state[step_norm_crispr].serialize(handle);
-
-    /*** Feature selection ***/
-    state[step_feat].serialize(handle);
-
-    /*** Dimensionality reduction ***/
-    state[step_pca].serialize(handle);
-    state[step_pca_adt].serialize(handle);
-    state[step_pca_crispr].serialize(handle);
-    state[step_combine].serialize(handle);
-    state[step_correct].serialize(handle);
-
-    /*** Nearest neighbors ***/
-    state[step_neighbors].serialize(handle);
-
-    /*** Visualization ***/
-    await state[step_tsne].serialize(handle);
-    await state[step_umap].serialize(handle);
-
-    /*** Clustering ***/
-    state[step_kmeans].serialize(handle);
-    state[step_snn].serialize(handle);
-    state[step_choice].serialize(handle);
-
-    /*** Markers and labels ***/
-    state[step_markers].serialize(handle);
-    await state[step_labels].serialize(handle);
-    state[step_custom].serialize(handle);
-
-    /*** Feature set enrichment ***/
-    state[step_enrichment].serialize(handle);
-
-    /** Metadata **/
-    let mhandle = handle.createGroup("_metadata");
-    mhandle.writeDataSet("format_version", "Int32", [], FORMAT_VERSION);
-    mhandle.writeDataSet("application_name", "String", [], "bakana");
-    mhandle.writeDataSet("application_version", "String", [], bakana_version);
-
-    return saved;
+    return params;
 }
+
+/**
+ * Create a new analysis state object consisting of a subset of cells from an existing analysis state.
+ * This assumes that the existing state already contains loaded matrix data in its `inputs` property,
+ * which allows us to create a cheap reference without reloading the data into memory.
+ *
+ * @param {object} state - State object such as that produced by {@linkcode createAnalysis} or {@linkcode linkAnalysis}.
+ * This should already contain loaded data, e.g., after a run of {@linkcode runAnalysis}.
+ * @param {TypedArray|Array} indices - Array containing the indices for the desired subset of cells.
+ * This should be sorted and non-duplicate.
+ * Any existing subset in `state` will be overridden by `indices`.
+ * @param {object} [options] - Optional parameters.
+ * @param {boolean} [options.copy=true] - Whether to make a copy of `indices` before storing it inside the returned state object.
+ * If `false`, it is assumed that the caller makes no further use of the passed `indices`.
+ * @param {boolean} [options.onOriginal=false] - Whether `indices` contains indices on the original dataset or on the dataset in `state`.
+ * This distinction is only relevant if `state` itself contains an analysis of a subsetted dataset.
+ * If `false`, the `indices` are assumed to refer to the columns of the already-subsetted dataset that exists in `state`;
+ * if `true`, the `indices` are assumed to refer to the columns of the original dataset from which the subset in `state` was created.
+ *
+ * @return {object} A state object containing loaded matrix data in its `inputs` property.
+ * Note that the other steps do not have any results, so this object should be passed through {@linkcode runAnalysis} before it can be used.
+ */
+export async function subsetInputs(state, indices, { copy = true, onOriginal = false } = {}) {
+    return create_analysis(state.inputs.createDirectSubset(indices, { copy: copy, onOriginal: onOriginal }));
+}
+
+/****************************
+ ********* LEGACY ***********
+ ****************************/
 
 /**
  * Load an analysis state from a HDF5 state file, usually excised from a `*.kana` file.
@@ -672,47 +625,4 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     state[load_flag] = true;
 
     return state;
-}
-
-/**
- * Retrieve analysis parameters from a state object.
- *
- * @param {object} state - Object containing the analysis state, produced by {@linkcode createAnalysis} or {@linkcode loadAnalysis}.
- *
- * @return {object} Object containing the analysis parameters for each step, similar to that created by {@linkcode analysisDefaults}.
- */
-export function retrieveParameters(state) {
-    let params = {};
-    for (const [k, v] of Object.entries(state)) {
-        if (k == load_flag) {
-            continue;
-        }
-        params[k] = v.fetchParameters();
-    }
-    return params;
-}
-
-/**
- * Create a new analysis state object consisting of a subset of cells from an existing analysis state.
- * This assumes that the existing state already contains loaded matrix data in its `inputs` property,
- * which allows us to create a cheap reference without reloading the data into memory.
- *
- * @param {object} state - State object such as that produced by {@linkcode createAnalysis} or {@linkcode linkAnalysis}.
- * This should already contain loaded data, e.g., after a run of {@linkcode runAnalysis}.
- * @param {TypedArray|Array} indices - Array containing the indices for the desired subset of cells.
- * This should be sorted and non-duplicate.
- * Any existing subset in `state` will be overridden by `indices`.
- * @param {object} [options] - Optional parameters.
- * @param {boolean} [options.copy=true] - Whether to make a copy of `indices` before storing it inside the returned state object.
- * If `false`, it is assumed that the caller makes no further use of the passed `indices`.
- * @param {boolean} [options.onOriginal=false] - Whether `indices` contains indices on the original dataset or on the dataset in `state`.
- * This distinction is only relevant if `state` itself contains an analysis of a subsetted dataset.
- * If `false`, the `indices` are assumed to refer to the columns of the already-subsetted dataset that exists in `state`;
- * if `true`, the `indices` are assumed to refer to the columns of the original dataset from which the subset in `state` was created.
- *
- * @return {object} A state object containing loaded matrix data in its `inputs` property.
- * Note that the other steps do not have any results, so this object should be passed through {@linkcode runAnalysis} before it can be used.
- */
-export async function subsetInputs(state, indices, { copy = true, onOriginal = false } = {}) {
-    return create_analysis(state.inputs.createDirectSubset(indices, { copy: copy, onOriginal: onOriginal }));
 }

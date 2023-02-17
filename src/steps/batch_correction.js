@@ -133,36 +133,6 @@ export class BatchCorrectionState {
             approximate: true
         };
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup(step_name);
-
-        {
-            let phandle = ghandle.createGroup("parameters"); 
-            phandle.writeDataSet("method", "String", [], this.#parameters.method);
-            phandle.writeDataSet("num_neighbors", "Int32", [], this.#parameters.num_neighbors);
-            phandle.writeDataSet("approximate", "Uint8", [], Number(this.#parameters.approximate));
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results");
-            let pcs = this.fetchCorrected();
-            if (pcs.owner === null) {
-                // If it's not a view, we save it; otherwise we assume
-                // that we can recover it from the upstream state.
-                rhandle.writeDataSet(
-                    "corrected", 
-                    "Float64", 
-                    [this.fetchNumberOfCells(), this.fetchNumberOfDimensions()],
-                    pcs
-                );
-            }
-        }
-    }
 }
 
 /**************************

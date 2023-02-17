@@ -381,29 +381,7 @@ export class FeatureSetEnrichmentState {
             this.changed = true;
         }
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    async serialize(handle) {
-        let ghandle = handle.createGroup("feature_set_enrichment");
-        
-        {
-            let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("collections", "String", null, this.#parameters.collections);
-            phandle.writeDataSet("dataset_id_column", "String", null, this.#parameters.dataset_id_column);
-            phandle.writeDataSet("reference_id_column", "String", null, this.#parameters.reference_id_column);
-            phandle.writeDataSet("top_markers", "Int32", null, this.#parameters.top_markers);
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results");
-        }
-
-        return;
-    }
-};
+}
 
 /**************************
  ******** Loading *********
