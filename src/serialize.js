@@ -84,7 +84,7 @@ export async function unserializeDatasets(serialized, loader) {
 
 /**
  * Save the analysis configuration to file, including the parameters and datasets.
- * This can be stringified and saved to file, or it can be used in {@linkcode unserializeAnalysis}.
+ * This can be stringified and saved to file, or it can be used in {@linkcode unserializeConfiguration}.
  *
  * @param {object} state - State object produced by {@linkcode createAnalysis} and run through {@linkcode runAnalysis}.
  * @param {function} saver - Function to save files, see {@linkcode serializeDatasets} for more details.
@@ -97,6 +97,8 @@ export async function unserializeDatasets(serialized, loader) {
  *   This typically involves calling setter functions directly on the State objects:
  *   - `inputs.direct_subset` contains a direct subset that can be used in {@linkcode InputsState#setDirectSubset InputsState.setDirectSubset} before calling {@linkcode runAnalysis}.
  *   - `custom_selections.selections` contains selections that can be used in {@linkcode CustomSelectionsState#addSelection CustomSelectionsState.addSelection} after {@linkcode runAnalysis}.
+ *
+ * @async
  */
 export async function serializeConfiguration(state, saver) {
     let parameters = anal.retrieveParameters(state);
@@ -130,10 +132,12 @@ export async function serializeConfiguration(state, saver) {
  * @param {object} serialized - Configuration object produced by {@linkcode serializeConfiguration}.
  * @param {function} loader - Function to load files, see {@linkcode unserializeDatasets} for more details.
  * @param {object} [options={}] - Optional parameters.
- * @param {?function} [startFun=null] - Passed directly to {@linkcode runAnalysis}.
- * @param {?function} [finishFun=null] - Passed directly to {@linkcode runAnalysis}.
+ * @param {?function} [options.startFun=null] - Passed directly to {@linkcode runAnalysis}.
+ * @param {?function} [options.finishFun=null] - Passed directly to {@linkcode runAnalysis}.
  *
- * @return {object} State object containing analysis results, identical to the state after running {@linkcode runAnalysis}.
+ * @return {object} State object containing analysis results.
+ * This is identical to the `state` passed into {@linkcode serializeConfiguration}.
+ * @async
  */
 export async function unserializeConfiguration(serialized, loader, { startFun = null, finishFun = null } = {}) {
     let state = await anal.createAnalysis();

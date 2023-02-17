@@ -113,7 +113,7 @@ export class InputsState {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.copy=true] - Whether to create a copy.
+     * @param {boolean} [options.copy=true] - Whether to return a copy of the subsets to avoid pass-by-reference behaviors.
      *
      * @return {?Int32Array} Array containing the indices to use for direct subsetting -
      * see {@linkcode InputsState#setDirectSubset setDirectSubset} for more information.
