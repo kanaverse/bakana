@@ -43,3 +43,16 @@ test_that("CRISPR guides are correctly saved", {
     expect_true(nrow(altExp(X, "CRISPR")) < nrow(X))
 })
 
+test_that("all metadata files and MD5sums are valid", {
+    all.json <- list.files("from-tests", pattern="\\.json$", recursive=TRUE)
+    for (x in all.json) {
+        xpath <- file.path("from-tests", x)
+        info <- jsonlite::fromJSON(xpath)
+        target <- system.file("schemas", info[["$schema"]], package="alabaster.schemas")
+
+        expect_error(jsonvalidate::json_validate(xpath, target, engine="ajv", error=TRUE), NA, label=paste0("failed on '", x, "'"))
+        if ("md5sum" %in% names(info)) {
+            expect_identical(info$md5sum, digest::digest(file=file.path("from-tests", info$path)))
+        }
+    }
+})

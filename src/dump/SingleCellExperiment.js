@@ -221,6 +221,9 @@ export async function dumpSingleCellExperiment(state, path, { forceBuffer = fals
         let sce_path = mprefix + "experiment.json";
         all_top_meta[m] = mockSingleCellExperimentMetadata(sce_path);
 
+        let mat = state.cell_filtering.fetchFilteredMatrix().get(m);
+        all_top_meta[m].summarized_experiment.dimensions = [mat.numberOfRows(), mat.numberOfColumns()];
+
         if (m == main) {
             all_top_meta[m].single_cell_experiment.main_experiment_name = m;
         } else {

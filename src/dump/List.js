@@ -78,7 +78,7 @@ function dump_internal(x) {
 
 export function dumpList(x, path) {
     let values = dump_internal(x);
-    let encoded = JSON.stringify(values);
+    let encoded = JSON.stringify(values, null, 2) + "\n"; // add trailing newline to terminate file.
     let contents = pako.gzip(encoded);
     return {
         metadata: {
