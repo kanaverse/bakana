@@ -75,14 +75,15 @@ export class NeighborIndexState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `neighbor_index` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {boolean} approximate - Whether to create an approximate search index.
+     * @param {object} parameters - Parameter object, equivalent to the `neighbor_index` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {boolean} parameters.approximate - Whether to create an approximate search index.
      * If `false`, an exact index is used.
      *
      * @return The object is updated with the new results.
      */
-    compute(approximate) {
+    compute(parameters) {
+        let { approximate } = parameters;
         this.changed = false;
 
         if (this.#correct.changed || approximate != this.#parameters.approximate) {

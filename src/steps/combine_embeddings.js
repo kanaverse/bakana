@@ -111,14 +111,16 @@ export class CombineEmbeddingsState {
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
-     * @param {number} rna_weight - Relative weight of the RNA embeddings.
-     * @param {number} adt_weight - Relative weight of the ADT embeddings.
-     * @param {number} crispr_weight - Relative weight of the CRISPR embeddings.
-     * @param {boolean} approximate - Whether an approximate nearest neighbor search should be used by `scaleByNeighbors`.
+     * @param {object} parameters - Parameter object, equivalent to the `adt_normalization` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {number} parameters.rna_weight - Relative weight of the RNA embeddings.
+     * @param {number} parameters.adt_weight - Relative weight of the ADT embeddings.
+     * @param {number} parameters.crispr_weight - Relative weight of the CRISPR embeddings.
+     * @param {boolean} parameters.approximate - Whether an approximate nearest neighbor search should be used by `scaleByNeighbors`.
      *
      * @return The object is updated with new results.
      */
-    compute(rna_weight, adt_weight, crispr_weight, approximate) {
+    compute(parameters) {
+        let { rna_weight, adt_weight, crispr_weight, approximate } = parameters;
         this.changed = false;
 
         for (const v of Object.values(this.#pca_states)) {

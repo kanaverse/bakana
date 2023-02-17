@@ -83,11 +83,11 @@ export class RnaPcaState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `pca` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {number} num_pcs - Number of PCs to return.
-     * @param {number} num_hvgs - Number of highly variable genes (see {@linkplain FeatureSelectionState}) to use in the PCA.
-     * @param {string} block_method - Blocking method to use when dealing with multiple samples.
+     * @param {object} parameters - Parameter object, equivalent to the `rna_pca` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {number} parameters.num_pcs - Number of PCs to return.
+     * @param {number} parameters.num_hvgs - Number of highly variable genes (see {@linkplain FeatureSelectionState}) to use in the PCA.
+     * @param {string} parameters.block_method - Blocking method to use when dealing with multiple samples.
      * This can be one of:
      *
      * - `"none"`, in which case nothing is done using the sample information. 
@@ -96,7 +96,8 @@ export class RnaPcaState {
      *
      * @return The object is updated with the new results.
      */
-    compute(num_hvgs, num_pcs, block_method) {
+    compute(parameters) {
+        let { num_hvgs, num_pcs, block_method } = parameters;
         this.changed = false;
 
         if (this.#feat.changed || num_hvgs !== this.#parameters.num_hvgs) {

@@ -105,13 +105,14 @@ export class CrisprQualityControlState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `crispr_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {number} nmads - Number of MADs to use for automatically selecting the filter threshold on the maximum count. 
+     * @param {object} parameters - Parameter object, equivalent to the `crispr_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {number} parameters.nmads - Number of MADs to use for automatically selecting the filter threshold on the maximum count. 
      *
      * @return The object is updated with the new results.
      */
-    compute(nmads) {
+    compute(parameters) {
+        let { nmads } = parameters;
         this.changed = false;
 
         if (this.#inputs.changed) {

@@ -105,15 +105,16 @@ export class RnaQualityControlState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `quality_control` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {boolean} use_mito_default - Whether the internal mitochondrial gene lists should be used.
-     * @param {string} mito_prefix - Prefix of the identifiers for mitochondrial genes, when `use_mito_default = false`.
-     * @param {number} nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
+     * @param {object} parameters - Parameter object, equivalent to the `rna_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {boolean} parameters.use_mito_default - Whether the internal mitochondrial gene lists should be used.
+     * @param {string} parameters.mito_prefix - Prefix of the identifiers for mitochondrial genes, when `use_mito_default = false`.
+     * @param {number} parameters.nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
      *
      * @return The object is updated with the new results.
      */
-    compute(use_mito_default, mito_prefix, nmads) {
+    compute(parameters) {
+        let { use_mito_default, mito_prefix, nmads } = parameters;
         this.changed = false;
 
         if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix) {

@@ -124,17 +124,19 @@ export class UmapState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `umap` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {number} num_neighbors - Number of neighbors to use to construct the simplicial sets.
-     * @param {number} num_epochs - Number of epochs to run the algorithm.
-     * @param {number} min_dist - Number specifying the minimum distance between points.
-     * @param {boolean} animate - Whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
+     * @param {object} parameters - Parameter object, equivalent to the `umap` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {number} parameters.num_neighbors - Number of neighbors to use to construct the simplicial sets.
+     * @param {number} parameters.num_epochs - Number of epochs to run the algorithm.
+     * @param {number} parameters.min_dist - Number specifying the minimum distance between points.
+     * @param {boolean} parameters.animate - Whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
      *
      * @return UMAP coordinates are computed in parallel on a separate worker thread.
      * A promise that resolves when the calculations are complete.
      */
-    compute(num_neighbors, num_epochs, min_dist, animate) {
+    compute(parameters) {
+        let { num_neighbors, num_epochs, min_dist, animate } = parameters;
+
         let same_neighbors = (!this.#index.changed && this.#parameters.num_neighbors === num_neighbors);
         if (same_neighbors && num_epochs === this.#parameters.num_epochs && min_dist === this.#parameters.min_dist) {
             this.changed = false;

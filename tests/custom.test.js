@@ -67,7 +67,7 @@ test("addition, fetching and removal of custom selections works correctly", asyn
             expect(old_even[i]).toBeGreaterThan(latest_even[i]);
         }
 
-        state.custom_selections.compute(0, true);
+        state.custom_selections.compute({ lfc_threshold: 0, compute_auc: true });
         expect(state.custom_selections.fetchResults("odds").RNA.cohen(1)).toEqual(old_odd);
         expect(state.custom_selections.fetchResults("evens").RNA.auc(1)).toEqual(old_even);
     }

@@ -109,7 +109,7 @@ test("RDS loaders work correctly for a base SummarizedExperiment", async () => {
     }
 
     let fullstate = new inputs.InputsState;
-    await fullstate.compute(files, null, null);
+    await fullstate.compute(files, inputs.InputsState.defaults());
 
     let loaded = fullstate.fetchCountMatrix();
     expect(loaded.numberOfColumns()).toBeGreaterThan(0);
@@ -146,7 +146,7 @@ test("RDS loaders work correctly for GRanges SummarizedExperiment", async () => 
     }
 
     let fullstate = new inputs.InputsState;
-    await fullstate.compute(files, null, null);
+    await fullstate.compute(files, inputs.InputsState.defaults());
 
     let loaded = fullstate.fetchCountMatrix();
     expect(loaded.numberOfColumns()).toBeGreaterThan(0);
@@ -177,7 +177,7 @@ test("RDS loaders work correctly for a SingleCellExperiment with altExps", async
     expect(summ.modality_assay_names["Antibody Capture"].length).toBeGreaterThan(0);
 
     let fullstate = new inputs.InputsState;
-    await fullstate.compute(files, null, null);
+    await fullstate.compute(files, inputs.InputsState.defaults());
 
     let loaded = fullstate.fetchCountMatrix();
     let loaded_rna = loaded.get("RNA");

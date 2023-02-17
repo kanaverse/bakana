@@ -64,13 +64,14 @@ export class ChooseClusteringState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `choose_clustering` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {string} method - Either `"kmeans"` or `"snn_graph"`.
+     * @param {object} parameters - Parameter object, equivalent to the `choose_clustering` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {string} parameters.method - Clustering method to use, either `"kmeans"` or `"snn_graph"`.
      *
      * @return The object is updated with the new results.
      */
-    compute(method) {
+    compute(parameters) {
+        let { method } = parameters;
         this.changed = true;
         
         if (method == this.#parameters.method) {

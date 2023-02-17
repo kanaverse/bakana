@@ -13,7 +13,8 @@ test("subsetting behaves correctly with indices", async () => {
     let files = { default: new bakana.H5adDataset(h5path) };
 
     let fullstate = new inputs.InputsState;
-    await fullstate.compute(files, null, null);
+    let idefaults = inputs.InputsState.defaults();
+    await fullstate.compute(files, idefaults);
     
     let ncells = fullstate.fetchCountMatrix().numberOfColumns();
     let subset = [];
@@ -23,7 +24,7 @@ test("subsetting behaves correctly with indices", async () => {
 
     let istate = new inputs.InputsState;
     istate.setDirectSubset(new Int32Array(subset));
-    await istate.compute(files, null, null);
+    await istate.compute(files, idefaults);
 
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
     expect(istate.fetchCountMatrix().get("RNA").column(2)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(4));
@@ -49,20 +50,20 @@ test("subsetting behaves correctly with indices", async () => {
     // Changes to the subset is a no-op when indices are around.
     {
         expect(istate.changed).toBe(true);
-        await istate.compute(files, null, { field: "level1class", values: ["FOO", "BLAH"] });
+        await istate.compute(files, { block_factor: null, subset: { field: "level1class", values: ["FOO", "BLAH"] } });
         expect(istate.changed).toBe(false);
     }
 
     // Unsetting works as expected.
     istate.setDirectSubset(null);
-    istate.compute(null, null, null);
+    istate.compute(null, idefaults);
     expect(istate.changed).toBe(true);
     expect(istate.fetchCountMatrix().numberOfColumns()).toBeGreaterThan(3000);
     expect(istate.fetchCountMatrix().get("RNA").column(1)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(1));
 
     // Resetting works as expected.
     istate.setDirectSubset(subset);
-    istate.compute(null, null, null);
+    istate.compute(null, idefaults);
     expect(istate.changed).toBe(true);
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
     expect(istate.fetchCountMatrix().get("RNA").column(3)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(6));
@@ -79,7 +80,8 @@ test("subsetting behaves correctly with a factor", async () => {
         field: "level1class",
         values: [ "microglia", "interneurons" ]
     };
-    await istate.compute(files, null, sub);
+    let iparams = { block_factor: null, subset: sub };
+    await istate.compute(files, iparams);
 
     let expected_num = 0;
     {
@@ -106,23 +108,23 @@ test("subsetting behaves correctly with a factor", async () => {
     }
 
     // Masked and unmasked when the direct subset changes.
-    let subset = [1,10,100];
+    let direct_subset = [1,10,100];
     let expected = {};
-    for (const i of subset) {
+    for (const i of direct_subset) {
         expected[i] = istate.fetchCountMatrix().get("RNA").column(i); 
     }
 
-    istate.setDirectSubset(subset);
-    istate.compute(files, null, sub);
-    expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
-    for (const [i, j] of Object.entries(subset)) {
+    istate.setDirectSubset(direct_subset);
+    istate.compute(files, iparams);
+    expect(istate.fetchCountMatrix().numberOfColumns()).toBe(direct_subset.length);
+    for (const [i, j] of Object.entries(direct_subset)) {
         expect(istate.fetchCountMatrix().get("RNA").column(i)).toEqual(expected[j]);
     }
 
     istate.setDirectSubset(null);
-    istate.compute(files, null, sub);
+    istate.compute(files, iparams);
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(expected_num);
-    for (const i of subset) {
+    for (const i of direct_subset) {
         expect(istate.fetchCountMatrix().get("RNA").column(i)).toEqual(expected[i]);
     }
 
@@ -133,9 +135,12 @@ test("subsetting behaves correctly with ranges", async () => {
     let files = { default: new bakana.H5adDataset(h5path) };
 
     let istate = new inputs.InputsState;
-    await istate.compute(files, null, {
-        field: "diameter",
-        ranges: [ [5, 10], [20, 25], [100, 200] ]
+    await istate.compute(files, { 
+        block_factor: null, 
+        subset: {
+            field: "diameter",
+            ranges: [ [5, 10], [20, 25], [100, 200] ]
+        }
     });
 
     let expected_num = 0;
@@ -170,9 +175,12 @@ test("subsetting behaves correctly with infinite ranges", async () => {
     let files = { default: new bakana.H5adDataset(h5path) };
 
     let istate = new inputs.InputsState;
-    await istate.compute(files, null, {
-        field: "diameter",
-        ranges: [ [-Infinity, 10], [100, Infinity] ]
+    await istate.compute(files, {
+        block_factor: null, 
+        subset: {
+            field: "diameter",
+            ranges: [ [-Infinity, 10], [100, Infinity] ]
+        }
     });
     expect(istate.fetchParameters().subset.ranges[0][0]).toEqual(-Infinity);
     expect(istate.fetchParameters().subset.ranges[1][1]).toEqual(Infinity);
@@ -205,7 +213,8 @@ test("subsetting processes the blocking factors", async () => {
     };
 
     let fullstate = new inputs.InputsState;
-    await fullstate.compute(files, null, null);
+    let idefaults = inputs.InputsState.defaults();
+    await fullstate.compute(files, idefaults);
 
     let ncells = fullstate.fetchCountMatrix().numberOfColumns();
     let subset = [];
@@ -215,7 +224,7 @@ test("subsetting processes the blocking factors", async () => {
 
     let istate = new inputs.InputsState;
     istate.setDirectSubset(new Int32Array(subset));
-    await istate.compute(files, null, null);
+    await istate.compute(files, idefaults);
 
     expect(istate.fetchCountMatrix().numberOfColumns()).toBe(subset.length);
     expect(istate.fetchCountMatrix().get("RNA").column(2)).toEqual(fullstate.fetchCountMatrix().get("RNA").column(5));
@@ -337,7 +346,7 @@ test("end-to-end run works with (direct) subsetting", async () => {
 
         // Passing of '#abbreviated' avoids extra work on compute().
         expect(subx.inputs.changed).toBe(false);
-        subx.inputs.compute(files, params.inputs.block_factor, params.inputs.subset);
+        subx.inputs.compute(files, params.inputs);
         expect(subx.inputs.changed).toBe(false);
 
         await bakana.freeAnalysis(subx);

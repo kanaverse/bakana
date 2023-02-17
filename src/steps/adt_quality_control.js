@@ -107,15 +107,16 @@ export class AdtQualityControlState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `adt_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
-     *
-     * @param {string} igg_prefix - Prefix of the identifiers for isotype controls.
-     * @param {number} nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
-     * @param {number} min_detected_drop - Minimum proportional drop in the number of detected features before a cell is to be considered low-quality.
+     * 
+     * @param {object} parameters - Parameter object, equivalent to the `adt_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {string} parameters.igg_prefix - Prefix of the identifiers for isotype controls.
+     * @param {number} parameters.nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
+     * @param {number} parameters.min_detected_drop - Minimum proportional drop in the number of detected features before a cell is to be considered low-quality.
      *
      * @return The object is updated with the new results.
      */
-    compute(igg_prefix, nmads, min_detected_drop) {
+    compute(parameters) {
+        let { igg_prefix, nmads, min_detected_drop } = parameters;
         this.changed = false;
 
         if (this.#inputs.changed || igg_prefix !== this.#parameters.igg_prefix) {

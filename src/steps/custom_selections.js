@@ -224,15 +224,16 @@ export class CustomSelectionsState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `marker_detection` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {number} lfc_threshold - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
-     * @param {boolean} compute_auc - Whether to compute the AUCs.
+     * @param {object} parameters - Parameter object, equivalent to the `custom_selections` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {number} parameters.lfc_threshold - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
+     * @param {boolean} parameters.compute_auc - Whether to compute the AUCs.
      * Setting this to `false` will skip AUC calculations and improve speed and memory efficiency.
      *
      * @return The state is updated by removing stale selections if the QC filter was altered.
      */
-    compute(lfc_threshold, compute_auc) {
+    compute(parameters) {
+        let { lfc_threshold, compute_auc } = parameters;
         this.changed = false;
 
         /* If the QC filter was re-run, all of the selections are invalidated as

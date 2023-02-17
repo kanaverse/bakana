@@ -100,9 +100,11 @@ export class CrisprNormalizationState {
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
+     * @param {object} parameters - Parameter object, equivalent to the `crispr_normalization` property of the `parameters` of {@linkcode runAnalysis}.
+     *
      * @return The object is updated with new results.
      */
-    compute() {
+    compute(parameters) {
         this.changed = false;
         if (this.#qc.changed || this.#filter.changed) {
             if (this.valid()) {

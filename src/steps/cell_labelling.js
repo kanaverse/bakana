@@ -227,14 +227,15 @@ export class CellLabellingState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `cell_labelling` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {Array} mouse_references - Array of strings specifying the names of the reference datasets for mouse datasets, e.g., `"ImmGen"`.
-     * @param {Array} human_references - Array of strings specifying the names of the reference datasets for human datasets, e.g., `"BlueprintEncode"`.
+     * @param {object} parameters - Parameter object, equivalent to the `cell_labelling` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {Array} parameters.mouse_references - Array of strings specifying the names of the reference datasets for mouse datasets, e.g., `"ImmGen"`.
+     * @param {Array} parameters.human_references - Array of strings specifying the names of the reference datasets for human datasets, e.g., `"BlueprintEncode"`.
      *
      * @return The object is updated with the new results.
      */
-    compute(human_references, mouse_references) {
+    compute(parameters) {
+        let { human_references, mouse_references } = parameters;
         this.changed = false;
 
         if (!this.#inputs.changed && 

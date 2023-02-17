@@ -156,15 +156,16 @@ export class CellFilteringState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `cell_filtering` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {boolean} use_rna - Whether to use the RNA-derived QC metrics for filtering.
-     * @param {boolean} use_adt - Whether to use the ADT-derived QC metrics for filtering.
-     * @param {boolean} use_crispr - Whether to use the CRISPR-derived QC metrics for filtering.
+     * @param {object} parameters - Parameter object, equivalent to the `cell_filtering` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {boolean} parameters.use_rna - Whether to use the RNA-derived QC metrics for filtering.
+     * @param {boolean} parameters.use_adt - Whether to use the ADT-derived QC metrics for filtering.
+     * @param {boolean} parameters.use_crispr - Whether to use the CRISPR-derived QC metrics for filtering.
      *
      * @return The object is updated with the new results.
      */
-    compute(use_rna, use_adt, use_crispr) {
+    compute(parameters) {
+        let { use_rna, use_adt, use_crispr } = parameters;
         this.changed = false;
 
         if (this.#inputs.changed) {

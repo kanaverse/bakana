@@ -106,12 +106,14 @@ export class AdtNormalizationState {
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
-     * @param {number} num_pcs - Number of PCs to use for creating a low-dimensional embedding for clustering.
-     * @param {number} num_clusters - Number of clusters to create with k-means clustering.
+     * @param {object} parameters - Parameter object, equivalent to the `adt_normalization` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {number} parameters.num_pcs - Number of PCs to use for creating a low-dimensional embedding for clustering.
+     * @param {number} parameters.num_clusters - Number of clusters to create with k-means clustering.
      *
      * @return The object is updated with new results.
      */
-    compute(num_pcs, num_clusters) {
+    compute(parameters) {
+        const { num_pcs, num_clusters } = parameters;
         this.changed = false;
 
         if (this.#qc.changed || this.#filter.changed || num_pcs !== this.#parameters.num_pcs || num_clusters != this.#parameters.num_clusters) {

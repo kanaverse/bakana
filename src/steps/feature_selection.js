@@ -82,13 +82,14 @@ export class FeatureSelectionState {
  
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `feature_selection` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {number} span - Value between 0 and 1 specifying the span for the LOWESS smoother.
+     * @param {object} parameters - Parameter object, equivalent to the `feature_selection` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {number} parameters.span - Value between 0 and 1 specifying the span for the LOWESS smoother.
      *
      * @return The object is updated with the new results.
      */
-    compute(span) {
+    compute(parameters) {
+        let { span } = parameters;
         this.changed = false;
         
         if (this.#norm.changed || span != this.#parameters.span) {

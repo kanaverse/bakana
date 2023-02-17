@@ -78,15 +78,19 @@ export class BatchCorrectionState {
      ***************************/
 
     /**
-     * @param {string} method - The correction method to use.
+     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
+     *
+     * @param {object} parameters - Parameter object, equivalent to the `batch_correction` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {string} parameters.method - The correction method to use.
      * Currently this can be either `"mnn"` or `"none"`.
-     * If `"mnn"`, it is recommended that upstream PCA steps (i.e., {@linkplain PcaState} and {@linkplain AdtPcaState}) use `block_method = "weight"`.
-     * @param {number} num_neighbors - Number of neighbors to use during MNN correction.
-     * @param {boolean} approximate - Whether to use an approximate method to identify MNNs.
+     * If `"mnn"`, it is recommended that upstream PCA steps (i.e., {@linkplain RnaPcaState} and {@linkplain AdtPcaState}) use `block_method = "weight"`.
+     * @param {number} parameters.num_neighbors - Number of neighbors to use during MNN correction.
+     * @param {boolean} parameters.approximate - Whether to use an approximate method to identify MNNs.
      *
      * @return The object is updated with new results.
      */
-    compute(method, num_neighbors, approximate) {
+    compute(parameters) {
+        let { method, num_neighbors, approximate} = parameters;
         this.changed = false;
 
         if (this.#filter.changed || this.#combined.changed) {

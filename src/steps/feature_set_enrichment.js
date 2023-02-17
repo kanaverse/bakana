@@ -344,16 +344,17 @@ export class FeatureSetEnrichmentState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `feature_set_enrichment` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {Array} collections - Array of strings containing the names of collections to be tested.
-     * @param {string} dataset_id_column - Name of the column of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each feature.
-     * @param {string} reference_id_column - Name of the column of each collection's `*_features.csv.gz` that contains the identity of each feature, to be matched against identities in `dataset_id_column`.
-     * @param {number} top_markers - Number of top markers to use when testing for enrichment.
+     * @param {object} parameters - Parameter object, equivalent to the `feature_set_enrichment` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {Array} parameters.collections - Array of strings containing the names of collections to be tested.
+     * @param {string} parameters.dataset_id_column - Name of the column of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each feature.
+     * @param {string} parameters.reference_id_column - Name of the column of each collection's `*_features.csv.gz` that contains the identity of each feature, to be matched against identities in `dataset_id_column`.
+     * @param {number} parameters.top_markers - Number of top markers to use when testing for enrichment.
      *
      * @return The state is updated with new results.
      */
-    async compute(collections, dataset_id_column, reference_id_column, top_markers) {
+    async compute(parameters) {
+        let { collections, dataset_id_column, reference_id_column, top_markers } = parameters;
         this.changed = false;
         if (this.#inputs.changed) {
             this.#cache.mapped = {};

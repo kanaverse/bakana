@@ -125,16 +125,18 @@ export class TsneState {
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     * Each argument is taken from the property of the same name in the `tsne` property of the `parameters` of {@linkcode runAnalysis}.
      *
-     * @param {number} perplexity - Number specifying the perplexity for the probability calculations.
-     * @param {number} iterations - Number of iterations to run the algorithm.
-     * @param {boolean} animate - Whether o process animation iterations, see {@linkcode setVisualizationAnimate} for details.
+     * @param {object} parameters - Parameter object, equivalent to the `tsne` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {number} parameters.perplexity - Number specifying the perplexity for the probability calculations.
+     * @param {number} parameters.iterations - Number of iterations to run the algorithm.
+     * @param {boolean} parameters.animate - Whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
      *
      * @return t-SNE coordinates are computed in parallel on a separate worker thread.
      * A promise is returned that resolves when those calculations are complete.
      */
-    compute(perplexity, iterations, animate) {
+    compute(parameters) {
+        let { perplexity, iterations, animate } = parameters;
+
         let same_neighbors = (!this.#index.changed && perplexity === this.#parameters.perplexity);
         if (same_neighbors && iterations == this.#parameters.iterations) {
             this.changed = false;
