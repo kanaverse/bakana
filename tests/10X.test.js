@@ -41,6 +41,9 @@ test("runAnalysis works correctly (10X)", async () => {
     utils.checkClusterVersusMode(state);
     await utils.triggerAnimation(state);
 
+    // Check saving of results.
+    await bakana.saveSingleCellExperiment(state, "10X", { directory: "miscellaneous/from-tests" });
+
     // Saving and loading.
     const path = "TEST_state_10X.h5";
     let collected = await bakana.saveAnalysis(state, path);

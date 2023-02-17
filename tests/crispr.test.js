@@ -69,6 +69,9 @@ test("runAnalysis works correctly (10X)", async () => {
     await overlord(state, true);
     await utils.checkStateResultsUnblocked(state);
 
+    // Check saving of results.
+    await bakana.saveSingleCellExperiment(state, "crispr", { directory: "miscellaneous/from-tests" });
+
     // Saving and loading.
     const path = "TEST_state_crispr.h5";
     let collected = await bakana.saveAnalysis(state, path);

@@ -26,7 +26,7 @@ cp -r src/* ${mode}
 version=$(npm pkg get version)
 echo "export const bakana_version=${version};" > ${mode}/version.js
 
-for abdirs in abstract readers/abstract readers/utils/abstract steps/abstract steps/utils/abstract
+for abdirs in abstract readers/abstract readers/utils/abstract steps/abstract steps/utils/abstract dump/abstract
 do 
     rm ${mode}/${abdirs}/*_${toss}.js
 

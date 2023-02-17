@@ -3,7 +3,7 @@ on: [push]
 name: Run tests
 
 jobs:
-  test:
+  test-js:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -60,4 +60,4 @@ jobs:
 
     - name: Run tests
       run: npm run test
-      timeout-minutes: 10
+      timeout-minutes: 15
