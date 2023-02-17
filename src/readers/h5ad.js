@@ -98,7 +98,7 @@ export class H5adDataset {
 
     /**
      * @param {?string} name - Name of the per-feature annotation column containing the feature types.
-     * If `null`, no column is assumed to contain the feature types.
+     * If `null`, no column is assumed to contain the feature types, and all features are assumed to be genes (i.e., only the RNA modality is present).
      */
     setFeatureTypeColumnName(name) {
         this.#featureTypeColumnName = name;

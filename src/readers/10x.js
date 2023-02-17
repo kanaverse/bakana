@@ -37,7 +37,7 @@ export class TenxHdf5Dataset {
     }
 
     /**
-     * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a HDF5 file.
+     * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a HDF5 file in the 10X feature-barcode format.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
      * @param {object} [options={}] - Optional parameters.
@@ -258,6 +258,8 @@ export class TenxHdf5Dataset {
      * Modality names are guaranteed to be one of `"RNA"`, `"ADT"` or `"CRISPR"`.
      * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
      * either in the constructor or in setters like {@linkcode setFeatureTypeRnaName}.
+     *
+     * If the feature annotation lacks information about the feature types, it is assumed that all features are genes, i.e., only the RNA modality is present.
      */
     load({ cache = false } = {}) {
         this.#features();

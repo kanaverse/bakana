@@ -331,6 +331,9 @@ export class TenxMatrixMarketDataset {
      * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
      * either in the constructor or in {@linkcode setFeatureTypeRnaName} and {@linkcode setFeatureTypeAdtName}.
      *
+     * If the feature annotation file is absent or if it lacks a third column for the feature types,
+     * `load()` will assume that all features are genes (i.e., only the RNA modality is present).
+     *
      * @async
      */
     async load({ cache = false } = {}) {
