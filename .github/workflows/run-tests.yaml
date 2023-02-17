@@ -60,18 +60,18 @@ jobs:
 
     - name: Run tests
       run: npm run test
-      timeout-minutes: 10
+      timeout-minutes: 15
 
     - name: Upload saved results
       uses: actions/upload-artifact@v3
       with:
         name: rds-files
-        path: results/from-tests/
+        path: miscellaneous/from-tests/
 
   reload: 
     needs: test
     runs-on: ubuntu-latest
-    container: ghcr.io/ArtifactDB/alabaster-docker/builder:latest
+    container: ghcr.io/artifactdb/alabaster-docker/builder:latest
 
     steps:
     - name: Checkout repo
