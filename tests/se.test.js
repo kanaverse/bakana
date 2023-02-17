@@ -78,7 +78,7 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
             return String(saved.length);
         };
 
-        let serialized = await bakana.serializeAnalysis(state, saver);
+        let serialized = await bakana.serializeConfiguration(state, saver);
         let reloaded = bakana.unserializeDatasets(serialized.datasets, x => saved[Number(x) - 1]); 
         expect(reloaded.default instanceof bakana.SummarizedExperimentDataset);
         expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));

@@ -98,7 +98,7 @@ export async function unserializeDatasets(serialized, loader) {
  *   - `inputs.direct_subset` contains a direct subset that can be used in {@linkcode InputsState#setDirectSubset InputsState.setDirectSubset} before calling {@linkcode runAnalysis}.
  *   - `custom_selections.selections` contains selections that can be used in {@linkcode CustomSelectionsState#addSelection CustomSelectionsState.addSelection} after {@linkcode runAnalysis}.
  */
-export async function serializeAnalysis(state, saver) {
+export async function serializeConfiguration(state, saver) {
     let parameters = anal.retrieveParameters(state);
     let datasets = await serializeDatasets(state.inputs.fetchDatasets(), saver);
 
@@ -125,8 +125,9 @@ export async function serializeAnalysis(state, saver) {
 
 /**
  * Load the analysis configuration from its serialized format.
+ * This is effectively the reverse operation of {@linkcode serializeConfiguration}.
  *
- * @param {object} serialized - Object produced by {@linkcode serializeAnalysis}.
+ * @param {object} serialized - Configuration object produced by {@linkcode serializeConfiguration}.
  * @param {function} loader - Function to load files, see {@linkcode unserializeDatasets} for more details.
  * @param {object} [options={}] - Optional parameters.
  * @param {?function} [startFun=null] - Passed directly to {@linkcode runAnalysis}.
@@ -134,7 +135,7 @@ export async function serializeAnalysis(state, saver) {
  *
  * @return {object} State object containing analysis results, identical to the state after running {@linkcode runAnalysis}.
  */
-export async function unserializeAnalysis(serialized, loader, { startFun = null, finishFun = null } = {}) {
+export async function unserializeConfiguration(serialized, loader, { startFun = null, finishFun = null } = {}) {
     let state = await anal.createAnalysis();
 
     // Set this before running the analysis.

@@ -286,11 +286,11 @@ test("end-to-end run works with (direct) subsetting", async () => {
             return String(saved.length);
         };
 
-        let serialized = await bakana.serializeAnalysis(state, saver);
+        let serialized = await bakana.serializeConfiguration(state, saver);
         expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
         expect(serialized.other.inputs.direct_subset).toEqual(subset);
 
-        let reloaded = await bakana.unserializeAnalysis(serialized, x => saved[Number(x) - 1]);
+        let reloaded = await bakana.unserializeConfiguration(serialized, x => saved[Number(x) - 1]);
         await utils.compareStates(reloaded, state);
         await bakana.freeAnalysis(reloaded);
     }
