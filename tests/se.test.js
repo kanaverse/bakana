@@ -68,7 +68,7 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
     }
 
     // Check saving of results.
-    await bakana.saveSingleCellExperiment(state, "se", { directory: "results/from-tests" });
+    await bakana.saveSingleCellExperiment(state, "se", { directory: "miscellaneous/from-tests" });
 
     // Saving and loading.
     const path = "TEST_state_SummarizedExperiment.h5";

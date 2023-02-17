@@ -63,7 +63,7 @@ test("multi-matrix analyses work correctly", async () => {
     expect(custom.versus.results.RNA.numberOfBlocks()).toEqual(2);
 
     // Check saving of results.
-    await bakana.saveSingleCellExperiment(state, "combined", { directory: "results/from-tests" });
+    await bakana.saveSingleCellExperiment(state, "combined", { directory: "miscellaneous/from-tests" });
 
     // Saving and loading.
     const path = "TEST_state_multi-matrix.h5";

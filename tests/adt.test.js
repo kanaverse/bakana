@@ -79,7 +79,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     expect(custom.versus.results.ADT.numberOfGroups()).toEqual(custom.versus.results.RNA.numberOfGroups());
 
     // Check saving of results.
-    await bakana.saveSingleCellExperiment(state, "adt", { directory: "results/from-tests" });
+    await bakana.saveSingleCellExperiment(state, "adt", { directory: "miscellaneous/from-tests" });
 
     // Saving and loading.
     const path = "TEST_state_adt.h5";

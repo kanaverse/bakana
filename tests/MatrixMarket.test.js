@@ -63,7 +63,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     await utils.triggerAnimation(state);
 
     // Check saving of results.
-    await bakana.saveSingleCellExperiment(state, "MatrixMarket", { directory: "results/from-tests" });
+    await bakana.saveSingleCellExperiment(state, "MatrixMarket", { directory: "miscellaneous/from-tests" });
 
     // Saving and loading.
     const path = "TEST_state_MatrixMarket.h5";

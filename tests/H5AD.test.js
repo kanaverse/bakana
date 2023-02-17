@@ -58,7 +58,7 @@ test("runAnalysis works correctly (H5AD)", async () => {
     }
 
     // Check saving of results.
-    await bakana.saveSingleCellExperiment(state, "H5AD", { directory: "results/from-tests" });
+    await bakana.saveSingleCellExperiment(state, "H5AD", { directory: "miscellaneous/from-tests" });
 
     // Saving and loading.
     const path = "TEST_state_H5AD.h5";

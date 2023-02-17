@@ -41,7 +41,13 @@ export function dumpCustomSelectionResults(state, modalities, main, all_rowdata,
     const do_auc = state.custom_selections.fetchParameters().compute_auc;
 
     let all_sel = state.custom_selections.fetchSelections();
-    all_other_metadata[main] = { custom_selections: all_sel };
+    let processed_sel = { ...all_sel };
+    for (const [k, v] of Object.entries(processed_sel)) {
+        if (!(v instanceof Int32Array)) {
+            processed_sel[k] = new Int32Array(v);
+        }
+    }
+    all_other_metadata[main].custom_selections = processed_sel;
 
     for (const m of modalities) {
         let nfeatures = all_rowdata[m].numberOfRows();

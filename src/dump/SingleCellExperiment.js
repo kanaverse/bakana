@@ -98,7 +98,6 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
         }
     }
 
-
     // Dumping everything to file.
     for (const [name, prefix] of Object.entries(modality_prefixes)) {
         let collected = df.writeHdf5DataFrame(all_coldata[name], prefix + "coldata", { forceBuffer });
