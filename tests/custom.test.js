@@ -80,6 +80,9 @@ test("addition, fetching and removal of custom selections works correctly", asyn
         expect("evens" in all).toBe(true)
     }
 
+    // Check saving of results.
+    await bakana.saveSingleCellExperiment(state, "custom", { directory: "results/from-tests" });
+
     // Saving and loading works correctly.
     {
         const path = "TEST_state_custom.h5";

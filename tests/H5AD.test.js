@@ -57,6 +57,9 @@ test("runAnalysis works correctly (H5AD)", async () => {
         expect(filtered_sex_anno.length).toBe(nfilt);
     }
 
+    // Check saving of results.
+    await bakana.saveSingleCellExperiment(state, "H5AD", { directory: "results/from-tests" });
+
     // Saving and loading.
     const path = "TEST_state_H5AD.h5";
     let collected = await bakana.saveAnalysis(state, path);

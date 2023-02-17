@@ -67,6 +67,9 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
         expect(filtered_sex_anno.length).toBe(nfilt);
     }
 
+    // Check saving of results.
+    await bakana.saveSingleCellExperiment(state, "se", { directory: "results/from-tests" });
+
     // Saving and loading.
     const path = "TEST_state_SummarizedExperiment.h5";
     let collected = await bakana.saveAnalysis(state, path);

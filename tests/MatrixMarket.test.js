@@ -62,6 +62,9 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     utils.checkClusterVersusMode(state);
     await utils.triggerAnimation(state);
 
+    // Check saving of results.
+    await bakana.saveSingleCellExperiment(state, "MatrixMarket", { directory: "results/from-tests" });
+
     // Saving and loading.
     const path = "TEST_state_MatrixMarket.h5";
     let collected = await bakana.saveAnalysis(state, path);

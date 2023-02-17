@@ -48,7 +48,7 @@ export function dumpCustomSelectionResults(state, modalities, main, all_rowdata,
         let rdf = new bioc.DataFrame({}, { numberOfRows: nfeatures });
 
         for (const sel of Object.keys(all_sel)) {
-            let res = state.custom_selections.fetchResults(sel, m);
+            let res = state.custom_selections.fetchResults(sel)[m];
             let mdf = new bioc.DataFrame({}, { numberOfRows: nfeatures });
 
             for (const x of [ "means", "detected" ]) {
@@ -62,7 +62,7 @@ export function dumpCustomSelectionResults(state, modalities, main, all_rowdata,
                 mdf.$setColumn(eff, res[trans_eff](1, { copy: "view" }));
             }
 
-            rdf.$setColumn(String(group), mdf);
+            rdf.$setColumn(sel, mdf);
         }
         all_rowdata[m].$setColumn("custom_selections", rdf);
     }

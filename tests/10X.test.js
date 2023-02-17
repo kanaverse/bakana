@@ -36,13 +36,13 @@ test("runAnalysis works correctly (10X)", async () => {
         simple.matrix.free();
     }
 
-    let out = await bakana.saveSingleCellExperiment(state, "foo", { directory: "BAR" });
-    console.log(out);
-
     // Basic consistency checks.
     await utils.overlordCheckStandard(state);
     utils.checkClusterVersusMode(state);
     await utils.triggerAnimation(state);
+
+    // Check saving of results.
+    await bakana.saveSingleCellExperiment(state, "10X", { directory: "results/from-tests" });
 
     // Saving and loading.
     const path = "TEST_state_10X.h5";

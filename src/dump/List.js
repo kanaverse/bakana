@@ -10,12 +10,17 @@ function dump_internal(x) {
         if (x.length) {
             let all_strings = true;
             let all_bools = true;
+            let all_numbers = true;
             for (const e of x) {
                 if (e !== null) {
                     if (typeof e !== "string") {
                         all_strings = false;
-                    } else if (typeof e !== "boolean") {
+                    }
+                    if (typeof e !== "boolean") {
                         all_bools = false;
+                    }
+                    if (typeof e !== "number") {
+                        all_numbers = false;
                     }
                 }
             }
@@ -25,6 +30,9 @@ function dump_internal(x) {
                 output.values = x;
             } else if (all_bools) {
                 output.type = "boolean";
+                output.values = x;
+            } else if (all_numbers) {
+                output.type = "number";
                 output.values = x;
             } else {
                 for (const e of x) {

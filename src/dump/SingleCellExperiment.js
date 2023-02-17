@@ -56,7 +56,7 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
         let cdf = new bioc.DataFrame({}, { numberOfRows: retained });
         cdf.$setColumn("sums", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().sums({ copy: false })));
         cdf.$setColumn("detected", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().detected({ copy: false })));
-        cdf.$setColumn("max_proportion", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxProportion({ copy: false })));
+        cdf.$setColumn("max_proportion", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxProportions({ copy: false })));
         cdf.$setColumn("max_index", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxIndex({ copy: false })));
         all_coldata.CRISPR.$setColumn("crispr_quality_control", cdf);
 
@@ -94,7 +94,7 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
             block.forEach((x, i) => { stringy[i] = levels[x]; }); 
             all_coldata[main_modality].$setColumn("named_block", stringy);
 
-            all_other_metadata[main].block_levels = levels;
+            all_other_metadata[main_modality].block_levels = levels;
         }
     }
 
