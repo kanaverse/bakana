@@ -27,34 +27,6 @@ test("analysis works when we skip the QC steps", async () => {
     let ncells = state.inputs.fetchCountMatrix().numberOfColumns();
     expect(state.cell_filtering.fetchFilteredMatrix().numberOfColumns()).toBe(ncells);
 
-    const path = "TEST_state_qc-skip.h5";
-    let collected = await bakana.saveAnalysis(state, path);
-    utils.validateState(path); 
-    {
-        let handle = new scran.H5File(path);
-        let qhandle = handle.open("rna_quality_control");
-        let qrhandle = qhandle.open("results");
-        expect("metrics" in qrhandle.children).toBe(true);
-        expect("discards" in qrhandle.children).toBe(true);
-
-        let aqhandle = handle.open("adt_quality_control");
-        let aqrhandle = aqhandle.open("results");
-        expect("metrics" in aqrhandle.children).toBe(true);
-        expect("discards" in aqrhandle.children).toBe(true);
-    }
-
-    {
-        let offsets = utils.mockOffsets(collected.collected);
-        let reloaded = await bakana.loadAnalysis(
-            path, 
-            (offset, size) => offsets[offset]
-        );
-        let new_params = bakana.retrieveParameters(reloaded);
-
-        await utils.compareStates(state, reloaded);
-        await bakana.freeAnalysis(reloaded);
-    }
-
     // Just applying the RNA filtering.
     {
         paramcopy.cell_filtering.use_rna = true;

@@ -178,38 +178,11 @@ export class CombineEmbeddingsState {
         // of 'weights' to avoid pass-by-reference shenanigans.
         return;
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup(step_name);
-
-        {
-            let phandle = ghandle.createGroup("parameters"); 
-            phandle.writeDataSet("approximate", "Uint8", [], this.#parameters.approximate);
-            phandle.writeDataSet("rna_weight", "Float64", [], this.#parameters.rna_weight);
-            phandle.writeDataSet("adt_weight", "Float64", [], this.#parameters.adt_weight);
-            phandle.writeDataSet("crispr_weight", "Float64", [], this.#parameters.crispr_weight);
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results");
-            let pcs = this.fetchCombined();
-            if (pcs.owner === null) {
-                // If it's not a view, we save it; otherwise we assume
-                // that we can recover it from the upstream PCA states.
-                rhandle.writeDataSet(
-                    "combined", 
-                    "Float64", 
-                    [this.fetchNumberOfCells(), this.fetchNumberOfDimensions()], // remember, it's transposed.
-                    pcs
-                ); 
-            }
-        }
-    }
 }
+
+/**************************
+ ******** Loading *********
+ **************************/
 
 export function unserialize(handle, pca_states) {
     let cache = {};

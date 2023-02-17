@@ -83,56 +83,6 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "custom", { directory: "miscellaneous/from-tests" });
 
-    // Saving and loading works correctly.
-    {
-        const path = "TEST_state_custom.h5";
-        let collected = await bakana.saveAnalysis(state, path);
-        utils.validateState(path);
-
-        let offsets = utils.mockOffsets(collected.collected);
-        let reloaded = await bakana.loadAnalysis(
-            path, 
-            (offset, size) => offsets[offset]
-        );
-
-        let new_params = bakana.retrieveParameters(reloaded);
-        expect(new_params.custom_selections).toEqual(bakana.CustomSelectionsState.defaults());
-        expect(Array.from(reloaded.custom_selections.fetchSelectionIndices("evens"))).toEqual([0,2,4,6,8]);
-
-        let res = state.custom_selections.fetchResults("evens"); 
-        let reres = reloaded.custom_selections.fetchResults("evens");
-        expect(reres.RNA.cohen(1)).toEqual(res.RNA.cohen(1));
-        expect(reres.RNA.auc(1)).toEqual(res.RNA.auc(1));
-        expect(reres.RNA.means(1)).toEqual(res.RNA.means(1));
-
-        await bakana.freeAnalysis(reloaded);
-    }
-
-    // Saving and loading works correctly when AUCs are skipped.
-    {
-        let params2 = utils.baseParams();
-        params2.custom_selections.compute_auc = false;
-        await bakana.runAnalysis(state, null, params2);
-        expect(() => state.custom_selections.fetchResults("evens").RNA.auc(1)).toThrow("no AUCs"); 
-
-        const path = "TEST_state_custom.h5";
-        let collected = await bakana.saveAnalysis(state, path);
-        //utils.validateState(path); // TODO: respect missing AUCs.
-
-        let offsets = utils.mockOffsets(collected.collected);
-        let reloaded = await bakana.loadAnalysis(
-            path, 
-            (offset, size) => offsets[offset]
-        );
-
-        expect(reloaded.custom_selections.fetchParameters().compute_auc).toBe(false);
-        expect(Array.from(reloaded.custom_selections.fetchSelectionIndices("evens"))).toEqual([0,2,4,6,8]);
-
-        let reres = reloaded.custom_selections.fetchResults("evens");
-        expect(reres.RNA.auc(1)).toBeNull(); //toThrow("no AUCs"); 
-
-        await bakana.freeAnalysis(reloaded);
-    }
-
+    // Freeing.
     await bakana.freeAnalysis(state);
 })

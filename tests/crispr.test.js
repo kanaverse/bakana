@@ -72,27 +72,8 @@ test("runAnalysis works correctly (10X)", async () => {
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "crispr", { directory: "miscellaneous/from-tests" });
 
-    // Saving and loading.
-    const path = "TEST_state_crispr.h5";
-    let collected = await bakana.saveAnalysis(state, path);
-    utils.validateState(path); 
-    expect(collected.collected.length).toBe(1);
-    expect(typeof(collected.collected[0])).toBe("string");
-
-    let offsets = utils.mockOffsets(collected.collected);
-    let reloaded = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
-
-    let new_params = bakana.retrieveParameters(reloaded);
-    expect(new_params).toEqual(params);
-
-    await utils.compareStates(state, reloaded, { checkCrispr: true });
-
     // Release me!
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded);
 })
 
 const mtxfile = "files/datasets/crispr_6.0.0-matrix.mtx.gz";
@@ -143,22 +124,7 @@ test("CRISPR-only runAnalysis works correctly", async () => {
     await utils.checkStateResultsUnblocked(state);
     await utils.checkStateResultsCrispr(state, { exclusive: true });
 
-    // Can save and reload.
-    const path = "TEST_state_crispr_only.h5";
-    let collected = await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    expect(collected.collected.length).toBe(1);
-    expect(typeof(collected.collected[0])).toBe("string");
-
-    let offsets = utils.mockOffsets(collected.collected);
-    let reloaded = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
-
-    await utils.compareStates(state, reloaded, { checkRna: false, checkAdt: false, checkCrispr: true });
-
+    // Freeing.
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded);
 })
 

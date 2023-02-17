@@ -88,23 +88,6 @@ export class ChooseClusteringState {
         this.#parameters.method = method;
         return;
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup("choose_clustering");
-
-        {
-            let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("method", "String", [], this.#parameters.method);
-        }
-
-        // No need to serialize the cluster IDs as this is done for each step.
-        ghandle.createGroup("results");
-        return;
-    }
 }
 
 /**************************

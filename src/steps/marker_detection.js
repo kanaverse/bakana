@@ -243,34 +243,6 @@ export class MarkerDetectionState {
             compute_auc: this.#parameters.compute_auc
         });
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup("marker_detection");
-
-        {
-            let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("lfc_threshold", "Float64", [], this.#parameters.lfc_threshold)
-            phandle.writeDataSet("compute_auc", "Uint8", [], (this.#parameters.compute_auc ? 1 : 0));
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results");
-            let chandle = rhandle.createGroup("per_cluster");
-
-            for (const [k, v] of Object.entries(this.#cache.raw)) {
-                let khandle = chandle.createGroup(k);
-                var num = v.numberOfGroups();
-                for (var i = 0; i < num; i++) {
-                    let ihandle = khandle.createGroup(String(i));
-                    markers.serializeGroupStats(ihandle, v, i, { compute_auc: this.#parameters.compute_auc });
-                }
-            }
-        }
-    }
 }
 
 /**************************

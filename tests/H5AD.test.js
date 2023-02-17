@@ -60,26 +60,7 @@ test("runAnalysis works correctly (H5AD)", async () => {
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "H5AD", { directory: "miscellaneous/from-tests" });
 
-    // Saving and loading.
-    const path = "TEST_state_H5AD.h5";
-    let collected = await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    expect(collected.collected.length).toBe(1);
-    expect(typeof(collected.collected[0])).toBe("string");
-
-    let offsets = utils.mockOffsets(collected.collected);
-    let reloaded = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
-
-    await utils.compareStates(state, reloaded);
-
-    let new_params = bakana.retrieveParameters(reloaded);
-    expect(new_params).toEqual(params);
-
     // Freeing.
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded);
 })
 

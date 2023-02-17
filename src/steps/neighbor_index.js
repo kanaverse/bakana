@@ -94,22 +94,6 @@ export class NeighborIndexState {
 
         return;
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup("neighbor_index");
-
-        {
-            let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("approximate", "Uint8", [], Number(this.#parameters.approximate));
-        }
-
-        ghandle.createGroup("results");
-        return;
-    }
 }
 
 /**************************

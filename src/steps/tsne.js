@@ -158,30 +158,6 @@ export class TsneState {
         return this.#run;
     }
 
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    async serialize(handle) {
-        let ghandle = handle.createGroup("tsne");
-
-        {
-            let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("perplexity", "Float64", [], this.#parameters.perplexity);
-            phandle.writeDataSet("iterations", "Int32", [], this.#parameters.iterations);
-            phandle.writeDataSet("animate", "Uint8", [], Number(this.#parameters.animate));
-        }
-
-        {
-            let res = await this.fetchResults({ copy: false });
-            let rhandle = ghandle.createGroup("results");
-            rhandle.writeDataSet("x", "Float64", null, res.x);
-            rhandle.writeDataSet("y", "Float64", null, res.y);
-        }
-
-        return;
-    }
-
     /***************************
      ******* Animators *********
      ***************************/

@@ -65,53 +65,8 @@ test("multi-matrix analyses work correctly", async () => {
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "combined", { directory: "miscellaneous/from-tests" });
 
-    // Saving and loading.
-    const path = "TEST_state_multi-matrix.h5";
-    let collected = await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    expect(collected.collected.length).toBe(4);
-    expect(typeof(collected.collected[0])).toBe("string");
-
-    {
-        let handle = new scran.H5File(path);
-        let ihandle = handle.open("inputs");
-        expect(ihandle.open("results").open("num_blocks", { load: true }).values[0]).toEqual(2);
-
-        let phandle = ihandle.open("parameters");
-        let dhandle = phandle.open("datasets");
-        expect(dhandle.open("0").open("name", { load: true }).values[0]).toBe("3K"); // should be sorted: 3K, then 4K.
-        expect(dhandle.open("1").open("name", { load: true }).values[0]).toBe("4K");
-
-        expect(dhandle.open("0").open("format", { load: true }).values[0]).toBe("MatrixMarket"); 
-        expect(dhandle.open("1").open("format", { load: true }).values[0]).toBe("10X");
-
-        expect(Object.keys(dhandle.open("0").open("files").children).length).toBe(3);
-        expect(Object.keys(dhandle.open("1").open("files").children).length).toBe(1);
-    }
-
-    let offsets = utils.mockOffsets(collected.collected);
-    let reloaded = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
-
-    let new_params = bakana.retrieveParameters(reloaded);
-    expect(new_params).toEqual(paramcopy);
-
-    await utils.compareStates(state, reloaded);
-
-    {
-        // Check that the filtered blocks are correctly restored. This checks
-        // for bugs when the blocks are requested before the filtered matrix is
-        // restored, given that the former depends on the latter.
-        let fblocks = reloaded.cell_filtering.fetchFilteredBlock();
-        let fmat = reloaded.cell_filtering.fetchFilteredMatrix();
-        expect(fblocks.length).toBe(fmat.numberOfColumns());
-    }
-
     // Freeing.
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded);
 })
 
 test("single-matrix multi-sample analyses work correctly", async () => {
@@ -132,25 +87,6 @@ test("single-matrix multi-sample analyses work correctly", async () => {
 
     await utils.overlordCheckBlocked(state);
 
-    // Saving and loading.
-    const path = "TEST_state_multi-sample.h5";
-    let collected = await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    expect(collected.collected.length).toBe(3);
-    expect(typeof(collected.collected[0])).toBe("string");
-    
-    let offsets = utils.mockOffsets(collected.collected);
-    let reloaded = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
-
-    let new_params = bakana.retrieveParameters(reloaded);
-    expect(new_params).toEqual(paramcopy);
-
-    await utils.compareStates(state, reloaded);
-
     // Freeing.
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded);
 })

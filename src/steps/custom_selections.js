@@ -169,14 +169,41 @@ export class CustomSelectionsState {
     /**
      * Retrieve indices for all selections.
      *
+     * @param {object} [options] - Optional parameters.
+     * @param {boolean} [options.copy=true] - Whether to make a copy of `selection` before returning it.
+     * If `false`, it is assumed that the caller does not modify the selection.
+     * @param {?string} [force=null] - Whether to force each `selection` to be an `"Array"` or "`Int32Array"`.
+     * If `null`, the existing type of each selection is used.
+     *
      * @return {object} Object where the keys are the selection names and the values are arrays of indices for each selection.
      * Each array is a copy and can be modified without affecting the CustomSelectionsState.
      * See {@linkcode CustomSelectionsState#fetchSelectionIndices fetchSelectionIndices} for more details on the interpretation of the indices.
      */
-    fetchSelections() {
+    fetchSelections({ copy = true, force = null } = {}) {
         let replacement = {};
+
         for (const [k, v] of Object.entries(this.#parameters.selections)) {
-            replacement[k] = v.slice(); 
+            let store = v;
+            let needs_copy = copy;
+
+            if (force !== null) {
+                if (force == "Array") {
+                    if (!(v instanceof Array)) {
+                        store = Array.from(v);
+                        needs_copy = false;
+                    }
+                } else if (force == "Int32Array") {
+                    if (!(v instanceof Int32Array)) {
+                        store = new Int32Array(v);
+                        needs_copy = false;
+                    }
+                }
+            } 
+
+            if (needs_copy) {
+                store = store.slice();
+            }
+            replacement[k] = store;
         }
         return replacement;        
     }
@@ -352,37 +379,6 @@ export class CustomSelectionsState {
             lfc_threshold: this.#parameters.lfc_threshold,
             compute_auc: this.#parameters.compute_auc
         });
-    }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup("custom_selections");
-
-        {
-            let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("lfc_threshold", "Float64", [], this.#parameters.lfc_threshold)
-            phandle.writeDataSet("compute_auc", "Uint8", [], (this.#parameters.compute_auc ? 1 : 0));
-
-            let shandle = phandle.createGroup("selections");
-            for (const [key, val] of Object.entries(this.#parameters.selections)) {
-                shandle.writeDataSet(String(key), "Int32", null, val);
-            }
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results");
-            let phandle = rhandle.createGroup("per_selection");
-            for (const [key, val] of Object.entries(this.#cache.results)) {
-                let ihandle = phandle.createGroup(key);
-                for (const [key2, val2] of Object.entries(val.raw)) {
-                    let ahandle = ihandle.createGroup(key2);
-                    markers.serializeGroupStats(ahandle, val2, 1, { no_summaries: true, compute_auc: this.#parameters.compute_auc  });
-                }
-            }
-        }
     }
 }
 

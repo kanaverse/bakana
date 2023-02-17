@@ -65,59 +65,8 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "MatrixMarket", { directory: "miscellaneous/from-tests" });
 
-    // Saving and loading.
-    const path = "TEST_state_MatrixMarket.h5";
-    let collected = await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    expect(collected.collected.length).toBe(3);
-    expect(typeof(collected.collected[0])).toBe("string");
-
-    let offsets = utils.mockOffsets(collected.collected);
-    let reloaded = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
-
-    let new_params = bakana.retrieveParameters(reloaded);
-    expect(butils.changedParameters(new_params, params)).toBe(false); // should be the same after a roundtrip.
-
-    // Checking that the results are the same.
-    await utils.compareStates(state, reloaded);
-
-    // While the ADT itself is a no-op, the parameters should still be okay.
-    expect(new_params.adt_normalization.num_pcs).toBeGreaterThan(0);
-    expect(new_params.adt_normalization.num_clusters).toBeGreaterThan(0);
-    expect(new_params.combine_embeddings.adt_weight).toBe(1);
-    expect(new_params.batch_correction.num_neighbors).toBeGreaterThan(0);
-
-    // Saving and loading works correctly when AUCs are skipped.
-    // This should probably go somewhere else, but I don't know where.
-    {
-        let params2 = utils.baseParams();
-        params2.marker_detection.compute_auc = false;
-        await bakana.runAnalysis(state, null, params2);
-        expect(() => state.marker_detection.fetchResults().RNA.auc(0)).toThrow("no AUC"); 
-
-        const path = "TEST_state_MatrixMarket.h5";
-        let collected = await bakana.saveAnalysis(state, path);
-        //utils.validateState(path); // TODO: respect missing AUCs.
-
-        let offsets = utils.mockOffsets(collected.collected);
-        let reloaded = await bakana.loadAnalysis(
-            path, 
-            (offset, size) => offsets[offset]
-        );
-
-        expect(reloaded.marker_detection.fetchParameters().compute_auc).toBe(false);
-        let reres = reloaded.marker_detection.fetchResults();
-        expect(reres.RNA.auc(0)).toBeNull(); // toThrow("no AUCs"); 
-
-        await bakana.freeAnalysis(reloaded);
-    }
-
     // Release me!
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded);
 })
 
 let minimal_files = { 
@@ -144,25 +93,6 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
     expect(state.inputs.fetchFeatureAnnotations()["RNA"].numberOfColumns()).toBe(0);
     expect(state.rna_quality_control.fetchFilters().thresholdsSubsetProportions(0)[0]).toBe(0);
 
-    // Saving and loading.
-    const path = "TEST_state_MatrixMarket.h5";
-    let collected = await bakana.saveAnalysis(state, path);
-    utils.validateState(path);
-    expect(collected.collected.length).toBe(1);
-    expect(typeof(collected.collected[0])).toBe("string");
-
-    let offsets = utils.mockOffsets(collected.collected);
-    let reloaded = await bakana.loadAnalysis(
-        path, 
-        (offset, size) => offsets[offset]
-    );
-
-    await utils.compareStates(state, reloaded);
-
-    let new_params = bakana.retrieveParameters(reloaded);
-    expect(new_params).toEqual(params);
-
     // Release me!
     await bakana.freeAnalysis(state);
-    await bakana.freeAnalysis(reloaded);
 })

@@ -118,17 +118,6 @@ export class RnaNormalizationState {
     static defaults() {
         return {};
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        // Token effort.
-        let ghandle = handle.createGroup("rna_normalization");
-        ghandle.createGroup("parameters"); 
-        ghandle.createGroup("results"); 
-    }
 }
 
 /**************************

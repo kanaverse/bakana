@@ -159,31 +159,6 @@ export class UmapState {
         return this.#run;
     }
 
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    async serialize(handle) {
-        let ghandle = handle.createGroup("umap");
-
-        {
-            let phandle = ghandle.createGroup("parameters");
-            phandle.writeDataSet("num_neighbors", "Int32", [], this.#parameters.num_neighbors);
-            phandle.writeDataSet("num_epochs", "Int32", [], this.#parameters.num_epochs);
-            phandle.writeDataSet("min_dist", "Float64", [], this.#parameters.min_dist);
-            phandle.writeDataSet("animate", "Uint8", [], Number(this.#parameters.animate));
-        }
-
-        {
-            let res = await this.fetchResults({ copy: false });
-            let rhandle = ghandle.createGroup("results");
-            rhandle.writeDataSet("x", "Float64", null, res.x);
-            rhandle.writeDataSet("y", "Float64", null, res.y);
-        }
-
-        return;
-    }
-
     /***************************
      ******** Getters **********
      ***************************/

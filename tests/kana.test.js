@@ -14,7 +14,7 @@ let files = {
         )
 };
 
-test("saving to and loading from a kana file works correctly (embedded)", async () => {
+test.skip("saving to and loading from a kana file works correctly (embedded)", async () => {
     let params = utils.baseParams();
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, files, params);
@@ -75,7 +75,7 @@ test("saving to and loading from a kana file works correctly (embedded)", async 
     await bakana.freeAnalysis(state);
 })
 
-test("saving to and loading from a kana file works with links", async () => {
+test.skip("saving to and loading from a kana file works with links", async () => {
     let params = utils.baseParams();
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, files, params);

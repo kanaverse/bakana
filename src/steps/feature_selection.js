@@ -110,36 +110,6 @@ export class FeatureSelectionState {
 
         return;
     }
-
-    /*************************
-     ******** Saving *********
-     *************************/
-
-    serialize(handle) {
-        let ghandle = handle.createGroup("feature_selection");
-
-        {
-            let phandle = ghandle.createGroup("parameters"); 
-            phandle.writeDataSet("span", "Float64", [], this.#parameters.span);
-        }
-
-        {
-            let rhandle = ghandle.createGroup("results"); 
-
-            if (this.valid()) {
-                let res = {
-                    "means": this.#cache.results.means({ copy: "hdf5" }),
-                    "vars": this.#cache.results.variances({ copy: "hdf5" }),
-                    "fitted": this.#cache.results.fitted({ copy: "hdf5" }),
-                    "resids": this.#cache.results.residuals({copy: "hdf5" })
-                };
-
-                for (const [k, v] of Object.entries(res)) {
-                    rhandle.writeDataSet(k, "Float64", null, v);
-                }
-            }
-        }
-    }
 }
 
 /**************************
