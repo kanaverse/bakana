@@ -3,7 +3,7 @@ on: [push]
 name: Run tests
 
 jobs:
-  test:
+  test-js:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -61,30 +61,3 @@ jobs:
     - name: Run tests
       run: npm run test
       timeout-minutes: 15
-
-    - name: Upload saved results
-      uses: actions/upload-artifact@v3
-      with:
-        name: rds-files
-        path: miscellaneous/from-tests/
-
-  reload: 
-    needs: test
-    runs-on: ubuntu-latest
-    container: ghcr.io/artifactdb/alabaster-docker/builder:latest
-
-    steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
-
-    - name: Download saved results
-      uses: actions/download-artifact@v3
-      with:
-        name: rds-files
-        path: results/from-tests/
-
-    - name: Run tests
-      shell: Rscript {0}
-      run: |
-        setwd("miscellaneous")
-        testthat::test_file("reload.R", stop_on_failure=TRUE)
