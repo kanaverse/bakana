@@ -242,11 +242,7 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
 
     /*** Loading ***/
     await quickStart(step_inputs);
-    await state[step_inputs].compute(
-        datasets,
-        params[step_inputs]["block_factor"],
-        params[step_inputs]["subset"]
-    );
+    await state[step_inputs].compute(datasets, params[step_inputs]);
     await quickFinish(step_inputs);
 
     if (load_flag in state) {
@@ -262,189 +258,59 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
         delete state[load_flag];
     }
 
-    /*** Quality control ***/
-    await quickStart(step_qc);
-    state[step_qc].compute(
-        params[step_qc]["use_mito_default"], 
-        params[step_qc]["mito_prefix"], 
-        params[step_qc]["nmads"]
-    );
-    await quickFinish(step_qc);
+    /*** Preprocessing steps ***/
+    let basic_steps = [
+        step_qc, step_qc_adt, step_qc_crispr,
+        step_filter,
+        step_norm, step_norm_adt, step_norm_crispr,
+        step_feat,
+        step_pca, step_pca_adt, step_pca_crispr,
+        step_combine,
+        step_correct,
+        step_neighbors
+    ];
 
-    await quickStart(step_qc_adt);
-    state[step_qc_adt].compute(
-        params[step_qc_adt]["igg_prefix"], 
-        params[step_qc_adt]["nmads"],
-        params[step_qc_adt]["min_detected_drop"]
-    );
-    await quickFinish(step_qc_adt);
-
-    await quickStart(step_qc_crispr);
-    state[step_qc_crispr].compute(
-        params[step_qc_crispr]["nmads"]
-    );
-    await quickFinish(step_qc_crispr);
-
-    await quickStart(step_filter);
-    state[step_filter].compute(
-        params[step_filter]["use_rna"], 
-        params[step_filter]["use_adt"],
-        params[step_filter]["use_crispr"]
-    );
-    await quickFinish(step_filter);
-
-    /*** Normalization ***/
-    await quickStart(step_norm);
-    state[step_norm].compute();
-    await quickFinish(step_norm);
-
-    await quickStart(step_norm_adt);
-    state[step_norm_adt].compute(
-        params[step_norm_adt]["num_pcs"],    
-        params[step_norm_adt]["num_clusters"]    
-    );
-    await quickFinish(step_norm_adt);
-
-    await quickStart(step_norm_crispr);
-    state[step_norm_crispr].compute();
-    await quickFinish(step_norm_crispr);
-
-    /*** Feature selection ***/
-    await quickStart(step_feat);
-    state[step_feat].compute(
-        params[step_feat]["span"]
-    );
-    await quickFinish(step_feat);
-  
-    /*** Dimensionality reduction ***/
-    await quickStart(step_pca);
-    state[step_pca].compute(
-        params[step_pca]["num_hvgs"],
-        params[step_pca]["num_pcs"],
-        params[step_pca]["block_method"]
-    );
-    await quickFinish(step_pca);
-
-    await quickStart(step_pca_adt);
-    state[step_pca_adt].compute(
-        params[step_pca_adt]["num_pcs"],
-        params[step_pca_adt]["block_method"]
-    );
-    await quickFinish(step_pca_adt);
-
-    await quickStart(step_pca_crispr);
-    state[step_pca_crispr].compute(
-        params[step_pca_crispr]["num_pcs"],
-        params[step_pca_crispr]["block_method"]
-    );
-    await quickFinish(step_pca_crispr);
-
-    await quickStart(step_combine);
-    state[step_combine].compute(
-        params[step_combine]["rna_weight"],
-        params[step_combine]["adt_weight"],
-        params[step_combine]["crispr_weight"],
-        params[step_combine]["approximate"]
-    );
-    await quickFinish(step_combine);
-
-    await quickStart(step_correct);
-    state[step_correct].compute(
-        params[step_correct]["method"],
-        params[step_correct]["num_neighbors"],
-        params[step_correct]["approximate"]
-    );
-    await quickFinish(step_correct);
-
-    /*** Nearest neighbors ***/
-    await quickStart(step_neighbors);
-    state[step_neighbors].compute(
-        params[step_neighbors]["approximate"]
-    );
-    await quickFinish(step_neighbors);
-
-    /*** Visualization ***/
-    {
-        await quickStart(step_tsne);
-        let p = state[step_tsne].compute(
-            params[step_tsne]["perplexity"],
-            params[step_tsne]["iterations"], 
-            params[step_tsne]["animate"]
-        );
-        deferredQuickFinish(step_tsne, p);
+    for (const step of basic_steps) {
+        await quickStart(step);
+        state[step].compute(params[step]);
+        await quickFinish(step);
     }
 
-    {
-        await quickStart(step_umap);
-        let p = state[step_umap].compute(
-            params[step_umap]["num_neighbors"], 
-            params[step_umap]["num_epochs"], 
-            params[step_umap]["min_dist"], 
-            params[step_umap]["animate"]
-        );
-        deferredQuickFinish(step_umap, p);
+    /*** Visualization ***/
+    for (const step of [ step_tsne, step_umap ]) {
+        await quickStart(step);
+        let p = state[step].compute(params[step]);
+        deferredQuickFinish(step, p);
     }
 
     /*** Clustering ***/
     let method = params[step_choice]["method"];
 
     await quickStart(step_kmeans);
-    state[step_kmeans].compute(
-        method == "kmeans", 
-        params[step_kmeans]["k"]
-    );
+    state[step_kmeans].compute(method == "kmeans", params[step_kmeans]);
     await quickFinish(step_kmeans);
 
     await quickStart(step_snn);
-    state[step_snn].compute(
-        method == "snn_graph", 
-        params[step_snn]["k"], 
-        params[step_snn]["scheme"], 
-        params[step_snn]["algorithm"],
-        params[step_snn]["multilevel_resolution"],
-        params[step_snn]["leiden_resolution"],
-        params[step_snn]["walktrap_steps"]
-    );
+    state[step_snn].compute(method == "snn_graph", params[step_snn]);
     await quickFinish(step_snn);
 
     await quickStart(step_choice);
-    state[step_choice].compute(
-        method
-    );
+    state[step_choice].compute(params[step_choice]);
     await quickFinish(step_choice);
 
     /*** Markers and labels ***/
-    await quickStart(step_markers);
-    state[step_markers].compute(
-        params[step_markers]["lfc_threshold"],
-        params[step_markers]["compute_auc"]
-    );
-    await quickFinish(step_markers);
+    let remaining = [
+        step_markers,
+        step_labels,
+        step_custom,
+        step_enrichment
+    ];
 
-    {
-        await quickStart(step_labels);
-        let p = state[step_labels].compute(
-            params[step_labels]["human_references"],
-            params[step_labels]["mouse_references"]
-        );
-        deferredQuickFinish(step_labels, p);
+    for (const step of remaining) {
+        await quickStart(step);
+        state[step].compute(params[step]);
+        await quickFinish(step);
     }
-
-    await quickStart(step_custom);
-    state[step_custom].compute(
-        params[step_custom]["lfc_threshold"],
-        params[step_custom]["compute_auc"]
-    );
-    await quickFinish(step_custom);
-
-    await quickStart(step_enrichment);
-    await state[step_enrichment].compute(
-        params[step_enrichment]["collections"],
-        params[step_enrichment]["dataset_id_column"],
-        params[step_enrichment]["reference_id_column"],
-        params[step_enrichment]["top_markers"]
-    );
-    await quickFinish(step_enrichment);
 
     await Promise.all(promises);
     return null;
@@ -686,7 +552,7 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Fri Feb 17 2023 21:25:30 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> on Fri Feb 17 2023 22:33:23 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
