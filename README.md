@@ -108,7 +108,7 @@ We use the [**alabaster**](https://github.com/ArtifactDB/alabaster.base) represe
 For example, we can load the `SingleCellExperiment` back into an R session via the `loadObject()` function:
 
 ```r
-library(alabaster.base)
+library(alabaster)
 info <- acquireMetadata("output", "sce")
 sce <- loadObject(info, "output")
 ```
@@ -116,7 +116,7 @@ sce <- loadObject(info, "output")
 ## Saving configurations
 
 Given an analysis state, we can save its configuration via the `serializeAnalysis()` function.
-This returns an object that contains the analysis parameters, which can then be converted to JSON and saved to file.
+This returns an object that contains the analysis parameters, which can then be converted to JSON and saved to file for later use.
 
 ```js
 let saved = [];
@@ -133,7 +133,7 @@ In the example above, we just store the file contents in a `saved` array of Uint
 More complex applications may create a staging directory on the file system in which to store the files (e.g., for Node.js),
 or may register the file contents in a database for later extraction.
 
-It is similarly easy to use a configuration to create a new analysis state via the `unserializeConfiguration()` function.
+These configurations can be used to create a new analysis state via the `unserializeConfiguration()` function.
 This will extract the parameters/data files and rerun the entire analysis via `runAnalysis()`,
 allowing us to recover the same analysis state that went into `serializeConfiguration()`.
 The example below uses a loading handler that just undoes the effect of `saveFileHandler`.
@@ -150,7 +150,6 @@ Once a particular analysis is finished, we should free the resources of its stat
 ```js
 bakana.freeAnalysis(state);
 bakana.freeAnalysis(reloaded);
-bakana.freeAnalysis(reloaded2);
 ```
 
 If all analyses are complete, we can terminate the entire session.
