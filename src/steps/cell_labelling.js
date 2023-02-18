@@ -23,8 +23,8 @@ const mm_loaded = {};
 /**
  * Cell labelling involves assigning cell type labels to clusters using the [**SingleR** algorithm](https://github.com/LTLA/CppSingleR),
  * based on [pre-formatted reference expression profiles](https://github.com/clusterfork/singlepp-references).
- * This wraps [`labelCells`](https://jkanche.com/scran.js/global.html#labelCells)
- * and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This wraps [`labelCells`](https://kanaverse.github.io/scran.js/global.html#labelCells)
+ * and related functions from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
  * In theory, we could do this at the single-cell level, but we use clusters instead to expedite the computation and simplify interpretation.
  * If multiple references are requested, we will use each for assignment before attempting to choose the best label for each cluster across references.

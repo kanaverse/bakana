@@ -5,15 +5,15 @@ import * as norm_module from "./rna_normalization.js";
 
 /**
  * Results of per-gene variance modelling,
- * see [here](https://www.jkanche.com/scran.js/ModelGeneVarResults.html) for details.
+ * see [here](https://kanaverse.github.io/scran.js/ModelGeneVarResults.html) for details.
  *
  * @external ModelGeneVarResults
  */
 
 /**
  * Feature selection is performed by modelling the per-gene variance and finding highly variable genes.
- * This wraps the [`modelGeneVar`](https://jkanche.com/scran.js/global.html#modelGeneVar) function 
- * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This wraps the [`modelGeneVar`](https://kanaverse.github.io/scran.js/global.html#modelGeneVar) function 
+ * from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor

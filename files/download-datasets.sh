@@ -3,7 +3,7 @@
 set -e
 set -u
 
-base=https://github.com/jkanche/random-test-files/releases/download
+base=https://github.com/kanaverse/random-test-files/releases/download
 dir=datasets
 mkdir -p ${dir}
 

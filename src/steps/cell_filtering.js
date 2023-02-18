@@ -21,8 +21,8 @@ function find_usable_upstream_states(qc_states, in_use) {
 /**
  * This step filters the count matrices to remove low-quality cells,
  * based on metrics and thresholds computed in {@linkplain RnaQualityControlState} and friends.
- * It wraps the [`filterCells`](https://jkanche.com/scran.js/global.html#filterCells) function
- * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * It wraps the [`filterCells`](https://kanaverse.github.io/scran.js/global.html#filterCells) function
+ * from [**scran.js**](https://github.com/kanaverse/scran.js).
  * For multi-modal datasets, this can combine quality calls from all valid modalities; 
  * a cell is removed if it is considered low-quality in any individual modality.
  *

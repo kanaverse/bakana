@@ -3,7 +3,7 @@
 set -e
 set -u
 
-base=https://github.com/LTLA/kana-feature-sets/releases/download
+base=https://github.com/kanaverse/kana-feature-sets/releases/download
 dir=feature-sets
 mkdir -p ${dir}
 

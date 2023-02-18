@@ -6,14 +6,14 @@ export const step_name = "crispr_quality_control";
 
 /**
  * Results of computing per-cell CRISPR-derived QC metrics,
- * see [here](https://www.jkanche.com/scran.js/PerCellCrisprQcMetricsResults.html) for details.
+ * see [here](https://kanaverse.github.io/scran.js/PerCellCrisprQcMetricsResults.html) for details.
  *
  * @external PerCellCrisprQcMetricsResults
  */
 
 /**
  * Suggested filters for the CRISPR-derived QC metrics,
- * see [here](https://www.jkanche.com/scran.js/SuggestCrisprQcFiltersResults.html) for details.
+ * see [here](https://kanaverse.github.io/scran.js/SuggestCrisprQcFiltersResults.html) for details.
  *
  * @external SuggestCrisprQcFiltersResults
  */
@@ -21,9 +21,9 @@ export const step_name = "crispr_quality_control";
 /**
  * This step applies quality control on the CRISPR guide count matrix.
  * Specifically, it computes the QC metrics and filtering thresholds, 
- * wrapping the [`perCellCrisprQcMetrics`](https://www.jkanche.com/scran.js/global.html#perCellCrisprQcMetrics)
- * and [`suggestCrisprQcFilters`](https://www.jkanche.com/scran.js/global.html#suggestCrisprQcFilters) functions
- * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * wrapping the [`perCellCrisprQcMetrics`](https://kanaverse.github.io/scran.js/global.html#perCellCrisprQcMetrics)
+ * and [`suggestCrisprQcFilters`](https://kanaverse.github.io/scran.js/global.html#suggestCrisprQcFilters) functions
+ * from [**scran.js**](https://github.com/kanaverse/scran.js).
  * Note that the actual filtering is done by {@linkplain CellFilteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.

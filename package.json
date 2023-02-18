@@ -9,9 +9,9 @@
     "test": "node --experimental-vm-modules --experimental-wasm-threads node_modules/jest/bin/jest.js --testTimeout=1000000 --runInBand --detectOpenHandles --forceExit",
     "jsdoc": "npx jsdoc -r src README.md -d docs/built -c docs/jsdoc.config.json"
   },
-  "repository": "github:LTLA/bakana",
-  "homepage": "https://github.com/LTLA/bakana#readme",
-  "bugs": "https://github.com/LTLA/bakana/issues",
+  "repository": "github:kanaverse/bakana",
+  "homepage": "https://github.com/kanaverse/bakana#readme",
+  "bugs": "https://github.com/kanaverse/bakana/issues",
   "keywords": [
     "bioinformatics",
     "single-cell",
@@ -33,7 +33,7 @@
   "devDependencies": {
     "docdash": "^1.2.0",
     "jest": "^27.5.1",
-    "jsdoc": "^3.6.10",
+    "jsdoc": "^4.0.1",
     "valkana": "^1.0.0-alpha.3",
     "wasmarrays.js": "^0.0.3"
   }

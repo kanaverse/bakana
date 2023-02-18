@@ -11,8 +11,8 @@ export const step_name = "custom_selections";
 /**
  * Applications can perform marker detection on custom selections of cells.
  * This allows users to dynamically select cells on a UI and quickly obtain a list of distinguishing markers for that selection.
- * This wraps the [`scoreMarkers`](https://jkanche.com/scran.js/global.html#scoreMarkers) function 
- * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This wraps the [`scoreMarkers`](https://kanaverse.github.io/scran.js/global.html#scoreMarkers) function 
+ * from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor

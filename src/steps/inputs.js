@@ -8,7 +8,7 @@ const RAW_SUBSET_OVERRIDE = "raw_subset_indices";
 
 /**
  * This step handles the loading of all datasets into memory.
- * This wraps various matrix initialization functions in [**scran.js**](https://github.com/jkanche/scran.js),
+ * This wraps various matrix initialization functions in [**scran.js**](https://github.com/kanaverse/scran.js),
  * depending on the format of the supplied datasets.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.

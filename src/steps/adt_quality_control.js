@@ -6,14 +6,14 @@ export const step_name = "adt_quality_control";
 
 /**
  * Results of computing per-cell ADT-derived QC metrics,
- * see [here](https://www.jkanche.com/scran.js/PerCellAdtQcMetricsResults.html) for details.
+ * see [here](https://kanaverse.github.io/scran.js/PerCellAdtQcMetricsResults.html) for details.
  *
  * @external PerCellAdtQcMetricsResults
  */
 
 /**
  * Suggested filters for the ADT-derived QC metrics,
- * see [here](https://www.jkanche.com/scran.js/SuggestAdtQcFiltersResults.html) for details.
+ * see [here](https://kanaverse.github.io/scran.js/SuggestAdtQcFiltersResults.html) for details.
  *
  * @external SuggestAdtQcFiltersResults
  */
@@ -21,9 +21,9 @@ export const step_name = "adt_quality_control";
 /**
  * This step applies quality control on the ADT count matrix.
  * Specifically, it computes the QC metrics and filtering thresholds, 
- * wrapping the [`perCellAdtQcMetrics`](https://www.jkanche.com/scran.js/global.html#perCellAdtQcMetrics)
- * and [`suggestAdtQcFilters`](https://www.jkanche.com/scran.js/global.html#suggestAdtQcFilters) functions
- * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * wrapping the [`perCellAdtQcMetrics`](https://kanaverse.github.io/scran.js/global.html#perCellAdtQcMetrics)
+ * and [`suggestAdtQcFilters`](https://kanaverse.github.io/scran.js/global.html#suggestAdtQcFilters) functions
+ * from [**scran.js**](https://github.com/kanaverse/scran.js).
  * Note that the actual filtering is done by {@linkplain CellFilteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.

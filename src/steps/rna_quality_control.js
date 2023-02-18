@@ -7,14 +7,14 @@ export const step_name = "rna_quality_control";
 
 /**
  * Results of computing per-cell RNA-derived QC metrics,
- * see [here](https://www.jkanche.com/scran.js/PerCellRnaQcMetricsResults.html) for details.
+ * see [here](https://kanaverse.github.io/scran.js/PerCellRnaQcMetricsResults.html) for details.
  *
  * @external PerCellRnaQcMetricsResults
  */
 
 /**
  * Suggested filters for the RNA-derived QC metrics,
- * see [here](https://www.jkanche.com/scran.js/SuggestRnaQcFiltersResults.html) for details.
+ * see [here](https://kanaverse.github.io/scran.js/SuggestRnaQcFiltersResults.html) for details.
  *
  * @external SuggestRnaQcFiltersResults
  */
@@ -22,9 +22,9 @@ export const step_name = "rna_quality_control";
 /**
  * This step applies quality control on the RNA count matrix.
  * Specifically, it computes the QC metrics and filtering thresholds, 
- * wrapping the [`perCellRnaQcMetrics`](https://www.jkanche.com/scran.js/global.html#perCellRnaQcMetrics)
- * and [`suggestRnaQcFilters`](https://www.jkanche.com/scran.js/global.html#suggestRnaQcFilters) functions
- * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * wrapping the [`perCellRnaQcMetrics`](https://kanaverse.github.io/scran.js/global.html#perCellRnaQcMetrics)
+ * and [`suggestRnaQcFilters`](https://kanaverse.github.io/scran.js/global.html#suggestRnaQcFilters) functions
+ * from [**scran.js**](https://github.com/kanaverse/scran.js).
  * Note that the actual filtering is done by {@linkplain CellFilteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.

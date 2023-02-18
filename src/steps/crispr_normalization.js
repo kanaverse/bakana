@@ -8,8 +8,8 @@ export const step_name = "crispr_normalization";
 
 /**
  * This step performs normalization and log-transformation on the QC-filtered CRISPR count matrix from the {@linkplain CellFilteringState}.
- * It wraps the [`logNormCounts`](https://www.jkanche.com/scran.js/global.html#logNormCounts) functions
- * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * It wraps the [`logNormCounts`](https://kanaverse.github.io/scran.js/global.html#logNormCounts) functions
+ * from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor

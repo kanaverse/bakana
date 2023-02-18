@@ -19,8 +19,8 @@ function find_nonzero_upstream_states(pca_states, weights) {
 
 /**
  * This step combines multiple embeddings from different modalities into a single matrix for downstream analysis.
- * It wraps the [`scaleByNeighbors`](https://jkanche.com/scran.js/global.html#scaleByNeighbors) function
- * from [**scran.js**](https://jkanche.com/scran.js).
+ * It wraps the [`scaleByNeighbors`](https://kanaverse.github.io/scran.js/global.html#scaleByNeighbors) function
+ * from [**scran.js**](https://kanaverse.github.io/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor

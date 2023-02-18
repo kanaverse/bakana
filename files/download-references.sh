@@ -3,7 +3,7 @@
 set -e
 set -u
 
-base=https://github.com/clusterfork/singlepp-references/releases/download
+base=https://github.com/LTLA/singlepp-references/releases/download
 dir=references
 mkdir -p ${dir}
 

@@ -3,7 +3,7 @@
 set -e
 set -u
 
-base=https://github.com/jkanche/kana-formats/releases/download
+base=https://github.com/kanaverse/kana-formats/releases/download
 dir=legacy
 mkdir -p ${dir}
 

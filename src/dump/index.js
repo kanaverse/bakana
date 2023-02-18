@@ -22,7 +22,7 @@ import * as adump from "./abstract/dump.js";
  *   This is probably the most advisable setting for browser environments.
  * - If `forceBuffer = false`, `contents` may be either a Uint8Array or a string to a temporary file path. 
  *   In a browser context, the temporary path is located on the **scran.js** virtual file system,
- *   see [here](https://jkanche.com/scran.js/global.html#readFile) to extract its contents and to clean up afterwards.
+ *   see [here](https://kanaverse.github.io/scran.js/global.html#readFile) to extract its contents and to clean up afterwards.
  * - If the function is called from Node.js and `directory` is supplied, `contents` is a string to a file path inside `directory.
  *   This overrides any expectations from the setting of `forceBuffer` and is the most efficient approach for Node.js.
  */

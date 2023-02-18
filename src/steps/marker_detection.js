@@ -11,15 +11,15 @@ export const step_name = "marker_detection";
 
 /**
  * Results of marker detection,
- * see [here](https://www.jkanche.com/scran.js/ScoreMarkersResults.html) for details.
+ * see [here](https://www.kanaverse.github.io/scran.js/ScoreMarkersResults.html) for details.
  *
  * @external ScoreMarkersResults
  */
 
 /**
  * This step performs marker detection for each cluster of cells by performing pairwise comparisons to each other cluster.
- * This wraps the [`scoreMarkers`](https://jkanche.com/scran.js/global.html#scoreMarkers) function 
- * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This wraps the [`scoreMarkers`](https://kanaverse.github.io/scran.js/global.html#scoreMarkers) function 
+ * from [**scran.js**](https://github.com/kanaverse/scran.js).
  * The clustering is obtained from the upstream {@linkplain ChooseClusteringState}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.

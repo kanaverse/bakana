@@ -6,8 +6,8 @@ import * as aworkers from "./abstract/worker_parent.js";
 
 /**
  * This creates a t-SNE embedding based on the neighbor index constructed by {@linkplain NeighborIndexState}.
- * This wraps [`runTSNE`](https://jkanche.com/scran.js/global.html#runTSNE)
- * and related functions from [**scran.js**](https://github.com/jkanche/scran.js).
+ * This wraps [`runTSNE`](https://kanaverse.github.io/scran.js/global.html#runTSNE)
+ * and related functions from [**scran.js**](https://github.com/kanaverse/scran.js).
  * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor

@@ -21,15 +21,15 @@ import { SummarizedExperimentDataset } from "./se.js";
  */
 
 /**
- * A representation of a matrix of expression values, where the values are hosted on the Wasm heap for easier compute via [**scran.js**](https://github.com/jkanche/scran.js).
- * See [here](https://jkanche.github.io/scran.js/ScranMatrix.html) for more details.
+ * A representation of a matrix of expression values, where the values are hosted on the Wasm heap for easier compute via [**scran.js**](https://github.com/kanaverse/scran.js).
+ * See [here](https://kanaverse.github.io/scran.js/ScranMatrix.html) for more details.
  *
  * @external ScranMatrix
  */ 
 
 /**
  * A representation of multiple {@linkplain external:ScranMatrix ScranMatrix} objects, where each object contains data for the same cells but across a different feature space, e.g., for different data modalities.
- * See [here](https://jkanche.github.io/scran.js/MultiMatrix.html) for more details.
+ * See [here](https://kanaverse.github.io/scran.js/MultiMatrix.html) for more details.
  *
  * @external MultiMatrix
  */ 

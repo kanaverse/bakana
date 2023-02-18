@@ -8,9 +8,9 @@ export const step_name = "adt_normalization";
 
 /**
  * This step performs normalization and log-transformation on the QC-filtered ADT matrix from the {@linkplain CellFilteringState}.
- * It wraps the [`groupedSizeFactors`](https://www.jkanche.com/scran.js/global.html#groupedSizeFactors) 
- * and [`logNormCounts`](https://www.jkanche.com/scran.js/global.html#logNormCounts) functions
- * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * It wraps the [`groupedSizeFactors`](https://kanaverse.github.io/scran.js/global.html#groupedSizeFactors) 
+ * and [`logNormCounts`](https://kanaverse.github.io/scran.js/global.html#logNormCounts) functions
+ * from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor

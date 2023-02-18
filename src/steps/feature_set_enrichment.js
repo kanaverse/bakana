@@ -23,9 +23,9 @@ export const step_name = "feature_set_enrichment";
 /**
  * This step tests for enrichment of particular feature sets in the set of top marker genes,
  * based on marker rankings from {@linkplain MarkerDetectionState}.
- * It wraps the [`testFeatureSetEnrichment`](https://jkanche.com/scran.js/global.html#testFeatureSetEnrichment) 
- * and [`scoreFeatureSet`](https://jkanche.com/scran.js/global.html#scoreFeatureSet) functions
- * from [**scran.js**](https://github.com/jkanche/scran.js).
+ * It wraps the [`testFeatureSetEnrichment`](https://kanaverse.github.io/scran.js/global.html#testFeatureSetEnrichment) 
+ * and [`scoreFeatureSet`](https://kanaverse.github.io/scran.js/global.html#scoreFeatureSet) functions
+ * from [**scran.js**](https://github.com/kanaverse/scran.js).
  * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
