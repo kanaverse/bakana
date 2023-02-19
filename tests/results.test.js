@@ -77,14 +77,14 @@ test("SummarizedExperiment result readers work correctly with log-count loading"
     expect(details.modality_assay_names[""].length).toEqual(2);
     expect(details.reduced_dimension_names.length).toEqual(3);
 
-    info.setPrimaryAssay("logcounts");
+    info.setPrimaryAssay({ "": "logcounts" });
     info.setIsPrimaryNormalized(true);
     info.setReducedDimensionNames(["TSNE", "UMAP"]);
 
     let payload = info.load();
     expect(payload.matrix.numberOfColumns()).toEqual(details.cells.numberOfRows());
     expect(payload.matrix.get("").numberOfRows()).toEqual(payload.features[""].numberOfRows());
-//    expect(payload.matrix.has("ERCC")).toBe(false); // ignored if it doesn't have log-counts.
+    expect(payload.matrix.has("ERCC")).toBe(false); // ignored if it doesn't have log-counts.
 
     expect(Object.keys(payload.reduced_dimensions)).toEqual(["TSNE", "UMAP"]);
     expect(payload.reduced_dimensions["TSNE"].length).toEqual(2);
@@ -100,7 +100,7 @@ test("SummarizedExperiment result readers work correctly with log-count loading"
 test("SummarizedExperiment result readers work correctly with count normalization", async () => {
     let info = new bakana.SummarizedExperimentResult("files/datasets/zeisel-brain-with-results.rds");
 
-    info.setPrimaryAssay({ "": "counts", "ERCC": "counts" });
+    info.setPrimaryAssay("counts");
     info.setIsPrimaryNormalized({ "ERCC": false });
 
     let payload = info.load();

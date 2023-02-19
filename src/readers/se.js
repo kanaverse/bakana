@@ -274,7 +274,7 @@ function extract_assay_names(handle) {
     return output;
 }
 
-function extract_counts(handle, assay, forceInteger = true) {
+function extract_assay(handle, assay, forceInteger) {
     let output;
     let ahandle;
     let dhandle;
@@ -285,7 +285,8 @@ function extract_counts(handle, assay, forceInteger = true) {
         dhandle = ahandle.attribute("data");
         lhandle = dhandle.attribute("listData");
 
-        let chosen = assay;
+        // Choosing the assay index.
+        let chosen = null;
         if (typeof assay == "string") {
             let names = load_listData_names(lhandle);
             if (assay !== null && names != null) {
@@ -296,10 +297,14 @@ function extract_counts(handle, assay, forceInteger = true) {
                     }
                 }
             }
+            if (chosen == null) {
+                throw new Error("no assay named '" + assay + "'");
+            }
         } else {
             if (assay >= lhandle.length()) {
                 throw new Error("assay index " + String(assay) + " out of range");
             }
+            chosen = assay;
         }
 
         let xhandle;
@@ -596,7 +601,6 @@ export class SummarizedExperimentDataset {
 
     /**
      * @param {string|number} i - Name or index of the assay containing the RNA count matrix.
-     * If `null`, the first encountered assay is used.
      */
     setRnaCountAssay(name) {
         this.#rnaCountAssay = i;
@@ -864,7 +868,7 @@ export class SummarizedExperimentDataset {
                     handle = this.#alt_handles[name];
                 }
 
-                let loaded = extract_counts(handle, v.assay);
+                let loaded = extract_assay(handle, v.assay, true);
                 output.matrix.add(k, loaded.matrix);
                 let out_ids = loaded.row_ids;
                 output.row_ids[k] = out_ids;
@@ -1212,7 +1216,7 @@ export class SummarizedExperimentResult {
                     handle = this.#alt_handles[k];
                 }
 
-                let loaded = extract_counts(handle, curassay, !curnormalized);
+                let loaded = extract_assay(handle, curassay, !curnormalized);
                 output.matrix.add(k, loaded.matrix);
 
                 if (!curnormalized) {
