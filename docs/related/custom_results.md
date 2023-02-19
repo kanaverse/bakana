@@ -37,7 +37,6 @@ The object may contain any number of the following properties:
   Each row of the `DataFrame` corresponds to one feature, along with any number of columns containing the annotation fields.
 - `modality_features`: an object where each key is the name of a modality and each value is a `DataFrame`.
   Each row of a `DataFrame` corresponds to one feature of the corresponding modality and contains its annotation fields.
-  Unlike `load()`, modality names may be arbitrary.
 - `cells`: a `DataFrame` containing per-cell annotations, where each row corresponds to a cell in the dataset.
 - `all_assay_names`: an Array containing the names of all assays.
 - `modality_assay_names`: an object where each key is the name of a modality and each value is an Array.

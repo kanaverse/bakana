@@ -939,11 +939,26 @@ export class SummarizedExperimentResult {
         this.clear();
     }
 
+    /**
+     * @param {object|string|number} primary - Assay containing the relevant data for each modality.
+     *
+     * - If a string, this is used as the name of the assay across all modalities.
+     * - If a number, this is used as the index of the assay across all modalities.
+     * - If any object, the key should be the name of a modality and the value may be either a string or number specifying the assay to use for that modality.
+     *   Modalities absent from this object will not be loaded.
+     */
     setPrimaryAssay(primary) {
         this.#primaryAssay = primary;
         return;
     }
 
+    /**
+     * @param {object|boolean} normalized - Whether or not the assay for a particular modality has already been normalized.
+     *
+     * - If a boolean, this is used to indicate normalization status of assays across all modalities.
+     * - If any object, the key should be the name of a modality and the value should be a boolean indicating whether that modality's assay has been normalized.
+     *   Modalities absent from this object are assumed to have been normalized.
+     */
     setIsPrimaryNormalized(normalized) {
         this.#isPrimaryNormalized = normalized;
         return;
