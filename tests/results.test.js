@@ -80,6 +80,8 @@ test("SummarizedExperiment result readers work correctly with log-count loading"
     let payload = info.load();
     expect(payload.matrix.numberOfColumns()).toEqual(details.cells.numberOfRows());
     expect(payload.matrix.get("").numberOfRows()).toEqual(payload.features[""].numberOfRows());
+//    expect(payload.matrix.has("ERCC")).toBe(false); // ignored if it doesn't have log-counts.
+
     expect(Object.keys(payload.reduced_dimensions)).toEqual(["TSNE", "UMAP"]);
     expect(payload.reduced_dimensions["TSNE"].length).toEqual(2);
     expect(payload.reduced_dimensions["TSNE"][0].length).toEqual(details.cells.numberOfRows());
@@ -91,4 +93,29 @@ test("SummarizedExperiment result readers work correctly with log-count loading"
     payload.matrix.free();
 })
 
+test("SummarizedExperiment result readers work correctly with count normalization", async () => {
+    let info = new bakana.SummarizedExperimentResult("files/datasets/zeisel-brain-with-results.rds");
 
+    info.setPrimaryAssay({ "": "counts", "ERCC": "counts" });
+    info.setIsPrimaryNormalized({ "ERCC": false });
+
+    let payload = info.load();
+    expect(payload.matrix.numberOfColumns()).toEqual(payload.cells.numberOfRows());
+    expect(payload.matrix.get("").numberOfRows()).toEqual(payload.features[""].numberOfRows());
+    expect(payload.matrix.get("ERCC").numberOfRows()).toEqual(payload.features["ERCC"].numberOfRows());
+
+    // Checking that naked gene counts are loaded, as a control.
+    {
+        let col0 = payload.matrix.get("").column(0);
+        expect(has_noninteger(col0)).toBe(false);
+    }
+
+    // Checking that the ERCC count matrix is correctly normalized.
+    {
+        let col0 = payload.matrix.get("ERCC").column(0);
+        expect(has_noninteger(col0)).toBe(true);
+    }
+
+    info.clear();
+    payload.matrix.free();
+})

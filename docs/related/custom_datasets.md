@@ -1,8 +1,8 @@
-# Adding custom readers
+# Adding custom datasets
 
 ## Overview
 
-Developers can add new data readers to supplement the defaults in `src/readers`.
+Developers can add new dataset readers to supplement the defaults in `src/readers`.
 This is most useful for pulling data from external databases for entry into the **bakana** workflow.
 A new reader should be implemented as an ES6 class that satisfies the `Dataset` interface requirements below.
 
@@ -69,7 +69,8 @@ This method should return an object containing:
 - `matrix`, a [`MultiMatrix`](https://jkanche.github.io/scran.js/MultiMatrix.html) object containing submatrices for at least one modality.
   Each modality-specific submatrix should be a [`ScranMatrix`](https://jkanche.github.io/scran.js/ScranMatrix.html) containing any number of rows.
   All modalities should contain data for the same number of columns.
-  Unlike `summary()`, modality names should be one of `"RNA"` or `"ADT"`.
+  Unlike `summary()`, modality names should be one of `"RNA"`, `"ADT"` or `"CRISPR"` -
+  developers may consider adding some setters to their `Dataset` class to enable users to specify a mapping between the modality names from `summary()` and those returned by this method.
 - `row_ids`, an object specifying the row identities for each submatrix in `matrix`.
   Keys should correspond to the modality names in `matrix` and each value should be an integer array containing the identities of the submatrix rows.
   Feature identities should be encoded as non-negative integers that are unique within each submatrix.
