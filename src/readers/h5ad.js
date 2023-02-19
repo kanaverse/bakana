@@ -684,6 +684,7 @@ export class H5adResult {
         let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, chosen_assay, { forceInteger: !this.#isPrimaryNormalized });
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#featureTypeColumnName, null, "");
         output.cells = this.#raw_cells;
+        delete output.row_ids;
 
         if (!this.#isPrimaryNormalized) {
             for (const mod of output.matrix.available()) {

@@ -7,6 +7,11 @@ Unlike datasets, result structures are expected to contain pre-computed analysis
 there is no expectation that the count matrix is present, nor any requirement for particular modalities.
 A new reader should be implemented as an ES6 class that satisfies the `Result` interface requirements below.
 
+It's worth mentioning that only `Dataset` objects are used as inputs into the **bakana** analysis.
+`Result` objects do not have any role in **bakana**; but we describe them here regardless,
+as each `Result` class tends to share a lot of code with the corresponding `Dataset` class.
+This allows downstream applications to re-use a lot of the same code when inspecting results from the same file format as the input datasets.
+
 ## `Result` interface
 
 ### Constructor

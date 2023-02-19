@@ -1109,7 +1109,6 @@ export class SummarizedExperimentResult {
      * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
-     * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
      * - `reduced_dimensions`: an object containing the dimensionality reduction results.
      *   Each value is an array of arrays, where each inner array contains the coordinates for one dimension.
      */
@@ -1177,15 +1176,8 @@ export class SummarizedExperimentResult {
                 if (!curnormalized) {
                     let normed = scran.logNormCounts(loaded.matrix, { allowZeros: true });
                     output.matrix.add(k, normed);
-
-                    let out_ids = loaded.row_ids;
-                    output.row_ids[k] = out_ids;
-                    output.features[k] = bioc.SLICE(this.#raw_features[k], out_ids);
+                    output.features[k] = bioc.SLICE(this.#raw_features[k], loaded.row_ids);
                 } else {
-                    // Filling in something for the time being.
-                    let out_ids = new Int32Array(loaded.matrix.numberOfRows());
-                    out_ids.forEach((x, i) => { out_ids[i] = i });
-                    output.row_ids[k] = out_ids;
                     output.features[k] = this.#raw_features[k];
                 }
             }
