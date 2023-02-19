@@ -21,7 +21,7 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
     {
         let loaded = state.inputs.fetchCountMatrix().get("RNA");
         let loaded_ids = state.inputs.fetchRowIds()["RNA"];
-        let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].column("id");
+        let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].rowNames();
         expect(loaded_names.length).toBeGreaterThan(0);
 
         let rdshandle = scran.readRds(fpath);
@@ -114,7 +114,7 @@ test("RDS loaders work correctly for a base SummarizedExperiment", async () => {
     let loaded = fullstate.fetchCountMatrix();
     expect(loaded.numberOfColumns()).toBeGreaterThan(0);
 
-    let loaded_names = fullstate.fetchFeatureAnnotations()["RNA"].column("id");
+    let loaded_names = fullstate.fetchFeatureAnnotations()["RNA"].rowNames();
     expect(loaded_names.length).toBeGreaterThan(0);
 
     fullstate.free();
@@ -151,7 +151,7 @@ test("RDS loaders work correctly for GRanges SummarizedExperiment", async () => 
     let loaded = fullstate.fetchCountMatrix();
     expect(loaded.numberOfColumns()).toBeGreaterThan(0);
 
-    let loaded_names = fullstate.fetchFeatureAnnotations()["RNA"].column("id");
+    let loaded_names = fullstate.fetchFeatureAnnotations()["RNA"].rowNames();
     expect(loaded_names.length).toBeGreaterThan(0);
 
     fullstate.free();
@@ -187,12 +187,12 @@ test("RDS loaders work correctly for a SingleCellExperiment with altExps", async
 
     let feat_anno = fullstate.fetchFeatureAnnotations();
 
-    let loaded_names = feat_anno["RNA"].column("id");
+    let loaded_names = feat_anno["RNA"].rowNames();
     expect(loaded_names.length).toBeGreaterThan(0);
     expect(loaded_names.length).toEqual(loaded_rna.numberOfRows());
     expect(loaded_names.some(x => x.match(/^ENSG/))).toBe(true);
 
-    let loaded_names_adt = feat_anno["ADT"].column("id");
+    let loaded_names_adt = feat_anno["ADT"].rowNames();
     expect(loaded_names_adt.length).toBeGreaterThan(0);
     expect(loaded_names_adt.length).toEqual(loaded_adt.numberOfRows());
     expect(loaded_names_adt.some(x => x.match(/^ENSG/))).toBe(false);

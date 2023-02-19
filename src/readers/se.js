@@ -234,17 +234,10 @@ function extract_features(handle) {
         }
     }
 
-    if (names == null) {
-        return new bioc.DataFrame({}, { numberOfRows: rowdata.numberOfRows() });
-    } else {
-        let output = { id: names };
-        for (const k of rowdata.columnNames()) {
-            if (k.match(/^sym/)) {
-                output[k] = rowdata.column(k);
-            }
-        }
-        return new bioc.DataFrame(output);
+    if (names !== null) {
+        rowdata.$setRowNames(names);
     }
+    return rowdata;
 }
 
 function extract_assay_names(handle) {
@@ -563,9 +556,9 @@ export class SummarizedExperimentDataset {
      * @param {?(string|number)} [options.rnaExperiment=""] - See {@linkcode SummarizedExperimentDataset#setRnaExperiment setRnaExperiment}.
      * @param {?(string|number)} [options.adtExperiment="Antibody Capture"] - See {@linkcode SummarizedExperimentDataset#setAdtExperiment setAdtExperiment}.
      * @param {?(string|number)} [options.crisprExperiment="CRISPR Guide Capture"] - See {@linkcode SummarizedExperimentDataset#setCrisprExperiment setCrisprExperiment}.
-     * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
-     * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
-     * @param {string|number} [options.primaryCrisprFeatureIdColumn=0] - See {@linkcode SummarizedExperimentDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
+     * @param {string|number} [options.primaryRnaFeatureIdColumn=null] - See {@linkcode SummarizedExperimentDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
+     * @param {string|number} [options.primaryAdtFeatureIdColumn=null] - See {@linkcode SummarizedExperimentDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
+     * @param {string|number} [options.primaryCrisprFeatureIdColumn=null] - See {@linkcode SummarizedExperimentDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
      */
     constructor(rdsFile, { 
         rnaCountAssay = 0, 
@@ -574,9 +567,9 @@ export class SummarizedExperimentDataset {
         rnaExperiment = "", 
         adtExperiment = "Antibody Capture", 
         crisprExperiment = "CRISPR Guide Capture",
-        primaryRnaFeatureIdColumn = 0, 
-        primaryAdtFeatureIdColumn = 0,
-        primaryCrisprFeatureIdColumn = 0 
+        primaryRnaFeatureIdColumn = null, 
+        primaryAdtFeatureIdColumn = null,
+        primaryCrisprFeatureIdColumn = null 
     } = {}) {
         if (rdsFile instanceof afile.SimpleFile) {
             this.#rds_file = rdsFile;
@@ -655,7 +648,8 @@ export class SummarizedExperimentDataset {
 
     /**
      * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
-     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
+     * If no row names are present in the SummarizedExperiment, no primary identifier is defined.
      */
     setPrimaryRnaFeatureIdColumn(i) {
         this.#primaryRnaFeatureIdColumn = i;
@@ -664,7 +658,8 @@ export class SummarizedExperimentDataset {
 
     /**
      * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
-     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
+     * If no row names are present in the SummarizedExperiment, no primary identifier is defined.
      */
     setPrimaryAdtFeatureIdColumn(i) {
         this.#primaryAdtFeatureIdColumn = i;
@@ -673,7 +668,8 @@ export class SummarizedExperimentDataset {
 
     /**
      * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
-     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the existing row names (if they exist) are used as the primary identifier.
+     * If no row names are present in the SummarizedExperiment, no primary identifier is defined.
      */
     setPrimaryCrisprFeatureIdColumn(i) {
         this.#primaryCrisprFeatureIdColumn = i;
