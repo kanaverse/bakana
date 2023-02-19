@@ -8,7 +8,7 @@ import * as afile from "./abstract/file.js";
  ******* Internals ********
  **************************/
 
-function fetch_assay_details(handle) {
+function fetch_assay_details(handle, path) {
     let available = [];
     if ("X" in handle.children) {
         available.push("X");
@@ -29,7 +29,7 @@ function fetch_assay_details(handle) {
         throw new Error("failed to find any assay in the H5AD file");
     }
 
-    let deets = scran.extractHDF5MatrixDetails(this.#h5_path, available[0]);
+    let deets = scran.extractHDF5MatrixDetails(path, available[0]);
     return {
         names: available,
         rows: deets.rows,
@@ -308,7 +308,7 @@ export class H5adDataset {
             return;
         }
         this.#instantiate();
-        this.#assay_details = fetch_assay_details(this.#h5_handle);
+        this.#assay_details = fetch_assay_details(this.#h5_handle, this.#h5_path);
     }
 
     #features() {
@@ -455,7 +455,7 @@ export class H5adDataset {
 /**
  * Existing analysis results in the H5AD format.
  */
-export class H5adResults {
+export class H5adResult {
     #h5_file;
     #h5_path;
     #h5_flush;
@@ -469,6 +469,7 @@ export class H5adResults {
     #primaryMatrixName;
     #isPrimaryNormalized;
     #featureTypeColumnName;
+    #reducedDimensionNames;
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a H5AD file.
@@ -484,9 +485,7 @@ export class H5adResults {
         primaryMatrixName = null, 
         isPrimaryNormalized=true,
         featureTypeColumnName = null, 
-        featureTypeRnaName = "Gene Expression", 
-        featureTypeAdtName = "Antibody Capture", 
-        featureTypeCrisprName = "CRISPR Guide Capture"
+        reducedDimensionNames = null
     } = {}) {
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
@@ -497,6 +496,7 @@ export class H5adResults {
         this.#primaryMatrixName = primaryMatrixName;
         this.#isPrimaryNormalized = isPrimaryNormalized;
         this.#featureTypeColumnName = featureTypeColumnName;
+        this.#reducedDimensionNames = reducedDimensionNames;
 
         this.clear();
     }
@@ -524,7 +524,7 @@ export class H5adResults {
      * If `null`, the "X" dataset is used if it is present in the file, or the first available layer if no "X" dataset is present.
      */
     setPrimaryMatrixName(name) {
-        this.#countMatrixName = name;
+        this.#primaryMatrixName = name;
         return;
     }
 
@@ -570,7 +570,8 @@ export class H5adResults {
             return;
         }
         this.#instantiate();
-        this.#assay_details = fetch_assay_details(this.#h5_handle);
+        this.#assay_details = fetch_assay_details(this.#h5_handle, this.#h5_path);
+        return;
     }
 
     #features() {
@@ -605,15 +606,15 @@ export class H5adResults {
         return;
     }
 
-    #reddims() {
+    #fetch_reddim_details() {
         if (this.#reddim_details !== null) {
             return;
         }
         this.#instantiate();
         
         let available = [];
-        if ("obsm" in handle.children && handle.children["obsm"] == "Group") {
-            let ohandle = handle.open("obs");
+        if ("obsm" in this.#h5_handle.children && this.#h5_handle.children["obsm"] == "Group") {
+            let ohandle = this.#h5_handle.open("obsm");
             for (const [k, v] of Object.entries(ohandle.children)) {
                 if (v == "DataSet") {
                     available.push(k);
@@ -672,7 +673,7 @@ export class H5adResults {
      * - `reduced_dimensions`: an object containing the dimensionality reduction results.
      *   Each value is an array of arrays, where each inner array contains the coordinates for one dimension.
      */
-    load() {
+    load({ cache = false } = {}) {
         this.#features();
         this.#cells();
         this.#fetch_assay_details();
@@ -705,10 +706,20 @@ export class H5adResults {
             for (const k of chosen_reddims) {
                 let loaded = ohandle.open(k, { load: true });
                 let shape = loaded.shape;
+                let ndims = shape[1];
+                let ncells = shape[0];
+
                 let contents = [];
-                for (var d = 0; d < shape[0]; d++) {
-                    contents.push(loaded.values.slice(d * shape[1], (d + 1) * shape[1]));
+                for (var d = 0; d < ndims; d++) {
+                    contents.push(new Float64Array(ncells));
                 }
+
+                for (var c = 0; c < ncells; c++) {
+                    for (var d = 0; d < ndims; d++) {
+                        contents[d][c] = loaded.values[c * ndims + d];
+                    }
+                }
+
                 reddims[k] = contents;
             }
         }
