@@ -383,7 +383,6 @@ export class H5adDataset {
      * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
-     * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
      *
      * Modality names are guaranteed to be one of `"RNA"` or `"ADT"`.
      * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
@@ -453,7 +452,7 @@ export class H5adDataset {
  ************************/
 
 /**
- * Existing analysis results in the H5AD format.
+ * Pre-computed analysis results in the H5AD format.
  */
 export class H5adResult {
     #h5_file;
@@ -669,7 +668,6 @@ export class H5adResult {
      * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
-     * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
      * - `reduced_dimensions`: an object containing the dimensionality reduction results.
      *   Each value is an array of arrays, where each inner array contains the coordinates for one dimension.
      */

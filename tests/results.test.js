@@ -62,3 +62,33 @@ test("H5AD result readers work correctly with manual count normalization", async
     payload.matrix.free();
     payload2.matrix.free();
 })
+
+test("SummarizedExperiment result readers work correctly with log-count loading", async () => {
+    let info = new bakana.SummarizedExperimentResult("files/datasets/zeisel-brain-with-results.rds");
+
+    let details = info.summary();
+    expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
+    expect(details.modality_features["ERCC"].numberOfRows()).toBeGreaterThan(0);
+    expect(details.cells.numberOfRows()).toBeGreaterThan(0);
+    expect(details.modality_assay_names[""].length).toEqual(2);
+    expect(details.reduced_dimension_names.length).toEqual(3);
+
+    info.setPrimaryAssay("logcounts");
+    info.setIsPrimaryNormalized(true);
+    info.setReducedDimensionNames(["TSNE", "UMAP"]);
+
+    let payload = info.load();
+    expect(payload.matrix.numberOfColumns()).toEqual(details.cells.numberOfRows());
+    expect(payload.matrix.get("").numberOfRows()).toEqual(payload.features[""].numberOfRows());
+    expect(Object.keys(payload.reduced_dimensions)).toEqual(["TSNE", "UMAP"]);
+    expect(payload.reduced_dimensions["TSNE"].length).toEqual(2);
+    expect(payload.reduced_dimensions["TSNE"][0].length).toEqual(details.cells.numberOfRows());
+
+    let col0 = payload.matrix.get("").column(0);
+    expect(has_noninteger(col0)).toBe(true);
+
+    info.clear();
+    payload.matrix.free();
+})
+
+

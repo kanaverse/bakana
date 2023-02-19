@@ -4,6 +4,10 @@ import * as afile from "./abstract/file.js";
 import * as eutils from "./utils/extract.js";
 import * as futils from "./utils/features.js";
 
+/**************************
+ ******* Internals ********
+ **************************/
+
 function load_listData_names(lhandle) {
     let ndx = lhandle.findAttribute("names");
     if (ndx < 0) {
@@ -240,7 +244,7 @@ function extract_assay_names(handle) {
     return output;
 }
 
-function extract_counts(handle, assay) {
+function extract_counts(handle, assay, forceInteger = true) {
     let output;
     let ahandle;
     let dhandle;
@@ -271,7 +275,7 @@ function extract_counts(handle, assay) {
         let xhandle;
         try {
             xhandle = lhandle.load(chosen);
-            output = scran.initializeSparseMatrixFromRds(xhandle);
+            output = scran.initializeSparseMatrixFromRds(xhandle, { forceInteger });
         } catch(e) {
             throw new Error("failed to initialize sparse matrix from assay; " + e.message);
         } finally {
@@ -354,7 +358,7 @@ function extract_alt_exps(handle) {
         }
 
     } catch(e) {
-        for (const v of Object.values(output)) {
+        for (const v of Object.values(output.handles)) {
             scran.free(v);
         }
         throw e;
@@ -362,6 +366,95 @@ function extract_alt_exps(handle) {
     } finally {
         scran.free(aenn_handle);
         scran.free(aeld_handle);
+        scran.free(innn_handle);
+        scran.free(inld_handle);
+        scran.free(in_handle);
+    }
+
+    return output;
+}
+
+function extract_reduced_dims(handle) {
+    let output = { handles: {}, order: [] };
+    let indx = handle.findAttribute("int_colData");
+    if (indx < 0) {
+        return output;
+    }
+
+    let in_handle;
+    let inld_handle;
+    let innn_handle;
+    let rd_handle;
+    let rdld_handle;
+    let rdnn_handle;
+
+    try {
+        in_handle = handle.attribute(indx);
+        let inld_dx = in_handle.findAttribute("listData");
+        if (inld_dx < 0) {
+            return output;
+        }
+
+        inld_handle = in_handle.attribute(inld_dx);
+        let innn_dx = inld_handle.findAttribute("names");
+        if (innn_dx < 0) {
+            return output;
+        }
+
+        innn_handle = inld_handle.attribute(innn_dx);
+        let in_names = innn_handle.values();
+        let rd_dx = in_names.indexOf("reducedDims");
+        if (rd_dx < 0) {
+            return output;
+        }
+
+        rd_handle = inld_handle.load(rd_dx);
+        let rdld_dx = rd_handle.findAttribute("listData");
+        if (rdld_dx < 0) {
+            return output;
+        }
+
+        rdld_handle = rd_handle.attribute(rdld_dx);
+        let rdnn_dx = rdld_handle.findAttribute("names");
+        if (rdnn_dx < 0) {
+            return output;
+        }
+
+        rdnn_handle = rdld_handle.attribute(rdnn_dx);
+        let rd_names = rdnn_handle.values();
+
+        for (var i = 0; i < rd_names.length; i++) {
+            let curhandle;
+            try {
+                curhandle = rdld_handle.load(i);
+                let okay = false;
+
+                if (curhandle.type() == "double" && curhandle.findAttribute("dim") >= 0) { // only accepting double-precision matrics.
+                    let dimhandle = curhandle.attribute("dim");
+                    if (dimhandle.length() == 2) {
+                        output.handles[rd_names[i]] = { handle: curhandle, dimensions: dimhandle.values() };
+                        output.order.push(rd_names[i]);
+                        okay = true;
+                    }
+                }
+
+                if (!okay) {
+                    scran.free(curhandle);
+                }
+            } catch (e) {
+                throw new Error("failed to load reduced dimension '" + rd_names[i] + "'; " + e.message);
+            }
+        }
+
+    } catch(e) {
+        for (const v of Object.values(output.handles)) {
+            scran.free(v.handle);
+        }
+        throw e;
+
+    } finally {
+        scran.free(rdnn_handle);
+        scran.free(rdld_handle);
         scran.free(innn_handle);
         scran.free(inld_handle);
         scran.free(in_handle);
@@ -380,6 +473,10 @@ function check_for_se(handle) {
 }
 
 const main_experiment_name = "";
+
+/************************
+ ******* Dataset ********
+ ************************/
 
 /**
  * Dataset stored as a `SummarizedExperiment` object (or one of its subclasses) inside an RDS file.
@@ -608,7 +705,6 @@ export class SummarizedExperimentDataset {
         if (this.#raw_features !== null) {
             return;
         }
-
         this.#initialize();
         this.#raw_features = {};
         this.#raw_features[main_experiment_name] = extract_features(this.#se_handle);
@@ -789,5 +885,319 @@ export class SummarizedExperimentDataset {
             throw new Error("expected exactly one file of type 'rds' for SummarizedExperiment unserialization");
         }
         return new SummarizedExperimentDataset(files[0].file, options);
+    }
+}
+
+/************************
+ ******* Dataset ********
+ ************************/
+
+/**
+ * Pre-computed analysis results stored as a `SummarizedExperiment` object (or one of its subclasses) inside an RDS file.
+ */
+export class SummarizedExperimentResult {
+    #rds_file;
+
+    #rds_handle;
+    #se_handle;
+    #alt_handles;
+    #alt_handle_order;
+
+    #raw_features;
+    #raw_cells;
+    #rd_handles;
+    #rd_handle_order;
+
+    #primaryAssay;
+    #isPrimaryNormalized;
+    #reducedDimensionNames;
+
+    /**
+     * @param {SimpleFile|string|Uint8Array|File} rdsFile - Contents of a RDS file.
+     * On browsers, this may be a File object.
+     * On Node.js, this may also be a string containing a file path.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {object|string|number} [options.primaryAssay=0] - See {@linkcode SummarizedExperimentResult#setPrimaryAssay setPrimaryAssay}.
+     * @param {object|boolean} [options.isPrimaryNormalized={}] - See {@linkcode SummarizedExperimentResult#setIsPrimaryNormalized setIsPrimaryNormalized}.
+     * @param {?Array} [options.reducedDimensionNames=null] - See {@linkcode SummarizedExperimentResult#setReducedDimensionNames setReducedDimensionNames}.
+     */
+    constructor(rdsFile, { 
+        primaryAssay = 0,
+        isPrimaryNormalized = true,
+        reducedDimensionNames = null
+    } = {}) {
+        if (rdsFile instanceof afile.SimpleFile) {
+            this.#rds_file = rdsFile;
+        } else {
+            this.#rds_file = new afile.SimpleFile(rdsFile);
+        }
+
+        this.#primaryAssay = primaryAssay;
+        this.#isPrimaryNormalized = isPrimaryNormalized;
+        this.#reducedDimensionNames = reducedDimensionNames;
+
+        this.clear();
+    }
+
+    setPrimaryAssay(primary) {
+        this.#primaryAssay = primary;
+        return;
+    }
+
+    setIsPrimaryNormalized(normalized) {
+        this.#isPrimaryNormalized = normalized;
+        return;
+    }
+
+    /**
+     * @param {?Array} names - Array of names of the reduced dimensions to load.
+     * If `null`, all reduced dimensions found in the file are loaded.
+     */
+    setReducedDimensionNames(names) {
+        this.#reducedDimensionNames = names;
+        return;
+    }
+
+    /**
+     * Destroy caches if present, releasing the associated memory.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode SummarizedExperimentDataset#load load} or {@linkcodeSummarizedExperimentDataset#summary summary}.
+     */
+    clear() {
+        scran.free(this.#se_handle);
+
+        if (typeof this.#alt_handles != 'undefined' && this.#alt_handles !== null) {
+            for (const v of Object.values(this.#alt_handles)) {
+                scran.free(v);
+            }
+        }
+
+        if (typeof this.#rd_handles != 'undefined' && this.#rd_handles !== null) {
+            for (const v of Object.values(this.#rd_handles)) {
+                scran.free(v.handle);
+            }
+        }
+
+        scran.free(this.#rds_handle);
+
+        this.#se_handle = null;
+        this.#alt_handles = null;
+        this.#rds_handle = null;
+
+        this.#raw_features = null;
+        this.#raw_cells = null;
+    }
+
+    #initialize() {
+        if (this.#rds_handle !== null) {
+            return;
+        }
+
+        this.#rds_handle = scran.readRds(this.#rds_file.content());
+        this.#se_handle = this.#rds_handle.value();
+        try {
+            check_for_se(this.#se_handle);
+
+            {
+                const { handles, order } = extract_alt_exps(this.#se_handle);
+                this.#alt_handles = handles;
+                this.#alt_handle_order = order;
+            }
+
+            {
+                const { handles, order } = extract_reduced_dims(this.#se_handle);
+                this.#rd_handles = handles;
+                this.#rd_handle_order = order;
+            }
+
+        } catch (e) {
+            this.#se_handle.free();
+            this.#rds_handle.free();
+            throw e;
+        }
+    }
+
+    #features() {
+        if (this.#raw_features !== null) {
+            return;
+        }
+
+        this.#initialize();
+        this.#raw_features = {};
+        this.#raw_features[main_experiment_name] = extract_features(this.#se_handle);
+
+        for (const [k, v] of Object.entries(this.#alt_handles)) {
+            try {
+                this.#raw_features[k] = extract_features(v);
+            } catch (e) {
+                console.warn("failed to extract features for alternative Experiment '" + k + "'; " + e.message);
+            }
+        }
+
+        return;
+    }
+
+    #cells() {
+        if (this.#raw_cells !== null) {
+            return;
+        }
+
+        this.#initialize();
+        let info;
+        let chandle = this.#se_handle.attribute("colData");
+        try {
+            info = load_data_frame(chandle);
+        } catch(e) {
+            throw new Error("failed to extract colData from a SummarizedExperiment; " + e.message);
+        } finally {
+            scran.free(chandle);
+        }
+
+        this.#raw_cells = new bioc.DataFrame(info.columns, { numberOfRows: info.nrow });
+        return;
+    }
+
+    /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#load load}.
+     * If `true`, users should consider calling {@linkcode SummarizedExperimentDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     * 
+     * @return {object} Object containing the per-feature and per-cell annotations.
+     * This has the following properties:
+     *
+     * - `modality_features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
+     * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
+     * - `modality_assay_names`: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.
+     *    Unnamed assays are represented as `null` names.
+     * - `reduced_dimension_names`: an Array of strings containing names of dimensionality reduction results.
+     */
+    summary({ cache = false } = {}) {
+        this.#initialize();
+        this.#features();
+        this.#cells();
+
+        let assays = {};
+        assays[main_experiment_name] = extract_assay_names(this.#se_handle);
+        for (const [k, v] of Object.entries(this.#alt_handles)) {
+            try {
+                assays[k] = extract_assay_names(v);
+            } catch (e) {
+                console.warn("failed to extract features for alternative Experiment '" + k + "'; " + e.message);
+            }
+        }
+
+        let output = {
+            modality_features: this.#raw_features,
+            cells: this.#raw_cells,
+            modality_assay_names: assays,
+            reduced_dimension_names: this.#rd_handle_order
+        };
+
+        if (!cache) {
+            this.clear();
+        }
+        return output;
+    }
+
+    /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#summary summary}.
+     * If `true`, users should consider calling {@linkcode SummarizedExperimentDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     *
+     * @return {object} Object containing the per-feature and per-cell annotations.
+     * This has the following properties:
+     *
+     * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
+     * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
+     * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
+     * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
+     * - `reduced_dimensions`: an object containing the dimensionality reduction results.
+     *   Each value is an array of arrays, where each inner array contains the coordinates for one dimension.
+     */
+    load({ cache = false } = {}) {
+        this.#initialize();
+        this.#features();
+        this.#cells();
+
+        let output = { 
+            matrix: new scran.MultiMatrix,
+            row_ids: {},
+            features: {},
+            cells: this.#raw_cells,
+            reduced_dimensions: {}
+        };
+
+        // Fetch the reduced dimensions first.
+        let reddims = this.#reducedDimensionNames;
+        if (reddims == null) {
+            reddims = this.#rd_handle_order;
+        }
+
+        for (const k of reddims) {
+            let v = this.#rd_handles[k];
+            let acquired = [];
+            let dims = v.dimensions;
+            let contents = v.handle.values();
+            for (var d = 0; d < dims[1]; d++) {
+                acquired.push(contents.slice(d * dims[0], (d + 1) * dims[0]));
+            }
+            output.reduced_dimensions[k] = acquired;
+        }
+
+        // Now fetching the assay matrix.
+        try {
+            for (const [k, v] of Object.entries(this.#raw_features)) {
+                let curassay = this.#primaryAssay;
+                if (typeof curassay == "object") {
+                    if (k in curassay) {
+                        curassay = curassay[k];
+                    } else {
+                        continue;
+                    }
+                }
+
+                let curnormalized = this.#isPrimaryNormalized;
+                if (typeof curnormalized == "object") {
+                    if (k in curnormalized) {
+                        curnormalized = curnormalized[k];
+                    } else {
+                        curnormalized = true;
+                    }
+                }
+
+                let handle;
+                if (k === "") {
+                    handle = this.#se_handle;
+                } else {
+                    handle = this.#alt_handles[k];
+                }
+
+                let loaded = extract_counts(handle, curassay, !curnormalized);
+                output.matrix.add(k, loaded.matrix);
+
+                if (!curnormalized) {
+                    let normed = scran.logNormCounts(loaded.matrix, { allowZeros: true });
+                    output.matrix.add(k, normed);
+
+                    let out_ids = loaded.row_ids;
+                    output.row_ids[k] = out_ids;
+                    output.features[k] = bioc.SLICE(this.#raw_features[k], out_ids);
+                } else {
+                    // Filling in something for the time being.
+                    let out_ids = new Int32Array(loaded.matrix.numberOfRows());
+                    out_ids.forEach((x, i) => { out_ids[i] = i });
+                    output.row_ids[k] = out_ids;
+                    output.features[k] = this.#raw_features[k];
+                }
+            }
+
+        } catch (e) {
+            scran.free(output.matrix);
+            throw e;
+        }
+
+        if (!cache) {
+            this.clear();
+        }
+        return output;
     }
 }
