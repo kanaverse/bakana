@@ -70,12 +70,11 @@ This method should return an object containing:
   Each modality-specific submatrix should be a [`ScranMatrix`](https://jkanche.github.io/scran.js/ScranMatrix.html) containing any number of rows.
   All modalities should contain data for the same number of columns.
   Unlike `summary()`, modality names should be one of `"RNA"`, `"ADT"` or `"CRISPR"` -
-  developers may consider adding some setters to their `Dataset` class to enable users to specify a mapping between the modality names from `summary()` and those returned by this method.
-- `row_ids`, an object specifying the row identities for each submatrix in `matrix`.
-  Keys should correspond to the modality names in `matrix` and each value should be an integer array containing the identities of the submatrix rows.
-  Feature identities should be encoded as non-negative integers that are unique within each submatrix.
-  Developers should endeavor to keep identities consistent across different versions of the reader (i.e., the same feature gets the same integer identity),
-  as **bakana** will automatically use this information to transform old results to match the row order in the current version of the application.
+  developers should consider adding some setters to their `Dataset` class to enable users to specify a mapping between the modality names from `summary()` and those returned by this method.
+- `primary_ids`, an object specifying the feature identities for each submatrix in `matrix`.
+  Keys should correspond to the modality names in `matrix` and each value should be an array of strings containing the feature identities of the submatrix's rows.
+  Note that these identifiers are only used to find the intersection of features when combining multiple datasets;
+  in rare situations, developers may choose to instead return a `null` value for any modality, and this will not raise an error in a single dataset analysis. 
 - `features`, an object where each key is the name of a modality in `matrix`.
   Each modality-specific value is a `DataFrame` with one row per feature in the corresponding entry of `matrix`.
   Columns should be per-feature annotation fields, as described for `summary()`.

@@ -648,8 +648,9 @@ export class SummarizedExperimentDataset {
 
     /**
      * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
-     * If no row names are present in the SummarizedExperiment, no primary identifier is defined.
+     * However, if no row names are present in the SummarizedExperiment, no primary identifier is defined.
      */
     setPrimaryRnaFeatureIdColumn(i) {
         this.#primaryRnaFeatureIdColumn = i;
@@ -658,8 +659,9 @@ export class SummarizedExperimentDataset {
 
     /**
      * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
-     * If no row names are present in the SummarizedExperiment, no primary identifier is defined.
+     * However, if no row names are present in the SummarizedExperiment, no primary identifier is defined.
      */
     setPrimaryAdtFeatureIdColumn(i) {
         this.#primaryAdtFeatureIdColumn = i;
@@ -668,8 +670,9 @@ export class SummarizedExperimentDataset {
 
     /**
      * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
+     *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the existing row names (if they exist) are used as the primary identifier.
-     * If no row names are present in the SummarizedExperiment, no primary identifier is defined.
+     * However, if no row names are present in the SummarizedExperiment, no primary identifier is defined.
      */
     setPrimaryCrisprFeatureIdColumn(i) {
         this.#primaryCrisprFeatureIdColumn = i;
@@ -819,7 +822,7 @@ export class SummarizedExperimentDataset {
      * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
-     * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
+     * - `primary_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
      */
     load({ cache = false } = {}) {
         this.#initialize();
@@ -876,7 +879,7 @@ export class SummarizedExperimentDataset {
                 ADT: this.#primaryAdtFeatureIdColumn,
                 CRISPR: this.#primaryCrisprFeatureIdColumn
             };
-            futils.decorateWithPrimaryIds(output.features, primaries);
+            output.primary_ids = futils.extractPrimaryIds(output.features, primaries);
 
         } catch (e) {
             scran.free(output.matrix);

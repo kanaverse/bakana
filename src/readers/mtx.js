@@ -325,7 +325,7 @@ export class TenxMatrixMarketDataset {
      * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
-     * - `row_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
+     * - `primary_ids`: an object where each key is a modality name and each value is an array of strings containing the feature identifiers for each row in that modality.
      *
      * Modality names are guaranteed to be one of `"RNA"` or `"ADT"`.
      * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
@@ -356,7 +356,7 @@ export class TenxMatrixMarketDataset {
             ADT: this.#primaryAdtFeatureIdColumn,
             CRISPR: this.#primaryCrisprFeatureIdColumn
         };
-        futils.decorateWithPrimaryIds(output.features, primaries);
+        output.primary_ids = futils.extractPrimaryIds(output.features, primaries);
 
         if (!cache) {
             this.clear();

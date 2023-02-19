@@ -87,7 +87,8 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
     return output;
 }
 
-export function decorateWithPrimaryIds(features, primary) {
+export function extractPrimaryIds(features, primary) {
+    let output = {};
     for (const k of Object.keys(features)) {
         if (!(k in primary)) {
             throw new Error("modality '" + k + "' has no primary key identifier");  
@@ -96,7 +97,10 @@ export function decorateWithPrimaryIds(features, primary) {
         let curfeat = features[k];
         let id = primary[k];
         if ((typeof id == "string" && curfeat.hasColumn(id)) || (typeof id == "number" && id < curfeat.numberOfColumns())) {
-            curfeat.$setRowNames(curfeat.column(id));
+            output[k] = curfeat.column(id);
+        } else {
+            output[k] = curfeat.rowNames();
         }
     }
+    return output;
 }

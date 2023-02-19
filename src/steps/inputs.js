@@ -369,9 +369,13 @@ function bind_single_modality(modality, loaded) {
         let gnames = [];
         let mats = [];
         for (var i = 0; i < loaded.length; i++) {
-            let curfeat = loaded[i].features[modality];
-            gnames.push(curfeat.rowNames());
             mats.push(loaded[i].matrix.get(modality));
+
+            let primary_id = loaded[i].primary_ids[modality];
+            if (primary_id == null) {
+                throw new Error("modality '" + modality + "' lacks a primary identifier for dataset " + String(i));
+            }
+            gnames.push(primary_id);
         }
 
         let merged = scran.cbindWithNames(mats, gnames);

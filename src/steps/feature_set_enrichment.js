@@ -81,7 +81,7 @@ export class FeatureSetEnrichmentState {
     static defaults() {
         return {
             collections: [],
-            dataset_id_column: "id", 
+            dataset_id_column: null, 
             reference_id_column: "ENSEMBL", 
             top_markers: 100
         };
@@ -301,16 +301,26 @@ export class FeatureSetEnrichmentState {
     #remap_collection(name, data_id, ref_id) {
         if (!(name in this.#cache.mapped)) {
             let feats = this.#inputs.fetchFeatureAnnotations()["RNA"];
-            if (!feats.hasColumn(data_id)) {
-                throw new Error("no column '" + data_id + "' in the feature annotations");
+
+            let data_id_col;
+            if (data_id == null) {
+                data_id_col = feats.rowNames();
+                if (data_id_col == null) {
+                    throw new Error("no row names available in the feature annotations");
+                }
+            } else {
+                if (!feats.hasColumn(data_id)) {
+                    throw new Error("no column '" + data_id + "' in the feature annotations");
+                }
+                data_id_col = feats.column(data_id);
             }
-            
+
             let loaded = this.#cache.loaded[name];
             if (!(ref_id in loaded.features)){
                 throw new Error("no column '" + ref_id + "' in the feature set annotations");
             }
 
-            let output = scran.remapFeatureSets(feats.column(data_id), loaded.features[ref_id], loaded.members);
+            let output = scran.remapFeatureSets(data_id_col, loaded.features[ref_id], loaded.members);
             let sizes = new Int32Array(output.sets.length);
             output.sets.forEach((x, i) => { sizes[i] = x.length });
             output.sizes = sizes;
@@ -347,7 +357,9 @@ export class FeatureSetEnrichmentState {
      *
      * @param {object} parameters - Parameter object, equivalent to the `feature_set_enrichment` property of the `parameters` of {@linkcode runAnalysis}.
      * @param {Array} parameters.collections - Array of strings containing the names of collections to be tested.
-     * @param {string} parameters.dataset_id_column - Name of the column of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each feature.
+     * @param {?string} parameters.dataset_id_column - Name of the column of the RNA entry of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations},
+     * containing the identity of each gene. 
+     * If `null`, identifiers are taken from the row names.
      * @param {string} parameters.reference_id_column - Name of the column of each collection's `*_features.csv.gz` that contains the identity of each feature, to be matched against identities in `dataset_id_column`.
      * @param {number} parameters.top_markers - Number of top markers to use when testing for enrichment.
      *

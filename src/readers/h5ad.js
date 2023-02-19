@@ -70,7 +70,12 @@ function load_data_frame(handle) {
     if (Object.keys(columns).length == 0) {
         return null;
     } else {
-        return new bioc.DataFrame(columns);
+        let rn = null;
+        if ("_index" in columns) {
+            rn = columns._index;
+            delete columns._index;
+        }
+        return new bioc.DataFrame(columns, { rowNames: rn });
     }
 }
 
@@ -143,9 +148,9 @@ export class H5adDataset {
      * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode H5adDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
      * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode H5adDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
      * @param {?string} [options.featureTypeCrisprName="CRISPR Guide Capture"] - See {@linkcode H5adDataset#setFeatureTypeCrisprName setFeatureTypeCrisprName}.
-     * @param {?(string|number)} [options.primaryRnaFeatureIdColumn="_index"] - See {@linkcode H5adDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
-     * @param {?(string|number)} [options.primaryAdtFeatureIdColumn="_index"] - See {@linkcode H5adDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
-     * @param {?(string|number)} [options.primaryCrisprFeatureIdColumn="_index"] - See {@linkcode H5adDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
+     * @param {?(string|number)} [options.primaryRnaFeatureIdColumn=null] - See {@linkcode H5adDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
+     * @param {?(string|number)} [options.primaryAdtFeatureIdColumn=null] - See {@linkcode H5adDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
+     * @param {?(string|number)} [options.primaryCrisprFeatureIdColumn=null] - See {@linkcode H5adDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
      */
     constructor(h5File, { 
         countMatrixName = null, 
@@ -224,7 +229,9 @@ export class H5adDataset {
 
     /**
      * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
-     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     *
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the row names (from the `_index` group) are used as the primary identifiers.
+     * If no row names are present in this situation, no primary identifier is defined.
      */
     setPrimaryRnaFeatureIdColumn(i) {
         this.#primaryRnaFeatureIdColumn = i;
@@ -233,7 +240,9 @@ export class H5adDataset {
 
     /**
      * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
-     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     *
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the row names (from the `_index` group) are used as the primary identifiers.
+     * If no row names are present in this situation, no primary identifier is defined.
      */
     setPrimaryAdtFeatureIdColumn(i) {
         this.#primaryAdtFeatureIdColumn = i;
@@ -242,7 +251,9 @@ export class H5adDataset {
 
     /**
      * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
-     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     *
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the row names (from the `_index` group) are used as the primary identifiers.
+     * If no row names are present in this situation, no primary identifier is defined.
      */
     setPrimaryCrisprFeatureIdColumn(i) {
         this.#primaryCrisprFeatureIdColumn = i;
@@ -372,6 +383,7 @@ export class H5adDataset {
      * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
+     * - `primary_ids`: an object where each key is a modality name and each value is an array of strings containing the feature identifiers for each row in that modality.
      *
      * Modality names are guaranteed to be one of `"RNA"` or `"ADT"`.
      * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
@@ -401,7 +413,7 @@ export class H5adDataset {
             ADT: this.#primaryAdtFeatureIdColumn,
             CRISPR: this.#primaryCrisprFeatureIdColumn
         };
-        futils.decorateWithPrimaryIds(output.features, primaries);
+        output.primary_ids = futils.extractPrimaryIds(output.features, primaries);
 
         if (!cache) {
             this.clear();
