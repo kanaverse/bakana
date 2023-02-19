@@ -475,8 +475,8 @@ export class H5adResult {
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
      * @param {object} [options={}] - Optional parameters.
-     * @param {?string} [options.primaryMatrixName=null] - See {@linkcode H5adResult#setCountMatrixName setCountMatrixName}.
-     * @param {boolean} [options.isPrimaryNormalized=true] - See {@linkcode H5adResult#setCountMatrixName setCountMatrixName}.
+     * @param {?string} [options.primaryMatrixName=null] - See {@linkcode H5adResult#setPrimaryMatrixName setPrimaryMatrixName}.
+     * @param {boolean} [options.isPrimaryNormalized=true] - See {@linkcode H5adResult#setIsPrimaryNormalized setIsPrimaryNormalized}.
      * @param {?string} [options.featureTypeColumnName=null] - See {@linkcode H5adResult#setFeatureTypeColumnName setFeatureTypeColumnName}.
      * @param {?Array} [options.reducedDimensionNames=null] - See {@linkcode H5adResult#setReducedDimensionNames setReducedDimensionNames}.
      */

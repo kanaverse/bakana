@@ -956,6 +956,7 @@ export class SummarizedExperimentResult {
      * @param {object|boolean} normalized - Whether or not the assay for a particular modality has already been normalized.
      *
      * - If a boolean, this is used to indicate normalization status of assays across all modalities.
+     *   If `false`, that modality's assay is assumed to contain count data and is subjected to library size normalization. 
      * - If any object, the key should be the name of a modality and the value should be a boolean indicating whether that modality's assay has been normalized.
      *   Modalities absent from this object are assumed to have been normalized.
      */

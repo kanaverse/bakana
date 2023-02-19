@@ -31,7 +31,7 @@
     "scran.js": "2.0.0-alpha.6"
   },
   "devDependencies": {
-    "docdash": "^1.2.0",
+    "docdash": "^2.0.1",
     "jest": "^27.5.1",
     "jsdoc": "^4.0.1",
     "valkana": "^1.0.0-alpha.3",
