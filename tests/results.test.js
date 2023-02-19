@@ -1,5 +1,6 @@
 import * as bakana from "../src/index.js";
 import * as utils from "./utils.js";
+import * as bioc from "bioconductor";
 
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
@@ -69,7 +70,10 @@ test("SummarizedExperiment result readers work correctly with log-count loading"
     let details = info.summary();
     expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
     expect(details.modality_features["ERCC"].numberOfRows()).toBeGreaterThan(0);
+
     expect(details.cells.numberOfRows()).toBeGreaterThan(0);
+    expect(details.cells.column("label") instanceof Array).toBe(true); // factors are correctly expanded.
+
     expect(details.modality_assay_names[""].length).toEqual(2);
     expect(details.reduced_dimension_names.length).toEqual(3);
 

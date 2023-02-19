@@ -31,12 +31,13 @@ function load_listData_names(lhandle) {
     return names;
 }
 
-function load_data_frame(handle) {
-    check_class(handle, { "DFrame": "S4Vectors" }, "DFrame");
-    let output = {};
+const acceptable_df_subclasses = { "DFrame": "S4Vectors" };
 
-    // Loading the atomic columns.
+function load_data_frame(handle) {
+    check_class(handle, acceptable_df_subclasses, "DFrame");
+
     let columns = {};
+    let colnames = [];
     let lhandle;
     try {
         lhandle = handle.attribute("listData");
@@ -44,7 +45,7 @@ function load_data_frame(handle) {
             throw new Error("listData slot should be a generic list");
         }
 
-        let colnames = load_listData_names(lhandle);
+        colnames = load_listData_names(lhandle);
         if (colnames == null) {
             throw new Error("expected the listData list to be named");
         }
@@ -53,11 +54,35 @@ function load_data_frame(handle) {
             let curhandle;
             try {
                 curhandle = lhandle.load(i);
+
                 if (curhandle instanceof scran.RdsVector && !(curhandle instanceof scran.RdsGenericVector)) {
                     let curcol = curhandle.values();
+
+                    // Expand factors, if we detect them.
+                    if (curhandle.findAttribute("class") >= 0) {
+                        let clshandle;
+                        let levhandle;
+                        try {
+                            clshandle = curhandle.attribute("class");
+                            if (clshandle.values().indexOf("factor") >= 0 && curhandle.findAttribute("levels") >= 0) {
+                                levhandle = curhandle.attribute("levels");
+                                let copy = curcol.slice();
+                                copy.forEach((x, i) => { copy[i] = x - 1 }); // get back to 0-based indices.
+                                curcol = bioc.SLICE(levhandle.values(), copy);
+                            }
+                        } finally {
+                            scran.free(clshandle);
+                            scran.free(levhandle);
+                        }
+                    }
+
                     columns[colnames[i]] = curcol;
-                    output.nrow = curcol.length;
+
+                } else if (curhandle instanceof scran.RdsS4Object && check_acceptable_class(curhandle, acceptable_df_subclasses)) {
+                    // Handle nested DataFrames.
+                    columns[colnames[i]] = load_data_frame(curhandle);
                 }
+
             } finally {
                 scran.free(curhandle);
             }
@@ -67,15 +92,14 @@ function load_data_frame(handle) {
     } finally {
         scran.free(lhandle);
     }
-    output.columns = columns;
 
     // Loading the row names.
     let rnhandle;
+    let rownames = null;
     try {
         rnhandle = handle.attribute("rownames");
         if (rnhandle instanceof scran.RdsStringVector) {
-            output.row_names = rnhandle.values();
-            output.nrow = output.row_names.length;
+            rownames = rnhandle.values();
         }
     } catch(e) {
         throw new Error("failed to retrieve row names from DataFrame; " + e.message);
@@ -84,7 +108,8 @@ function load_data_frame(handle) {
     }
 
     // Loading the number of rows.
-    if (!("nrow" in output)) {
+    let nrows = null;
+    if (colnames.length == 0 && rownames == null) {
         let nrhandle;
         try {
             nrhandle = handle.attribute("nrows");
@@ -95,7 +120,7 @@ function load_data_frame(handle) {
             if (NR.length != 1) {
                 throw new Error("expected an integer vector of length 1 as the 'nrows' slot");
             }
-            output.nrow = NR[0];
+            nrows = NR[0];
         } catch (e) {
             throw new Error("failed to retrieve nrows from DataFrame; " + e.message);
         } finally {
@@ -103,20 +128,25 @@ function load_data_frame(handle) {
         }
     }
 
-    return output;
+    return new bioc.DataFrame(columns, { columnOrder: colnames, rowNames: rownames, numberOfRows: nrows });
+}
+
+function check_acceptable_class(handle, accepted) {
+    for (const [k, v] of Object.entries(accepted)) {
+        if (handle.className() == k && handle.packageName() == v) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function check_class(handle, accepted, base) {
     if (!(handle instanceof scran.RdsS4Object)) {
         throw new Error("expected an S4 object as the data frame");
     }
-
-    for (const [k, v] of Object.entries(accepted)) {
-        if (handle.className() == k && handle.packageName() == v) {
-            return;
-        }
+    if (!check_acceptable_class(handle, accepted)) {
+        throw new Error("object is not a " + base + " or one of its recognized subclasses");
     }
-    throw new Error("object is not a " + base + " or one of its recognized subclasses");
 }
 
 function extract_NAMES(handle) {
@@ -142,7 +172,7 @@ function extract_NAMES(handle) {
 }
 
 function extract_features(handle) {
-    let rowdata = {};
+    let rowdata;
     let names = null;
 
     let rrdx = handle.findAttribute("rowRanges");
@@ -205,12 +235,12 @@ function extract_features(handle) {
     }
 
     if (names == null) {
-        return new bioc.DataFrame({}, { numberOfRows: rowdata.nrow });
+        return new bioc.DataFrame({}, { numberOfRows: rowdata.numberOfRows() });
     } else {
         let output = { id: names };
-        for (const [k, v] of Object.entries(rowdata.columns)) {
+        for (const k of rowdata.columnNames()) {
             if (k.match(/^sym/)) {
-                output[k] = v;
+                output[k] = rowdata.column(k);
             }
         }
         return new bioc.DataFrame(output);
@@ -726,17 +756,15 @@ export class SummarizedExperimentDataset {
         }
 
         this.#initialize();
-        let info;
         let chandle = this.#se_handle.attribute("colData");
         try {
-            info = load_data_frame(chandle);
+            this.#raw_cells = load_data_frame(chandle);
         } catch(e) {
             throw new Error("failed to extract colData from a SummarizedExperiment; " + e.message);
         } finally {
             scran.free(chandle);
         }
 
-        this.#raw_cells = new bioc.DataFrame(info.columns, { numberOfRows: info.nrow });
         return;
     }
 
@@ -1058,17 +1086,15 @@ export class SummarizedExperimentResult {
         }
 
         this.#initialize();
-        let info;
         let chandle = this.#se_handle.attribute("colData");
         try {
-            info = load_data_frame(chandle);
+            this.#raw_cells = load_data_frame(chandle);
         } catch(e) {
             throw new Error("failed to extract colData from a SummarizedExperiment; " + e.message);
         } finally {
             scran.free(chandle);
         }
 
-        this.#raw_cells = new bioc.DataFrame(info.columns, { numberOfRows: info.nrow });
         return;
     }
 
