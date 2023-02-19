@@ -83,7 +83,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line100">line 100</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line105">line 105</a>
     </li></ul></dd>
     
 
@@ -512,7 +512,7 @@ On Node.js, this may also be a string containing a file path.</p></td>
             
                 <td class="default">
                 
-                    <code>"_index"</code>
+                    <code>null</code>
                 
                 </td>
             
@@ -557,7 +557,7 @@ On Node.js, this may also be a string containing a file path.</p></td>
             
                 <td class="default">
                 
-                    <code>"_index"</code>
+                    <code>null</code>
                 
                 </td>
             
@@ -602,7 +602,7 @@ On Node.js, this may also be a string containing a file path.</p></td>
             
                 <td class="default">
                 
-                    <code>"_index"</code>
+                    <code>null</code>
                 
                 </td>
             
@@ -685,7 +685,7 @@ On Node.js, this may also be a string containing a file path.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line291">line 291</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line302">line 302</a>
     </li></ul></dd>
     
 
@@ -794,7 +794,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line267">line 267</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line278">line 278</a>
     </li></ul></dd>
     
 
@@ -876,7 +876,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line380">line 380</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line392">line 392</a>
     </li></ul></dd>
     
 
@@ -1088,6 +1088,7 @@ This has the following properties:</p>
 <li><code>features</code>: an object where each key is a modality name and each value is a <a href="external-DataFrame.html">DataFrame</a> of per-feature annotations for that modality.</li>
 <li><code>cells</code>: a <a href="external-DataFrame.html">DataFrame</a> containing per-cell annotations.</li>
 <li><code>matrix</code>: a <a href="external-MultiMatrix.html">MultiMatrix</a> containing one <a href="external-ScranMatrix.html">ScranMatrix</a> per modality.</li>
+<li><code>primary_ids</code>: an object where each key is a modality name and each value is an array of strings containing the feature identifiers for each row in that modality.</li>
 </ul>
 <p>Modality names are guaranteed to be one of <code>&quot;RNA&quot;</code> or <code>&quot;ADT&quot;</code>.
 It is assumed that an appropriate mapping from the feature types inside the <code>featureFile</code> was previously declared,
@@ -1131,7 +1132,7 @@ either in the constructor or in <code>setFeatureTypeRnaName</code> and <code>set
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line421">line 421</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line433">line 433</a>
     </li></ul></dd>
     
 
@@ -1246,7 +1247,7 @@ Each object corresponds to a single file and contains:
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line184">line 184</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line189">line 189</a>
     </li></ul></dd>
     
 
@@ -1391,7 +1392,7 @@ If <code>null</code>, the &quot;X&quot; dataset is used if it is present in the 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line211">line 211</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line216">line 216</a>
     </li></ul></dd>
     
 
@@ -1524,7 +1525,7 @@ Alternatively <code>null</code>, to indicate that no ADT features are to be load
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line193">line 193</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line198">line 198</a>
     </li></ul></dd>
     
 
@@ -1669,7 +1670,7 @@ If <code>null</code>, no column is assumed to contain the feature types, and all
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line220">line 220</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line225">line 225</a>
     </li></ul></dd>
     
 
@@ -1814,7 +1815,7 @@ Alternatively <code>null</code>, to indicate that no guides are to be loaded.</p
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line202">line 202</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line207">line 207</a>
     </li></ul></dd>
     
 
@@ -1959,154 +1960,6 @@ Alternatively <code>null</code>, to indicate that no RNA features are to be load
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line238">line 238</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>i</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-|
-
-<span class="param-type">number</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-                    &lt;nullable><br>
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for the ADTs.
-If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="setPrimaryCrisprFeatureIdColumn"><span class="type-signature"></span>setPrimaryCrisprFeatureIdColumn<span class="signature">(i<span class="signature-attributes">nullable</span>)</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
         <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line247">line 247</a>
     </li></ul></dd>
     
@@ -2211,8 +2064,9 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
 
             
 
-            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for the CRISPR guides.
-If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.</p></td>
+            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for the ADTs.</p>
+<p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the row names (from the <code>_index</code> group) are used as the primary identifiers.
+If no row names are present in this situation, no primary identifier is defined.</p></td>
         </tr>
 
     
@@ -2242,7 +2096,7 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
 
     
 
-    <h4 class="name" id="setPrimaryRnaFeatureIdColumn"><span class="type-signature"></span>setPrimaryRnaFeatureIdColumn<span class="signature">(i<span class="signature-attributes">nullable</span>)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="setPrimaryCrisprFeatureIdColumn"><span class="type-signature"></span>setPrimaryCrisprFeatureIdColumn<span class="signature">(i<span class="signature-attributes">nullable</span>)</span><span class="type-signature"></span></h4>
 
     
 
@@ -2255,7 +2109,7 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line229">line 229</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line258">line 258</a>
     </li></ul></dd>
     
 
@@ -2359,8 +2213,158 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
 
             
 
-            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for gene expression.
-If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.</p></td>
+            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for the CRISPR guides.</p>
+<p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the row names (from the <code>_index</code> group) are used as the primary identifiers.
+If no row names are present in this situation, no primary identifier is defined.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setPrimaryRnaFeatureIdColumn"><span class="type-signature"></span>setPrimaryRnaFeatureIdColumn<span class="signature">(i<span class="signature-attributes">nullable</span>)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line236">line 236</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>i</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for gene expression.</p>
+<p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the row names (from the <code>_index</code> group) are used as the primary identifiers.
+If no row names are present in this situation, no primary identifier is defined.</p></td>
         </tr>
 
     
@@ -2403,7 +2407,7 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line347">line 347</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line358">line 358</a>
     </li></ul></dd>
     
 
@@ -2655,7 +2659,7 @@ This has the following properties:</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line284">line 284</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line295">line 295</a>
     </li></ul></dd>
     
 
@@ -2760,7 +2764,7 @@ This has the following properties:</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line431">line 431</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line443">line 443</a>
     </li></ul></dd>
     
 
@@ -2941,7 +2945,7 @@ This has the following properties:</p>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Feb 19 2023 08:50:12 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Feb 19 2023 23:48:31 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

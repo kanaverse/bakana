@@ -733,7 +733,7 @@ On Node.js, this may also be a string containing a file path.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line711">line 711</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line714">line 714</a>
     </li></ul></dd>
     
 
@@ -842,7 +842,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line683">line 683</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line686">line 686</a>
     </li></ul></dd>
     
 
@@ -924,7 +924,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line824">line 824</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line827">line 827</a>
     </li></ul></dd>
     
 
@@ -1136,7 +1136,7 @@ This has the following properties:</p>
 <li><code>features</code>: an object where each key is a modality name and each value is a <a href="external-DataFrame.html">DataFrame</a> of per-feature annotations for that modality.</li>
 <li><code>cells</code>: a <a href="external-DataFrame.html">DataFrame</a> containing per-cell annotations.</li>
 <li><code>matrix</code>: a <a href="external-MultiMatrix.html">MultiMatrix</a> containing one <a href="external-ScranMatrix.html">ScranMatrix</a> per modality.</li>
-<li><code>row_ids</code>: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.</li>
+<li><code>primary_ids</code>: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.</li>
 </ul>
 </div>
 
@@ -1177,7 +1177,7 @@ This has the following properties:</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line901">line 901</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line904">line 904</a>
     </li></ul></dd>
     
 
@@ -1860,7 +1860,7 @@ If <code>i</code> is an empty string, the main experiment is assumed to contain 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line664">line 664</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line666">line 666</a>
     </li></ul></dd>
     
 
@@ -1952,9 +1952,9 @@ If <code>i</code> is an empty string, the main experiment is assumed to contain 
 
             
 
-            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for the ADTs.
-If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
-If no row names are present in the SummarizedExperiment, no primary identifier is defined.</p></td>
+            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for the ADTs.</p>
+<p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
+However, if no row names are present in the SummarizedExperiment, no primary identifier is defined.</p></td>
         </tr>
 
     
@@ -1997,7 +1997,7 @@ If no row names are present in the SummarizedExperiment, no primary identifier i
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line674">line 674</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line677">line 677</a>
     </li></ul></dd>
     
 
@@ -2089,9 +2089,9 @@ If no row names are present in the SummarizedExperiment, no primary identifier i
 
             
 
-            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for the CRISPR guides.
-If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the existing row names (if they exist) are used as the primary identifier.
-If no row names are present in the SummarizedExperiment, no primary identifier is defined.</p></td>
+            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for the CRISPR guides.</p>
+<p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the existing row names (if they exist) are used as the primary identifier.
+However, if no row names are present in the SummarizedExperiment, no primary identifier is defined.</p></td>
         </tr>
 
     
@@ -2134,7 +2134,7 @@ If no row names are present in the SummarizedExperiment, no primary identifier i
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line654">line 654</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line655">line 655</a>
     </li></ul></dd>
     
 
@@ -2226,9 +2226,9 @@ If no row names are present in the SummarizedExperiment, no primary identifier i
 
             
 
-            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for gene expression.
-If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
-If no row names are present in the SummarizedExperiment, no primary identifier is defined.</p></td>
+            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for gene expression.</p>
+<p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
+However, if no row names are present in the SummarizedExperiment, no primary identifier is defined.</p></td>
         </tr>
 
     
@@ -2555,7 +2555,7 @@ If <code>i</code> is an empty string, the main experiment is assumed to contain 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line784">line 784</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line787">line 787</a>
     </li></ul></dd>
     
 
@@ -2808,7 +2808,7 @@ Unnamed assays are represented as <code>null</code> names.</li>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line704">line 704</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line707">line 707</a>
     </li></ul></dd>
     
 
@@ -2913,7 +2913,7 @@ Unnamed assays are represented as <code>null</code> names.</li>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line911">line 911</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line914">line 914</a>
     </li></ul></dd>
     
 
@@ -3094,7 +3094,7 @@ Unnamed assays are represented as <code>null</code> names.</li>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Feb 19 2023 08:50:12 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Feb 19 2023 23:48:31 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
