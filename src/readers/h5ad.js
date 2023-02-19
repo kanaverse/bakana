@@ -37,67 +37,56 @@ function fetch_assay_details(handle, path) {
     };
 }
 
-function fetch_features(handle) {
-    if ("var" in handle.children && handle.children["var"] == "Group") {
-        let vhandle = handle.open("var");
-        let index = eutils.extractHDF5Strings(vhandle, "_index");
+function load_data_frame(handle) {
+    let columns = {};
 
-        if (index !== null) {
-            // Build it piece-by-piece for a well-defined order.
-            let genes = new bioc.DataFrame({ "_index": index });
-
-            for (const [key, val] of Object.entries(vhandle.children)) {
-                if (val === "DataSet" && (key.match(/name/i) || key.match(/symb/i))) {
-                    let dhandle2 = vhandle.open(key);
-                    if (dhandle2.type == "String") {
-                        genes.$setColumn(key, dhandle2.load());
-                    }
-                }
+    for (const [key, val] of Object.entries(handle.children)) {
+        if (val == "DataSet") {
+            let dhandle = handle.open(key, { load: true });
+            columns[key] = dhandle.values;
+        } else if (val == "Group") {
+            // Factor encoding for H5AD versions >= 0.8.0.
+            let subhandle = handle.open(key);
+            if ("categories" in subhandle.children && "codes" in subhandle.children) {
+                let current_levels = eutils.extractHDF5Strings(subhandle, "categories");
+                let codes = subhandle.open("codes", { load: true }).values;
+                columns[key] = bioc.SLICE(current_levels, codes);
             }
-
-            return genes;
         }
     }
 
+    // Factor encoding for H5AD versions < 0.8.0.
+    if ("__categories" in handle.children && handle.children["__categories"] == "Group") {
+        let chandle = handle.open("__categories");
+
+        for (const [key, val] of Object.entries(chandle.children)) {
+            if (key in columns) {
+                let current_levels = eutils.extractHDF5Strings(chandle, key);
+                columns[key] = bioc.SLICE(current_levels, columns[key]);
+            }
+        }
+    }
+
+    if (Object.keys(columns).length == 0) {
+        return null;
+    } else {
+        return new bioc.DataFrame(columns);
+    }
+}
+
+function fetch_features(handle) {
+    if ("var" in handle.children && handle.children["var"] == "Group") {
+        let vhandle = handle.open("var");
+        return load_data_frame(vhandle);
+    }
     return null;
 }
 
 function fetch_cells(handle) {
-    let annotations = {};
-
     if ("obs" in handle.children && handle.children["obs"] == "Group") {
         let ohandle = handle.open("obs");
-
-        // Maybe it has names, maybe not, who knows; let's just add what's there.
-        let index = eutils.extractHDF5Strings(ohandle, "_index");
-        if (index !== null) {
-            annotations["_index"] = index;
-        }
-
-        for (const [key, val] of Object.entries(ohandle.children)) {
-            if (val != "DataSet") {
-                continue;
-            }
-            let dhandle = ohandle.open(key, { load: true });
-            annotations[key] = dhandle.values;
-        }
-
-        if ("__categories" in ohandle.children && ohandle.children["__categories"] == "Group") {
-            let chandle = ohandle.open("__categories");
-
-            for (const [key, val] of Object.entries(chandle.children)) {
-                if (key in annotations) {
-                    let current_levels = eutils.extractHDF5Strings(chandle, key);
-                    annotations[key] = bioc.SLICE(current_levels, annotations[key]);
-                }
-            }
-        }
+        return load_data_frame(ohandle);
     }
-
-    if (Object.keys(annotations).length > 0) {
-        return new bioc.DataFrame(annotations);
-    }
-
     return null;
 }
 
@@ -154,9 +143,9 @@ export class H5adDataset {
      * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode H5adDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
      * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode H5adDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
      * @param {?string} [options.featureTypeCrisprName="CRISPR Guide Capture"] - See {@linkcode H5adDataset#setFeatureTypeCrisprName setFeatureTypeCrisprName}.
-     * @param {?(string|number)} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
-     * @param {?(string|number)} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
-     * @param {?(string|number)} [options.primaryCrisprFeatureIdColumn=0] - See {@linkcode H5adDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
+     * @param {?(string|number)} [options.primaryRnaFeatureIdColumn="_index"] - See {@linkcode H5adDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
+     * @param {?(string|number)} [options.primaryAdtFeatureIdColumn="_index"] - See {@linkcode H5adDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
+     * @param {?(string|number)} [options.primaryCrisprFeatureIdColumn="_index"] - See {@linkcode H5adDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
      */
     constructor(h5File, { 
         countMatrixName = null, 
@@ -164,9 +153,9 @@ export class H5adDataset {
         featureTypeRnaName = "Gene Expression", 
         featureTypeAdtName = "Antibody Capture", 
         featureTypeCrisprName = "CRISPR Guide Capture", 
-        primaryRnaFeatureIdColumn = 0, 
-        primaryAdtFeatureIdColumn = 0,
-        primaryCrisprFeatureIdColumn = 0 
+        primaryRnaFeatureIdColumn = "_index", 
+        primaryAdtFeatureIdColumn = "_index",
+        primaryCrisprFeatureIdColumn = "_index" 
     } = {}) {
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
@@ -235,7 +224,7 @@ export class H5adDataset {
 
     /**
      * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
-     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
     setPrimaryRnaFeatureIdColumn(i) {
         this.#primaryRnaFeatureIdColumn = i;
@@ -244,7 +233,7 @@ export class H5adDataset {
 
     /**
      * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
-     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
     setPrimaryAdtFeatureIdColumn(i) {
         this.#primaryAdtFeatureIdColumn = i;
@@ -253,7 +242,7 @@ export class H5adDataset {
 
     /**
      * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
-     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
     setPrimaryCrisprFeatureIdColumn(i) {
         this.#primaryCrisprFeatureIdColumn = i;
