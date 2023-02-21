@@ -121,7 +121,7 @@ test("different options for choosing IgG tags in ADT QC works as expected", asyn
     expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toEqual(0); 
     paramcopy.adt_quality_control.igg_prefix = "igg";
 
-    // when automatic discovery is enabled, chanes to the other parameters have no effect.
+    // When automatic discovery is enabled, changes to the other parameters have no effect.
     paramcopy.adt_quality_control.automatic = true;
     await state.adt_quality_control.compute(paramcopy.adt_quality_control);
     expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toBeGreaterThan(0); 
