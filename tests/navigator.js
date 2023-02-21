@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as utils from "./utils.js";
 import * as bakana from "../src/index.js";
 
 export const baseDirectory = "miscellaneous/from-tests";
