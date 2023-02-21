@@ -239,13 +239,15 @@ export class RnaQualityControlState {
             use_reference_mito !== this.#parameters.use_reference_mito || 
             (
                 !automatic && 
-                gene_id_column !== this.#parameters.gene_id_column || 
-                (use_reference_mito && mito_prefix !== this.#parameters.mito_prefix) ||
                 (
-                    !use_reference_mito && 
+                    gene_id_column !== this.#parameters.gene_id_column || 
+                    (!use_reference_mito && mito_prefix !== this.#parameters.mito_prefix) ||
                     (
-                        utils.changedParameters(reference_mito_species, this.#parameters.reference_mito_species) || 
-                        reference_mito_type == this.#parameters.reference_mito_type
+                        use_reference_mito && 
+                        (
+                            utils.changedParameters(reference_mito_species, this.#parameters.reference_mito_species) || 
+                            reference_mito_type !== this.#parameters.reference_mito_type
+                        )
                     )
                 )
             ) 

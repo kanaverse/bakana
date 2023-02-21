@@ -46,10 +46,14 @@ test("analysis works when we skip the QC steps", async () => {
     await bakana.freeAnalysis(state);
 })
 
-test("guessing of the mitochondrial genes for RNA QC works as expected", async () => {
+test("different options for choosing mitochondrial genes in RNA QC works as expected", async () => {
     let state = await bakana.createAnalysis();
     let paramcopy = utils.baseParams();
-    state.inputs.compute(files, paramcopy.inputs);
+    await state.inputs.compute(files, paramcopy.inputs);
+    await state.rna_quality_control.compute(paramcopy.rna_quality_control);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0); // automatic choice works.
+
+    await state.inputs.compute(files, paramcopy.inputs); // running it again to set changed = false.
 
     paramcopy.rna_quality_control.automatic = false;
     paramcopy.rna_quality_control.gene_id_column = "id";
@@ -62,13 +66,27 @@ test("guessing of the mitochondrial genes for RNA QC works as expected", async (
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
     expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
 
+    // Using the prefix.
     paramcopy.rna_quality_control.use_reference_mito = false;
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
     expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toEqual(0);
 
-    paramcopy.rna_quality_control.gene_id_column = "symbol";
+    paramcopy.rna_quality_control.gene_id_column = "name";
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
     expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
+
+    // When automatic discovery is enabled, changes to the other parameters have no effect.
+    paramcopy.rna_quality_control.automatic = true;
+    await state.rna_quality_control.compute(paramcopy.rna_quality_control);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
+    expect(state.rna_quality_control.changed).toBe(true);
+    expect(state.rna_quality_control.fetchParameters().gene_id_column).toBe("name");
+
+    paramcopy.rna_quality_control.gene_id_column = "foobar";
+    await state.rna_quality_control.compute(paramcopy.rna_quality_control);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
+    expect(state.rna_quality_control.changed).toBe(false);
+    expect(state.rna_quality_control.fetchParameters().gene_id_column).toBe("foobar");
 
     await bakana.freeAnalysis(state);
 })
