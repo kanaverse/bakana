@@ -507,7 +507,7 @@ const main_experiment_name = "";
  ************************/
 
 /**
- * Dataset stored as a `SummarizedExperiment` object (or one of its subclasses) inside an RDS file.
+ * Dataset stored as a SummarizedExperiment object (or one of its subclasses) inside an RDS file.
  */
 export class SummarizedExperimentDataset {
     #rds_file;
@@ -540,7 +540,8 @@ export class SummarizedExperimentDataset {
             rnaExperiment: this.#rnaExperiment,
             adtExperiment: this.#adtExperiment,
             primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
-            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn
+            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn,
+            primaryCrisprFeatureIdColumn: this.#primaryCrisprFeatureIdColumn
         };
         return { files, options };
     }
@@ -919,12 +920,12 @@ export class SummarizedExperimentDataset {
     }
 }
 
-/************************
- ******* Dataset ********
- ************************/
+/***********************
+ ******* Result ********
+ ***********************/
 
 /**
- * Pre-computed analysis results stored as a `SummarizedExperiment` object (or one of its subclasses) inside an RDS file.
+ * Pre-computed analysis results stored as a SummarizedExperiment object (or one of its subclasses) inside an RDS file.
  */
 export class SummarizedExperimentResult {
     #rds_file;
@@ -1164,7 +1165,6 @@ export class SummarizedExperimentResult {
 
         let output = { 
             matrix: new scran.MultiMatrix,
-            row_ids: {},
             features: {},
             cells: this.#raw_cells,
             reduced_dimensions: {}
