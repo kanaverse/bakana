@@ -107,9 +107,9 @@ export class RnaQualityControlState {
         return this.#cache.metrics;
     }
 
-    /***************************
-     ******** Compute **********
-     ***************************/
+    /****************************
+     ******** Defaults **********
+     ****************************/
 
     static defaults () {
         return {
@@ -260,7 +260,7 @@ export class RnaQualityControlState {
                 let reference_mito_type2 = reference_mito_type;
 
                 if (automatic) {
-                    let guesses = utils.guessAllFeatures(this.#inputs.fetchFeatureAnnotations()["RNA"]);
+                    let guesses = this.#inputs.guessRnaFeatureTypes();
                     let backcomp = RnaQualityControlState.configureFeatureParameters(use_reference_mito, guesses);
                     gene_id_column2 = backcomp.gene_id_column;
                     reference_mito_species2 = backcomp.reference_mito_species;

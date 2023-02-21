@@ -154,17 +154,3 @@ export function checkIndices(indices, max) {
         }
     }
 }
-
-export function guessAllFeatures(genes) {
-    let output = { columns: {} };
-
-    let rn = genes.rowNames();
-    if (rn !== null) {
-        output.row_names = scran.guessFeatures(rn);
-    }
-
-    for (const key of genes.columnNames()) {
-        output.columns[key] = scran.guessFeatures(genes.column(key));
-    }
-    return output;
-}
