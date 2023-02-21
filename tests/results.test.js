@@ -1,6 +1,7 @@
 import * as bakana from "../src/index.js";
 import * as utils from "./utils.js";
 import * as bioc from "bioconductor";
+import * as nav from "./navigator.js";
 
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
@@ -119,6 +120,58 @@ test("SummarizedExperiment result readers work correctly with count normalizatio
         let col0 = payload.matrix.get("ERCC").column(0);
         expect(has_noninteger(col0)).toBe(true);
     }
+
+    info.clear();
+    payload.matrix.free();
+})
+
+class ArtifactDbLocalDirectoryResult extends bakana.ArtifactDbSummarizedExperimentResultBase {
+    constructor(path, dir, options={}) {
+        super(path, new nav.LocalProjectDirectoryNavigator(dir), options);
+    }
+}
+
+test("local ArtifactDB result readers work correctly with log-count loading", async () => {
+    let target = await nav.obtainLocalTestPath();
+    let info = new ArtifactDbLocalDirectoryResult(target, nav.baseDirectory);
+
+    let details = await info.summary();
+    expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
+    expect(details.cells.numberOfRows()).toBeGreaterThan(0);
+    expect(details.modality_assay_names[""].length).toEqual(2);
+    expect(details.reduced_dimension_names.length).toEqual(3);
+
+    info.setPrimaryAssay("logcounts");
+    info.setIsPrimaryNormalized(true);
+    info.setReducedDimensionNames(["TSNE", "UMAP"]);
+
+    let payload = await info.load();
+    expect(payload.matrix.numberOfColumns()).toEqual(details.cells.numberOfRows());
+    expect(payload.matrix.get("").numberOfRows()).toEqual(payload.features[""].numberOfRows());
+    expect(Object.keys(payload.reduced_dimensions)).toEqual(["TSNE", "UMAP"]);
+    expect(payload.reduced_dimensions["TSNE"].length).toEqual(2);
+    expect(payload.reduced_dimensions["TSNE"][0].length).toEqual(details.cells.numberOfRows());
+
+    let col0 = payload.matrix.get("").column(0);
+    expect(has_noninteger(col0)).toBe(true);
+
+    info.clear();
+    payload.matrix.free();
+})
+
+test("local ArtifactDB result readers work correctly with count normalization", async () => {
+    let target = await nav.obtainLocalTestPath();
+    let info = new ArtifactDbLocalDirectoryResult(target, nav.baseDirectory);
+
+    info.setPrimaryAssay("counts");
+    info.setIsPrimaryNormalized(false);
+
+    let payload = await info.load();
+    expect(payload.matrix.numberOfColumns()).toEqual(payload.cells.numberOfRows());
+    expect(payload.matrix.get("").numberOfRows()).toEqual(payload.features[""].numberOfRows());
+
+    let col0 = payload.matrix.get("").column(0);
+    expect(has_noninteger(col0)).toBe(true);
 
     info.clear();
     payload.matrix.free();
