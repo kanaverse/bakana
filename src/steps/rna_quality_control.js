@@ -48,6 +48,7 @@ export class RnaQualityControlState {
     #inputs;
     #cache;
     #parameters;
+    #automatic;
 
     constructor(inputs, parameters = null, cache = null) {
         if (!(inputs instanceof inputs_module.InputsState)) {
@@ -57,6 +58,7 @@ export class RnaQualityControlState {
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
+        this.#automatic = false;
         this.changed = false;
     }
 
@@ -111,75 +113,95 @@ export class RnaQualityControlState {
 
     static defaults () {
         return {
-            dataset_id_column: null
-            reference_mito_species: null,
-            reference_mito_features: "ENSEMBL",
+            automatic: true,
+            gene_id_column: null,
+            use_reference_mito: true,
+            reference_mito_species: [],
+            reference_mito_type: "ENSEMBL",
             mito_prefix: "mt-",
             nmads: 3
         };
     }
 
-    async #acquire_reference(species, feature_type) {
-        if (typeof species == "string") {
-            if (species in species_to_taxa) {
-                species = species_to_taxa[species];
-            } else {
-                throw new Error("unknown species '" + species + "' for extracting mitochondrial lists");
-            }
-        }
-
-        let target = String(species) + "-mito-" + feature_type.toLowerCase() + ".txt.gz";
-        if (!(target in mito_lists)) {
-            let contents = await downloadFun(baseUrl + target);
-            let lines = rutils.readLines2(contents, { compression: "gz" });
-            mito_lists[target] = new Set(lines.map(x => x[0]));
-        }
-
-        return mito_lists[target];
-    }
-
-    #back_compatibility_hack(use_mito_default) {
-        let genes = this.#inputs.fetchFeatureAnnotations()["RNA"];
+    static configureFeatureParameters(use_reference_mito, guesses) {
         let best_key = null;
         let best = { type: "symbol", species: "human", confidence: 0 };
 
-        if (genes.rowNames() !== null) {
-            let col = genes.rowNames();
-            let val = scran.guessFeatures(col);
-            if (val.confidence > best.confidence && (use_mito_default || val.type == "symbol")) {
+        if ("row_names" in guesses) {
+            let val = guesses.row_names;
+            if (val.confidence > best.confidence && (use_reference_mito || val.type == "symbol")) {
                 best = val;
             }
         }
 
-        for (const key of genes.columnNames()) {
-            let col = genes.column(key);
-            let val = scran.guessFeatures(col);
-            if (val.confidence > best.confidence && (use_mito_default || val.type == "symbol")) {
+        for (const [key, val] of Object.entries(guesses.columns)) {
+            if (val.confidence > best.confidence && (use_reference_mito || val.type == "symbol")) {
                 best = val;
                 best_key = key;
             }
         }
 
         return {
-            dataset_id_column: best_key,
-            reference_mito_species: best.species,
-            reference_mito_features: best.type.toUpperCase()
+            gene_id_column: best_key,
+            reference_mito_species: [best.species],
+            reference_mito_type: best.type.toUpperCase()
         };
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    async #acquire_reference(species_list, feature_type) {
+        let output = new Set;
+
+        for (let species of species_list) {
+            if (typeof species == "string") {
+                if (species in species_to_taxa) {
+                    species = species_to_taxa[species];
+                } else {
+                    throw new Error("unknown species '" + species + "' for extracting mitochondrial lists");
+                }
+            }
+
+            let target = String(species) + "-mito-" + feature_type.toLowerCase() + ".txt.gz";
+            if (!(target in mito_lists)) {
+                let contents = await downloadFun(baseUrl + "/" + target);
+                let lines = await rutils.readLines2(contents, { compression: "gz" });
+                mito_lists[target] = lines;
+            }
+
+            mito_lists[target].forEach(x => { output.add(x); });
+        }
+
+        return output;
     }
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `rna_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {?(string|number)} parameters.dataset_id_column - Name or index of the column of the feature annotations that contains the feature identifiers for the RNA modality.
+     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotations in {@linkcode RnaQualityControlState#compute compute}.
+     * Specifically:
+     *
+     * - If `use_reference_mito = true`, the `gene_id_column` that best matches human/mouse Ensembl/symbols is identified.
+     *   Based on the identified species and feature type, `reference_mito_species` and `reference_mito_type` are also set.
+     * - If `use_reference_mito = false`, the best `gene_id_column` matching human/mouse symbols is identified.
+     *
+     * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the feature annotations that contains the gene identifiers for the RNA modality.
      * If `null`, the row names are used.
-     * @param {?(string|number)} parameters.reference_mito_species - Species for which to look up the mitochondrial features.
-     * This can either be the common name (e.g., `"mouse"`, `"human"`) or a taxonomy ID (e.g. 9606, 10090).
-     * If `null`, no look-up is performed.
-     * @param {string} parameters.reference_mito_features - Name of the feature type in the reference list of mitochondrial features.
+     * Ignored if {@linkcode RnaQualityControlState#setAutomaticFeatureParameters setAutomaticFeatureParameters} is enabled.
+     * @param {boolean} parameters.use_reference_mito - Whether to use the reference lists of mitochondrial genes.
+     * If `false`, mitochondrial genes are instead identified from their prefix.
+     * @param {Array} parameters.reference_mito_species - Array of strings or numbers, specifying zero, one or more species to use to obtain a reference list of mitochondrial genes.
+     * Each entry can either be the common name (e.g., `"mouse"`, `"human"`) or a taxonomy ID (e.g. 9606, 10090).
+     * Ignored if {@linkcode RnaQualityControlState#setAutomaticFeatureParameters setAutomaticFeatureParameters} is enabled.
+     * @param {string} parameters.reference_mito_type - Name of the feature type in the reference list of mitochondrial genes.
      * This can be `"ENSEMBL"`, `"SYMBOL"`, or `"ENTREZ"`.
-     * @param {string} parameters.mito_prefix - Case-insensitive prefix to use to identify mitochondrial genes from the dataset.
-     * Only used when `reference_mito_species = null`; in such cases, `dataset_id_column` should point to symbols.
+     * Ignored if {@linkcode RnaQualityControlState#setAutomaticFeatureParameters setAutomaticFeatureParameters} is enabled.
+     * @param {?string} parameters.mito_prefix - Case-insensitive prefix to use to identify mitochondrial genes from the dataset.
+     * Only used when `use_reference_mito = false`; in such cases, `gene_id_column` should point to symbols.
+     * If `null`, no prefix-based identification is performed.
      * @param {number} parameters.nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
      *
      * @return The object is updated with the new results.
@@ -187,43 +209,77 @@ export class RnaQualityControlState {
      */
     async compute(parameters) {
         let { mito_prefix, nmads } = parameters;
-        let dataset_id_column;
+        let automatic;
+        let use_reference_mito;
+        let gene_id_column;
         let reference_mito_species;
-        let reference_mito_features;
+        let reference_mito_type;
 
         // Some back-compatibility here.
-        if ("dataset_id_column" in parameters) {
-            dataset_id_column = parameters.dataset_id_column;
+        if ("use_reference_mito" in parameters) {
+            automatic = parameters.automatic;
+            use_reference_mito = parameters.use_reference_mito;
+            gene_id_column = parameters.gene_id_column;
             reference_mito_species = parameters.reference_mito_species;
-            reference_mito_features = parameters.reference_mito_features;
+            reference_mito_type = parameters.reference_mito_type;
         } else {
-            let backcomp = this.#back_compatibility_hack(parameters.use_mito_default);
-            dataset_id_column = backcomp.dataset_id_column;
-            reference_mito_species = backcomp.reference_mito_species;
-            reference_mito_features = backcomp.reference_mito_features;
+            automatic = true;
+            use_reference_mito = parameters.use_mito_default;
+            let def = RnaQualityControlState.defaults();
+            gene_id_column = def.gene_id_column;
+            reference_mito_species = def.reference_mito_species;
+            reference_mito_type = def.reference_mito_type;
         }
 
         this.changed = false;
 
-        if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix) {
+        if (
+            this.#inputs.changed || 
+            automatic !== this.#parameters.automatic ||
+            use_reference_mito !== this.#parameters.use_reference_mito || 
+            (
+                !automatic && 
+                gene_id_column !== this.#parameters.gene_id_column || 
+                (use_reference_mito && mito_prefix !== this.#parameters.mito_prefix) ||
+                (
+                    !use_reference_mito && 
+                    (
+                        utils.changedParameters(reference_mito_species, this.#parameters.reference_mito_species) || 
+                        reference_mito_type == this.#parameters.reference_mito_type
+                    )
+                )
+            ) 
+        ) {
             utils.freeCache(this.#cache.metrics);
 
             if (this.valid()) {
+                let gene_id_column2 = gene_id_column;
+                let reference_mito_species2 = reference_mito_species;
+                let reference_mito_type2 = reference_mito_type;
+
+                if (automatic) {
+                    let guesses = utils.guessAllFeatures(this.#inputs.fetchFeatureAnnotations()["RNA"]);
+                    let backcomp = RnaQualityControlState.configureFeatureParameters(use_reference_mito, guesses);
+                    gene_id_column2 = backcomp.gene_id_column;
+                    reference_mito_species2 = backcomp.reference_mito_species;
+                    reference_mito_type2 = backcomp.reference_mito_type;
+                }
+
                 var gene_info = this.#inputs.fetchFeatureAnnotations()["RNA"];
-                let val = (dataset_id_column == null ? gene_info.rowNames() : gene_info.column(dataset_id_column));
+                let val = (gene_id_column2 == null ? gene_info.rowNames() : gene_info.column(gene_id_column2));
                 var subsets = utils.allocateCachedArray(gene_info.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
                 subsets.fill(0);
 
                 if (val !== null) {
-                    if (reference_mito_species !== null) {
-                        let lists = await this.#acquire_reference(reference_mito_species, reference_mito_features);
+                    if (use_reference_mito) {
+                        let lists = await this.#acquire_reference(reference_mito_species2, reference_mito_type2);
                         var sub_arr = subsets.array();
                         val.forEach((x, i) => {
                             if (lists.has(x)) {
                                 sub_arr[i] = 1;
                             }
                         });
-                    } else {
+                    } else if (mito_prefix !== null) {
                         var lower_mito = mito_prefix.toLowerCase();
                         var sub_arr = subsets.array();
                         val.forEach((x, i) => {
@@ -240,12 +296,14 @@ export class RnaQualityControlState {
             } else {
                 delete this.#cache.metrics;
             }
-
-            this.#parameters.dataset_id_column = dataset_id_column;
-            this.#parameters.reference_mito_species = reference_mito_species;
-            this.#parameters.reference_mito_features = reference_mito_features;
-            this.#parameters.mito_prefix = mito_prefix;
         }
+
+        this.#parameters.automatic = automatic;
+        this.#parameters.gene_id_column = gene_id_column;
+        this.#parameters.use_reference_mito = use_reference_mito;
+        this.#parameters.reference_mito_species = reference_mito_species;
+        this.#parameters.reference_mito_type = reference_mito_type;
+        this.#parameters.mito_prefix = mito_prefix;
 
         if (this.changed || nmads !== this.#parameters.nmads) {
             utils.freeCache(this.#cache.filters);
@@ -340,7 +398,7 @@ export function unserialize(handle, inputs) {
  * @return `fun` is set as the global downloader for this step. 
  * The _previous_ value of the downloader is returned.
  */
-export function setRnaQualityControlDownloadFun(fun) {
+export function setRnaQualityControlDownload(fun) {
     let previous = downloadFun;
     downloadFun = fun;
     return previous;

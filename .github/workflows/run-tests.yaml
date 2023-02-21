@@ -31,11 +31,18 @@ jobs:
         path: '**/files/feature-sets'
         key: references-${{ hashFiles('**/files/download-feature-sets.sh') }}
 
+    - name: Restore the mitochondrial list files 
+      uses: actions/cache@v3
+      with:
+        path: '**/files/mito-lists'
+        key: mito-lists-${{ hashFiles('**/files/download-mito-lists.sh') }}
+
     - name: Restore the reference files 
       uses: actions/cache@v3
       with:
         path: '**/files/references'
         key: references-${{ hashFiles('**/files/download-references.sh') }}
+
 
     - name: Restore the legacy files 
       uses: actions/cache@v3
@@ -54,6 +61,9 @@ jobs:
 
     - name: Download feature sets
       run: cd files && bash download-feature-sets.sh
+
+    - name: Download mitochondrial lists
+      run: cd files && bash download-mito-lists.sh
 
     - name: Download legacy 
       run: cd files && bash download-legacy.sh
