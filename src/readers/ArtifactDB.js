@@ -4,6 +4,22 @@ import * as eutils from "./utils/extract.js";
 import * as futils from "./utils/features.js";
 import * as afile from "./abstract/file.js";
 
+/**
+ * Any class that satisfies the ArtifactDbProjectNavigator contract, so called as it is intended to "navigate" an ArtifactDB project directory.
+ * This should provide the following methods:
+ * 
+ * - `metadata(p)`, a (possibly async) method that accepts a string `p` containing a relative path to a resource inside an ArtifactDB project directory,
+ *   and returns an object containing the metadata for that object.
+ *   Any redirections should be resolved by this method.
+ * - `file(p)`, a (possibly async) method that accepts a string `p` containing a relative path inside a project directory and returns the contents of the file at that path.
+ *   The return value should typically be a Uint8Array; on Node.js, methods may alternatively return a string containing a path to the file on the local file system.
+ *   The method does not need to handle redirections from `p`.
+ * - `serialize()`, a (possibly async) method that returns an Array of {@linkplain SimpleFile} objects.
+ *   The collected SimpleFiles should contain information about the configuration of the project directory, e.g., in the form of a JSON file.
+ *
+ * @typedef ArtifactDbProjectNavigator
+ */
+
 /**************************
  ******* Internals ********
  **************************/
@@ -335,7 +351,7 @@ async function extract_assay_raw(asspath, navigator, forceInteger) {
 
 /**
  * Dataset stored as a SummarizedExperiment in the **ArtifactDB** format.
- * This is intended as a virtual base class; applications should define subclasses that are tied to a specific {@linkplain external:ArtifactDbProjectNavigator ArtifactDbProjectNavigator} class.
+ * This is intended as a virtual base class; applications should define subclasses that are tied to a specific {@linkplain ArtifactDbProjectNavigator} class.
  * Subclasses should define the static `format()` and `unserialize()` methods.
  */
 export class ArtifactDbSummarizedExperimentDatasetBase {
@@ -371,17 +387,17 @@ export class ArtifactDbSummarizedExperimentDatasetBase {
 
     /**
      * @param {string} path - Path to the SummarizedExperiment in the ArtifactDB project directory.
-     * @param {extern:ArtifactDbProjectNavigator} navigator - A navigator object that describes how to obtain the various assets from the project directory containing `path`.
+     * @param {ArtifactDbProjectNavigator} navigator - A navigator object that describes how to obtain the various assets from the project directory containing `path`.
      * @param {object} [options={}] - Optional parameters.
-     * @param {string|number} [options.rnaCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setRnaCountAssay setRnaCountAssay}.
-     * @param {string|number} [options.adtCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setAdtCountAssay setAdtCountAssay}.
-     * @param {string|number} [options.crisprCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setCrisprCountAssay setCrisprCountAssay}.
-     * @param {?(string|number)} [options.rnaExperiment=""] - See {@linkcode SummarizedExperimentDataset#setRnaExperiment setRnaExperiment}.
-     * @param {?(string|number)} [options.adtExperiment="Antibody Capture"] - See {@linkcode SummarizedExperimentDataset#setAdtExperiment setAdtExperiment}.
-     * @param {?(string|number)} [options.crisprExperiment="CRISPR Guide Capture"] - See {@linkcode SummarizedExperimentDataset#setCrisprExperiment setCrisprExperiment}.
-     * @param {string|number} [options.primaryRnaFeatureIdColumn=null] - See {@linkcode SummarizedExperimentDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
-     * @param {string|number} [options.primaryAdtFeatureIdColumn=null] - See {@linkcode SummarizedExperimentDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
-     * @param {string|number} [options.primaryCrisprFeatureIdColumn=null] - See {@linkcode SummarizedExperimentDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
+     * @param {string|number} [options.rnaCountAssay=0] - See {@linkcode ArtifactDbSummarizedExperimentDatasetBase#setRnaCountAssay setRnaCountAssay}.
+     * @param {string|number} [options.adtCountAssay=0] - See {@linkcode ArtifactDbSummarizedExperimentDatasetBase#setAdtCountAssay setAdtCountAssay}.
+     * @param {string|number} [options.crisprCountAssay=0] - See {@linkcode ArtifactDbSummarizedExperimentDatasetBase#setCrisprCountAssay setCrisprCountAssay}.
+     * @param {?(string|number)} [options.rnaExperiment=""] - See {@linkcode ArtifactDbSummarizedExperimentDatasetBase#setRnaExperiment setRnaExperiment}.
+     * @param {?(string|number)} [options.adtExperiment="Antibody Capture"] - See {@linkcode ArtifactDbSummarizedExperimentDatasetBase#setAdtExperiment setAdtExperiment}.
+     * @param {?(string|number)} [options.crisprExperiment="CRISPR Guide Capture"] - See {@linkcode ArtifactDbSummarizedExperimentDatasetBase#setCrisprExperiment setCrisprExperiment}.
+     * @param {string|number} [options.primaryRnaFeatureIdColumn=null] - See {@linkcode ArtifactDbSummarizedExperimentDatasetBase#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
+     * @param {string|number} [options.primaryAdtFeatureIdColumn=null] - See {@linkcode ArtifactDbSummarizedExperimentDatasetBase#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
+     * @param {string|number} [options.primaryCrisprFeatureIdColumn=null] - See {@linkcode ArtifactDbSummarizedExperimentDatasetBase#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
      */
     constructor(path, navigator, { 
         rnaCountAssay = 0, 
@@ -501,7 +517,7 @@ export class ArtifactDbSummarizedExperimentDatasetBase {
 
     /**
      * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode SummarizedExperimentDataset#load load} or {@linkcodeSummarizedExperimentDataset#summary summary}.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode ArtifactDbSummarizedExperimentDatasetBase#load load} or {@linkcodeArtifactDbSummarizedExperimentDatasetBase#summary summary}.
      */
     clear() {
         this.#raw_features = null;
@@ -538,8 +554,8 @@ export class ArtifactDbSummarizedExperimentDatasetBase {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#load load}.
-     * If `true`, users should consider calling {@linkcode SummarizedExperimentDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode ArtifactDbSummarizedExperimentDatasetBase#load load}.
+     * If `true`, users should consider calling {@linkcode ArtifactDbSummarizedExperimentDatasetBase#clear clear} to release the memory once this dataset instance is no longer needed.
      * 
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
@@ -569,8 +585,8 @@ export class ArtifactDbSummarizedExperimentDatasetBase {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#summary summary}.
-     * If `true`, users should consider calling {@linkcode SummarizedExperimentDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode ArtifactDbSummarizedExperimentDatasetBase#summary summary}.
+     * If `true`, users should consider calling {@linkcode ArtifactDbSummarizedExperimentDatasetBase#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
@@ -686,7 +702,7 @@ export class ArtifactDbSummarizedExperimentDatasetBase {
 
 /**
  * Pre-computed analysis results stored as a SummarizedExperiment object (or one of its subclasses) in the **ArtifactDB** format.
- * This is intended as a virtual base class; applications should define subclasses that are tied to a specific {@linkplain external:ArtifactDbProjectNavigator ArtifactDbProjectNavigator} class.
+ * This is intended as a virtual base class; applications should define subclasses that are tied to a specific {@linkplain ArtifactDbProjectNavigator} class.
  */
 export class ArtifactDbSummarizedExperimentResultBase {
     #path;
@@ -701,11 +717,11 @@ export class ArtifactDbSummarizedExperimentResultBase {
 
     /**
      * @param {string} path - Path to the SummarizedExperiment in the ArtifactDB project directory.
-     * @param {extern:ArtifactDbProjectNavigator} navigator - A navigator object that describes how to obtain the various assets from the project directory containing `path`.
+     * @param {ArtifactDbProjectNavigator} navigator - A navigator object that describes how to obtain the various assets from the project directory containing `path`.
      * @param {object} [options={}] - Optional parameters.
-     * @param {object|string|number} [options.primaryAssay=0] - See {@linkcode SummarizedExperimentResult#setPrimaryAssay setPrimaryAssay}.
-     * @param {object|boolean} [options.isPrimaryNormalized={}] - See {@linkcode SummarizedExperimentResult#setIsPrimaryNormalized setIsPrimaryNormalized}.
-     * @param {?Array} [options.reducedDimensionNames=null] - See {@linkcode SummarizedExperimentResult#setReducedDimensionNames setReducedDimensionNames}.
+     * @param {object|string|number} [options.primaryAssay=0] - See {@linkcode ArtifactDbSummarizedExperimentResultBase#setPrimaryAssay setPrimaryAssay}.
+     * @param {object|boolean} [options.isPrimaryNormalized={}] - See {@linkcode ArtifactDbSummarizedExperimentResultBase#setIsPrimaryNormalized setIsPrimaryNormalized}.
+     * @param {?Array} [options.reducedDimensionNames=null] - See {@linkcode ArtifactDbSummarizedExperimentResultBase#setReducedDimensionNames setReducedDimensionNames}.
      */
     constructor(path, navigator, { 
         primaryAssay = 0,
@@ -759,7 +775,7 @@ export class ArtifactDbSummarizedExperimentResultBase {
 
     /**
      * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode SummarizedExperimentDataset#load load} or {@linkcodeSummarizedExperimentDataset#summary summary}.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode ArtifactDbSummarizedExperimentDatasetBase#load load} or {@linkcodeArtifactDbSummarizedExperimentDatasetBase#summary summary}.
      */
     clear() {
         this.#raw_features = null;
@@ -786,8 +802,8 @@ export class ArtifactDbSummarizedExperimentResultBase {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#load load}.
-     * If `true`, users should consider calling {@linkcode SummarizedExperimentDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode ArtifactDbSummarizedExperimentDatasetBase#load load}.
+     * If `true`, users should consider calling {@linkcode ArtifactDbSummarizedExperimentDatasetBase#clear clear} to release the memory once this dataset instance is no longer needed.
      * 
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
@@ -829,8 +845,8 @@ export class ArtifactDbSummarizedExperimentResultBase {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#summary summary}.
-     * If `true`, users should consider calling {@linkcode SummarizedExperimentDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode ArtifactDbSummarizedExperimentDatasetBase#summary summary}.
+     * If `true`, users should consider calling {@linkcode ArtifactDbSummarizedExperimentDatasetBase#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:

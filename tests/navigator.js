@@ -15,7 +15,7 @@ export async function obtainLocalTestPath() {
     };
 
     let altpath = "ArtifactDB-testing";
-    let fullalt = base + "/" + altpath;
+    let fullalt = baseDirectory + "/" + altpath;
     if (fs.existsSync(fullalt)) {
         return altpath;
     }
@@ -24,7 +24,7 @@ export async function obtainLocalTestPath() {
     try {
         let params = utils.baseParams();
         await bakana.runAnalysis(state, files, params);
-        await bakana.saveSingleCellExperiment(state, altpath, { directory: base });
+        await bakana.saveSingleCellExperiment(state, altpath, { directory: baseDirectory });
     } finally {
         await bakana.freeAnalysis(state);
     }
