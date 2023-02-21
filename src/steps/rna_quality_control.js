@@ -1,6 +1,5 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import { mito } from "./mito.js";
 import * as inputs_module from "./inputs.js";
 import * as rutils from "../readers/index.js";
 
