@@ -198,28 +198,28 @@ async function extract_all_assay_names(path, navigator) {
 
 // This specifically loads the log-counts created by the dumper.
 // TODO: replace this with chihaya.js.
-function extract_logcounts(handle, navigator) {
-    if (ghandle.attribute("delayed_type").values[0] !== "operation") {
+async function extract_logcounts(handle, navigator) {
+    if (handle.readAttribute("delayed_type").values[0] !== "operation") {
         return null;
     }
-    if (ghandle.attribute("delayed_operation").values[0] !== "unary arithmetic") {
+    if (handle.readAttribute("delayed_operation").values[0] !== "unary arithmetic") {
         return null;
     }
-    if (Math.abs(ghandle.open("value", { load: true }).values[0] - Math.log(2)) > 0.00000001) {
+    if (Math.abs(handle.open("value", { load: true }).values[0] - Math.log(2)) > 0.00000001) {
         return null;
     }
-    if (ghandle.open("method", { load: true }).values[0] !== "/") {
+    if (handle.open("method", { load: true }).values[0] !== "/") {
         return null;
     }
-    if (ghandle.open("seed", { load: true }).values[0] !== "right") {
+    if (handle.open("side", { load: true }).values[0] !== "right") {
         return null;
     }
 
-    let ghandle2 = ghandle.open("seed");
-    if (ghandle2.attribute("delayed_type").values[0] !== "operation") {
+    let ghandle2 = handle.open("seed");
+    if (ghandle2.readAttribute("delayed_type").values[0] !== "operation") {
         return null;
     }
-    if (ghandle2.attribute("delayed_operation").values[0] !== "unary math") {
+    if (ghandle2.readAttribute("delayed_operation").values[0] !== "unary math") {
         return null;
     }
     if (ghandle2.open("method", { load: true }).values[0] !== "log1p") {
@@ -227,16 +227,16 @@ function extract_logcounts(handle, navigator) {
     }
 
     let ghandle3 = ghandle2.open("seed");
-    if (ghandle3.attribute("delayed_type").values[0] !== "operation") {
+    if (ghandle3.readAttribute("delayed_type").values[0] !== "operation") {
         return null;
     }
-    if (ghandle3.attribute("delayed_operation").values[0] !== "unary arithmetic") {
+    if (ghandle3.readAttribute("delayed_operation").values[0] !== "unary arithmetic") {
         return null;
     }
     if (ghandle3.open("method", { load: true }).values[0] !== "/") {
         return null;
     }
-    if (ghandle3.open("seed", { load: true }).values[0] !== "right") {
+    if (ghandle3.open("side", { load: true }).values[0] !== "right") {
         return null;
     }
     if (ghandle3.open("along", { load: true }).values[0] !== 1) {
@@ -245,10 +245,10 @@ function extract_logcounts(handle, navigator) {
     let sf = ghandle3.open("value", { load: true }).values;
 
     let ahandle = ghandle3.open("seed");
-    if (ahandle.attribute("delayed_type").values[0] !== "array") {
+    if (ahandle.readAttribute("delayed_type").values[0] !== "array") {
         return null;
     }
-    if (ahandle.attribute("delayed_operation").values[0] !== "custom alabaster local array") {
+    if (ahandle.readAttribute("delayed_array").values[0] !== "custom alabaster local array") {
         return null;
     }
     let path = ahandle.open("path", { load: true }).values[0];
@@ -256,12 +256,11 @@ function extract_logcounts(handle, navigator) {
     let mat;
     let output = {};
     try {
-        mat = extract_assay_raw(path, navigator, false); // don't force it to be integer, but we don't mind if it is.
+        mat = await extract_assay_raw(path, navigator, false); // don't force it to be integer, but we don't mind if it is.
         output.matrix = scran.logNormCounts(mat.matrix, { sizeFactors: sf, center: false });
         output.row_ids = mat.row_ids;
     } finally {
         scran.free(mat.matrix);
-        realized.flush();
     }
                 
     return output;
@@ -315,7 +314,7 @@ async function extract_assay_raw(asspath, navigator, forceInteger) {
             let ghandle = fhandle.open(assmeta.hdf5_delayed_array.group);
 
             // TODO: replace with calls to chihaya.js.
-            output = extract_logcounts(ghandle, navigator);
+            output = await extract_logcounts(ghandle, navigator);
             if (output == null) {
                 throw new Error("currently only supporting bakana-generated log-counts for delayed arrays");
             }
@@ -641,7 +640,6 @@ export class ArtifactDbSummarizedExperimentDatasetBase {
                 output.row_ids[k] = out_ids;
                 output.features[k] = bioc.SLICE(this.#raw_features[name], out_ids);
             }
-            console.log(output.features);
 
             let primaries = { 
                 RNA: this.#primaryRnaFeatureIdColumn, 
@@ -772,7 +770,7 @@ export class ArtifactDbSummarizedExperimentResultBase {
         if (this.#raw_features !== null) {
             return;
         }
-        this.#raw_features = extract_all_features(this.#path, this.#navigator);
+        this.#raw_features = await extract_all_features(this.#path, this.#navigator);
         return;
     }
 
@@ -781,7 +779,7 @@ export class ArtifactDbSummarizedExperimentResultBase {
             return;
         }
         let full_meta = await this.#navigator.metadata(this.#path);
-        let col_path = full_meta.summarized_experiment.col_data.resource.path;
+        let col_path = full_meta.summarized_experiment.column_data.resource.path;
         this.#raw_cells = await load_data_frame(col_path, this.#navigator);
         return;
     }
@@ -816,7 +814,7 @@ export class ArtifactDbSummarizedExperimentResultBase {
         let full_meta = await this.#navigator.metadata(this.#path);
         if ("single_cell_experiment" in full_meta) {
             for (const red of full_meta.single_cell_experiment.reduced_dimensions) {
-                let redmeta = await this.navigator.metadata(red.resource.path);
+                let redmeta = await this.#navigator.metadata(red.resource.path);
                 if (redmeta["$schema"].startsWith("hdf5_dense_array/") && redmeta.array.dimensions.length == 2) {
                     output.reduced_dimension_names.push(red.name);
                 }
@@ -872,7 +870,7 @@ export class ArtifactDbSummarizedExperimentResultBase {
             if (reddims.length > 0) {
                 let redmap = {};
                 for (const red of full_meta.single_cell_experiment.reduced_dimensions) {
-                    redmap[red.name] = red.path;
+                    redmap[red.name] = red.resource.path;
                 }
 
                 for (const k of reddims) {
@@ -934,7 +932,7 @@ export class ArtifactDbSummarizedExperimentResultBase {
                         meta = await this.#navigator.metadata(altmap[k]);
                     }
 
-                    let loaded = extract_assay(meta, curassay, this.#navigator, !curnormalized);
+                    let loaded = await extract_assay(meta, curassay, this.#navigator, !curnormalized);
                     output.matrix.add(k, loaded.matrix);
 
                     if (!curnormalized) {
