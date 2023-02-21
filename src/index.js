@@ -6,6 +6,7 @@ export * from "./dump/index.js";
 
 export { setVisualizationAnimate } from "./steps/utils/viz_parent.js";
 export { formatMarkerResults } from "./steps/utils/markers.js";
+export { setRnaQualityControlDownload } from "./steps/rna_quality_control.js";
 export { setCellLabellingDownload } from "./steps/cell_labelling.js";
 export { setFeatureSetEnrichmentDownload } from "./steps/feature_set_enrichment.js";
 

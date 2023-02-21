@@ -1,9 +1,22 @@
 import * as scran from "scran.js"; 
 import * as utils from "./utils/general.js";
-import { mito } from "./mito.js";
 import * as inputs_module from "./inputs.js";
+import * as rutils from "../readers/index.js";
+
+var downloadFun = async (url) => {
+    let resp = await fetch(url);
+    if (!resp.ok) {
+        throw new Error("failed to fetch content at " + url + "(" + resp.status + ")");
+    }
+    return new Uint8Array(await resp.arrayBuffer());
+};
+
+const baseUrl = "https://github.com/kanaverse/kana-special-features/releases/download/v1.0.0";
 
 export const step_name = "rna_quality_control";
+
+let mito_lists = {};
+const species_to_taxa = { mouse: 10090, human: 9606 };
 
 /**
  * Results of computing per-cell RNA-derived QC metrics,
@@ -34,6 +47,7 @@ export class RnaQualityControlState {
     #inputs;
     #cache;
     #parameters;
+    #automatic;
 
     constructor(inputs, parameters = null, cache = null) {
         if (!(inputs instanceof inputs_module.InputsState)) {
@@ -43,6 +57,7 @@ export class RnaQualityControlState {
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
+        this.#automatic = false;
         this.changed = false;
     }
 
@@ -91,55 +106,182 @@ export class RnaQualityControlState {
         return this.#cache.metrics;
     }
 
+    /****************************
+     ******** Defaults **********
+     ****************************/
+
+    static defaults () {
+        return {
+            automatic: true,
+            gene_id_column: null,
+            use_reference_mito: true,
+            reference_mito_species: [],
+            reference_mito_type: "ENSEMBL",
+            mito_prefix: "mt-",
+            nmads: 3
+        };
+    }
+
+    static configureFeatureParameters(use_reference_mito, guesses) {
+        let best_key = null;
+        let best = { type: "symbol", species: "human", confidence: 0 };
+
+        if ("row_names" in guesses) {
+            let val = guesses.row_names;
+            if (val.confidence > best.confidence && (use_reference_mito || val.type == "symbol")) {
+                best = val;
+            }
+        }
+
+        for (const [key, val] of Object.entries(guesses.columns)) {
+            if (val.confidence > best.confidence && (use_reference_mito || val.type == "symbol")) {
+                best = val;
+                best_key = key;
+            }
+        }
+
+        return {
+            gene_id_column: best_key,
+            reference_mito_species: [best.species],
+            reference_mito_type: best.type.toUpperCase()
+        };
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
 
-    static defaults () {
-        return {
-            use_mito_default: true,
-            mito_prefix: "mt-",
-            nmads: 3
-        };
+    async #acquire_reference(species_list, feature_type) {
+        let output = new Set;
+
+        for (let species of species_list) {
+            if (typeof species == "string") {
+                if (species in species_to_taxa) {
+                    species = species_to_taxa[species];
+                } else {
+                    throw new Error("unknown species '" + species + "' for extracting mitochondrial lists");
+                }
+            }
+
+            let target = String(species) + "-mito-" + feature_type.toLowerCase() + ".txt.gz";
+            if (!(target in mito_lists)) {
+                let contents = await downloadFun(baseUrl + "/" + target);
+                let lines = await rutils.readLines2(contents, { compression: "gz" });
+                mito_lists[target] = lines;
+            }
+
+            mito_lists[target].forEach(x => { output.add(x); });
+        }
+
+        return output;
     }
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `rna_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {boolean} parameters.use_mito_default - Whether the internal mitochondrial gene lists should be used.
-     * @param {string} parameters.mito_prefix - Prefix of the identifiers for mitochondrial genes, when `use_mito_default = false`.
+     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotations.
+     *
+     * - If `use_reference_mito = true`, the `gene_id_column` that best matches human/mouse Ensembl/symbols is identified.
+     *   Based on the identified species and feature type, `reference_mito_species` and `reference_mito_type` are also set.
+     * - If `use_reference_mito = false`, the best `gene_id_column` matching human/mouse symbols is identified.
+     *
+     * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the feature annotations that contains the gene identifiers for the RNA modality.
+     * If `null`, the row names are used.
+     * Ignored if `automatic = true`.
+     * @param {boolean} parameters.use_reference_mito - Whether to use the reference lists of mitochondrial genes.
+     * If `false`, mitochondrial genes are instead identified from their prefix.
+     * @param {Array} parameters.reference_mito_species - Array of strings or numbers, specifying zero, one or more species to use to obtain a reference list of mitochondrial genes.
+     * Each entry can either be the common name (e.g., `"mouse"`, `"human"`) or a taxonomy ID (e.g. 9606, 10090).
+     * Ignored if `automatic = true`.
+     * @param {string} parameters.reference_mito_type - Name of the feature type in the reference list of mitochondrial genes.
+     * This can be any one of `"ENSEMBL"`, `"SYMBOL"`, or `"ENTREZ"`.
+     * Ignored if `automatic = true`.
+     * @param {?string} parameters.mito_prefix - Case-insensitive prefix to use to identify mitochondrial genes from the dataset.
+     * Only used when `use_reference_mito = false`; in such cases, `gene_id_column` should point to symbols.
+     * If `null`, no prefix-based identification is performed.
      * @param {number} parameters.nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
      *
      * @return The object is updated with the new results.
+     * @async
      */
-    compute(parameters) {
-        let { use_mito_default, mito_prefix, nmads } = parameters;
+    async compute(parameters) {
+        let { mito_prefix, nmads } = parameters;
+        let automatic;
+        let use_reference_mito;
+        let gene_id_column;
+        let reference_mito_species;
+        let reference_mito_type;
+
+        // Some back-compatibility here.
+        if ("use_reference_mito" in parameters) {
+            automatic = parameters.automatic;
+            use_reference_mito = parameters.use_reference_mito;
+            gene_id_column = parameters.gene_id_column;
+            reference_mito_species = parameters.reference_mito_species;
+            reference_mito_type = parameters.reference_mito_type;
+        } else {
+            automatic = true;
+            use_reference_mito = parameters.use_mito_default;
+            let def = RnaQualityControlState.defaults();
+            gene_id_column = def.gene_id_column;
+            reference_mito_species = def.reference_mito_species;
+            reference_mito_type = def.reference_mito_type;
+        }
+
         this.changed = false;
 
-        if (this.#inputs.changed || use_mito_default !== this.#parameters.use_mito_default || mito_prefix !== this.#parameters.mito_prefix) {
+        if (
+            this.#inputs.changed || 
+            automatic !== this.#parameters.automatic ||
+            use_reference_mito !== this.#parameters.use_reference_mito || 
+            (
+                !automatic && 
+                (
+                    gene_id_column !== this.#parameters.gene_id_column || 
+                    (!use_reference_mito && mito_prefix !== this.#parameters.mito_prefix) ||
+                    (
+                        use_reference_mito && 
+                        (
+                            utils.changedParameters(reference_mito_species, this.#parameters.reference_mito_species) || 
+                            reference_mito_type !== this.#parameters.reference_mito_type
+                        )
+                    )
+                )
+            ) 
+        ) {
             utils.freeCache(this.#cache.metrics);
 
             if (this.valid()) {
-                var mat = this.#inputs.fetchCountMatrix().get("RNA");
+                let gene_id_column2 = gene_id_column;
+                let reference_mito_species2 = reference_mito_species;
+                let reference_mito_type2 = reference_mito_type;
+
+                if (automatic) {
+                    let guesses = this.#inputs.guessRnaFeatureTypes();
+                    let backcomp = RnaQualityControlState.configureFeatureParameters(use_reference_mito, guesses);
+                    gene_id_column2 = backcomp.gene_id_column;
+                    reference_mito_species2 = backcomp.reference_mito_species;
+                    reference_mito_type2 = backcomp.reference_mito_type;
+                }
+
                 var gene_info = this.#inputs.fetchFeatureAnnotations()["RNA"];
-
-                // Finding the prefix.
-                var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
+                let val = (gene_id_column2 == null ? gene_info.rowNames() : gene_info.column(gene_id_column2));
+                var subsets = utils.allocateCachedArray(gene_info.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
                 subsets.fill(0);
-                var sub_arr = subsets.array();
 
-                // TODO: use the guessed features to narrow the Ensembl/symbol search.
-                for (const key of gene_info.columnNames()) {
-                    let val = gene_info.column(key);
-                    if (use_mito_default) {
+                if (val !== null) {
+                    if (use_reference_mito) {
+                        let lists = await this.#acquire_reference(reference_mito_species2, reference_mito_type2);
+                        var sub_arr = subsets.array();
                         val.forEach((x, i) => {
-                            if (mito.symbol.has(x) || mito.ensembl.has(x)) {
+                            if (lists.has(x)) {
                                 sub_arr[i] = 1;
                             }
                         });
-                    } else {
+                    } else if (mito_prefix !== null) {
                         var lower_mito = mito_prefix.toLowerCase();
+                        var sub_arr = subsets.array();
                         val.forEach((x, i) => {
                             if(x.toLowerCase().startsWith(lower_mito)) {
                                 sub_arr[i] = 1;
@@ -148,15 +290,20 @@ export class RnaQualityControlState {
                     }
                 }
 
+                var mat = this.#inputs.fetchCountMatrix().get("RNA");
                 this.#cache.metrics = scran.perCellRnaQcMetrics(mat, [subsets]);
                 this.changed = true;
             } else {
                 delete this.#cache.metrics;
             }
-
-            this.#parameters.use_mito_default = use_mito_default;
-            this.#parameters.mito_prefix = mito_prefix;
         }
+
+        this.#parameters.automatic = automatic;
+        this.#parameters.gene_id_column = gene_id_column;
+        this.#parameters.use_reference_mito = use_reference_mito;
+        this.#parameters.reference_mito_species = reference_mito_species;
+        this.#parameters.reference_mito_type = reference_mito_type;
+        this.#parameters.mito_prefix = mito_prefix;
 
         if (this.changed || nmads !== this.#parameters.nmads) {
             utils.freeCache(this.#cache.filters);
@@ -236,4 +383,23 @@ export function unserialize(handle, inputs) {
     }
 
     return output;
+}
+
+/**************************
+ ******** Setters *********
+ **************************/
+
+/**
+ * Specify a function to download the reference mitochondrial gene lists.
+ *
+ * @param {function} fun - Function that accepts a single string containing a URL and returns any value that can be used in the {@linkplain SimpleFile} constructor.
+ * This is most typically a Uint8Array of that URL's contents, but it can also be a path to a locally cached file on Node.js.
+ *
+ * @return `fun` is set as the global downloader for this step. 
+ * The _previous_ value of the downloader is returned.
+ */
+export function setRnaQualityControlDownload(fun) {
+    let previous = downloadFun;
+    downloadFun = fun;
+    return previous;
 }

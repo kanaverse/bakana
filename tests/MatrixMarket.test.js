@@ -101,7 +101,9 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
     let res = await bakana.runAnalysis(state, minimal_files, params);
 
     // Basic consistency checks.
-    await utils.overlordCheckStandard(state);
+    await utils.checkStateResultsMinimal(state);
+    await utils.checkStateResultsRna(state, { exclusive: true, hasMito: false });
+    await utils.checkStateResultsUnblocked(state);
 
     // No annotations, so no mitochondrial proportions.
     expect(state.inputs.fetchFeatureAnnotations()["RNA"].numberOfColumns()).toBe(0);

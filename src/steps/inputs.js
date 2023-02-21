@@ -128,6 +128,30 @@ export class InputsState {
         }
     }
 
+    guessRnaFeatureTypes() {
+        if (!("RNA" in this.#cache.genes)) {
+            return null;
+        }
+
+        if (!("inferred_rna_types" in this.#cache)) {
+            let genes = this.#cache.genes["RNA"];
+            let output = { columns: {} };
+
+            let rn = genes.rowNames();
+            if (rn !== null) {
+                output.row_names = scran.guessFeatures(rn);
+            }
+
+            for (const key of genes.columnNames()) {
+                output.columns[key] = scran.guessFeatures(genes.column(key));
+            }
+
+            this.#cache.inferred_rna_types = output;
+        }
+
+        return this.#cache.inferred_rna_types;
+    }
+
     /***************************
      ******** Compute **********
      ***************************/
@@ -195,6 +219,7 @@ export class InputsState {
                 await load_and_cache(datasets, this.#cache, this.#preserve_dataset_cache);
                 this.#abbreviated = tmp_abbreviated;
                 this.#cache.datasets = datasets;
+                delete this.#cache.inferred_rna_types;
                 this.changed = true;
             }
         }

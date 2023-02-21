@@ -43,6 +43,11 @@ bakana.setFeatureSetEnrichmentDownload(url => {
     return fs.readFileSync("files/feature-sets/" + fpath).slice(); // Mimic a buffer from fetch().
 });
 
+bakana.setRnaQualityControlDownload(url => {
+    let fpath = path.basename(url);
+    return fs.readFileSync("files/mito-lists/" + fpath).slice(); // Mimic a buffer from fetch().
+});
+
 export function mockOffsets(paths) {
     let offsets = {};
     let sofar = 0;
@@ -293,7 +298,7 @@ function checkSizeFactors(raw, norm, sf) {
     }
 }
 
-export async function checkStateResultsRna(state, { exclusive = false, mustFilter = true } = {}) {
+export async function checkStateResultsRna(state, { exclusive = false, mustFilter = true, hasMito = true } = {}) {
     // Inputs:
     {
         let counts = state.inputs.fetchCountMatrix();
@@ -315,6 +320,15 @@ export async function checkStateResultsRna(state, { exclusive = false, mustFilte
         expect(sumvec instanceof Float64Array).toBe(true);
         let ncells = state.inputs.fetchCountMatrix().numberOfColumns();
         expect(sumvec.length).toBe(ncells);
+
+        // Check that the automatic feature resolvers find the mitochondrial genes.
+        let mitovec = metres.subsetProportions(0);
+        let sum = mitovec.reduce((a, b) => a+b);
+        if (hasMito) {
+            expect(sum).toBeGreaterThan(0);
+        } else {
+            expect(sum).toEqual(0);
+        }
 
         expect(state.rna_quality_control.fetchDiscards().length).toEqual(ncells);
 
@@ -512,6 +526,11 @@ export function checkStateResultsAdt(state, { exclusive = false } = {}) {
         let positive_total = 0;
         amet.subsetTotals(0, { copy: false }).forEach(x => { positive_total += (x > 0); });
         expect(positive_total).toBeGreaterThan(0);
+
+        // Check that the automatic feature resolvers find the IgGs.
+        let igvec = amet.subsetTotals(0);
+        let sum = igvec.reduce((a, b) => a+b);
+        expect(sum).toBeGreaterThan(0);
 
         expect(state.adt_quality_control.fetchDiscards().length).toEqual(state.inputs.fetchCountMatrix().numberOfColumns());
 
