@@ -8,11 +8,11 @@ import * as wa from "wasmarrays.js";
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
-test("analysis works when we skip the QC steps", async () => {
-    let files = {
-        default: new bakana.TenxHdf5Dataset("files/datasets/immune_3.0.0-tenx.h5")
-    };
+let files = {
+    default: new bakana.TenxHdf5Dataset("files/datasets/immune_3.0.0-tenx.h5")
+};
 
+test("analysis works when we skip the QC steps", async () => {
     // Running the analysis with skipped QC.
     let state = await bakana.createAnalysis();
     let paramcopy = utils.baseParams();
@@ -42,6 +42,33 @@ test("analysis works when we skip the QC steps", async () => {
         expect(state.cell_filtering.fetchDiscards().length).toBe(ncells);
         expect(state.cell_filtering.fetchFilteredMatrix().numberOfColumns()).toBeLessThan(ncells);
     }
+
+    await bakana.freeAnalysis(state);
+})
+
+test("guessing of the mitochondrial genes for RNA QC works as expected", async () => {
+    let state = await bakana.createAnalysis();
+    let paramcopy = utils.baseParams();
+    state.inputs.compute(files, paramcopy.inputs);
+
+    paramcopy.rna_quality_control.automatic = false;
+    paramcopy.rna_quality_control.gene_id_column = "id";
+    paramcopy.rna_quality_control.reference_mito_species = [ "human" ];
+    paramcopy.rna_quality_control.reference_mito_type = "SYMBOL";
+    await state.rna_quality_control.compute(paramcopy.rna_quality_control);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toEqual(0);
+
+    paramcopy.rna_quality_control.reference_mito_type = "ENSEMBL";
+    await state.rna_quality_control.compute(paramcopy.rna_quality_control);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
+
+    paramcopy.rna_quality_control.use_reference_mito = false;
+    await state.rna_quality_control.compute(paramcopy.rna_quality_control);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toEqual(0);
+
+    paramcopy.rna_quality_control.gene_id_column = "symbol";
+    await state.rna_quality_control.compute(paramcopy.rna_quality_control);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
 
     await bakana.freeAnalysis(state);
 })

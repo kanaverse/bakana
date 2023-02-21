@@ -226,7 +226,7 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
 
     for (const step of basic_steps) {
         await quickStart(step);
-        state[step].compute(params[step]);
+        await state[step].compute(params[step]);
         await quickFinish(step);
     }
 
@@ -262,7 +262,7 @@ export async function runAnalysis(state, datasets, params, { startFun = null, fi
 
     for (const step of remaining) {
         await quickStart(step);
-        state[step].compute(params[step]);
+        await state[step].compute(params[step]);
         await quickFinish(step);
     }
 
