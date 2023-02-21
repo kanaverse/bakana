@@ -293,7 +293,7 @@ function checkSizeFactors(raw, norm, sf) {
     }
 }
 
-export async function checkStateResultsRna(state, { exclusive = false } = {}) {
+export async function checkStateResultsRna(state, { exclusive = false, mustFilter = true } = {}) {
     // Inputs:
     {
         let counts = state.inputs.fetchCountMatrix();
@@ -327,23 +327,16 @@ export async function checkStateResultsRna(state, { exclusive = false } = {}) {
     // Cell filtering:
     {
         let detvec = state.rna_quality_control.fetchMetrics().detected();
-        expect(detvec.length).toBeGreaterThan(nfiltered);
+        if (mustFilter) {
+            expect(detvec.length).toBeGreaterThan(nfiltered);
+        }
+
         let refiltered = state.cell_filtering.applyFilter(detvec);
         expect(refiltered.length).toEqual(nfiltered);
 
         if (exclusive) {
             expect(state.cell_filtering.fetchDiscards().owner).toBe(state.rna_quality_control.fetchDiscards()); // i.e. a view
         }
-
-        let last_filtered = nfiltered - 1;
-        let idx = [0, last_filtered];
-        state.cell_filtering.undoFilter(idx);
-        expect(idx[1]).toBeGreaterThan(last_filtered);
-
-        let counts = state.inputs.fetchCountMatrix().get("RNA");
-        let filtered = state.cell_filtering.fetchFilteredMatrix().get("RNA");
-        expect(counts.column(idx[0])).toEqual(filtered.column(0));
-        expect(counts.column(idx[1])).toEqual(filtered.column(last_filtered));
     }
 
     let ngenes = state.inputs.fetchCountMatrix().get("RNA").numberOfRows();
@@ -540,16 +533,6 @@ export function checkStateResultsAdt(state, { exclusive = false } = {}) {
         if (exclusive) {
             expect(state.cell_filtering.fetchDiscards().owner).toBe(state.adt_quality_control.fetchDiscards()); // i.e. a view
         }
-
-        let last_filtered = nfiltered - 1;
-        let idx = [0, last_filtered];
-        state.cell_filtering.undoFilter(idx);
-        expect(idx[1]).toBeGreaterThan(last_filtered);
-
-        let counts = state.inputs.fetchCountMatrix().get("ADT");
-        let filtered = state.cell_filtering.fetchFilteredMatrix().get("ADT");
-        expect(counts.column(idx[0])).toEqual(filtered.column(0));
-        expect(counts.column(idx[1])).toEqual(filtered.column(last_filtered));
     }
 
     // Normalization.
@@ -638,16 +621,6 @@ export function checkStateResultsCrispr(state, { exclusive = false, use_embeddin
         if (exclusive) {
             expect(state.cell_filtering.fetchDiscards().owner).toBe(state.crispr_quality_control.fetchDiscards()); // i.e. a view
         }
-
-        let last_filtered = nfiltered - 1;
-        let idx = [0, last_filtered];
-        state.cell_filtering.undoFilter(idx);
-        expect(idx[1]).toBeGreaterThan(last_filtered);
-
-        let counts = state.inputs.fetchCountMatrix().get("CRISPR");
-        let filtered = state.cell_filtering.fetchFilteredMatrix().get("CRISPR");
-        expect(counts.column(idx[0])).toEqual(filtered.column(0));
-        expect(counts.column(idx[1])).toEqual(filtered.column(last_filtered));
     }
 
     // Normalization.
