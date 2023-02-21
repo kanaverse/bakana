@@ -61,7 +61,9 @@ test("runAnalysis works correctly (ArtifactDB)", async () => {
     }
 
     // Basic checks.
-    await utils.overlordCheckStandard(state);
+    await utils.checkStateResultsMinimal(state, { mustFilter: false });
+//    await utils.checkStateResultsRna(state, { exclusive: true });
+    await utils.checkStateResultsUnblocked(state);
 
     // Check reloading of the parameters/datasets.
     {

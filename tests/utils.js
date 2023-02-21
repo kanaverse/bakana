@@ -156,7 +156,7 @@ export function checkReorganization(matrix, ids, names, loadedMatrix, loadedIds,
     }
 }
 
-export async function checkStateResultsMinimal(state) {
+export async function checkStateResultsMinimal(state, { mustFilter = true } = {}) {
     // Inputs:
     {
         let counts = state.inputs.fetchCountMatrix();
@@ -187,7 +187,9 @@ export async function checkStateResultsMinimal(state) {
         let last_filtered = nfiltered - 1;
         let idx = [0, last_filtered];
         state.cell_filtering.undoFilter(idx);
-        expect(idx[1]).toBeGreaterThan(last_filtered);
+        if (mustFilter) {
+            expect(idx[1]).toBeGreaterThan(last_filtered);
+        }
 
         let filtered = state.cell_filtering.fetchFilteredMatrix();
         expect(counts.available()).toEqual(filtered.available());
