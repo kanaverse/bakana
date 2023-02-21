@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>SimpleFile - Documentation</title>
+    <title>ArtifactDbSummarizedExperimentDatasetBase - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -37,7 +37,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">SimpleFile</h1>
+    <h1 class="page-title">ArtifactDbSummarizedExperimentDatasetBase</h1>
     
 
     
@@ -51,12 +51,13 @@
     
         <h2>
         
-            SimpleFile
+            ArtifactDbSummarizedExperimentDatasetBase
         
         </h2>
         
-            <div class="class-description usertext"><p>Simple wrapper to represent a file in both Node.js and the browser.
-This enables downstream code to operate independently of the source of the file.</p></div>
+            <div class="class-description usertext"><p>Dataset stored as a SummarizedExperiment in the <strong>ArtifactDB</strong> format.
+This is intended as a virtual base class; applications should define subclasses that are tied to a specific <a href="global.html#ArtifactDbProjectNavigator">ArtifactDbProjectNavigator</a> class.
+Subclasses should define the static <code>format()</code> and <code>unserialize()</code> methods.</p></div>
         
     
 </header>
@@ -71,7 +72,7 @@ This enables downstream code to operate independently of the source of the file.
     <h2>Constructor</h2>
     
 
-    <h4 class="name" id="SimpleFile"><span class="type-signature"></span>new SimpleFile<span class="signature">(x, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="ArtifactDbSummarizedExperimentDatasetBase"><span class="type-signature"></span>new ArtifactDbSummarizedExperimentDatasetBase<span class="signature">(path, navigator, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
 
     
 
@@ -84,7 +85,7 @@ This enables downstream code to operate independently of the source of the file.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_abstract_file.js.html">readers/abstract/file.js</a>, <a href="readers_abstract_file.js.html#line8">line 8</a>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line357">line 357</a>
     </li></ul></dd>
     
 
@@ -160,19 +161,13 @@ This enables downstream code to operate independently of the source of the file.
 
         <tr>
             
-                <td class="name"><code>x</code></td>
+                <td class="name"><code>path</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">Uint8Array</span>
-|
-
 <span class="param-type">string</span>
-|
-
-<span class="param-type">File</span>
 
 
 
@@ -195,9 +190,43 @@ This enables downstream code to operate independently of the source of the file.
                 </td>
             
 
-            <td class="description last"><p>Contents of a file or a pointer to it.
-For browsers, this may be a File object;
-for Node.js, this may be a string containing a file path.</p></td>
+            <td class="description last"><p>Path to the SummarizedExperiment in the ArtifactDB project directory.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>navigator</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="global.html#ArtifactDbProjectNavigator">ArtifactDbProjectNavigator</a></span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                </td>
+            
+
+            <td class="description last"><p>A navigator object that describes how to obtain the various assets from the project directory containing <code>path</code>.</p></td>
         </tr>
 
     
@@ -267,13 +296,145 @@ for Node.js, this may be a string containing a file path.</p></td>
 
         <tr>
             
-                <td class="name"><code>name</code></td>
+                <td class="name"><code>rnaCountAssay</code></td>
             
 
             <td class="type">
             
                 
 <span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>0</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>See <a href="ArtifactDbSummarizedExperimentDatasetBase.html#setRnaCountAssay"><code>setRnaCountAssay</code></a>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>adtCountAssay</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>0</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>See <a href="ArtifactDbSummarizedExperimentDatasetBase.html#setAdtCountAssay"><code>setAdtCountAssay</code></a>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>crisprCountAssay</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>0</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>See <a href="ArtifactDbSummarizedExperimentDatasetBase.html#setCrisprCountAssay"><code>setCrisprCountAssay</code></a>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>rnaExperiment</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
 
 
 
@@ -297,14 +458,231 @@ for Node.js, this may be a string containing a file path.</p></td>
             
                 <td class="default">
                 
+                    <code>""</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>See <a href="ArtifactDbSummarizedExperimentDatasetBase.html#setRnaExperiment"><code>setRnaExperiment</code></a>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>adtExperiment</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>"Antibody Capture"</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>See <a href="ArtifactDbSummarizedExperimentDatasetBase.html#setAdtExperiment"><code>setAdtExperiment</code></a>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>crisprExperiment</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>"CRISPR Guide Capture"</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>See <a href="ArtifactDbSummarizedExperimentDatasetBase.html#setCrisprExperiment"><code>setCrisprExperiment</code></a>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>primaryRnaFeatureIdColumn</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
                     <code>null</code>
                 
                 </td>
             
 
-            <td class="description last"><p>Name of the file.
-If <code>null</code>, it is determined automatically from <code>x</code> where possible (i.e., basename of the file path or extracted from the File object).
-If <code>x</code> is a Uint8Array, an explicit name is required.</p></td>
+            <td class="description last"><p>See <a href="ArtifactDbSummarizedExperimentDatasetBase.html#setPrimaryRnaFeatureIdColumn"><code>setPrimaryRnaFeatureIdColumn</code></a>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>primaryAdtFeatureIdColumn</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>null</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>See <a href="ArtifactDbSummarizedExperimentDatasetBase.html#setPrimaryAdtFeatureIdColumn"><code>setPrimaryAdtFeatureIdColumn</code></a>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>primaryCrisprFeatureIdColumn</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>null</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>See <a href="ArtifactDbSummarizedExperimentDatasetBase.html#setPrimaryCrisprFeatureIdColumn"><code>setPrimaryCrisprFeatureIdColumn</code></a>.</p></td>
         </tr>
 
     
@@ -348,7 +726,7 @@ If <code>x</code> is a Uint8Array, an explicit name is required.</p></td>
         <h3 class="subsection-title">Classes</h3>
 
         <dl>
-            <dt><a href="SimpleFile.html">SimpleFile</a></dt>
+            <dt><a href="ArtifactDbSummarizedExperimentDatasetBase.html">ArtifactDbSummarizedExperimentDatasetBase</a></dt>
             <dd></dd>
         </dl>
     
@@ -369,7 +747,7 @@ If <code>x</code> is a Uint8Array, an explicit name is required.</p></td>
 
     
 
-    <h4 class="name" id="buffer"><span class="type-signature"></span>buffer<span class="signature">(options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Uint8Array}</span></h4>
+    <h4 class="name" id="abbreviate"><span class="type-signature"></span>abbreviate<span class="signature">()</span><span class="type-signature"> &rarr; {object}</span></h4>
 
     
 
@@ -382,7 +760,7 @@ If <code>x</code> is a Uint8Array, an explicit name is required.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_abstract_file.js.html">readers/abstract/file.js</a>, <a href="readers_abstract_file.js.html#line55">line 55</a>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line530">line 530</a>
     </li></ul></dd>
     
 
@@ -429,147 +807,6 @@ If <code>x</code> is a Uint8Array, an explicit name is required.</p></td>
 
 
 
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-        <th>Default</th>
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>options</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    <code>{}</code>
-                
-                </td>
-            
-
-            <td class="description last"><p>Optional parameters.</p>
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-        <th>Default</th>
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>copy</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    <code>false</code>
-                
-                </td>
-            
-
-            <td class="description last"><p>Whether to create a new copy of the buffer.
-Callers should set this to <code>true</code> for non-read-only applications.</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
 
 
 
@@ -588,7 +825,7 @@ Callers should set this to <code>true</code> for non-read-only applications.</p>
 
         
 <div class="param-desc">
-    <p>Contents of the file as an array.</p>
+    <p>Object containing the abbreviated details of this dataset.</p>
 </div>
 
 
@@ -599,7 +836,7 @@ Callers should set this to <code>true</code> for non-read-only applications.</p>
     </dt>
     <dd>
         
-<span class="param-type">Uint8Array</span>
+<span class="param-type">object</span>
 
 
 
@@ -615,7 +852,93 @@ Callers should set this to <code>true</code> for non-read-only applications.</p>
 
     
 
-    <h4 class="name" id="content"><span class="type-signature"></span>content<span class="signature">(options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Uint8Array|string}</span></h4>
+    <h4 class="name" id="clear"><span class="type-signature"></span>clear<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Destroy caches if present, releasing the associated memory.
+This may be called at any time but only has an effect if <code>cache = true</code> in <a href="ArtifactDbSummarizedExperimentDatasetBase.html#load"><code>load</code></a> or {@linkcodeArtifactDbSummarizedExperimentDatasetBase#summary summary}.</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line522">line 522</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="load"><span class="type-signature type-signature-async">(async) </span>load<span class="signature">(options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {object}</span></h4>
 
     
 
@@ -628,7 +951,7 @@ Callers should set this to <code>true</code> for non-read-only applications.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_abstract_file.js.html">readers/abstract/file.js</a>, <a href="readers_abstract_file.js.html#line90">line 90</a>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line601">line 601</a>
     </li></ul></dd>
     
 
@@ -767,7 +1090,7 @@ Callers should set this to <code>true</code> for non-read-only applications.</p>
 
         <tr>
             
-                <td class="name"><code>copy</code></td>
+                <td class="name"><code>cache</code></td>
             
 
             <td class="type">
@@ -800,8 +1123,8 @@ Callers should set this to <code>true</code> for non-read-only applications.</p>
                 </td>
             
 
-            <td class="description last"><p>Whether to create a new copy of the buffer.
-Callers should set this to <code>true</code> for non-read-only applications.</p></td>
+            <td class="description last"><p>Whether to cache the results for re-use in subsequent calls to this method or <a href="ArtifactDbSummarizedExperimentDatasetBase.html#summary"><code>summary</code></a>.
+If <code>true</code>, users should consider calling <a href="ArtifactDbSummarizedExperimentDatasetBase.html#clear"><code>clear</code></a> to release the memory once this dataset instance is no longer needed.</p></td>
         </tr>
 
     
@@ -834,8 +1157,14 @@ Callers should set this to <code>true</code> for non-read-only applications.</p>
 
         
 <div class="param-desc">
-    <p>Contents of the file, as in <a href="SimpleFile.html#buffer"><code>SimpleFile.buffer</code></a>.
-For Node.js, a string may also be returned containing the path to the original file.</p>
+    <p>Object containing the per-feature and per-cell annotations.
+This has the following properties:</p>
+<ul>
+<li><code>features</code>: an object where each key is a modality name and each value is a <a href="external-DataFrame.html">DataFrame</a> of per-feature annotations for that modality.</li>
+<li><code>cells</code>: a <a href="external-DataFrame.html">DataFrame</a> containing per-cell annotations.</li>
+<li><code>matrix</code>: a <a href="external-MultiMatrix.html">MultiMatrix</a> containing one <a href="external-ScranMatrix.html">ScranMatrix</a> per modality.</li>
+<li><code>primary_ids</code>: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.</li>
+</ul>
 </div>
 
 
@@ -846,220 +1175,1638 @@ For Node.js, a string may also be returned containing the path to the original f
     </dt>
     <dd>
         
-<span class="param-type">Uint8Array</span>
+<span class="param-type">object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="serialize"><span class="type-signature"></span>serialize<span class="signature">()</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line687">line 687</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Object describing this dataset, containing:</p>
+<ul>
+<li><code>files</code>: Array of objects representing the files used in this dataset.
+Each object corresponds to a single file and contains:
+<ul>
+<li><code>type</code>: a string denoting the type.</li>
+<li><code>file</code>: a <a href="SimpleFile.html">SimpleFile</a> object representing the file contents.</li>
+</ul>
+</li>
+<li><code>options</code>: An object containing additional options to saved.</li>
+</ul>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setAdtCountAssay"><span class="type-signature"></span>setAdtCountAssay<span class="signature">(i)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line442">line 442</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>i</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
 |
 
-<span class="param-type">string</span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="name"><span class="type-signature"></span>name<span class="signature">()</span><span class="type-signature"> &rarr; {string}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_abstract_file.js.html">readers/abstract/file.js</a>, <a href="readers_abstract_file.js.html#line68">line 68</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>Name of the file, for disambiguation purposes.</p>
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">string</span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="size"><span class="type-signature"></span>size<span class="signature">()</span><span class="type-signature"> &rarr; {number}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_abstract_file.js.html">readers/abstract/file.js</a>, <a href="readers_abstract_file.js.html#line75">line 75</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>Size of the file, in bytes.</p>
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
 <span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Name or index of the assay containing the ADT count matrix.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setAdtExperiment"><span class="type-signature"></span>setAdtExperiment<span class="signature">(i<span class="signature-attributes">nullable</span>)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line470">line 470</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>i</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Name or index of the alternative experiment containing ADT data.
+If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.
+If <code>i</code> is an empty string, the main experiment is assumed to contain the ADT data.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setCrisprCountAssay"><span class="type-signature"></span>setCrisprCountAssay<span class="signature">(i)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line450">line 450</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>i</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Name or index of the assay containing the CRISPR count matrix.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setCrisprExperiment"><span class="type-signature"></span>setCrisprExperiment<span class="signature">(i<span class="signature-attributes">nullable</span>)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line480">line 480</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>i</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Name or index of the alternative experiment containing CRISPR guide data.
+If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.
+If <code>i</code> is an empty string, the main experiment is assumed to contain the guide data.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setPrimaryAdtFeatureIdColumn"><span class="type-signature"></span>setPrimaryAdtFeatureIdColumn<span class="signature">(i)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line502">line 502</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>i</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for the ADTs.</p>
+<p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
+However, if no row names are present in the SummarizedExperiment, no primary identifier is defined.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setPrimaryCrisprFeatureIdColumn"><span class="type-signature"></span>setPrimaryCrisprFeatureIdColumn<span class="signature">(i)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line513">line 513</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>i</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for the CRISPR guides.</p>
+<p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the existing row names (if they exist) are used as the primary identifier.
+However, if no row names are present in the SummarizedExperiment, no primary identifier is defined.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setPrimaryRnaFeatureIdColumn"><span class="type-signature"></span>setPrimaryRnaFeatureIdColumn<span class="signature">(i)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line491">line 491</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>i</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for gene expression.</p>
+<p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
+However, if no row names are present in the SummarizedExperiment, no primary identifier is defined.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setRnaCountAssay"><span class="type-signature"></span>setRnaCountAssay<span class="signature">(i)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line434">line 434</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>i</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Name or index of the assay containing the RNA count matrix.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setRnaExperiment"><span class="type-signature"></span>setRnaExperiment<span class="signature">(i<span class="signature-attributes">nullable</span>)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line460">line 460</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>i</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Name or index of the alternative experiment containing gene expression data.
+If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.
+If <code>i</code> is an empty string, the main experiment is assumed to contain the gene expression data.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="summary"><span class="type-signature type-signature-async">(async) </span>summary<span class="signature">(options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_ArtifactDB.js.html">readers/ArtifactDB.js</a>, <a href="readers_ArtifactDB.js.html#line570">line 570</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+        <th>Default</th>
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>{}</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Optional parameters.</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+        <th>Default</th>
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>cache</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>false</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Whether to cache the results for re-use in subsequent calls to this method or <a href="ArtifactDbSummarizedExperimentDatasetBase.html#load"><code>load</code></a>.
+If <code>true</code>, users should consider calling <a href="ArtifactDbSummarizedExperimentDatasetBase.html#clear"><code>clear</code></a> to release the memory once this dataset instance is no longer needed.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Object containing the per-feature and per-cell annotations.
+This has the following properties:</p>
+<ul>
+<li><code>modality_features</code>: an object where each key is a modality name and each value is a <a href="external-DataFrame.html">DataFrame</a> of per-feature annotations for that modality.</li>
+<li><code>cells</code>: a <a href="external-DataFrame.html">DataFrame</a> of per-cell annotations.</li>
+<li><code>modality_assay_names</code>: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.
+Unnamed assays are represented as <code>null</code> names.</li>
+</ul>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
 
 
 
