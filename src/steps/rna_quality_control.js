@@ -181,8 +181,7 @@ export class RnaQualityControlState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `rna_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotations in {@linkcode RnaQualityControlState#compute compute}.
-     * Specifically:
+     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotations.
      *
      * - If `use_reference_mito = true`, the `gene_id_column` that best matches human/mouse Ensembl/symbols is identified.
      *   Based on the identified species and feature type, `reference_mito_species` and `reference_mito_type` are also set.
@@ -190,15 +189,15 @@ export class RnaQualityControlState {
      *
      * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the feature annotations that contains the gene identifiers for the RNA modality.
      * If `null`, the row names are used.
-     * Ignored if {@linkcode RnaQualityControlState#setAutomaticFeatureParameters setAutomaticFeatureParameters} is enabled.
+     * Ignored if `automatic = true`.
      * @param {boolean} parameters.use_reference_mito - Whether to use the reference lists of mitochondrial genes.
      * If `false`, mitochondrial genes are instead identified from their prefix.
      * @param {Array} parameters.reference_mito_species - Array of strings or numbers, specifying zero, one or more species to use to obtain a reference list of mitochondrial genes.
      * Each entry can either be the common name (e.g., `"mouse"`, `"human"`) or a taxonomy ID (e.g. 9606, 10090).
-     * Ignored if {@linkcode RnaQualityControlState#setAutomaticFeatureParameters setAutomaticFeatureParameters} is enabled.
+     * Ignored if `automatic = true`.
      * @param {string} parameters.reference_mito_type - Name of the feature type in the reference list of mitochondrial genes.
-     * This can be `"ENSEMBL"`, `"SYMBOL"`, or `"ENTREZ"`.
-     * Ignored if {@linkcode RnaQualityControlState#setAutomaticFeatureParameters setAutomaticFeatureParameters} is enabled.
+     * This can be any one of `"ENSEMBL"`, `"SYMBOL"`, or `"ENTREZ"`.
+     * Ignored if `automatic = true`.
      * @param {?string} parameters.mito_prefix - Case-insensitive prefix to use to identify mitochondrial genes from the dataset.
      * Only used when `use_reference_mito = false`; in such cases, `gene_id_column` should point to symbols.
      * If `null`, no prefix-based identification is performed.

@@ -75,6 +75,11 @@ test("different options for choosing mitochondrial genes in RNA QC works as expe
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
     expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
 
+    paramcopy.rna_quality_control.mito_prefix = null;
+    await state.rna_quality_control.compute(paramcopy.rna_quality_control);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBe(0);
+    paramcopy.rna_quality_control.mito_prefix = "mt-";  // restoring.
+
     // When automatic discovery is enabled, changes to the other parameters have no effect.
     paramcopy.rna_quality_control.automatic = true;
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
@@ -82,11 +87,50 @@ test("different options for choosing mitochondrial genes in RNA QC works as expe
     expect(state.rna_quality_control.changed).toBe(true);
     expect(state.rna_quality_control.fetchParameters().gene_id_column).toBe("name");
 
-    paramcopy.rna_quality_control.gene_id_column = "foobar";
+    paramcopy.rna_quality_control.gene_id_column = "foobar"; // introducing a change.
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
     expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
     expect(state.rna_quality_control.changed).toBe(false);
     expect(state.rna_quality_control.fetchParameters().gene_id_column).toBe("foobar");
 
     await bakana.freeAnalysis(state);
+})
+
+test("different options for choosing IgG tags in ADT QC works as expected", async () => {
+    let state = await bakana.createAnalysis();
+    let paramcopy = utils.baseParams();
+    await state.inputs.compute(files, paramcopy.inputs);
+    await state.adt_quality_control.compute(paramcopy.adt_quality_control);
+    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toBeGreaterThan(0); // automatic choice works.
+
+    await state.inputs.compute(files, paramcopy.inputs); // running it again to set changed = false.
+
+    // Disabling everything.
+    paramcopy.adt_quality_control.automatic = false;
+    paramcopy.adt_quality_control.tag_id_column = "id";
+    paramcopy.adt_quality_control.igg_prefix = "igg1_"; // underscore is deliberate, otherwise we'd just match all the IDs.
+    await state.adt_quality_control.compute(paramcopy.adt_quality_control);
+    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toEqual(0); 
+
+    paramcopy.adt_quality_control.tag_id_column = "name";
+    await state.adt_quality_control.compute(paramcopy.adt_quality_control);
+    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toBeGreaterThan(0); 
+
+    paramcopy.adt_quality_control.igg_prefix = null;
+    await state.adt_quality_control.compute(paramcopy.adt_quality_control);
+    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toEqual(0); 
+    paramcopy.adt_quality_control.igg_prefix = "igg";
+
+    // when automatic discovery is enabled, chanes to the other parameters have no effect.
+    paramcopy.adt_quality_control.automatic = true;
+    await state.adt_quality_control.compute(paramcopy.adt_quality_control);
+    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toBeGreaterThan(0); 
+    expect(state.adt_quality_control.changed).toBe(true);
+    expect(state.adt_quality_control.fetchParameters().tag_id_column).toBe("name");
+
+    paramcopy.adt_quality_control.tag_id_column = "foobar"; // introducing a change.
+    await state.adt_quality_control.compute(paramcopy.adt_quality_control);
+    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
+    expect(state.adt_quality_control.changed).toBe(false);
+    expect(state.adt_quality_control.fetchParameters().tag_id_column).toBe("foobar");
 })

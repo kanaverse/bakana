@@ -149,7 +149,6 @@ export class InputsState {
             this.#cache.inferred_rna_types = output;
         }
 
-        console.log(this.#cache.inferred_rna_types);
         return this.#cache.inferred_rna_types;
     }
 

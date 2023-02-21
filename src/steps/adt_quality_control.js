@@ -93,23 +93,65 @@ export class AdtQualityControlState {
         return this.#cache.metrics;
     }
 
-    /***************************
-     ******** Compute **********
-     ***************************/
+    /****************************
+     ******** Defaults **********
+     ****************************/
 
     static defaults() {
         return {
+            automatic: true,
+            tag_id_column: null,
             igg_prefix: "IgG",
             nmads: 3,
             min_detected_drop: 0.1
         };
     }
 
+    static configureFeatureParameters(lower_igg, annotations) {
+        let counter = val => {
+            let n = 0;
+            val.forEach(x => {
+                if (x.toLowerCase().startsWith(lower_igg)) {
+                    n++;
+                }
+            });
+            return n;
+        };
+
+        let best_key = null;
+        let best = 0;
+
+        let rn = annotations.rowNames();
+        if (rn !== null) {
+            best = counter(rn);
+        }
+
+        for (const key of annotations.columnNames()) {
+            let latest = counter(annotations.column(key));
+            if (latest > best) {
+                best_key = key;
+                best = latest;
+            }
+        }
+
+        return best_key;
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * 
      * @param {object} parameters - Parameter object, equivalent to the `adt_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {string} parameters.igg_prefix - Prefix of the identifiers for isotype controls.
+     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotations. 
+     * Specifically, `tag_id_column` is set to the column with the most matches to `igg_prefix`.
+     * @param {?(string|number)} parameters.tag_id_column - Name or index of the column of the feature annotations that contains the tag identifiers.
+     * If `null`, the row names are used.
+     * Ignored if `automatic = true`.
+     * @param {?string} parameters.igg_prefix - Prefix of the identifiers for isotype controls.
+     * If `null`, no prefix-based identification is performed.
      * @param {number} parameters.nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
      * @param {number} parameters.min_detected_drop - Minimum proportional drop in the number of detected features before a cell is to be considered low-quality.
      *
@@ -119,36 +161,58 @@ export class AdtQualityControlState {
         let { igg_prefix, nmads, min_detected_drop } = parameters;
         this.changed = false;
 
-        if (this.#inputs.changed || igg_prefix !== this.#parameters.igg_prefix) {
+        let automatic;
+        let tag_id_column; 
+        if ("automatic" in parameters) {
+            automatic = parameters.automatic;
+            tag_id_column = parameters.tag_id_column;
+        } else {
+            automatic = true;
+            tag_id_column = null;
+        }
+
+        if (
+            this.#inputs.changed || 
+            automatic !== this.#parameters.automatic ||
+            igg_prefix !== this.#parameters.igg_prefix ||
+            (!automatic && tag_id_column !== this.#parameters.tag_id_column)
+        ) {
             utils.freeCache(this.#cache.metrics);
 
             if (this.valid()) {
-                var mat = this.#inputs.fetchCountMatrix().get("ADT");
-                var gene_info = this.#inputs.fetchFeatureAnnotations()["ADT"];
-
-                // Finding the prefix.
-                var subsets = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
+                var tag_info = this.#inputs.fetchFeatureAnnotations()["ADT"];
+                var subsets = utils.allocateCachedArray(tag_info.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
                 subsets.fill(0);
-                var sub_arr = subsets.array();
 
-                var lower_igg = igg_prefix.toLowerCase();
-                for (const key of gene_info.columnNames()) {
-                    let val = gene_info.column(key);
-                    val.forEach((x, i) => { 
-                        if (x.toLowerCase().startsWith(lower_igg)) {
-                            sub_arr[i] = 1;                        
-                        }
-                    });
+                if (igg_prefix !== null) {
+                    var lower_igg = igg_prefix.toLowerCase();
+                    let key = tag_id_column;
+                    if (automatic) {
+                        key = AdtQualityControlState.configureFeatureParameters(lower_igg, tag_info);
+                    }
+
+                    let val = (key == null ? tag_info.rowNames() : tag_info.column(key));
+                    if (val !== null) {
+                        var sub_arr = subsets.array();
+                        val.forEach((x, i) => { 
+                            if (x.toLowerCase().startsWith(lower_igg)) {
+                                sub_arr[i] = 1;                        
+                            }
+                        });
+                    }
                 }
 
+                var mat = this.#inputs.fetchCountMatrix().get("ADT");
                 this.#cache.metrics = scran.perCellAdtQcMetrics(mat, [subsets]);
                 this.changed = true;
             } else {
                 delete this.#cache.metrics;
             }
-
-            this.#parameters.igg_prefix = igg_prefix;
         }
+
+        this.#parameters.automatic = automatic;
+        this.#parameters.tag_id_column = tag_id_column;
+        this.#parameters.igg_prefix = igg_prefix;
 
         if (this.changed || nmads !== this.#parameters.nmads || min_detected_drop !== this.#parameters.min_detected_drop) {
             utils.freeCache(this.#cache.filters);
