@@ -24,12 +24,6 @@ export function baseParams() {
     output.tsne.iterations = 10;
     output.umap.num_epochs = 10;
 
-    // Actually do something.
-    output.cell_labelling = {
-        mouse_references: [ "ImmGen" ],
-        human_references: [ "BlueprintEncode" ]
-    };
-
     return output;
 }
 

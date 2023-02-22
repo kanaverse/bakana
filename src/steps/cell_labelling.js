@@ -18,6 +18,8 @@ const baseUrl = "https://github.com/LTLA/singlepp-references/releases/download/v
 // so we can keep these as globals for re-use across States.
 const all_loaded = {};
 
+export const step_name = "cell_labelling";
+
 /**
  * Cell labelling involves assigning cell type labels to clusters using the [**SingleR** algorithm](https://github.com/LTLA/CppSingleR),
  * based on [pre-formatted reference expression profiles](https://github.com/clusterfork/singlepp-references).
@@ -52,11 +54,18 @@ export class CellLabellingState {
         this.changed = false;
     }
 
+    #flush_prepared() {
+        if ("prepared" in this.#cache) {
+            for (const v of Object.values(this.#cache.prepared)) {
+                v.built.raw.free();
+            }
+            delete this.#cache.prepared;
+        }
+    }
+
     free() {
         utils.freeCache(this.#cache.buffer);
-        for (const v of Object.values(this.#cache.prepared)) {
-            v.built.raw.free();
-        }
+        this.#flush_prepared();
     }
 
     /***************************
@@ -86,22 +95,31 @@ export class CellLabellingState {
      *   Only available if multiple references are requested.
      *
      * This is available after running {@linkcode CellLabellingState#compute compute}.
-     *
-     * @async
      */
-    async fetchResults() {
+    fetchResults() {
         // No real need to clone these, they're string arrays
         // so they can't be transferred anyway.
         let perref = {};
         for (const [key, val] of Object.entries(this.#cache.results)) {
-            perref[key] = await val;
+            perref[key] = val;
         }
 
         let output = { "per_reference": perref };
         if ("integrated_results" in this.#cache) {
-            output.integrated = await this.#cache.integrated_results;
+            output.integrated = this.#cache.integrated_results;
         }
 
+        return output;
+    }
+
+    /**
+     * @return {object} Object where each key is the name of a reference and each value is the number of shared features between the test and reference daatasets.
+     */
+    fetchNumberOfSharedFeatures() {
+        let output = {};
+        for (const key of Object.keys(this.#cache.results)) {
+            output[key] = this.#cache.prepared[key].built.raw.sharedFeatures();
+        }
         return output;
     }
 
@@ -149,9 +167,9 @@ export class CellLabellingState {
      * Each key is a taxonomy ID and each value is an array of strings containing the names of references for that species.
      * @type {object}
      */
-    const availableReferences = {
+    static availableReferences = {
         "9606": [ "BlueprintEncode", "DatabaseImmuneCellExpression", "HumanPrimaryCellAtlas", "MonacoImmune", "NovershternHematopoietic" ],
-        "10090": [ "ImmGen", "MouseRNAseq" ],
+        "10090": [ "ImmGen", "MouseRNAseq" ]
     };
 
     /***************************
@@ -233,7 +251,7 @@ export class CellLabellingState {
 
             built = scran.buildLabelledReference(gene_ids, loaded, chosen_ids); 
             output = {
-                "loaded": loaded,
+                "loaded": current,
                 "built": {
                     "features": chosen_ids,
                     "raw": built
@@ -331,20 +349,19 @@ export class CellLabellingState {
                 // Building each individual reference.
                 let feats = this.#inputs.fetchFeatureAnnotations()["RNA"];
                 let gene_ids = (gene_id_column2 == null ? feats.rowNames() : feats.column(gene_id_column2));
+                this.#cache.gene_ids = gene_ids;
 
                 let valid = {};
-                for (const ref of references) {
-                    if (allowable.has(ref)) {
-                        await this.#load_reference(ref);
-                        valid[ref] = this.#build_reference(ref, gene_ids, gene_id_type2);
+                if (gene_ids !== null) {
+                    for (const ref of references) {
+                        if (allowable.has(ref)) {
+                            await this.#load_reference(ref);
+                            valid[ref] = this.#build_reference(ref, gene_ids, gene_id_type2);
+                        }
                     }
                 }
 
-                if ("prepared" in this.#cache) {
-                    for (const v of Object.values(this.#cache.prepared)) {
-                        v.built.free();
-                    }
-                }
+                this.#flush_prepared();
                 this.#cache.prepared = valid;
 
                 // Building an integrated reference, if necessary.
@@ -355,10 +372,10 @@ export class CellLabellingState {
                     let feats = arr.map(x => x.built.features);
                     let built = arr.map(x => x.built.raw);
 
-                    this.#cache.integrated.free();
+                    utils.freeCache(this.#cache.integrated);
                     this.#cache.integrated = scran.integrateLabelledReferences(gene_ids, loaded, feats, built);
                 } else {
-                    this.#cache.integrated.free();
+                    utils.freeCache(this.#cache.integrated);
                     delete this.#cache.integrated;
                 }
                 this.#cache.used_refs = used_refs;
@@ -366,28 +383,27 @@ export class CellLabellingState {
                 this.changed = true;
             }
 
+            let marker_results = this.#markers.fetchResults()["RNA"];
+            let ngroups = marker_results.numberOfGroups();
+            let ngenes = (this.#cache.gene_ids !== null ? this.#cache.gene_ids.length : null);
+            let cluster_means = this.#cache.buffer;
+
             if (this.#markers.changed) {
-                // Creating a column-major array of mean vectors for each cluster.
-                let cluster_means = this.#cache.buffer;
-                let ngenes;
-                let ngroups;
-                if (this.#cache.features !== null) {
-                    ngenes = this.#cache.features.length;
-                    let marker_results = this.#markers.fetchResults()["RNA"];
-                    ngroups = marker_results.numberOfGroups();
-
-                    if (this.#markers.changed || typeof cluster_means === "undefined") {
-                        cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", this.#cache);
-
-                        for (var g = 0; g < ngroups; g++) {
-                            let means = marker_results.means(g, { copy: false }); // Warning: direct view in wasm space - be careful.
-                            let cluster_array = cluster_means.array();
-                            cluster_array.set(means, g * ngenes);
-                        }
+                if (ngenes !== null) {
+                    // Creating a column-major array of mean vectors for each cluster.
+                    cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", this.#cache);
+                    for (var g = 0; g < ngroups; g++) {
+                        let means = marker_results.means(g, { copy: false }); // Warning: direct view in wasm space - be careful.
+                        let cluster_array = cluster_means.array();
+                        cluster_array.set(means, g * ngenes);
                     }
                 }
+                this.changed = true;
+            }
 
-                // Running classifications on the cluster means. 
+            if (this.changed) {
+                // Running classifications on the cluster means. This is a
+                // no-op if gene_ids = null as 'valid' should be empty.
                 let valid = this.#cache.prepared;
 
                 this.#cache.results = {};
@@ -413,10 +429,13 @@ export class CellLabellingState {
                         as_names.push(this.#cache.used_refs[i]);
                     });
                     this.#cache.integrated_results = as_names;
+                } else {
+                    delete this.#cache.integrated_results;
                 }
-
-                this.changed = true;
             }
+        } else {
+            this.#cache.results = {};
+            delete this.#cache.integrated_results;
         }
 
         this.#parameters.references = references;
