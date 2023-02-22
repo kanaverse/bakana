@@ -128,6 +128,7 @@ function load_data_frame(handle) {
         }
     }
 
+    console.log(columns);
     return new bioc.DataFrame(columns, { columnOrder: colnames, rowNames: rownames, numberOfRows: nrows });
 }
 
