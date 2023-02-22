@@ -257,7 +257,7 @@ export class FeatureSetEnrichmentState {
     /**
      * Available feature set collections for each species.
      * Each key is a taxonomy ID and each value is an array of names of feature set collections for that species.
-     * @desc {object}
+     * @type {object}
      */
     static availableCollections = {
         "10090": [ "mouse-GO_3.16.0" ],
