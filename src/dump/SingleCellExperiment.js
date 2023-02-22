@@ -120,20 +120,23 @@ function dumpRowData(state, modality_prefixes, main_modality, all_sce_metadata, 
 
     let all_rowdata = {};
     for (const m of Object.keys(modality_prefixes)) {
-        all_rowdata[m] = bioc.CLONE(row_info[m], { deepCopy: false });
+        all_rowdata[m] = row_info[m];
     }
 
     if ("RNA" in modality_prefixes) {
         let res = state.feature_selection.fetchResults();
-        let df = new bioc.DataFrame({
-            mean: res.means({ copy: "view" }),
-            variance: res.variances({ copy: "view" }),
-            fitted: res.fitted({ copy: "view" }),
-            residual: res.residuals({ copy: "view" })
-        }, { 
+        let df = new bioc.DataFrame(
+            {
+                mean: res.means({ copy: "view" }),
+                variance: res.variances({ copy: "view" }),
+                fitted: res.fitted({ copy: "view" }),
+                residual: res.residuals({ copy: "view" })
+            }, 
+            { 
             columnOrder: [ "mean", "variance", "fitted", "residual" ] 
-        });
-        all_rowdata.RNA.$setColumn("feature_selection", df);
+            }
+        );
+        all_rowdata.RNA = all_rowdata.RNA.setColumn("feature_selection", df);
     }
 
     markers.dumpMarkerDetectionResults(state, Object.keys(modality_prefixes), all_rowdata);
