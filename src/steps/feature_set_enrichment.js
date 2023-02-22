@@ -62,7 +62,7 @@ export class FeatureSetEnrichmentState {
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
 
-        for (const key of [ "loaded", "mapped", "filtered", "adhoc_results" ]) {
+        for (const key of [ "loaded", "adhoc_results" ]) {
             this.#cache[key] = {};
         }
 
@@ -91,12 +91,9 @@ export class FeatureSetEnrichmentState {
      * - `descriptions`: Array of strings containing the set descriptions.
      * - `sizes`: Int32Array containing the set sizes.
      * - `universe`: number of features in the universe.
-     *
-     * @async
      */
-    async fetchCollectionDetails() {
-        let p = this.#parameters;
-        let collected = await this.#prepare_collections(p.collections, p.gene_id_column, p.gene_id_type);
+    fetchCollectionDetails() {
+        let collected = this.#cache.prepared;
         let output = {};
         for (const [k, v] of Object.entries(collected)) {
             output[k] = { names: v.names, descriptions: v.descriptions, sizes: v.sizes, universe: v.indices.length };
@@ -117,16 +114,14 @@ export class FeatureSetEnrichmentState {
      * - `counts`: Int32Array containing the number of markers present in each set.
      * - `pvalues`: Float64Array containing the enrichment p-values for each set.
      * - `num_markers`: number of markers selected for testing.
-     * 
-     * @async
      */
-    async fetchGroupResults(group, effect_size, summary) {
+    fetchGroupResults(group, effect_size, summary) {
         let key = String(group) + ":" + effect_size + ":" + summary;
 
         if (!(key in this.#cache.adhoc_results)) {
             let res = this.#markers.fetchResults()["RNA"];
-            let p = this.#parameters;
-            let collections = await this.#prepare_collections(p.collections, p.gene_id_column, p.gene_id_type);
+            let top_markers = this.#parameters.top_markers;
+            let collections = this.#cache.prepared;
 
             if (effect_size == "delta_detected") {
                 effect_size = "deltaDetected";
@@ -143,7 +138,7 @@ export class FeatureSetEnrichmentState {
             for (const [name, info] of Object.entries(collections)) {
                 let stats = res[effect_size](group, { summary: sumidx, copy: false });
                 let curstats = bioc.SLICE(stats, info.indices);
-                let threshold = scran.computeTopThreshold(curstats, p.top_markers, { largest: use_largest });
+                let threshold = scran.computeTopThreshold(curstats, top_markers, { largest: use_largest });
                 let in_set = [];
 
                 if (use_largest) {
@@ -183,10 +178,8 @@ export class FeatureSetEnrichmentState {
      *
      * @return {Int32Array} Array containing the row indices of the RNA count matrix corresponding to the genes in the specified set.
      */
-    async fetchFeatureSetIndices(collection, set_index) {
-        let p = this.#parameters;
-        let collected = await this.#prepare_collections([collection], p.gene_id_column, p.gene_id_type);
-        let current = collected[collection];
+    fetchFeatureSetIndices(collection, set_index) {
+        let current = this.#cache.prepared[collection];
         let set = current.sets[set_index];
         let indices = current.indices;
         return bioc.SLICE(indices, set);
@@ -202,8 +195,8 @@ export class FeatureSetEnrichmentState {
      * - `weights`: Float64Array containing the weights of each gene in the set.
      * - `scores`: Float64Array containing the feature set score for each cell.
      */
-    async fetchPerCellScores(collection, set_index) {
-        let indices = await this.fetchFeatureSetIndices(collection, set_index);
+    fetchPerCellScores(collection, set_index) {
+        let indices = this.fetchFeatureSetIndices(collection, set_index);
         // console.log(bioc.SLICE(this.#inputs.fetchFeatureAnnotations().RNA.column("id"), indices));
 
         let mat = this.#normalized.fetchNormalizedMatrix();
@@ -256,9 +249,20 @@ export class FeatureSetEnrichmentState {
 
         return {
             gene_id_column: best_key,
-            gene_id_type: best.type.toUpperCase()
+            gene_id_type: best.type.toUpperCase(),
+            species: [best.species]
         };
     }
+
+    /**
+     * Available feature set collections for each species.
+     * Each key is a taxonomy ID and each value is an array of names of feature set collections for that species.
+     * @desc {object}
+     */
+    static availableCollections = {
+        "10090": [ "mouse-GO_3.16.0" ],
+        "9606": [ "human-GO_3.16.0" ]
+    };
 
     /****************************************
      ******** Preparing references **********
@@ -328,38 +332,46 @@ export class FeatureSetEnrichmentState {
     }
 
     #remap_collection(name, data_id, ref_id) {
-        if (!(name in this.#cache.mapped)) {
-            let feats = this.#inputs.fetchFeatureAnnotations()["RNA"];
+        let feats = this.#inputs.fetchFeatureAnnotations()["RNA"];
 
-            let data_id_col;
-            if (data_id == null) {
-                data_id_col = feats.rowNames();
-                if (data_id_col == null) {
-                    throw new Error("no row names available in the feature annotations");
-                }
-            } else {
-                data_id_col = feats.column(data_id);
+        let data_id_col;
+        if (data_id == null) {
+            data_id_col = feats.rowNames();
+            if (data_id_col == null) {
+                throw new Error("no row names available in the feature annotations");
             }
-
-            let loaded = this.#cache.loaded[name];
-            if (!(ref_id in loaded.features)){
-                throw new Error("no column '" + ref_id + "' in the feature set annotations");
-            }
-
-            let output = scran.remapFeatureSets(data_id_col, loaded.features[ref_id], loaded.members);
-            let sizes = new Int32Array(output.sets.length);
-            output.sets.forEach((x, i) => { sizes[i] = x.length });
-            output.sizes = sizes;
-
-            this.#cache.mapped[name] = output;
+        } else {
+            data_id_col = feats.column(data_id);
         }
 
-        return this.#cache.mapped[name];
+        let loaded = this.#cache.loaded[name];
+        if (!(ref_id in loaded.features)){
+            throw new Error("no column '" + ref_id + "' in the feature set annotations");
+        }
+
+        let output = scran.remapFeatureSets(data_id_col, loaded.features[ref_id], loaded.members);
+        let sizes = new Int32Array(output.sets.length);
+        output.sets.forEach((x, i) => { sizes[i] = x.length });
+        output.sizes = sizes;
+
+        return output;
     }
 
-    async #prepare_collections(collections, gene_id_column, gene_id_type) {
+    async #prepare_collections(collections, species, gene_id_column, gene_id_type) {
+        let allowable = new Set;
+        for (const s0 of species) {
+            let s = utils.toTaxonomy(s0);
+            if (s in FeatureSetEnrichmentState.availableCollections) {
+                FeatureSetEnrichmentState.availableCollections[s].forEach(x => allowable.add(x));
+            }
+        }
+
         let collected = {};
         for (const x of collections) {
+            if (!allowable.has(x)) {
+                continue;
+            }
+
             let loaded = await this.#load_collection(x);
             let mapped = this.#remap_collection(x, gene_id_column, gene_id_type);
 
@@ -371,7 +383,9 @@ export class FeatureSetEnrichmentState {
                 sizes: mapped.sizes
             };
         }
-        return collected;
+
+        this.#cache.prepared = collected;
+        return;
     }
 
     /***************************
@@ -382,58 +396,74 @@ export class FeatureSetEnrichmentState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `feature_set_enrichment` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {Array} parameters.collections - Array of strings containing the names of collections to be tested.
-     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotations.
-     * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `gene_id_column` and `gene_id_type`.
+     * @param {Array} parameters.collections - Array of strings containing the names of collections to be tested, see {@linkcode FeatureSetEnrichmentState#availableCollections availableCollections}.
+     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
+     * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column`, `gene_id_type`.
+     * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
+     * Each entry can either be the common name (e.g., `"mouse"`, `"human"`) or a taxonomy ID (e.g. `"9606"`, `"10090"`).
+     * This is used internally to filter `collections` to the entries relevant to these species. 
+     * Ignored if `automatic = true`.
      * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the RNA entry of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each gene. 
      * If `null`, identifiers are taken from the row names.
+     * Ignored if `automatic = true`.
      * @param {string} parameters.gene_id_type - Type of feature identifier in `gene_id_column`.
-     * This is typically one of `"ENSEMBL"`, `"SYMBOL"` or `"ENTREZ"`
+     * This should be one of `"ENSEMBL"`, `"SYMBOL"` or `"ENTREZ"`
+     * Ignored if `automatic = true`.
      * @param {number} parameters.top_markers - Number of top markers to use when testing for enrichment.
      *
      * @return The state is updated with new results.
      */
     async compute(parameters) {
-        let { collections, automatic, gene_id_column, gene_id_type, top_markers } = parameters;
+        let { collections, automatic, species, gene_id_column, gene_id_type, top_markers } = parameters;
         this.changed = false;
         if (this.#inputs.changed) {
             this.#cache.mapped = {};
-            this.#cache.filtered = {};
             this.changed = true;
         }
 
         if (this.valid()) {
-            let gene_id_column2 = gene_id_column;
-            let gene_id_type2 = gene_id_type;
+            if (
+                utils.changedParameters(this.#parameters.collections, collections) ||
+                automatic !== this.#parameters.automatic ||
+                (
+                    !automatic && 
+                    (
+                        this.#parameters.gene_id_column !== gene_id_column || 
+                        this.#parameters.gene_id_type !== gene_id_type ||
+                        utils.changedParameters(this.#parameters.species, species)
+                    )
+                )
+            ) {
+                let gene_id_column2 = gene_id_column;
+                let gene_id_type2 = gene_id_type;
+                let species2 = species;
 
-            if (automatic) {
-                let guesses = this.#inputs.guessRnaFeatureTypes();
-                let auto = FeatureSetEnrichmentState.configureFeatureParameters(guesses);
-                gene_id_column2 = auto.gene_id_column;
-                gene_id_type2 = auto.gene_id_type;
+                if (automatic) {
+                    let guesses = this.#inputs.guessRnaFeatureTypes();
+                    let auto = FeatureSetEnrichmentState.configureFeatureParameters(guesses);
+                    gene_id_column2 = auto.gene_id_column;
+                    gene_id_type2 = auto.gene_id_type;
+                    species2 = auto.species;
+                }
+
+                await this.#prepare_collections(collections, species2, gene_id_column2, gene_id_type2);
+                this.changed = true;
             }
 
-            await this.#prepare_collections(collections, gene_id_column2, gene_id_type2);
-        }
+            if (this.changed || this.#markers.changed || top_markers !== this.#parameters.top_markers) {
+                this.#cache.adhoc_results = {};
+                this.changed = true;
+            }
 
-        if (
-            utils.changedParameters(this.#parameters.collections, collections) ||
-            automatic !== this.#parameters.automatic ||
-            (!automatic && (this.#parameters.gene_id_column !== gene_id_column || this.#parameters.gene_id_type !== gene_id_type))
-        ) {
-            this.changed = true;
         }
 
         this.#parameters.automatic = automatic;
+        this.#parameters.species = species;
         this.#parameters.collections = collections;
         this.#parameters.gene_id_column = gene_id_column;
         this.#parameters.gene_id_type = gene_id_type;
-
-        if (this.changed || this.#markers.changed || top_markers !== this.#parameters.top_markers) {
-            this.#cache.adhoc_results = {};
-            this.#parameters.top_markers = top_markers;
-            this.changed = true;
-        }
+        this.#parameters.top_markers = top_markers;
+        return;
     }
 }
 

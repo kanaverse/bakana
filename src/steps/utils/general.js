@@ -154,3 +154,18 @@ export function checkIndices(indices, max) {
         }
     }
 }
+
+const species_to_taxa = {
+    human: "9606",
+    mouse: "10090"
+};
+
+export function toTaxonomy(species) {
+    if (species.match(/^[0-9]+$/)) {
+        return species;
+    } else if (species in species_to_taxa) {
+        return species_to_taxa[species];
+    } else {
+        throw new Error("unknown species '" + species + "'");
+    }
+}

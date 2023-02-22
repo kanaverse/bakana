@@ -22,11 +22,8 @@ test("feature set enrichment works correctly for humans", async () => {
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, hs_files, params);
 
-    let deets = await state.feature_set_enrichment.fetchCollectionDetails();
-    let nmouse = deets["mouse-GO_3.16.0"].names.length;
-    expect(nmouse).toBeGreaterThan(0);
-    expect(deets["mouse-GO_3.16.0"].universe).toBe(0);
-
+    let deets = state.feature_set_enrichment.fetchCollectionDetails();
+    expect("mouse-GO_3.16.0" in deets).toBe(false);
     let nhuman = deets["human-GO_3.16.0"].names.length;
     expect(nhuman).toBeGreaterThan(0);
     expect(deets["human-GO_3.16.0"].universe).toBeGreaterThan(0);
@@ -35,27 +32,24 @@ test("feature set enrichment works correctly for humans", async () => {
     let clust = ngroups - 1;
 
     {
-        let stats = await state.feature_set_enrichment.fetchGroupResults(clust, "cohen", "mean");
+        let stats = state.feature_set_enrichment.fetchGroupResults(clust, "cohen", "mean");
         expect(stats["human-GO_3.16.0"].counts.length).toBeGreaterThan(0);
         expect(stats["human-GO_3.16.0"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["human-GO_3.16.0"].counts).not.toEqual(new Int32Array(nhuman));
-        expect(stats["mouse-GO_3.16.0"].counts).toEqual(new Int32Array(nmouse));
     }
 
     {
-        let stats = await state.feature_set_enrichment.fetchGroupResults(clust, "cohen", "min_rank");
+        let stats = state.feature_set_enrichment.fetchGroupResults(clust, "cohen", "min_rank");
         expect(stats["human-GO_3.16.0"].counts.length).toBeGreaterThan(0);
         expect(stats["human-GO_3.16.0"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["human-GO_3.16.0"].counts).not.toEqual(new Int32Array(nhuman));
-        expect(stats["mouse-GO_3.16.0"].counts).toEqual(new Int32Array(nmouse));
     }
 
     {
-        let stats = await state.feature_set_enrichment.fetchGroupResults(clust, "cohen", "min_rank");
+        let stats = state.feature_set_enrichment.fetchGroupResults(clust, "cohen", "min_rank");
         expect(stats["human-GO_3.16.0"].counts.length).toBeGreaterThan(0);
         expect(stats["human-GO_3.16.0"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["human-GO_3.16.0"].counts).not.toEqual(new Int32Array(nhuman));
-        expect(stats["mouse-GO_3.16.0"].counts).toEqual(new Int32Array(nmouse));
     }
 
     // Check that the scores work correctly.
@@ -70,11 +64,46 @@ test("feature set enrichment works correctly for humans", async () => {
         }
 
         expect(chosen).toBeGreaterThanOrEqual(0);
-        let output = await state.feature_set_enrichment.fetchPerCellScores("human-GO_3.16.0", chosen);
+        let output = state.feature_set_enrichment.fetchPerCellScores("human-GO_3.16.0", chosen);
         expect(output.weights.length).toEqual(human_sizes[chosen]);
         expect(output.scores.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
     }
 
+    // Forcing us to load the mice.
+    params.feature_set_enrichment.automatic = false;
+    params.feature_set_enrichment.species = ["mouse"];
+    params.feature_set_enrichment.gene_id_column = "id";
+
+    {
+        await bakana.runAnalysis(state, hs_files, params);
+        expect(state.marker_detection.changed).toBe(false);
+        expect(state.feature_set_enrichment.changed).toBe(true);
+
+        let deets = state.feature_set_enrichment.fetchCollectionDetails();
+        let nmouse = deets["mouse-GO_3.16.0"].names.length;
+        expect(nmouse).toBeGreaterThan(0);
+        expect(deets["mouse-GO_3.16.0"].universe).toBe(0);
+
+        let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
+        expect(stats["mouse-GO_3.16.0"].counts).toEqual(new Int32Array(nmouse));
+    }
+
+    // Checking that reloading works.
+    params.feature_set_enrichment.automatic = true;
+    {
+        await bakana.runAnalysis(state, hs_files, params);
+        expect(state.marker_detection.changed).toBe(false);
+        expect(state.feature_set_enrichment.changed).toBe(true);
+        expect("human-GO_3.16.0" in deets).toBe(true);
+        expect("mouse-GO_3.16.0" in deets).toBe(false);
+    }
+
+    params.feature_set_enrichment.species = ["human"];
+    {
+        await bakana.runAnalysis(state, hs_files, params);
+        expect(state.marker_detection.changed).toBe(false);
+        expect(state.feature_set_enrichment.changed).toBe(false); // no effect when automatic=true.
+    }
 
     // Release me!
     await bakana.freeAnalysis(state);
@@ -87,19 +116,17 @@ let mm_files = {
 test("feature set enrichment works correctly for mice", async () => {
     let params = utils.baseParams();
     params.feature_set_enrichment.collections = [ "mouse-GO_3.16.0", "human-GO_3.16.0" ];
-    params.feature_set_enrichment.dataset_id_column = null;
-    params.feature_set_enrichment.reference_id_column = "SYMBOL";
 
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, mm_files, params);
 
-    let deets = await state.feature_set_enrichment.fetchCollectionDetails();
+    let deets = state.feature_set_enrichment.fetchCollectionDetails();
     let nmouse = deets["mouse-GO_3.16.0"].names.length;
     expect(nmouse).toBeGreaterThan(0);
     expect(deets["mouse-GO_3.16.0"].universe).toBeGreaterThan(0);
 
     {
-        let stats = await state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
+        let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
         expect(stats["mouse-GO_3.16.0"].counts.length).toBeGreaterThan(0);
         expect(stats["mouse-GO_3.16.0"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["mouse-GO_3.16.0"].counts).not.toEqual(new Int32Array(nmouse));
@@ -117,9 +144,26 @@ test("feature set enrichment works correctly for mice", async () => {
         }
 
         expect(chosen).toBeGreaterThanOrEqual(0);
-        let output = await state.feature_set_enrichment.fetchPerCellScores("mouse-GO_3.16.0", chosen);
+        let output = state.feature_set_enrichment.fetchPerCellScores("mouse-GO_3.16.0", chosen);
         expect(output.weights.length).toEqual(mouse_sizes[chosen]);
         expect(output.scores.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
+    }
+
+    // Checking that automatic discovery actually has an effect.
+    params.feature_set_enrichment.automatic = false;
+    params.feature_set_enrichment.gene_id_type = "ENSEMBL";
+    params.feature_set_enrichment.species = ["mouse"];
+    {
+        await bakana.runAnalysis(state, mm_files, params);
+        let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
+        expect(stats["mouse-GO_3.16.0"].counts).toEqual(new Int32Array(nmouse));
+    }
+
+    params.feature_set_enrichment.gene_id_type = "SYMBOL";
+    {
+        await bakana.runAnalysis(state, mm_files, params);
+        let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
+        expect(stats["mouse-GO_3.16.0"].counts).not.toEqual(new Int32Array(nmouse));
     }
 
     // Release me!
