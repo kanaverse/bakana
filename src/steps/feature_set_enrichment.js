@@ -16,7 +16,7 @@ var downloadFun = async (url) => {
     return new Uint8Array(await resp.arrayBuffer());
 };
 
-const base = "https://github.com/LTLA/kana-feature-sets/releases/download";
+const base = "https://github.com/LTLA/kana-feature-sets/releases/download/v1.0.0";
 
 export const step_name = "feature_set_enrichment";
 
@@ -260,8 +260,8 @@ export class FeatureSetEnrichmentState {
      * @type {object}
      */
     static availableCollections = {
-        "10090": [ "mouse-GO_3.16.0" ],
-        "9606": [ "human-GO_3.16.0" ]
+        "10090": [ "mouse-GO" ],
+        "9606": [ "human-GO" ]
     };
 
     /****************************************
@@ -279,7 +279,7 @@ export class FeatureSetEnrichmentState {
                 suffixes.map(
                     async suffix => {
                         let full = name + "_" + suffix;
-                        let b = await downloadFun(base + "/" + name + "/" + full);
+                        let b = await downloadFun(base + "/" + full);
                         return new rutils.SimpleFile(b, { name: full })
                     }
                 )
@@ -294,7 +294,8 @@ export class FeatureSetEnrichmentState {
                 }
                 for (const line of genes) {
                     for (var i = 0; i < headers.length; i++) {
-                        gene_info[headers[i]].push(line[i]);
+                        let curfield = line[i];
+                        gene_info[headers[i]].push(curfield == "" ? null : curfield);
                     }
                 }
             }

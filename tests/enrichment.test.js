@@ -16,46 +16,45 @@ let hs_files = {
 
 test("feature set enrichment works correctly for humans", async () => {
     let params = utils.baseParams();
-    params.feature_set_enrichment.dataset_id_column = "id";
-    params.feature_set_enrichment.collections = [ "mouse-GO_3.16.0", "human-GO_3.16.0" ];
+    params.feature_set_enrichment.collections = [ "mouse-GO", "human-GO" ];
 
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, hs_files, params);
 
     let deets = state.feature_set_enrichment.fetchCollectionDetails();
-    expect("mouse-GO_3.16.0" in deets).toBe(false);
-    let nhuman = deets["human-GO_3.16.0"].names.length;
+    expect("mouse-GO" in deets).toBe(false);
+    let nhuman = deets["human-GO"].names.length;
     expect(nhuman).toBeGreaterThan(0);
-    expect(deets["human-GO_3.16.0"].universe).toBeGreaterThan(0);
+    expect(deets["human-GO"].universe).toBeGreaterThan(0);
 
     let ngroups = state.marker_detection.fetchResults().RNA.numberOfGroups();
     let clust = ngroups - 1;
 
     {
         let stats = state.feature_set_enrichment.fetchGroupResults(clust, "cohen", "mean");
-        expect(stats["human-GO_3.16.0"].counts.length).toBeGreaterThan(0);
-        expect(stats["human-GO_3.16.0"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
-        expect(stats["human-GO_3.16.0"].counts).not.toEqual(new Int32Array(nhuman));
+        expect(stats["human-GO"].counts.length).toBeGreaterThan(0);
+        expect(stats["human-GO"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
+        expect(stats["human-GO"].counts).not.toEqual(new Int32Array(nhuman));
     }
 
     {
         let stats = state.feature_set_enrichment.fetchGroupResults(clust, "cohen", "min_rank");
-        expect(stats["human-GO_3.16.0"].counts.length).toBeGreaterThan(0);
-        expect(stats["human-GO_3.16.0"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
-        expect(stats["human-GO_3.16.0"].counts).not.toEqual(new Int32Array(nhuman));
+        expect(stats["human-GO"].counts.length).toBeGreaterThan(0);
+        expect(stats["human-GO"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
+        expect(stats["human-GO"].counts).not.toEqual(new Int32Array(nhuman));
     }
 
     {
         let stats = state.feature_set_enrichment.fetchGroupResults(clust, "cohen", "min_rank");
-        expect(stats["human-GO_3.16.0"].counts.length).toBeGreaterThan(0);
-        expect(stats["human-GO_3.16.0"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
-        expect(stats["human-GO_3.16.0"].counts).not.toEqual(new Int32Array(nhuman));
+        expect(stats["human-GO"].counts.length).toBeGreaterThan(0);
+        expect(stats["human-GO"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
+        expect(stats["human-GO"].counts).not.toEqual(new Int32Array(nhuman));
     }
 
     // Check that the scores work correctly.
     {
         let chosen = -1;
-        let human_sizes = deets["human-GO_3.16.0"].sizes;
+        let human_sizes = deets["human-GO"].sizes;
         for (var i = 0; i < human_sizes.length; i++) {
             if (human_sizes[i] > 20) {
                 chosen = i;
@@ -64,7 +63,7 @@ test("feature set enrichment works correctly for humans", async () => {
         }
 
         expect(chosen).toBeGreaterThanOrEqual(0);
-        let output = state.feature_set_enrichment.fetchPerCellScores("human-GO_3.16.0", chosen);
+        let output = state.feature_set_enrichment.fetchPerCellScores("human-GO", chosen);
         expect(output.weights.length).toEqual(human_sizes[chosen]);
         expect(output.scores.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
     }
@@ -80,12 +79,12 @@ test("feature set enrichment works correctly for humans", async () => {
         expect(state.feature_set_enrichment.changed).toBe(true);
 
         let deets = state.feature_set_enrichment.fetchCollectionDetails();
-        let nmouse = deets["mouse-GO_3.16.0"].names.length;
+        let nmouse = deets["mouse-GO"].names.length;
         expect(nmouse).toBeGreaterThan(0);
-        expect(deets["mouse-GO_3.16.0"].universe).toBe(0);
+        expect(deets["mouse-GO"].universe).toBe(0);
 
         let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
-        expect(stats["mouse-GO_3.16.0"].counts).toEqual(new Int32Array(nmouse));
+        expect(stats["mouse-GO"].counts).toEqual(new Int32Array(nmouse));
     }
 
     // Checking that reloading works.
@@ -94,8 +93,8 @@ test("feature set enrichment works correctly for humans", async () => {
         await bakana.runAnalysis(state, hs_files, params);
         expect(state.marker_detection.changed).toBe(false);
         expect(state.feature_set_enrichment.changed).toBe(true);
-        expect("human-GO_3.16.0" in deets).toBe(true);
-        expect("mouse-GO_3.16.0" in deets).toBe(false);
+        expect("human-GO" in deets).toBe(true);
+        expect("mouse-GO" in deets).toBe(false);
     }
 
     params.feature_set_enrichment.species = ["human"];
@@ -115,27 +114,27 @@ let mm_files = {
 
 test("feature set enrichment works correctly for mice", async () => {
     let params = utils.baseParams();
-    params.feature_set_enrichment.collections = [ "mouse-GO_3.16.0", "human-GO_3.16.0" ];
+    params.feature_set_enrichment.collections = [ "mouse-GO", "human-GO" ];
 
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, mm_files, params);
 
     let deets = state.feature_set_enrichment.fetchCollectionDetails();
-    let nmouse = deets["mouse-GO_3.16.0"].names.length;
+    let nmouse = deets["mouse-GO"].names.length;
     expect(nmouse).toBeGreaterThan(0);
-    expect(deets["mouse-GO_3.16.0"].universe).toBeGreaterThan(0);
+    expect(deets["mouse-GO"].universe).toBeGreaterThan(0);
 
     {
         let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
-        expect(stats["mouse-GO_3.16.0"].counts.length).toBeGreaterThan(0);
-        expect(stats["mouse-GO_3.16.0"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
-        expect(stats["mouse-GO_3.16.0"].counts).not.toEqual(new Int32Array(nmouse));
+        expect(stats["mouse-GO"].counts.length).toBeGreaterThan(0);
+        expect(stats["mouse-GO"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
+        expect(stats["mouse-GO"].counts).not.toEqual(new Int32Array(nmouse));
     }
 
     // Check that the scores work correctly.
     {
         let chosen = -1;
-        let mouse_sizes = deets["mouse-GO_3.16.0"].sizes;
+        let mouse_sizes = deets["mouse-GO"].sizes;
         for (var i = 0; i < mouse_sizes.length; i++) {
             if (mouse_sizes[i] > 5) {
                 chosen = i;
@@ -144,7 +143,7 @@ test("feature set enrichment works correctly for mice", async () => {
         }
 
         expect(chosen).toBeGreaterThanOrEqual(0);
-        let output = state.feature_set_enrichment.fetchPerCellScores("mouse-GO_3.16.0", chosen);
+        let output = state.feature_set_enrichment.fetchPerCellScores("mouse-GO", chosen);
         expect(output.weights.length).toEqual(mouse_sizes[chosen]);
         expect(output.scores.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
     }
@@ -156,14 +155,14 @@ test("feature set enrichment works correctly for mice", async () => {
     {
         await bakana.runAnalysis(state, mm_files, params);
         let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
-        expect(stats["mouse-GO_3.16.0"].counts).toEqual(new Int32Array(nmouse));
+        expect(stats["mouse-GO"].counts).toEqual(new Int32Array(nmouse));
     }
 
     params.feature_set_enrichment.gene_id_type = "SYMBOL";
     {
         await bakana.runAnalysis(state, mm_files, params);
         let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
-        expect(stats["mouse-GO_3.16.0"].counts).not.toEqual(new Int32Array(nmouse));
+        expect(stats["mouse-GO"].counts).not.toEqual(new Int32Array(nmouse));
     }
 
     // Release me!
