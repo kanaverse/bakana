@@ -16,6 +16,7 @@ import * as snngraph from "./steps/snn_graph_cluster.js";
 import * as markers from "./steps/marker_detection.js";
 import * as custom from "./steps/custom_selections.js";
 import * as enrichment from "./steps/feature_set_enrichment.js";
+import * as labelling from "./steps/cell_labelling.js";
 
 /**
  * Generate an object containing all of the default analysis parameters.
@@ -73,10 +74,6 @@ export function analysisDefaults() {
         },
         choose_clustering: {
             method: "snn_graph"
-        },
-        cell_labelling: {
-            mouse_references: [],
-            human_references: []
         }
     };
 
@@ -105,6 +102,7 @@ export function analysisDefaults() {
     output[custom.step_name] = custom.CustomSelectionsState.defaults();
 
     output[enrichment.step_name] = enrichment.FeatureSetEnrichmentState.defaults();
+    output[labelling.step_name] = labelling.CellLabellingState.defaults();
 
     return output;
 }

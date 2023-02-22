@@ -12,13 +12,13 @@ var downloadFun = async (url) => {
     return new Uint8Array(await resp.arrayBuffer());
 };
 
-const hs_base = "https://github.com/clusterfork/singlepp-references/releases/download/hs-latest";
-const mm_base = "https://github.com/clusterfork/singlepp-references/releases/download/mm-latest";
+const baseUrl = "https://github.com/LTLA/singlepp-references/releases/download/v2.0.0";
 
 // Loaded references are constant, independent of the dataset;
 // so we can keep these as globals for re-use across States.
-const hs_loaded = {};
-const mm_loaded = {};
+const all_loaded = {};
+
+export const step_name = "cell_labelling";
 
 /**
  * Cell labelling involves assigning cell type labels to clusters using the [**SingleR** algorithm](https://github.com/LTLA/CppSingleR),
@@ -38,9 +38,6 @@ export class CellLabellingState {
     #parameters;
     #cache;
 
-    #hs_built;
-    #mm_built;
-
     constructor(inputs, markers, parameters = null, cache = null) {
         if (!(inputs instanceof inputs_module.InputsState)) {
             throw new Error("'inputs' should be a State object from './inputs.js'");
@@ -55,19 +52,20 @@ export class CellLabellingState {
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
         this.changed = false;
+    }
 
-        this.#hs_built = {};
-        this.#mm_built = {};
+    #flush_prepared() {
+        if ("prepared" in this.#cache) {
+            for (const v of Object.values(this.#cache.prepared)) {
+                v.built.raw.free();
+            }
+            delete this.#cache.prepared;
+        }
     }
 
     free() {
         utils.freeCache(this.#cache.buffer);
-        for (const [k, v] of Object.entries(this.#hs_built)) {
-            v.raw.free();
-        }
-        for (const [k, v] of Object.entries(this.#mm_built)) {
-            v.raw.free();
-        }
+        this.#flush_prepared();
     }
 
     /***************************
@@ -84,11 +82,7 @@ export class CellLabellingState {
      */
     fetchParameters() {
         // Avoid any pass-by-reference activity.
-        let out = { ...this.#parameters };
-        for (const key of [ "human_references", "mouse_references" ]) {
-            out[key] = out[key].slice();
-        }
-        return out;
+        return { ...this.#parameters };
     }
 
     /**
@@ -101,307 +95,357 @@ export class CellLabellingState {
      *   Only available if multiple references are requested.
      *
      * This is available after running {@linkcode CellLabellingState#compute compute}.
-     *
-     * @async
      */
-    async fetchResults() {
+    fetchResults() {
         // No real need to clone these, they're string arrays
         // so they can't be transferred anyway.
         let perref = {};
         for (const [key, val] of Object.entries(this.#cache.results)) {
-            perref[key] = await val;
+            perref[key] = val;
         }
 
         let output = { "per_reference": perref };
         if ("integrated_results" in this.#cache) {
-            output.integrated = await this.#cache.integrated_results;
+            output.integrated = this.#cache.integrated_results;
         }
 
         return output;
     }
 
-    /***************************
-     ******** Compute **********
-     ***************************/
-
-    async #build_reference(name, species, rebuild) {
-        let base;
-        let all_loaded;
-        let all_built;
-        if (species == "human") {
-            base = hs_base;
-            all_loaded = hs_loaded;
-            all_built = this.#hs_built;
-        } else {
-            base = mm_base;
-            all_loaded = mm_loaded;
-            all_built = this.#mm_built;
+    /**
+     * @return {object} Object where each key is the name of a reference and each value is the number of shared features between the test and reference daatasets.
+     */
+    fetchNumberOfSharedFeatures() {
+        let output = {};
+        for (const key of Object.keys(this.#cache.results)) {
+            output[key] = this.#cache.prepared[key].built.raw.sharedFeatures();
         }
+        return output;
+    }
 
-        if (!(name in all_loaded)) {
-            let suffixes = [ 
-                "genes.csv.gz",
-                "labels_fine.csv.gz",
-                "label_names_fine.csv.gz",
-                "markers_fine.gmt.gz",
-                "matrix.csv.gz"
-            ];
+    /****************************
+     ******** Defaults **********
+     ****************************/
 
-            let contents = await Promise.all(
-                suffixes.map(
-                    async suffix => {
-                        let full = name + "_" + suffix;
-                        let b = await downloadFun(base + "/" + full);
-                        return new rutils.SimpleFile(b, { name: full })
-                    }
-                )
-            );
+    static defaults() {
+        return {
+            references: [],
+            automatic: true,
+            species: [],
+            gene_id_column: null,
+            gene_id_type: "ENSEMBL"
+        };
+    }
 
-            let loaded;
-            try {
-                loaded = scran.loadLabelledReferenceFromBuffers(
-                    contents[4].buffer(), // rank matrix
-                    contents[3].buffer(), // markers
-                    contents[1].buffer()  // label per sample
-                );
+    static configureFeatureParameters(guesses) {
+        let best_key = null;
+        let best = { type: "symbol", species: "human", confidence: 0 };
 
-                let gene_lines = await rutils.readLines2(contents[0].content(), { compression: "gz" }); // gene names
-                let ensembl = [];
-                let symbol = [];
-                gene_lines.forEach(x => {
-                    let fields = x.split(",");
-                    ensembl.push(fields[0]);
-                    symbol.push(fields[1]);
-                });
-
-                let labels = await rutils.readLines2(contents[2].content(), { compression: "gz" }); // full label names
-                all_loaded[name] = { 
-                    "raw": loaded, 
-                    "genes": {
-                        "ensembl": ensembl,
-                        "symbol": symbol
-                    },
-                    "labels": labels
-                };
-
-            } catch (e) {
-                utils.freeCache(loaded);
-                throw e;
+        if ("row_names" in guesses) {
+            let val = guesses.row_names;
+            if (val.confidence > best.confidence) {
+                best = val;
             }
         }
 
-        if (!(name in all_built) || rebuild) {
-            let built;
-            try {
-                if (name in all_built) {
-                    utils.freeCache(all_built[name].raw);
-                }
-
-                let current = all_loaded[name];
-                let loaded = current.raw;
-
-                let chosen_ids;
-                if (this.#cache.feature_details.type === "ensembl") {
-                    chosen_ids = current.genes.ensembl;
-                } else {
-                    chosen_ids = current.genes.symbol;
-                }
-
-                let built = scran.buildLabelledReference(this.#cache.features, loaded, chosen_ids); 
-                all_built[name] = {
-                    "features": chosen_ids,
-                    "raw": built
-                };
-
-            } catch (e) {
-                utils.freeCache(built);
-                throw e;
+        for (const [key, val] of Object.entries(guesses.columns)) {
+           if (val.confidence > best.confidence) {
+                best = val;
+                best_key = key;
             }
         }
 
         return {
-            "loaded": all_loaded[name],
-            "built": all_built[name]
+            gene_id_column: best_key,
+            species: [best.species],
+            gene_id_type: best.type.toUpperCase()
         };
+    }
+
+    /**
+     * Available references for each species.
+     * Each key is a taxonomy ID and each value is an array of strings containing the names of references for that species.
+     * @type {object}
+     */
+    static availableReferences = {
+        "9606": [ "BlueprintEncode", "DatabaseImmuneCellExpression", "HumanPrimaryCellAtlas", "MonacoImmune", "NovershternHematopoietic" ],
+        "10090": [ "ImmGen", "MouseRNAseq" ]
+    };
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    async #load_reference(name) {
+        if (name in all_loaded) {
+            return;
+        }
+
+        const suffixes = [ 
+            "genes.csv.gz",
+            "labels_fine.csv.gz",
+            "label_names_fine.csv.gz",
+            "markers_fine.gmt.gz",
+            "matrix.csv.gz"
+        ];
+
+        let contents = await Promise.all(
+            suffixes.map(
+                async suffix => {
+                    let full = name + "_" + suffix;
+                    let b = await downloadFun(baseUrl + "/" + full);
+                    return new rutils.SimpleFile(b, { name: full })
+                }
+            )
+        );
+
+        let loaded;
+        try {
+            loaded = scran.loadLabelledReferenceFromBuffers(
+                contents[4].buffer(), // rank matrix
+                contents[3].buffer(), // markers
+                contents[1].buffer()  // label per sample
+            );
+
+            let gene_lines = await rutils.readLines2(contents[0].content(), { compression: "gz" }); // gene names
+            let ensembl = [];
+            let symbol = [];
+            let entrez = [];
+            let empty2null = x => (x == "" ? null : x);
+
+            gene_lines.forEach(x => {
+                let fields = x.split(",");
+                ensembl.push(empty2null(fields[0]));
+                symbol.push(empty2null(fields[1]));
+                entrez.push(empty2null(fields[2]));
+            });
+
+            let labels = await rutils.readLines2(contents[2].content(), { compression: "gz" }); // full label names
+            all_loaded[name] = { 
+                "raw": loaded, 
+                "genes": {
+                    "ENSEMBL": ensembl,
+                    "SYMBOL": symbol,
+                    "ENTREZ": entrez
+                },
+                "labels": labels
+            };
+
+        } catch (e) {
+            utils.freeCache(loaded);
+            throw e;
+        }
+    }
+
+    #build_reference(name, gene_ids, gene_id_type) {
+        let built;
+        let output;
+        try {
+            let current = all_loaded[name];
+            let loaded = current.raw;
+
+            if (!(gene_id_type in current.genes)) {
+                throw new Error("unknown gene type '" + gene_id_type + "'");
+            }
+            let chosen_ids = current.genes[gene_id_type];
+
+            built = scran.buildLabelledReference(gene_ids, loaded, chosen_ids); 
+            output = {
+                "loaded": current,
+                "built": {
+                    "features": chosen_ids,
+                    "raw": built
+                }
+            };
+
+        } catch (e) {
+            utils.freeCache(built);
+            throw e;
+        }
+
+        return output;
     }
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `cell_labelling` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {Array} parameters.mouse_references - Array of strings specifying the names of the reference datasets for mouse datasets, e.g., `"ImmGen"`.
-     * @param {Array} parameters.human_references - Array of strings specifying the names of the reference datasets for human datasets, e.g., `"BlueprintEncode"`.
+     * @param {Array} parameters.references - Array of strings specifying the names of the reference datasets, see {@linkcode CellLabellingState.availableReferences availableReferences} for more details.
+     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
+     * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column` and `gene_id_type`.
+     * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
+     * Each entry can either be the common name (e.g., `"mouse"`, `"human"`) or a taxonomy ID (e.g. 9606, 10090).
+     * This is used internally to filter `references` to the entries relevant to these species. 
+     * Ignored if `automatic = true`.
+     * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the RNA entry of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each gene. 
+     * If `null`, identifiers are taken from the row names.
+     * Ignored if `automatic = true`.
+     * @param {string} parameters.gene_id_type - Type of feature identifier in `gene_id_column`.
+     * This should be one of `"ENSEMBL"`, `"SYMBOL"` or `"ENTREZ"`
+     * Ignored if `automatic = true`.
      *
      * @return The object is updated with the new results.
+     * @async
      */
-    compute(parameters) {
-        let { human_references, mouse_references } = parameters;
-        this.changed = false;
+    async compute(parameters) {
+        let references;
+        let automatic;
+        let species;
+        let gene_id_column;
+        let gene_id_type;
 
-        if (!this.#inputs.changed && 
-            !this.#markers.changed &&
-            compare_arrays(human_references, this.#parameters.human_references) &&
-            compare_arrays(mouse_references, this.#parameters.mouse_references)) 
-        {
-            return new Promise(resolve => resolve(null));
+        if ("references" in parameters) {
+            references = parameters.references;
+            automatic = parameters.automatic;
+            species = parameters.species;
+            gene_id_column = parameters.gene_id_column;
+            gene_id_type = parameters.gene_id_type;
+        } else {
+            references = [ ...(parameters.human_references), ...(parameters.mouse_references) ];
+            automatic = true;
+            let def = CellLabellingState.defaults();
+            species = def.species;
+            gene_id_column = def.gene_id_column;
+            gene_id_type = def.gene_id_type;
         }
 
-        let promises = [];
+        this.changed = false;
+
         if (this.valid()) {
-            if (this.#inputs.changed || !("features" in this.#cache)) {
-                let feat_out = choose_features(this.#inputs);
-                this.#cache.features = feat_out.features;
-                this.#cache.feature_details = feat_out.details;
+            // Gathering the references.
+            if (
+                this.#inputs.changed ||
+                automatic !== this.#parameters.automatic ||
+                utils.changedParameters(references, this.#parameters.references) ||
+                (
+                    !automatic &&
+                    (
+                        species !== this.#parameters.species ||
+                        gene_id_column !== this.#parameters.gene_id_column ||
+                        gene_id_type !== this.#parameters.gene_id_type
+                    )
+                )
+            ) {
+                let species2 = species;
+                let gene_id_column2 = gene_id_column;
+                let gene_id_type2 = gene_id_type;
+
+                if (automatic) {
+                    let guesses = this.#inputs.guessRnaFeatureTypes();
+                    let auto = CellLabellingState.configureFeatureParameters(guesses);
+                    species2 = auto.species;
+                    gene_id_column2 = auto.gene_id_column;
+                    gene_id_type2 = auto.gene_id_type;
+                }
+
+                let allowable = new Set;
+                for (const s0 of species2) {
+                    let s = utils.toTaxonomy(s0);
+                    if (s in CellLabellingState.availableReferences) {
+                        CellLabellingState.availableReferences[s].forEach(x => { allowable.add(x); });
+                    }
+                }
+
+                // Building each individual reference.
+                let feats = this.#inputs.fetchFeatureAnnotations()["RNA"];
+                let gene_ids = (gene_id_column2 == null ? feats.rowNames() : feats.column(gene_id_column2));
+                this.#cache.gene_ids = gene_ids;
+
+                let valid = {};
+                if (gene_ids !== null) {
+                    for (const ref of references) {
+                        if (allowable.has(ref)) {
+                            await this.#load_reference(ref);
+                            valid[ref] = this.#build_reference(ref, gene_ids, gene_id_type2);
+                        }
+                    }
+                }
+
+                this.#flush_prepared();
+                this.#cache.prepared = valid;
+
+                // Building an integrated reference, if necessary.
+                let used_refs = Object.keys(valid);
+                if (used_refs.length > 1) {
+                    let arr = Object.values(valid);
+                    let loaded = arr.map(x => x.loaded.raw);
+                    let feats = arr.map(x => x.built.features);
+                    let built = arr.map(x => x.built.raw);
+
+                    utils.freeCache(this.#cache.integrated);
+                    this.#cache.integrated = scran.integrateLabelledReferences(gene_ids, loaded, feats, built);
+                } else {
+                    utils.freeCache(this.#cache.integrated);
+                    delete this.#cache.integrated;
+                }
+                this.#cache.used_refs = used_refs;
+
+                this.changed = true;
             }
 
-            // null species results in empty 'valid' and no further ops downstream.
-            let species = (this.#cache.feature_details !== null ? this.#cache.feature_details.species : null);
-
-            // Take ownership to avoid pass-by-reference shenanigans.
-            human_references = human_references.slice();
-            mouse_references = mouse_references.slice();
-
-            // Fetching all of the references. This is effectively a no-op
-            // if the inputs have not changed, so we do it to fill up 'valid'.
-            let valid = {};
-            if (species == "human") {
-                for (const ref of human_references) {
-                    valid[ref] = this.#build_reference(ref, "human", this.#inputs.changed);
-                }
-            } else if (species == "mouse") {
-                for (const ref of mouse_references) {
-                    valid[ref] = this.#build_reference(ref, "mouse", this.#inputs.changed);
-                }
-            }
-
-            // Creating a column-major array of mean vectors for each cluster.
+            let marker_results = this.#markers.fetchResults()["RNA"];
+            let ngroups = marker_results.numberOfGroups();
+            let ngenes = (this.#cache.gene_ids !== null ? this.#cache.gene_ids.length : null);
             let cluster_means = this.#cache.buffer;
-            let ngenes;
-            let ngroups;
-            if (this.#cache.features !== null) {
-                ngenes = this.#cache.features.length;
-                let marker_results = this.#markers.fetchResults()["RNA"];
-                ngroups = marker_results.numberOfGroups();
 
-                if (this.#markers.changed || typeof cluster_means === "undefined") {
+            if (this.#markers.changed) {
+                if (ngenes !== null) {
+                    // Creating a column-major array of mean vectors for each cluster.
                     cluster_means = utils.allocateCachedArray(ngroups * ngenes, "Float64Array", this.#cache);
-
                     for (var g = 0; g < ngroups; g++) {
                         let means = marker_results.means(g, { copy: false }); // Warning: direct view in wasm space - be careful.
                         let cluster_array = cluster_means.array();
                         cluster_array.set(means, g * ngenes);
                     }
                 }
+                this.changed = true;
             }
 
-            // Running classifications on the cluster means. Note that compute() itself
-            // cannot be async, as we need to make sure 'changed' is set and available for
-            // downstream steps; hence the explicit then().
-            this.#cache.results = {};
-            for (const [key, val] of Object.entries(valid)) {
-                let p = val.then(ref => {
+            if (this.changed) {
+                // Running classifications on the cluster means. This is a
+                // no-op if gene_ids = null as 'valid' should be empty.
+                let valid = this.#cache.prepared;
+
+                this.#cache.results = {};
+                for (const [key, ref] of Object.entries(valid)) {
                     let output = scran.labelCells(cluster_means, ref.built.raw, { numberOfFeatures: ngenes, numberOfCells: ngroups });
                     let labels = [];
                     for (const o of output) {
                         labels.push(ref.loaded.labels[o]);
                     }
-                    return labels;
-                });
-                this.#cache.results[key] = p;
-                promises.push(p);
-            }
-
-            // Performing additional integration, if necessary. We don't really 
-            // need this if there's only one reference.
-            let used_refs = Object.keys(valid);
-            if (used_refs.length > 1) {
-                if (this.#inputs.changed || !compare_arrays(used_refs, this.#cache.used) || !("integrated" in this.#cache)) {
-                    let used_vals = Object.values(valid);
-
-                    this.#cache.integrated = Promise.all(used_vals)
-                        .then(arr => {
-                            let loaded = arr.map(x => x.loaded.raw);
-                            let feats = arr.map(x => x.built.features);
-                            let built = arr.map(x => x.built.raw);
-                            return scran.integrateLabelledReferences(this.#cache.features, loaded, feats, built);
-                        }
-                    );
+                    this.#cache.results[key] = labels;
                 }
 
-                let p = this.#cache.integrated
-                    .then(async (integrated) => {
-                        let results = [];
-                        for (const key of used_refs) {
-                            results.push(await this.#cache.results[key]);
-                        }
-
-                        let out = scran.integrateCellLabels(cluster_means, results, integrated, { numberOfFeatures: ngenes, numberOfCells: ngroups });
-                        let as_names = [];
-                        out.forEach(i => {
-                            as_names.push(used_refs[i]);
-                        });
-                        return as_names;
+                // Performing additional integration, if necessary. 
+                if ("integrated" in this.#cache) {
+                    let results = [];
+                    for (const key of this.#cache.used_refs) {
+                        results.push(this.#cache.results[key]);
                     }
-                );
-                this.#cache.integrated_results = p;
-                promises.push(p);
-            } else {
-                delete this.#cache.integrated_results;
+
+                    let out = scran.integrateCellLabels(cluster_means, results, this.#cache.integrated, { numberOfFeatures: ngenes, numberOfCells: ngroups });
+                    let as_names = [];
+                    out.forEach(i => {
+                        as_names.push(this.#cache.used_refs[i]);
+                    });
+                    this.#cache.integrated_results = as_names;
+                } else {
+                    delete this.#cache.integrated_results;
+                }
             }
-
-            this.#cache.used = used_refs;
-            this.changed = true;
+        } else {
+            this.#cache.results = {};
+            delete this.#cache.integrated_results;
         }
 
-        this.#parameters.human_references = human_references;
-        this.#parameters.mouse_references = mouse_references;
+        this.#parameters.references = references;
+        this.#parameters.automatic = automatic;
+        this.#parameters.species = species;
+        this.#parameters.gene_id_column = gene_id_column;
+        this.#parameters.gene_id_type = gene_id_type;
 
-        return Promise.all(promises).then(x => null);
+        return;
     }
-}
-
-/**************************
- ******* Internals ********
- **************************/
-
-// Try to figure out the best feature identifiers to use,
-// based on the highest confidence annotation.
-function choose_features(inputs) {
-    let genes = inputs.fetchFeatureAnnotations()["RNA"];
-
-    let best_feature = null;
-    let best = null;
-    for (const key of genes.columnNames()) {
-        let col = genes.column(key);
-        let val = scran.guessFeatures(col);
-        if (best === null) {
-            best_feature = key;
-            best = val;
-        } else if (val.confidence > best.confidence) {
-            best_feature = key;
-            best = val;
-        }
-    }
-
-    return { 
-        details: best,
-        features: best_feature == null ? null : genes.column(best_feature)
-    };
-}
-
-function compare_arrays(x, y) {
-    if (typeof x === "undefined" || typeof y === "undefined") {
-        return false;
-    }
-    if (x.length != y.length) {
-        return false;
-    }
-    for (var i = 0; i < x.length; i++) {
-        if (x[i] != y[i]) {
-            return false;
-        }
-    }
-    return true;
 }
 
 /**************************
