@@ -17,7 +17,7 @@ Install the package from [NPM](https://npmjs.com/package/bakana) using the usual
 npm install bakana
 ```
 
-See the [reference documentation](https://ltla.github.io/bakana/) for details on available functions.
+See the [reference documentation](https://kanaverse.github.io/bakana/) for details on available functions.
 
 ## Running analyses
 

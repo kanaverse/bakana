@@ -18,7 +18,7 @@ import { SummarizedExperimentDataset } from "./se.js";
  * The default set of known dataset reader classes is listed in the {@linkcode availableReaders} object
  * and includes {@linkplain TenxHdf5Dataset}, {@linkplain TenxMatrixMarketDataset}, {@linkplain H5adDataset} and {@linkplain SummarizedExperimentDataset} instances.
  *
- * @external Dataset
+ * @typedef Dataset
  */
 
 /**
