@@ -61,10 +61,7 @@ export class FeatureSetEnrichmentState {
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
-
-        for (const key of [ "loaded", "adhoc_results" ]) {
-            this.#cache[key] = {};
-        }
+        this.#cache.adhoc_results = {};
 
         this.changed = false;
     }
@@ -269,12 +266,13 @@ export class FeatureSetEnrichmentState {
         "9598": [ "chimp-GO" ]
     };
 
-    /****************************************
-     ******** Preparing references **********
-     ****************************************/
+    /***************************
+     ******** Remotes **********
+     ***************************/
 
     async #load_collection(name) {
-        if (!(name in this.#cache.loaded)) {
+        let loaded = FeatureSetEnrichmentState.#all_loaded;
+        if (!(name in loaded)) {
             let suffixes = [
                 "features.csv.gz",
                 "sets.txt.gz"
@@ -326,7 +324,7 @@ export class FeatureSetEnrichmentState {
                 }
             }
 
-            this.#cache.loaded[name] = {
+            loaded[name] = {
                 features: gene_info,
                 members: set_members,
                 names: set_name,
@@ -334,8 +332,26 @@ export class FeatureSetEnrichmentState {
             };
         }
 
-        return this.#cache.loaded[name];
+        return loaded[name];
     }
+
+    static #all_loaded = {};
+
+    /**
+     * Flush all cached feature set collections.
+     *
+     * By default, {@linkcode FeatureSetEnrichmentState#compute compute} will cache the feature set collections in a static member for re-use across {@linkplain FeatureSetEnrichmentState} instances.
+     * These cached collections are not tied to any single instance and will not be removed by garbage collectors or by {@linkcode freeAnalysis}.
+     * Rather, this function should be called to release the relevant memory.
+     */
+    static flush() {
+        FeatureSetEnrichmentState.#all_loaded = {};
+        return;
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
 
     #remap_collection(name, data_id, ref_id) {
         let feats = this.#inputs.fetchFeatureAnnotations()["RNA"];
@@ -350,7 +366,7 @@ export class FeatureSetEnrichmentState {
             data_id_col = feats.column(data_id);
         }
 
-        let loaded = this.#cache.loaded[name];
+        let loaded = FeatureSetEnrichmentState.#all_loaded[name];
         if (!(ref_id in loaded.features)){
             throw new Error("no column '" + ref_id + "' in the feature set annotations");
         }
@@ -392,10 +408,6 @@ export class FeatureSetEnrichmentState {
         this.#cache.prepared = collected;
         return;
     }
-
-    /***************************
-     ******** Compute **********
-     ***************************/
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.

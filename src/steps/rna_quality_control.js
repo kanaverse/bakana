@@ -15,8 +15,6 @@ const baseUrl = "https://github.com/kanaverse/kana-special-features/releases/dow
 
 export const step_name = "rna_quality_control";
 
-const mito_lists = {};
-
 /**
  * Results of computing per-cell RNA-derived QC metrics,
  * see [here](https://kanaverse.github.io/scran.js/PerCellRnaQcMetricsResults.html) for details.
@@ -162,11 +160,12 @@ export class RnaQualityControlState {
     ];
 
     /***************************
-     ******** Compute **********
+     ******** Remotes **********
      ***************************/
 
     async #acquire_reference(species, feature_type) {
         let output = new Set;
+        let mito_lists = RnaQualityControlState.#mito_lists;
 
         for (const s of species) {
             let target = s + "-mito-" + feature_type.toLowerCase() + ".txt.gz";
@@ -181,6 +180,24 @@ export class RnaQualityControlState {
 
         return output;
     }
+
+    static #mito_lists = {};
+
+    /**
+     * Flush all cached lists of mitochondrial genes.
+     *
+     * By default, {@linkcode RnaQualityControlState#compute compute} will cache the mitochondrial gene lists in a static member for re-use across {@linkplain RnaQualityControlState} instances.
+     * These cached lists are not tied to any single instance and will not be removed by garbage collectors or by {@linkcode freeAnalysis}.
+     * Rather, this function should be called to release the relevant memory.
+     */
+    static flush() {
+        RnaQualityControlState.#mito_lists = {};
+        return;
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.

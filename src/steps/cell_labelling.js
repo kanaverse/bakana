@@ -14,10 +14,6 @@ var downloadFun = async (url) => {
 
 const baseUrl = "https://github.com/LTLA/singlepp-references/releases/download/v2.0.0";
 
-// Loaded references are constant, independent of the dataset;
-// so we can keep these as globals for re-use across States.
-const all_loaded = {};
-
 export const step_name = "cell_labelling";
 
 /**
@@ -173,10 +169,11 @@ export class CellLabellingState {
     };
 
     /***************************
-     ******** Compute **********
+     ******** Remotes **********
      ***************************/
 
     async #load_reference(name) {
+        let all_loaded = CellLabellingState.#all_loaded;
         if (name in all_loaded) {
             return;
         }
@@ -237,11 +234,32 @@ export class CellLabellingState {
         }
     }
 
+    static #all_loaded = {};
+
+    /**
+     * Flush all cached references.
+     *
+     * By default, {@linkcode CellLabellingState#compute compute} will cache the loaded references in a static member for re-use across {@linkplain CellLabellingState} instances.
+     * These cached references are not tied to any single instance and will not be removed by garbage collectors or by {@linkcode freeAnalysis}.
+     * Rather, this function should be called to release the relevant memory.
+     */
+    static flush() {
+        for (const [k, v] of Object.entries(CellLabellingState.#all_loaded)) {
+            v.raw.free();
+        }
+        CellLabellingState.#all_loaded = {};
+        return;
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
     #build_reference(name, gene_ids, gene_id_type) {
         let built;
         let output;
         try {
-            let current = all_loaded[name];
+            let current = CellLabellingState.#all_loaded[name];
             let loaded = current.raw;
 
             if (!(gene_id_type in current.genes)) {

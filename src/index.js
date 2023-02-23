@@ -6,9 +6,13 @@ export * from "./dump/index.js";
 
 export { setVisualizationAnimate } from "./steps/utils/viz_parent.js";
 export { formatMarkerResults } from "./steps/utils/markers.js";
-export { setRnaQualityControlDownload } from "./steps/rna_quality_control.js";
-export { setCellLabellingDownload } from "./steps/cell_labelling.js";
-export { setFeatureSetEnrichmentDownload } from "./steps/feature_set_enrichment.js";
+export { RnaQualityControlState, setRnaQualityControlDownload } from "./steps/rna_quality_control.js";
+export { CellLabellingState, setCellLabellingDownload } from "./steps/cell_labelling.js";
+export { FeatureSetEnrichmentState, setFeatureSetEnrichmentDownload } from "./steps/feature_set_enrichment.js";
+
+import { RnaQualityControlState } from "./steps/rna_quality_control.js";
+import { CellLabellingState } from "./steps/cell_labelling.js";
+import { FeatureSetEnrichmentState } from "./steps/feature_set_enrichment.js";
 
 import * as scran from "scran.js";
 import * as vizutils from "./steps/utils/viz_parent.js";
@@ -40,6 +44,9 @@ export function initialize({ numberOfThreads = 1, localFile = false } = {}) {
  * @return A promise that resolves to `null` when all workers are terminated.
  */
 export function terminate() {
+    RnaQualityControlState.flush();
+    CellLabellingState.flush();
+    FeatureSetEnrichmentState.flush();
     let s = scran.terminate();
     let w = vizutils.killAllWorkers();
     return Promise.all([s, w]).then(x => null);
