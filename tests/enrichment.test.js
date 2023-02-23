@@ -70,7 +70,7 @@ test("feature set enrichment works correctly for humans", async () => {
 
     // Forcing us to load the mice.
     params.feature_set_enrichment.automatic = false;
-    params.feature_set_enrichment.species = ["mouse"];
+    params.feature_set_enrichment.species = ["10090"];
     params.feature_set_enrichment.gene_id_column = "id";
 
     {
@@ -97,7 +97,7 @@ test("feature set enrichment works correctly for humans", async () => {
         expect("mouse-GO" in deets).toBe(false);
     }
 
-    params.feature_set_enrichment.species = ["human"];
+    params.feature_set_enrichment.species = ["9606"];
     {
         await bakana.runAnalysis(state, hs_files, params);
         expect(state.marker_detection.changed).toBe(false);
@@ -151,7 +151,7 @@ test("feature set enrichment works correctly for mice", async () => {
     // Checking that automatic discovery actually has an effect.
     params.feature_set_enrichment.automatic = false;
     params.feature_set_enrichment.gene_id_type = "ENSEMBL";
-    params.feature_set_enrichment.species = ["mouse"];
+    params.feature_set_enrichment.species = ["10090"];
     {
         await bakana.runAnalysis(state, mm_files, params);
         let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");

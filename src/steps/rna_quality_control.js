@@ -168,8 +168,7 @@ export class RnaQualityControlState {
     async #acquire_reference(species, feature_type) {
         let output = new Set;
 
-        for (const s0 of species) {
-            let s = utils.toTaxonomy(s0);
+        for (const s of species) {
             let target = s + "-mito-" + feature_type.toLowerCase() + ".txt.gz";
             if (!(target in mito_lists)) {
                 let contents = await downloadFun(baseUrl + "/" + target);
@@ -200,7 +199,7 @@ export class RnaQualityControlState {
      * @param {boolean} parameters.use_reference_mito - Whether to use the reference lists of mitochondrial genes.
      * If `false`, mitochondrial genes are instead identified from their prefix.
      * @param {Array} parameters.species - Array of strings specifying zero, one or more species to use to obtain a reference list of mitochondrial genes.
-     * Each entry can either be the common name (e.g., `"mouse"`, `"human"`) or a taxonomy ID (e.g. 9606, 10090; see {@linkcode RnaQualityControlState#mitochondriaSpecies mitochondriaSpecies}).
+     * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) as specified in {@linkcode RnaQualityControlState#mitochondriaSpecies mitochondriaSpecies}).
      * Ignored if `automatic = true`.
      * @param {string} parameters.gene_id_type - Name of the feature type in the reference list of mitochondrial genes.
      * This can be any one of `"ENSEMBL"`, `"SYMBOL"`, or `"ENTREZ"`.

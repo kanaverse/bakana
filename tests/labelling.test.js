@@ -29,7 +29,7 @@ test("labelling works correctly", async () => {
 
     // Forcing us to load the mice.
     params.cell_labelling.automatic = false;
-    params.cell_labelling.species = ["mouse"];
+    params.cell_labelling.species = ["10090"];
     params.cell_labelling.gene_id_column = "id";
     {
         await bakana.runAnalysis(state, hs_files, params);
@@ -51,7 +51,7 @@ test("labelling works correctly", async () => {
         expect("BlueprintEncode" in res.per_reference).toBe(true);
     }
 
-    params.cell_labelling.species = ["human"]; 
+    params.cell_labelling.species = ["9606"]; 
     {
         await bakana.runAnalysis(state, hs_files, params);
         expect(state.marker_detection.changed).toBe(false);
@@ -81,7 +81,7 @@ test("feature set enrichment works correctly for multiple mice references", asyn
     // Checking that automatic discovery actually has an effect.
     params.cell_labelling.automatic = false;
     params.cell_labelling.gene_id_type = "ENSEMBL";
-    params.cell_labelling.species = ["mouse"];
+    params.cell_labelling.species = ["10090"];
     {
         await bakana.runAnalysis(state, mm_files, params);
         expect(state.cell_labelling.fetchNumberOfSharedFeatures().ImmGen).toBe(0); // well, there's no overlap with Ensembl IDs, obviously.

@@ -57,7 +57,7 @@ test("different options for choosing mitochondrial genes in RNA QC works as expe
 
     paramcopy.rna_quality_control.automatic = false;
     paramcopy.rna_quality_control.gene_id_column = "id";
-    paramcopy.rna_quality_control.species = [ "human" ];
+    paramcopy.rna_quality_control.species = [ "9606" ];
     paramcopy.rna_quality_control.gene_id_type = "SYMBOL";
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
     expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toEqual(0);

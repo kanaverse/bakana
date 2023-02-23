@@ -139,11 +139,11 @@ export class InputsState {
 
             let rn = genes.rowNames();
             if (rn !== null) {
-                output.row_names = scran.guessFeatures(rn);
+                output.row_names = scran.guessFeatures(rn, { forceTaxonomy: true });
             }
 
             for (const key of genes.columnNames()) {
-                output.columns[key] = scran.guessFeatures(genes.column(key));
+                output.columns[key] = scran.guessFeatures(genes.column(key), { forceTaxonomy: true });
             }
 
             this.#cache.inferred_rna_types = output;

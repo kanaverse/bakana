@@ -274,7 +274,7 @@ export class CellLabellingState {
      * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
      * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column` and `gene_id_type`.
      * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
-     * Each entry can either be the common name (e.g., `"mouse"`, `"human"`) or a taxonomy ID (e.g. 9606, 10090).
+     * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) as specified in {@linkcode CellLabellingState.availableReferences availableReferences}.
      * This is used internally to filter `references` to the entries relevant to these species. 
      * Ignored if `automatic = true`.
      * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the RNA entry of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each gene. 
@@ -339,8 +339,7 @@ export class CellLabellingState {
                 }
 
                 let allowable = new Set;
-                for (const s0 of species2) {
-                    let s = utils.toTaxonomy(s0);
+                for (const s of species2) {
                     if (s in CellLabellingState.availableReferences) {
                         CellLabellingState.availableReferences[s].forEach(x => { allowable.add(x); });
                     }
