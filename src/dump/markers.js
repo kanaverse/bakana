@@ -31,7 +31,7 @@ export function dumpMarkerDetectionResults(state, modalities, all_rowdata) {
             rdf.$setColumn(String(group), mdf); 
         }
 
-        all_rowdata[m].$setColumn("marker_detection", rdf);
+        all_rowdata[m] = all_rowdata[m].setColumn("marker_detection", rdf);
     }
 
     return;
@@ -70,6 +70,6 @@ export function dumpCustomSelectionResults(state, modalities, main, all_rowdata,
 
             rdf.$setColumn(sel, mdf);
         }
-        all_rowdata[m].$setColumn("custom_selections", rdf);
+        all_rowdata[m] = all_rowdata[m].setColumn("custom_selections", rdf);
     }
 }
