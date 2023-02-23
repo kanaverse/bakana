@@ -150,7 +150,16 @@ export class RnaQualityControlState {
      * Array of strings containing the taxonomy IDs for species where mitochondrial gene lists are available.
      * @type {Array}
      */
-    static mitochondriaSpecies = [ "9606", "10090", "6239" ];
+    static mitochondriaSpecies = [ 
+        "9606",  // Mouse
+        "10090", // Human
+        "6239",  // C. elegans
+        "10116", // Rat
+        "9541",  // M. fascicularis
+        "7227",  // Fly
+        "7955",  // Zebrafish
+        "9598"   // Chimp
+    ];
 
     /***************************
      ******** Compute **********

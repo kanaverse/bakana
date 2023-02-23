@@ -261,7 +261,12 @@ export class FeatureSetEnrichmentState {
      */
     static availableCollections = {
         "10090": [ "mouse-GO" ],
-        "9606": [ "human-GO" ]
+        "9606": [ "human-GO" ],
+        "6239": [ "worm-GO" ],
+        "10116": [ "rat-GO" ],
+        "7227": [ "fly-GO" ],
+        "7955": [ "zebrafish-GO" ],
+        "9598": [ "chimp-GO" ]
     };
 
     /****************************************
