@@ -27,17 +27,17 @@ export function baseParams() {
     return output;
 }
 
-bakana.setCellLabellingDownload(url => {
+bakana.CellLabellingState.setDownload(url => {
     let fpath = path.basename(url);
     return fs.readFileSync("files/references/" + fpath).slice(); // Mimic a buffer from fetch().
 });
 
-bakana.setFeatureSetEnrichmentDownload(url => {
+bakana.FeatureSetEnrichmentState.setDownload(url => {
     let fpath = path.basename(url);
     return fs.readFileSync("files/feature-sets/" + fpath).slice(); // Mimic a buffer from fetch().
 });
 
-bakana.setRnaQualityControlDownload(url => {
+bakana.RnaQualityControlState.setDownload(url => {
     let fpath = path.basename(url);
     return fs.readFileSync("files/mito-lists/" + fpath).slice(); // Mimic a buffer from fetch().
 });

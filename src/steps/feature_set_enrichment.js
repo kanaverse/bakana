@@ -8,14 +8,6 @@ import * as filter_module from "./cell_filtering.js";
 import * as norm_module from "./rna_normalization.js";
 import * as markers_module from "./marker_detection.js";
 
-var downloadFun = async (url) => {
-    let resp = await fetch(url);
-    if (!resp.ok) {
-        throw new Error("failed to fetch content at " + url + "(" + resp.status + ")");
-    }
-    return new Uint8Array(await resp.arrayBuffer());
-};
-
 const base = "https://github.com/LTLA/kana-feature-sets/releases/download/v1.0.0";
 
 export const step_name = "feature_set_enrichment";
@@ -282,7 +274,7 @@ export class FeatureSetEnrichmentState {
                 suffixes.map(
                     async suffix => {
                         let full = name + "_" + suffix;
-                        let b = await downloadFun(base + "/" + full);
+                        let b = await FeatureSetEnrichmentState.#downloadFun(base + "/" + full);
                         return new rutils.SimpleFile(b, { name: full })
                     }
                 )
@@ -347,6 +339,23 @@ export class FeatureSetEnrichmentState {
     static flush() {
         FeatureSetEnrichmentState.#all_loaded = {};
         return;
+    }
+
+    static #downloadFun = utils.defaultDownload;
+
+    /**
+     * Specify a function to download feature sets.
+     *
+     * @param {function} fun - Function that accepts a single string containing a URL and returns any value that can be used in the {@linkplain SimpleFile} constructor.
+     * This is most typically a Uint8Array of that URL's contents, but it can also be a path to a locally cached file on Node.js.
+     *
+     * @return `fun` is set as the global downloader for this step.
+     * The _previous_ value of the downloader is returned.
+     */
+    static setDownload(fun) {
+        let previous = FeatureSetEnrichmentState.#downloadFun;
+        FeatureSetEnrichmentState.#downloadFun = fun;
+        return previous;
     }
 
     /***************************
@@ -506,23 +515,4 @@ export function unserialize(handle, inputs, filter, normalized, markers) {
     }
 
     return new FeatureSetEnrichmentState(inputs, filter, normalized, markers, parameters, cache);
-}
-
-/**************************
- ******** Setters *********
- **************************/
-
-/**
- * Specify a function to download feature sets.
- *
- * @param {function} fun - Function that accepts a single string containing a URL and returns any value that can be used in the {@linkplain SimpleFile} constructor.
- * This is most typically a Uint8Array of that URL's contents, but it can also be a path to a locally cached file on Node.js.
- *
- * @return `fun` is set as the global downloader for this step.
- * The _previous_ value of the downloader is returned.
- */
-export function setFeatureSetEnrichmentDownload(fun) {
-    let previous = downloadFun;
-    downloadFun = fun;
-    return previous;
 }

@@ -6,9 +6,11 @@ export * from "./dump/index.js";
 
 export { setVisualizationAnimate } from "./steps/utils/viz_parent.js";
 export { formatMarkerResults } from "./steps/utils/markers.js";
-export { RnaQualityControlState, setRnaQualityControlDownload } from "./steps/rna_quality_control.js";
-export { CellLabellingState, setCellLabellingDownload } from "./steps/cell_labelling.js";
-export { FeatureSetEnrichmentState, setFeatureSetEnrichmentDownload } from "./steps/feature_set_enrichment.js";
+
+// Need these exports to get their static methods.
+export { RnaQualityControlState } from "./steps/rna_quality_control.js";
+export { CellLabellingState } from "./steps/cell_labelling.js";
+export { FeatureSetEnrichmentState } from "./steps/feature_set_enrichment.js";
 
 import { RnaQualityControlState } from "./steps/rna_quality_control.js";
 import { CellLabellingState } from "./steps/cell_labelling.js";

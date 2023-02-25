@@ -154,3 +154,11 @@ export function checkIndices(indices, max) {
         }
     }
 }
+
+export async function defaultDownload(url) {
+    let resp = await fetch(url);
+    if (!resp.ok) {
+        throw new Error("failed to fetch content at " + url + "(" + resp.status + ")");
+    }
+    return new Uint8Array(await resp.arrayBuffer());
+}

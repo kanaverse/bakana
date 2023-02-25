@@ -3,14 +3,6 @@ import * as utils from "./utils/general.js";
 import * as inputs_module from "./inputs.js";
 import * as rutils from "../readers/index.js";
 
-var downloadFun = async (url) => {
-    let resp = await fetch(url);
-    if (!resp.ok) {
-        throw new Error("failed to fetch content at " + url + "(" + resp.status + ")");
-    }
-    return new Uint8Array(await resp.arrayBuffer());
-};
-
 const baseUrl = "https://github.com/kanaverse/kana-special-features/releases/download/v1.0.0";
 
 export const step_name = "rna_quality_control";
@@ -170,7 +162,7 @@ export class RnaQualityControlState {
         for (const s of species) {
             let target = s + "-mito-" + feature_type.toLowerCase() + ".txt.gz";
             if (!(target in mito_lists)) {
-                let contents = await downloadFun(baseUrl + "/" + target);
+                let contents = await RnaQualityControlState.#downloadFun(baseUrl + "/" + target);
                 let lines = await rutils.readLines2(contents, { compression: "gz" });
                 mito_lists[target] = lines;
             }
@@ -193,6 +185,23 @@ export class RnaQualityControlState {
     static flush() {
         RnaQualityControlState.#mito_lists = {};
         return;
+    }
+
+    static #downloadFun = utils.defaultDownload;
+
+    /**
+     * Specify a function to download the reference mitochondrial gene lists.
+     *
+     * @param {function} fun - Function that accepts a single string containing a URL and returns any value that can be used in the {@linkplain SimpleFile} constructor.
+     * This is most typically a Uint8Array of that URL's contents, but it can also be a path to a locally cached file on Node.js.
+     *
+     * @return `fun` is set as the global downloader for this step. 
+     * The _previous_ value of the downloader is returned.
+     */
+    static setDownload(fun) {
+        let previous = RnaQualityControlState.#downloadFun;
+        RnaQualityControlState.#downloadFun = fun;
+        return previous;
     }
 
     /***************************
@@ -407,23 +416,4 @@ export function unserialize(handle, inputs) {
     }
 
     return output;
-}
-
-/**************************
- ******** Setters *********
- **************************/
-
-/**
- * Specify a function to download the reference mitochondrial gene lists.
- *
- * @param {function} fun - Function that accepts a single string containing a URL and returns any value that can be used in the {@linkplain SimpleFile} constructor.
- * This is most typically a Uint8Array of that URL's contents, but it can also be a path to a locally cached file on Node.js.
- *
- * @return `fun` is set as the global downloader for this step. 
- * The _previous_ value of the downloader is returned.
- */
-export function setRnaQualityControlDownload(fun) {
-    let previous = downloadFun;
-    downloadFun = fun;
-    return previous;
 }

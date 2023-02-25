@@ -4,14 +4,6 @@ import * as rutils from "../readers/index.js";
 import * as inputs_module from "./inputs.js";
 import * as markers_module from "./marker_detection.js";
 
-var downloadFun = async (url) => {
-    let resp = await fetch(url);
-    if (!resp.ok) {
-        throw new Error("failed to fetch content at " + url + "(" + resp.status + ")");
-    }
-    return new Uint8Array(await resp.arrayBuffer());
-};
-
 const baseUrl = "https://github.com/LTLA/singlepp-references/releases/download/v2.0.0";
 
 export const step_name = "cell_labelling";
@@ -190,7 +182,7 @@ export class CellLabellingState {
             suffixes.map(
                 async suffix => {
                     let full = name + "_" + suffix;
-                    let b = await downloadFun(baseUrl + "/" + full);
+                    let b = await CellLabellingState.#downloadFun(baseUrl + "/" + full);
                     return new rutils.SimpleFile(b, { name: full })
                 }
             )
@@ -249,6 +241,23 @@ export class CellLabellingState {
         }
         CellLabellingState.#all_loaded = {};
         return;
+    }
+
+    static #downloadFun = utils.defaultDownload;
+
+    /**
+     * Specify a function to download references for the cell labelling step.
+     *
+     * @param {function} fun - Function that accepts a single string containing a URL and returns any value that can be used in the {@linkplain SimpleFile} constructor.
+     * This is most typically a Uint8Array of that URL's contents, but it can also be a path to a locally cached file on Node.js.
+     *
+     * @return `fun` is set as the global downloader for this step. 
+     * The _previous_ value of the downloader is returned.
+     */
+    static setDownload(fun) {
+        let previous = CellLabellingState.#downloadFun;
+        CellLabellingState.#downloadFun = fun;
+        return previous;
     }
 
     /***************************
@@ -502,23 +511,4 @@ export function unserialize(handle, inputs, markers) {
     }
 
     return new CellLabellingState(inputs, markers, parameters, cache);
-}
-
-/**************************
- ******** Setters *********
- **************************/
-
-/**
- * Specify a function to download references for the cell labelling step.
- *
- * @param {function} fun - Function that accepts a single string containing a URL and returns any value that can be used in the {@linkplain SimpleFile} constructor.
- * This is most typically a Uint8Array of that URL's contents, but it can also be a path to a locally cached file on Node.js.
- *
- * @return `fun` is set as the global downloader for this step. 
- * The _previous_ value of the downloader is returned.
- */
-export function setCellLabellingDownload(fun) {
-    let previous = downloadFun;
-    downloadFun = fun;
-    return previous;
 }
