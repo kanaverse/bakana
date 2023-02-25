@@ -14,6 +14,9 @@ import * as afile from "./abstract/file.js";
  * - `file(p)`, a (possibly async) method that accepts a string `p` containing a relative path inside a project directory and returns the contents of the file at that path.
  *   The return value should typically be a Uint8Array; on Node.js, methods may alternatively return a string containing a path to the file on the local file system.
  *   The method does not need to handle redirections from `p`.
+ *
+ * For use in {@linkplain ArtifactDbSummarizedExperimentDatasetBase} instances, the navigator should additionally implement:
+ *
  * - `serialize()`, a (possibly async) method that returns an Array of {@linkplain SimpleFile} objects.
  *   The collected SimpleFiles should contain information about the configuration of the project directory, e.g., in the form of a JSON file.
  *
@@ -130,18 +133,17 @@ async function load_data_frame(info, navigator) {
         throw new Error("unknown data_frame schema type '" + info["$schema"] + "'");
     }
 
-    // Ignoring placeholder columns for the time being.
     let new_columns = {};
     let new_colnames = [];
     for (var i = 0; i < columns.length; i++) {
         if (info.data_frame.columns[i].type === "other") {
-//            let nest_meta = await navigator.metadata(info.data_frame.columns[i].resource.path);
-//            try {
-//                new_columns[colnames[i]] = await load_data_frame(nest_meta, navigator);
-//                new_colnames.push(colnames[i]);
-//            } catch (e) {
-//                console.warn(e);
-//            }
+            let nest_meta = await navigator.metadata(info.data_frame.columns[i].resource.path);
+            try {
+                new_columns[colnames[i]] = await load_data_frame(nest_meta, navigator);
+                new_colnames.push(colnames[i]);
+            } catch (e) {
+                console.warn(e);
+            }
         } else {
             new_columns[colnames[i]] = columns[i];
             new_colnames.push(colnames[i]);
@@ -343,6 +345,73 @@ async function extract_assay_raw(asspath, navigator, forceInteger) {
     }
 
     return output;
+}
+
+async function extract_other_data(other_path, navigator) {
+    let othermeta = await navigator.metadata(other_path);
+    if (!othermeta["$schema"].startsWith("json_simple_list/")) {
+        throw new Error("currently only support JSON-formatted lists in the 'other_data'");
+    }
+
+    let contents = await navigator.file(othermeta.path);
+    let ofile = new afile.SimpleFile(contents, { name: "list.json" });
+    let unpacked = eutils.unpackText(ofile.buffer(), { compression: (othermeta.json_simple_list.compression == "gzip" ? "gz" : "none") });
+    let parsed = JSON.parse(unpacked);
+    return extract_list_data_internal(parsed);
+}
+
+function extract_list_data_internal(obj) {
+    if (!("type" in obj)) {
+        throw new Error("non-standard JSON object for 'json_simple_list' schema");
+    }
+
+    if (obj.type == "number") {
+        if (obj.values instanceof Array) {
+            let output = new Float64Array(obj.values.length);
+            obj.values.forEach((x, i) => {
+                output[i] = (x === null ? Number.NaN : x) 
+            });
+            return output;
+        } else {
+            return (obj.values == null ? Number.NaN : obj.values);
+        }
+
+    } else if (obj.type == "integer") {
+        if (obj.values instanceof Array) {
+            let output = new Int32Array(obj.values.length);
+            obj.values.forEach((x, i) => {
+                output[i] = (x === null ? -2147483648 : x) 
+            });
+            return output;
+        } else {
+            return obj.values;
+        }
+
+    } else if (obj.type == "boolean" || obj.type == "string") {
+        return obj.values;
+
+    } else if (obj.type == "list") {
+        if ("names" in obj) {
+            let output = {};
+            for (var i = 0; i < obj.values.length; i++) {
+                output[obj.names[i]] = extract_list_data_internal(obj.values[i]);
+            }
+            return output;
+        } else {
+            let output = [];
+            for (var i = 0; i < obj.values.length; i++) {
+                output.push(extract_list_data_internal(obj.values[i]));
+            }
+            return output;
+        }
+
+    } else if (obj.type == "nothing") {
+        return null;
+
+    } else {
+        console.warn("JSON simple list containing type '" + obj.type + "' is not yet supported");
+        return null;
+    }
 }
 
 /************************
@@ -710,6 +779,7 @@ export class ArtifactDbSummarizedExperimentResultBase {
 
     #raw_features;
     #raw_cells;
+    #raw_other;
 
     #primaryAssay;
     #isPrimaryNormalized;
@@ -780,6 +850,7 @@ export class ArtifactDbSummarizedExperimentResultBase {
     clear() {
         this.#raw_features = null;
         this.#raw_cells = null;
+        this.#raw_other = null;
     }
 
     async #features() {
@@ -800,6 +871,21 @@ export class ArtifactDbSummarizedExperimentResultBase {
         return;
     }
 
+    async #other() {
+        if (this.#raw_other !== null) {
+            return;
+        }
+
+        let full_meta = await this.#navigator.metadata(this.#path);
+        if ("other_data" in full_meta.summarized_experiment) {
+            let other_path = full_meta.summarized_experiment.other_data.resource.path;
+            this.#raw_other = await extract_other_data(other_path, this.#navigator);
+        } else {
+            this.#raw_other = {};
+        }
+        return;
+    }
+
     /**
      * @param {object} [options={}] - Optional parameters.
      * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode ArtifactDbSummarizedExperimentDatasetBase#load load}.
@@ -813,18 +899,21 @@ export class ArtifactDbSummarizedExperimentResultBase {
      * - `modality_assay_names`: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.
      *    Unnamed assays are represented as `null` names.
      * - `reduced_dimension_names`: an Array of strings containing names of dimensionality reduction results.
+     * - `other_metadata`: an object containing other metadata.
      *
      * @async 
      */
     async summary({ cache = false } = {}) {
         await this.#features();
         await this.#cells();
+        await this.#other();
 
         let output = {
             modality_features: this.#raw_features,
             cells: this.#raw_cells,
             modality_assay_names: await extract_all_assay_names(this.#path, this.#navigator),
-            reduced_dimension_names: []
+            reduced_dimension_names: [],
+            other_metadata: this.#raw_other
         };
 
         let full_meta = await this.#navigator.metadata(this.#path);
@@ -856,19 +945,28 @@ export class ArtifactDbSummarizedExperimentResultBase {
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
      * - `reduced_dimensions`: an object containing the dimensionality reduction results.
      *   Each value is an array of arrays, where each inner array contains the coordinates for one dimension.
+     * - `markers`: an object where each key is a modality name and each value is another object.
+     *   In each inner object, each key is the name of a cluster and each value is a DataFrame containing the marker statistics.
+     * - `custom_selections`: an object where each key is the name of a custom selection and each value is another object.
+     *   Each inner object should contain `indices`, an Int32Array containing the column indices of the cells in the selection.
+     *   Each inner object may also contain `markers`, another object. 
+     * - `other_metadata`: an object containing other metadata.
      *
      * @async
      */
     async load({ cache = false } = {}) {
         await this.#features();
         await this.#cells();
+        await this.#other();
+
         let full_meta = await this.#navigator.metadata(this.#path);
 
         let output = { 
             matrix: new scran.MultiMatrix,
             features: {},
             cells: this.#raw_cells,
-            reduced_dimensions: {}
+            reduced_dimensions: {},
+            other_metadata: this.#raw_other
         };
 
         // Fetch the reduced dimensions first.
@@ -954,6 +1052,9 @@ export class ArtifactDbSummarizedExperimentResultBase {
                     if (!curnormalized) {
                         let normed = scran.logNormCounts(loaded.matrix, { allowZeros: true });
                         output.matrix.add(k, normed);
+                    }
+
+                    if (loaded.row_ids !== null) {
                         output.features[k] = bioc.SLICE(this.#raw_features[k], loaded.row_ids);
                     } else {
                         output.features[k] = this.#raw_features[k];

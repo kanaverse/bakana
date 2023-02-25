@@ -42,6 +42,7 @@ The object may contain any number of the following properties:
 - `modality_assay_names`: an object where each key is the name of a modality and each value is an Array.
   Each Array contains the names of the assays for that modality.
 - `reduced_dimension_names`: an Array containing the names of all dimensionality reduction results.
+- `other_metadata`: an object containing additional arbitrary metadata for the `Result`.
 
 Alternatively, this method may return a promise that resolves to such an object.
 
@@ -67,6 +68,7 @@ This method should return an object containing:
 - `reduced_dimensions`, an object containing the dimensionality reduction results.
   Each key is the name of a result while each value is an Array of Float64Arrays, one per dimension.
   Each Float64Array should contain the coordinates of each cell along its dimension.
+- `other_metadata`: an object containing additional arbitrary metadata for the `Result`.
 
 Alternatively, this method may return a promise that resolves to such an object.
 

@@ -137,10 +137,16 @@ test("local ArtifactDB result readers work correctly with log-count loading", as
 
     let details = await info.summary();
     expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
+    expect(details.modality_features[""].column("marker_detection") instanceof bioc.DataFrame).toBe(true);
+    expect(details.modality_features[""].column("custom_selections") instanceof bioc.DataFrame).toBe(true);
+
     expect(details.cells.numberOfRows()).toBeGreaterThan(0);
     expect(details.modality_assay_names[""].length).toEqual(2);
     expect(details.reduced_dimension_names.length).toEqual(3);
 
+    expect("custom_selections" in details.other_metadata).toBe(true);
+
+    // Actually loading the log-counts.
     info.setPrimaryAssay("logcounts");
     info.setIsPrimaryNormalized(true);
     info.setReducedDimensionNames(["TSNE", "UMAP"]);
