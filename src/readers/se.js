@@ -537,8 +537,10 @@ export class SummarizedExperimentDataset {
         let options = {
             rnaCountAssay: this.#rnaCountAssay,
             adtCountAssay: this.#adtCountAssay,
+            crisprCountAssay: this.#crisprCountAssay,
             rnaExperiment: this.#rnaExperiment,
             adtExperiment: this.#adtExperiment,
+            crisprExperiment: this.#crisprExperiment,
             primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
             primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn,
             primaryCrisprFeatureIdColumn: this.#primaryCrisprFeatureIdColumn
