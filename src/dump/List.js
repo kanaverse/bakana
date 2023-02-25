@@ -55,19 +55,21 @@ function dump_internal(x) {
         output = { "type": "integer", "values": Array.from(x.array()) }
 
     } else if (x instanceof Float64Array) {
+        // Stringify will automatically convert NaNs to nulls. Unfortunately,
+        // this will also corrupt Infs to nulls, but whatever.
         output = { "type": "number", "values": Array.from(x) }
 
     } else if (x instanceof wa.Float64WasmArray) {
         output = { "type": "number", "values": Array.from(x.array()) }
 
     } else if (typeof x == "number") {
-        output = { "type": "number", "values": [x] };
+        output = { "type": "number", "values": x };
 
     } else if (typeof x == "string") {
-        output = { "type": "string", "values": [x] };
+        output = { "type": "string", "values": x };
 
     } else if (typeof x == "boolean") {
-        output = { "type": "boolean", "values": [x] };
+        output = { "type": "boolean", "values": x };
 
     } else {
         throw new Error("don't know how to save entry of type '" + typeof x + "'");
