@@ -143,7 +143,10 @@ export class InputsState {
             }
 
             for (const key of genes.columnNames()) {
-                output.columns[key] = scran.guessFeatures(genes.column(key), { forceTaxonomy: true });
+                let curcol = genes.column(key);
+                if (curcol instanceof Array) {
+                    output.columns[key] = scran.guessFeatures(genes.column(key), { forceTaxonomy: true });
+                }
             }
 
             this.#cache.inferred_rna_types = output;
