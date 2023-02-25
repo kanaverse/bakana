@@ -15,11 +15,6 @@ import * as afile from "./abstract/file.js";
  *   The return value should typically be a Uint8Array; on Node.js, methods may alternatively return a string containing a path to the file on the local file system.
  *   The method does not need to handle redirections from `p`.
  *
- * For use in {@linkplain ArtifactDbSummarizedExperimentDatasetBase} instances, the navigator should additionally implement:
- *
- * - `serialize()`, a (possibly async) method that returns an Array of {@linkplain SimpleFile} objects.
- *   The collected SimpleFiles should contain information about the configuration of the project directory, e.g., in the form of a JSON file.
- *
  * @typedef ArtifactDbProjectNavigator
  */
 
@@ -421,7 +416,8 @@ function extract_list_data_internal(obj) {
 /**
  * Dataset stored as a SummarizedExperiment in the **ArtifactDB** format.
  * This is intended as a virtual base class; applications should define subclasses that are tied to a specific {@linkplain ArtifactDbProjectNavigator} class.
- * Subclasses should define the static `format()` and `unserialize()` methods.
+ * Subclasses should define `abbreviate()` and `serialize()` methods, as well as the static `format()` and `unserialize()` methods - 
+ * see the [Dataset contract](https://github.com/LTLA/bakana/blob/master/docs/related/custom_readers.md) for more details.
  */
 export class ArtifactDbSummarizedExperimentDatasetBase {
     #path;
@@ -442,12 +438,17 @@ export class ArtifactDbSummarizedExperimentDatasetBase {
     #primaryAdtFeatureIdColumn;
     #primaryCrisprFeatureIdColumn;
 
-    #dump_options() {
+    /**
+     * @return {object} Object containing all options used for loading.
+     */
+    options() {
         return {
             rnaCountAssay: this.#rnaCountAssay,
             adtCountAssay: this.#adtCountAssay,
+            crisprCountAssay: this.#crisprCountAssay,
             rnaExperiment: this.#rnaExperiment,
             adtExperiment: this.#adtExperiment,
+            crisprExperiment: this.#crisprExperiment,
             primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
             primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn,
             primaryCrisprFeatureIdColumn: this.#primaryCrisprFeatureIdColumn
@@ -593,16 +594,6 @@ export class ArtifactDbSummarizedExperimentDatasetBase {
         this.#raw_cells = null;
     }
 
-    /**
-     * @return {object} Object containing the abbreviated details of this dataset.
-     */
-    abbreviate() {
-        return {
-            path: this.#path,
-            options: this.#dump_options()
-        };
-    }
-
     async #features() {
         if (this.#raw_features !== null) {
             return;
@@ -742,26 +733,6 @@ export class ArtifactDbSummarizedExperimentDatasetBase {
             this.clear();
         }
         return output;
-    }
-
-    /**
-     * @return {object} Object describing this dataset, containing:
-     *
-     * - `files`: Array of objects representing the files used in this dataset.
-     *   Each object corresponds to a single file and contains:
-     *   - `type`: a string denoting the type.
-     *   - `file`: a {@linkplain SimpleFile} object representing the file contents.
-     * - `options`: An object containing additional options to saved.
-     */
-    serialize() {
-        let enc = new TextEncoder;
-        let contents = enc.encode(this.#path);
-        let f = new afile.SimpleFile(contents, { name: this.#path });
-        let existing = this.#navigator.serialize();
-        return {
-            files: [ { type: "path", file: f }, ...existing ],
-            options: this.#dump_options()
-        };
     }
 }
 

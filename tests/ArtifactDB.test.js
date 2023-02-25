@@ -9,8 +9,13 @@ beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
 class ArtifactDbLocalDirectoryDataset extends bakana.ArtifactDbSummarizedExperimentDatasetBase {
+    #path;
+    #dir;
+
     constructor(path, dir, options={}) {
         super(path, new nav.LocalProjectDirectoryNavigator(dir), options);
+        this.#path = path;
+        this.#dir = dir;
     }
 
     static format() {
@@ -19,9 +24,27 @@ class ArtifactDbLocalDirectoryDataset extends bakana.ArtifactDbSummarizedExperim
 
     static unserialize(files, options) {
         let dec = new TextDecoder;
-        let path = dec.decode(files[0].file.buffer());
-        let dir = dec.decode(files[1].file.buffer());
-        return new ArtifactDbLocalDirectoryDataset(path, dir, options);
+        let payload = files[0].file.buffer();
+        let info = JSON.stringify(dec.decode(payload));
+        return new ArtifactDbLocalDirectoryDataset(info.path, info.directory, options);
+    }
+
+    abbreviate() {
+        return {
+            path: this.#path,
+            directory: this.#dir,
+            options: this.options()
+        };
+    }
+
+    serialize() {
+        let enc = new TextEncoder;
+        let config = { path: this.#path, directory: this.#dir };
+        let buffer = enc.encode(JSON.stringify(config));
+        return {
+            files: [ { file: new bakana.SimpleFile(buffer, { name: "config.json" }), type: "config" } ],
+            options: this.options()
+        }
     }
 }
 
