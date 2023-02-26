@@ -10,10 +10,9 @@ export async function attachMd5sums(files) {
         }
 
         if (x.contents instanceof Uint8Array) {
-            // Not technically necessary as we could continue using crypto
-            // here. However, as the browser requires hash-wasm, we might as
-            // well use it here to double-check that it works properly.
-            x.metadata.md5sum = await md5(x.contents);
+            let hash = crypto.createHash('md5');
+            hash.update(x.contents);
+            x.metadata.md5sum = hash.digest("hex");
         } else {
             x.metadata.md5sum = await (new Promise((resolve, reject) => {
                 let hash = crypto.createHash('md5');
