@@ -48,6 +48,8 @@ class ArtifactDbLocalDirectoryDataset extends bakana.ArtifactDbSummarizedExperim
     }
 }
 
+/***********************************************/
+
 let target_simple = nav.pathExists("H5AD");
 let action_simple = (target_simple == null ? test.skip : test);
 
@@ -107,6 +109,8 @@ action_simple("runAnalysis works correctly (ArtifactDB)", async () => {
     await bakana.freeAnalysis(state);
 })
 
+/***********************************************/
+
 let target_adt = nav.pathExists("adt");
 let action_adt = (target_adt == null ? test.skip : test);
 
@@ -153,4 +157,15 @@ action_adt("ArtifactDB summary and loading works with multiple modalities", asyn
         everything.matrix.free();
     }
 })
+
+/***********************************************/
+
+action_simple("Zipped ArtifactDB summary and loading works correctly", async () => {
+    // First, zipping the contents of the target directory.
+    let zipped = await nav.zipDirectory(nav.baseDirectory + "/" + target_simple);
+    console.log(zipped);
+
+})
+
+
 
