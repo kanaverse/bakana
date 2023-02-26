@@ -1,4 +1,4 @@
-import * from adb from "./ArtifactDB.js";
+import * as adb from "./ArtifactDB.js";
 import JSZip from "jszip";
 
 class ZippedProjectNavigator {
@@ -12,17 +12,30 @@ class ZippedProjectNavigator {
 
     async file(path) {
         if (this.#ziphandle == null) {
-            this.#ziphandle = await JSZip.loadAsync(zipfile.buffer());
+            this.#ziphandle = await JSZip.loadAsync(this.#zipfile.buffer());
         }
-        return this.#ziphandle.file(path).content("uint8array");
+        return await this.#ziphandle.file(path).async("uint8array");
     }
 
     async metadata(path) {
         if (this.#ziphandle == null) {
-            this.#ziphandle = await JSZip.loadAsync(zipfile.buffer());
+            this.#ziphandle = await JSZip.loadAsync(this.#zipfile.buffer());
         }
-        let contents = this.#zipahandle.file(path).content("string");
-        return JSON.parse(contents);
+
+        while (1) {
+            if (!path.endsWith(".json")) { 
+                path += ".json";
+            }
+
+            let contents = await this.#ziphandle.file(path).async("string");
+            let values = JSON.parse(contents);
+
+            if (values["$schema"].startsWith("redirection/")){
+                path = values.redirection.targets[0].location;
+            } else {
+                return values;
+            }
+        }
     }
 };
 
@@ -30,7 +43,7 @@ class ZippedProjectNavigator {
  ******* Dataset ********
  ************************/
 
-export class ZippedArtifactDbSummarizedExperimentDataset extends ArtifactDbSummarizedExperimentDatasetBase {
+export class ZippedArtifactDbDataset extends adb.ArtifactDbSummarizedExperimentDatasetBase {
     #zipfile;
     #name;
 
@@ -52,15 +65,17 @@ export class ZippedArtifactDbSummarizedExperimentDataset extends ArtifactDbSumma
     }
 
     #dump_summary(fun) {
-        let files = [ { type: "zip", file: this.#zipfile } ]; 
+        let files = [ { type: "zip", file: fun(this.#zipfile) } ]; 
         let opt = this.options();
-        opt.datasetName = name; // storing the name as a special option... can't be bothered to store it as a separate file.
-        return { files: files.map(fun), options: opt };
+        opt.datasetName = this.#name; // storing the name as a special option... can't be bothered to store it as a separate file.
+        return { files: files, options: opt };
 
     }
 
     abbreviate() {
-        return this.#dump_summary(f => { size: f.size(), name: f.name() });
+        return this.#dump_summary(f => { 
+            return { size: f.size(), name: f.name() }
+        });
     }
 
     serialize() {
@@ -74,6 +89,6 @@ export class ZippedArtifactDbSummarizedExperimentDataset extends ArtifactDbSumma
 
         let name = options.datasetName;
         delete options.datasetName;
-        return new ZippedArtifactDbSummarizedExperimentDataset(name, files[0].file, options);
+        return new ZippedArtifactDbDataset(name, files[0].file, options);
     }
 }

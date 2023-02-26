@@ -68,9 +68,16 @@ function list_files(directory, prefix, files) {
 }
 
 
-export async function zipDirectory(directory) {
+export async function zipDirectory(directory, children) {
     let all_files = [];
-    list_files(directory, null, all_files);
+
+    for (const x of children) {
+        if (fs.statSync(directory + "/" + x).isDirectory()) {
+            list_files(directory, x, all_files);
+        } else {
+            all_files.push(x);
+        }
+    }
 
     var zip = new JSZip();
     for (const f of all_files) {

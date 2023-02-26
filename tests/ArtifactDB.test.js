@@ -162,9 +162,38 @@ action_adt("ArtifactDB summary and loading works with multiple modalities", asyn
 
 action_simple("Zipped ArtifactDB summary and loading works correctly", async () => {
     // First, zipping the contents of the target directory.
-    let zipped = await nav.zipDirectory(nav.baseDirectory + "/" + target_simple);
-    console.log(zipped);
+    let zipped = await nav.zipDirectory(nav.baseDirectory, [ target_simple, target_simple + ".json" ]);
+    let zipfile = new bakana.SimpleFile(zipped, { name: "bundle.zip" });
 
+    let files = { zipped: new bakana.ZippedArtifactDbDataset(target_simple, zipfile) };
+    expect(files.zipped.constructor.format()).toEqual("ArtifactDB-zipped");
+    let abbr = files.zipped.abbreviate();
+    expect(abbr.files[0].type).toEqual("zip");
+    expect(abbr.options.datasetName).toEqual(target_simple);
+
+    let summ = await files.zipped.summary();
+    expect(summ.modality_features[""].numberOfRows()).toBeGreaterThan(0);
+    expect(summ.modality_features[""].rowNames()).not.toBeNull();
+    expect(summ.cells.numberOfColumns()).toBeGreaterThan(0);
+    expect(summ.modality_assay_names[""]).toEqual(["counts", "logcounts"]);
+
+    // Loading everything.
+    {
+        let loaded = await files.zipped.load();
+        expect(loaded.matrix.get("RNA").numberOfRows()).toEqual(loaded.features["RNA"].numberOfRows());
+        expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
+        loaded.matrix.free();
+    }
+
+    // Running through a serialization cycle.
+    {
+        let dump = await files.zipped.serialize();
+        expect(dump.options.datasetName).toEqual(target_simple);
+        expect(dump.files.length).toEqual(1);
+
+        let reloaded = files.zipped.constructor.unserialize(dump.files, dump.options);
+        expect(reloaded.abbreviate()).toEqual(abbr);
+    }
 })
 
 
