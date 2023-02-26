@@ -35,7 +35,7 @@ async function load_data_frame(info, navigator) {
     if (info["$schema"].startsWith("csv_data_frame/")) {
         // TODO: replace with comservatory parser.
         let parsed = await eutils.readTable2(contents, { delim: "," });
-        let colnames = parsed.shift();
+        colnames = parsed.shift();
 
         columns = new Array(colnames.length);
         for (var i = 0; i < columns.length; i++) {
@@ -501,7 +501,7 @@ export class ArtifactDbSummarizedExperimentDatasetBase {
     /**
      * @param {string|number} i - Name or index of the assay containing the RNA count matrix.
      */
-    setRnaCountAssay(name) {
+    setRnaCountAssay(i) {
         this.#rnaCountAssay = i;
         return;
     }
@@ -700,14 +700,14 @@ export class ArtifactDbSummarizedExperimentDatasetBase {
                         if (!(v.exp in altmap)) {
                             continue;
                         }
-                        meta = await this.#navigator(altmap[v.exp]);
+                        meta = await this.#navigator.metadata(altmap[v.exp]);
                     }
                 } else {
                     if (v.exp >= alts.length) {
                         continue;
                     }
                     name = alts[v.exp].name;
-                    meta = await this.#navigator(alts[v.exp].resource.path);
+                    meta = await this.#navigator.metadata(alts[v.exp].resource.path);
                 }
 
                 let loaded = await extract_assay(meta, v.assay, this.#navigator, true);

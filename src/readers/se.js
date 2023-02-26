@@ -598,7 +598,7 @@ export class SummarizedExperimentDataset {
     /**
      * @param {string|number} i - Name or index of the assay containing the RNA count matrix.
      */
-    setRnaCountAssay(name) {
+    setRnaCountAssay(i) {
         this.#rnaCountAssay = i;
         return;
     }
