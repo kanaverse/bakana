@@ -131,9 +131,11 @@ class ArtifactDbLocalDirectoryResult extends bakana.ArtifactDbSummarizedExperime
     }
 }
 
-test("local ArtifactDB result readers work correctly with log-count loading", async () => {
-    let target = await nav.obtainLocalTestPath();
-    let info = new ArtifactDbLocalDirectoryResult(target, nav.baseDirectory);
+let target_simple = nav.pathExists("H5AD");
+let action_simple = (target_simple == null ? test.skip : test);
+
+action_simple("local ArtifactDB result readers work correctly with log-count loading", async () => {
+    let info = new ArtifactDbLocalDirectoryResult(target_simple, nav.baseDirectory);
 
     let details = await info.summary();
     expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
@@ -165,9 +167,8 @@ test("local ArtifactDB result readers work correctly with log-count loading", as
     payload.matrix.free();
 })
 
-test("local ArtifactDB result readers work correctly with count normalization", async () => {
-    let target = await nav.obtainLocalTestPath();
-    let info = new ArtifactDbLocalDirectoryResult(target, nav.baseDirectory);
+action_simple("local ArtifactDB result readers work correctly with count normalization", async () => {
+    let info = new ArtifactDbLocalDirectoryResult(target_simple, nav.baseDirectory);
 
     info.setPrimaryAssay("counts");
     info.setIsPrimaryNormalized(false);
@@ -180,5 +181,29 @@ test("local ArtifactDB result readers work correctly with count normalization", 
     expect(has_noninteger(col0)).toBe(true);
 
     info.clear();
+    payload.matrix.free();
+})
+
+let target_adt = nav.pathExists("adt");
+let action_adt = (target_adt == null ? test.skip : test);
+
+action_adt("local ArtifactDB result readers work correctly with multiple modalities", async () => {
+    let info = new ArtifactDbLocalDirectoryResult(target_adt, nav.baseDirectory);
+
+    let details = await info.summary();
+    expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
+    expect(details.modality_features["ADT"].numberOfRows()).toBeGreaterThan(0);
+
+    let payload = await info.load();
+    let nRna = payload.features[""].numberOfRows();
+    expect(nRna).toBeGreaterThan(0);
+    expect(payload.matrix.get("").numberOfRows()).toEqual(nRna);
+
+    let nAdt = payload.features["ADT"].numberOfRows();
+    expect(nAdt).toBeGreaterThan(0);
+    expect(nAdt).toBeLessThan(nRna);
+    expect(payload.matrix.get("ADT").numberOfRows()).toEqual(nAdt);
+
+    expect(payload.matrix.numberOfColumns()).toEqual(payload.cells.numberOfRows());
     payload.matrix.free();
 })

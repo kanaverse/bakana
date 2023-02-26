@@ -4,33 +4,13 @@ import * as bakana from "../src/index.js";
 
 export const baseDirectory = "miscellaneous/from-tests";
 
-export async function obtainLocalTestPath() {
-    let h5path = baseDirectory + "/H5AD";
-    if (fs.existsSync(h5path)) {
-        return "H5AD";
+export function pathExists(chosen) {
+    let path = baseDirectory + "/" + chosen;
+    if (fs.existsSync(path)) {
+        return chosen;
+    } else {
+        return null;
     }
-
-    let fpath = "files/datasets/zeisel-brain.h5ad";
-    let files = { 
-        default: new bakana.H5adDataset(fpath)
-    };
-
-    let altpath = "ArtifactDB-testing";
-    let fullalt = baseDirectory + "/" + altpath;
-    if (fs.existsSync(fullalt)) {
-        return altpath;
-    }
-
-    let state = await bakana.createAnalysis();
-    try {
-        let params = utils.baseParams();
-        await bakana.runAnalysis(state, files, params);
-        await bakana.saveSingleCellExperiment(state, altpath, { directory: baseDirectory });
-    } finally {
-        await bakana.freeAnalysis(state);
-    }
-
-    return altpath;
 }
 
 export class LocalProjectDirectoryNavigator {
