@@ -11,6 +11,10 @@ import * as afile from "./abstract/file.js";
  * - `metadata(p)`, a (possibly async) method that accepts a string `p` containing a relative path to a resource inside an ArtifactDB project directory,
  *   and returns an object containing the metadata for that object.
  *   Any redirections should be resolved by this method.
+ *
+ *   Note that {@linkplain AbstractArtifactdbDataset} will automatically cache the outputs of all `metadata()` calls between any invocations of {@linkcode AbstractArtifactdbDataset#clear clear},
+ *   to improve efficiency when repeatedly accessing the same metadata.
+ *   The same applies to {@linkplain AbstractArtifactdbResult}.
  * - `file(p)`, a (possibly async) method that accepts a string `p` containing a relative path inside a project directory and returns the contents of the file at that path.
  *   The return value should typically be a Uint8Array; on Node.js, methods may alternatively return a string containing a path to the file on the local file system.
  *   The method does not need to handle redirections from `p`.
@@ -409,6 +413,42 @@ function extract_list_data_internal(obj) {
     }
 }
 
+/***********************
+ ******* Cacher ********
+ ***********************/
+
+// As we'll be using the metadata often, we cache it at this level. This
+// removes the burden of caching on the implementation of the navigator. 
+class MetadataCacheWrapper {
+    #navigator;
+    #metadata_cache;
+
+    constructor(nav) {
+        this.#navigator = nav;
+        this.#metadata_cache = {};
+    }
+
+    clear() {
+        this.#metadata_cache = {};
+        if ("clear" in this.#navigator) {
+            this.#navigator.clear();
+        }
+    }
+
+    async metadata(path) {
+        if (path in metadata_cache) {
+            return metadata_cache[path];
+        }
+        let content = await this.#navigator.metadata(path);
+        metadata_cache[path] = content;
+        return content;
+    }
+
+    file(path) {
+        return this.#navigator.file(path);
+    }
+};
+
 /************************
  ******* Dataset ********
  ************************/
@@ -481,7 +521,7 @@ export class AbstractArtifactdbDataset {
         primaryCrisprFeatureIdColumn = null 
     } = {}) {
         this.#path = path;
-        this.#navigator = navigator;
+        this.#navigator = new MetadataCacheWrapper(navigator);
 
         this.#rnaCountAssay = rnaCountAssay;
         this.#adtCountAssay = adtCountAssay;
@@ -770,7 +810,7 @@ export class AbstractArtifactdbResult {
         reducedDimensionNames = null
     } = {}) {
         this.#path = path;
-        this.#navigator = navigator;
+        this.#navigator = new MetadataCacheWrapper(navigator);
 
         this.#primaryAssay = primaryAssay;
         this.#isPrimaryNormalized = isPrimaryNormalized;
