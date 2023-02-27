@@ -3,8 +3,13 @@ import * as adump from "./abstract/dump.js";
 import JSZip from "jszip";
 
 /**
- * Save the results into a [language-agnostic representation](https://github.com/ArtifactDB/BiocObjectSchemas) of a SingleCellExperiment.
- * Note that all row/column indices are 0-based and should be incremented by 1 before use in 1-based languages like R.
+ * Save the analysis results into an [**ArtifactDB** representation](https://github.com/ArtifactDB/BiocObjectSchemas) of a SingleCellExperiment.
+ * This uses a language-agnostic format mostly based on HDF5 and JSON, which can be read into a variety of frameworks like R and Python.
+ * The aim is to facilitate downstream analysis procedures that are not supported by **bakana** itself; 
+ * for example, a bench scientist can do a first pass with **kana** before passing the results to a computational collaborator for deeper inspection.
+ *
+ * Note that all indices are 0-based and should be incremented by 1 before use in 1-based languages like R.
+ * This involves the block assignments (indexing the block levels), the cluster assignments (indexing the marker results), and the custom selections (indexing the matrix columns).
  *
  * @param {object} state - Existing analysis state containing results, after one or more runs of {@linkcode runAnalysis}.
  * @param {string} name - Name of the SingleCellExperiment to be saved.
@@ -24,7 +29,7 @@ import JSZip from "jszip";
  * - If `forceBuffer = false`, `contents` may be either a Uint8Array or a string to a temporary file path. 
  *   In a browser context, the temporary path is located on the **scran.js** virtual file system,
  *   see [here](https://kanaverse.github.io/scran.js/global.html#readFile) to extract its contents and to clean up afterwards.
- * - If the function is called from Node.js and `directory` is supplied, `contents` is a string to a file path inside `directory.
+ * - If the function is called from Node.js and `directory` is supplied, `contents` is a string to a file path inside `directory`.
  *   This overrides any expectations from the setting of `forceBuffer` and is the most efficient approach for Node.js.
  */
 export async function saveSingleCellExperiment(state, name, { forceBuffer = null, directory = null } = {}) {
