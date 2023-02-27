@@ -791,6 +791,8 @@ export class AbstractArtifactdbDataset {
     }
 }
 
+export const ArtifactDbSummarizedExperimentDatasetBase = AbstractArtifactdbDataset;
+
 /***********************
  ******* Result ********
  ***********************/
@@ -1100,3 +1102,5 @@ export class AbstractArtifactdbResult {
         return output;
     }
 }
+
+export const ArtifactDbSummarizedExperimentResultBase = AbstractArtifactdbResult;
