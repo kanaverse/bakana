@@ -1,4 +1,5 @@
 import { md5 } from 'hash-wasm';
+import * as scran from "scran.js";
 
 export async function attachMd5sums(files) {
     for (const x of files) {
@@ -12,5 +13,5 @@ export function realizeDirectory(files, directory) {
 }
 
 export function loadFilePath(p) {
-    throw new Error("cannot load file paths in a web context");
+    return scran.readFile(p);
 }
