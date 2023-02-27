@@ -37,16 +37,34 @@ class ZippedProjectNavigator {
             }
         }
     }
+
+    clear() {
+        this.#ziphandle = null;
+    }
 };
 
 /************************
  ******* Dataset ********
  ************************/
 
+/**
+ * Dataset for a ZIP file containing a SummarizedExperiment in the **ArtifactDB** representation,
+ * e.g., as produced by {@linkcode saveSingleCellExperiment}.
+ * Specifically, the ZIP file should contain the contents of an **ArtifactDB** project directory.
+ * This project directory may contain multiple objects; the SummarizedExperiment of interest is identified in the constructor.
+ */
 export class ZippedArtifactDbDataset extends adb.ArtifactDbSummarizedExperimentDatasetBase {
     #zipfile;
     #name;
 
+    /**
+     * @param {string} name - Name of the SummarizedExperiment object inside the project directory.
+     * @param {SimpleFile} zipfile - A {@linkplain SimpleFile} object representing the ZIP file containing the project directory.
+     * @param {object} [options={}] - Optional parameters, including those to be passed to the {@linkplain ArtifactDbSummarizedExperimentDatasetBase} constructor.
+     * @param {?JSZip} [options.existingHandle=null] - An existing handle into the ZIP file, generated using the [**JSZip**](https://stuk.github.io/jszip/) package.
+     * If an existing handle already exists, passing it in here will allow it to be re-used for greater efficiency.
+     * If `null`, a new handle is created for this ZippedArtifactDbDataset instance.
+     */
     constructor(name, zipfile, options={}) {
         let ziphandle = null;
         if ("existingHandle" in options) {
@@ -60,6 +78,9 @@ export class ZippedArtifactDbDataset extends adb.ArtifactDbSummarizedExperimentD
         this.#name = name;
     }
 
+    /**
+     * @return {string} String specifying the format for this dataset.
+     */
     static format() {
         return "ArtifactDB-zipped";
     }
@@ -72,16 +93,34 @@ export class ZippedArtifactDbDataset extends adb.ArtifactDbSummarizedExperimentD
 
     }
 
+    /**
+     * @return {object} Object containing the abbreviated details of this dataset.
+     */
     abbreviate() {
         return this.#dump_summary(f => { 
             return { size: f.size(), name: f.name() }
         });
     }
 
+    /**
+     * @return {object} Object describing this dataset, containing:
+     *
+     * - `files`: Array of objects representing the files used in this dataset.
+     *   Each object corresponds to a single file and contains:
+     *   - `type`: a string denoting the type.
+     *   - `file`: a {@linkplain SimpleFile} object representing the file contents.
+     * - `options`: An object containing additional options to saved.
+     */
     serialize() {
         return this.#dump_summary(f => f);
     }
 
+    /**
+     * @param {Array} files - Array of objects like that produced by {@linkcode ZippedArtifactDbDataset#serialize serialize}.
+     * @param {object} options - Object containing additional options to be passed to the constructor.
+     * @return {ZippedArtifactDbDataset} A new instance of this class.
+     * @static
+     */
     static unserialize(files, options) {
         if (files.length != 1 || files[0].type != "zip") {
             throw new Error("expected exactly one file of type 'zip' for Zipped ArtifactDB unserialization");
