@@ -48,22 +48,22 @@ class ZippedProjectNavigator {
  ************************/
 
 /**
- * Dataset for a ZIP file containing a SummarizedExperiment in the **ArtifactDB** representation,
+ * Dataset as a ZIP file containing a SummarizedExperiment in the **ArtifactDB** representation,
  * e.g., as produced by {@linkcode saveSingleCellExperiment}.
  * Specifically, the ZIP file should contain the contents of an **ArtifactDB** project directory.
  * This project directory may contain multiple objects; the SummarizedExperiment of interest is identified in the constructor.
  */
-export class ZippedArtifactDbDataset extends adb.ArtifactDbSummarizedExperimentDatasetBase {
+export class ZippedArtifactdbDataset extends adb.ArtifactDbSummarizedExperimentDatasetBase {
     #zipfile;
     #name;
 
     /**
      * @param {string} name - Name of the SummarizedExperiment object inside the project directory.
      * @param {SimpleFile} zipfile - A {@linkplain SimpleFile} object representing the ZIP file containing the project directory.
-     * @param {object} [options={}] - Optional parameters, including those to be passed to the {@linkplain ArtifactDbSummarizedExperimentDatasetBase} constructor.
+     * @param {object} [options={}] - Optional parameters, including those to be passed to the {@linkplain ArtifactdbSummarizedExperimentDatasetBase} constructor.
      * @param {?JSZip} [options.existingHandle=null] - An existing handle into the ZIP file, generated using the [**JSZip**](https://stuk.github.io/jszip/) package.
      * If an existing handle already exists, passing it in here will allow it to be re-used for greater efficiency.
-     * If `null`, a new handle is created for this ZippedArtifactDbDataset instance.
+     * If `null`, a new handle is created for this ZippedArtifactdbDataset instance.
      */
     constructor(name, zipfile, options={}) {
         let ziphandle = null;
@@ -116,9 +116,9 @@ export class ZippedArtifactDbDataset extends adb.ArtifactDbSummarizedExperimentD
     }
 
     /**
-     * @param {Array} files - Array of objects like that produced by {@linkcode ZippedArtifactDbDataset#serialize serialize}.
+     * @param {Array} files - Array of objects like that produced by {@linkcode ZippedArtifactdbDataset#serialize serialize}.
      * @param {object} options - Object containing additional options to be passed to the constructor.
-     * @return {ZippedArtifactDbDataset} A new instance of this class.
+     * @return {ZippedArtifactdbDataset} A new instance of this class.
      * @static
      */
     static unserialize(files, options) {
@@ -128,6 +128,37 @@ export class ZippedArtifactDbDataset extends adb.ArtifactDbSummarizedExperimentD
 
         let name = options.datasetName;
         delete options.datasetName;
-        return new ZippedArtifactDbDataset(name, files[0].file, options);
+        return new ZippedArtifactdbDataset(name, files[0].file, options);
+    }
+}
+
+/***********************
+ ******* Result ********
+ ***********************/
+
+/**
+ * Result as a ZIP file containing a SummarizedExperiment in the **ArtifactDB** representation,
+ * e.g., as produced by {@linkcode saveSingleCellExperiment}.
+ * Specifically, the ZIP file should contain the contents of an **ArtifactDB** project directory.
+ * This project directory may contain multiple objects; the SummarizedExperiment of interest is identified in the constructor.
+ */
+export class ZippedArtifactdbResult extends adb.ArtifactDbSummarizedExperimentResultBase {
+    /**
+     * @param {string} name - Name of the SummarizedExperiment object inside the project directory.
+     * @param {SimpleFile} zipfile - A {@linkplain SimpleFile} object representing the ZIP file containing the project directory.
+     * @param {object} [options={}] - Optional parameters, including those to be passed to the {@linkplain ArtifactdbSummarizedExperimentDatasetBase} constructor.
+     * @param {?JSZip} [options.existingHandle=null] - An existing handle into the ZIP file, generated using the [**JSZip**](https://stuk.github.io/jszip/) package.
+     * If an existing handle already exists, passing it in here will allow it to be re-used for greater efficiency.
+     * If `null`, a new handle is created for this ZippedArtifactdbDataset instance.
+     */
+    constructor(name, zipfile, options={}) {
+        let ziphandle = null;
+        if ("existingHandle" in options) {
+            ziphandle = options.existingHandle;
+            delete options.existingHandle;
+        }
+
+        let nav = new ZippedProjectNavigator(zipfile, ziphandle);
+        super(name, nav, options);
     }
 }

@@ -160,12 +160,12 @@ action_adt("ArtifactDB summary and loading works with multiple modalities", asyn
 
 /***********************************************/
 
-action_simple("Zipped ArtifactDB summary and loading works correctly", async () => {
+action_simple("Zipped ArtifactDB dataset summary and loading works correctly", async () => {
     // First, zipping the contents of the target directory.
     let zipped = await nav.zipDirectory(nav.baseDirectory, [ target_simple, target_simple + ".json" ]);
     let zipfile = new bakana.SimpleFile(zipped, { name: "bundle.zip" });
 
-    let files = { zipped: new bakana.ZippedArtifactDbDataset(target_simple, zipfile) };
+    let files = { zipped: new bakana.ZippedArtifactdbDataset(target_simple, zipfile) };
     expect(files.zipped.constructor.format()).toEqual("ArtifactDB-zipped");
     let abbr = files.zipped.abbreviate();
     expect(abbr.files[0].type).toEqual("zip");
@@ -192,6 +192,7 @@ action_simple("Zipped ArtifactDB summary and loading works correctly", async () 
         expect(dump.files.length).toEqual(1);
 
         let reloaded = files.zipped.constructor.unserialize(dump.files, dump.options);
+        expect(reloaded instanceof bakana.ZippedArtifactdbDataset).toBe(true);
         expect(reloaded.abbreviate()).toEqual(abbr);
     }
 })
