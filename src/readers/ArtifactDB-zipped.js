@@ -52,6 +52,8 @@ class ZippedProjectNavigator {
  * e.g., as produced by {@linkcode saveSingleCellExperiment}.
  * Specifically, the ZIP file should contain the contents of an **ArtifactDB** project directory.
  * This project directory may contain multiple objects; the SummarizedExperiment of interest is identified in the constructor.
+ *
+ * @extends ArtifactDbSummarizedExperimentDatasetBase
  */
 export class ZippedArtifactdbDataset extends adb.ArtifactDbSummarizedExperimentDatasetBase {
     #zipfile;
@@ -141,6 +143,8 @@ export class ZippedArtifactdbDataset extends adb.ArtifactDbSummarizedExperimentD
  * e.g., as produced by {@linkcode saveSingleCellExperiment}.
  * Specifically, the ZIP file should contain the contents of an **ArtifactDB** project directory.
  * This project directory may contain multiple objects; the SummarizedExperiment of interest is identified in the constructor.
+ *
+ * @extends ArtifactDbSummarizedExperimentResultBase
  */
 export class ZippedArtifactdbResult extends adb.ArtifactDbSummarizedExperimentResultBase {
     /**
