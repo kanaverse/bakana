@@ -1,5 +1,6 @@
 import * as sce from "./SingleCellExperiment.js";
 import * as adump from "./abstract/dump.js";
+import JSZip from "jszip";
 
 /**
  * Save the results into a [language-agnostic representation](https://github.com/ArtifactDB/BiocObjectSchemas) of a SingleCellExperiment.
@@ -58,4 +59,37 @@ export async function saveSingleCellExperiment(state, name, { forceBuffer = null
     }
 
     return files;
+}
+
+/**
+ * Zip a set of files, typically corresponding to the contents of an **ArtifactDB** project directory.
+ *
+ * @param {Array} files - Array of objects describing files in the project directory.
+ * See the output of {@linkcode saveSingleCellExperiment} for more details on the expected format.
+ *
+ * @return {Promise<Uint8Array>} Uint8Array with the contents of the ZIP file containing all `files`.
+ */
+export function zipFiles(files) {
+    var zip = new JSZip();
+
+    for (const x of files) {
+        let suffix;
+        if ("contents" in x) {
+            suffix = ".json";
+            if (x.contents instanceof Uint8Array) {
+                zip.file(x.metadata.path, x.contents);
+            } else {
+                zip.file(x.metadata.path, adump.loadFilePath(x.contents));
+            }
+        } else if (x.metadata["$schema"].startsWith("redirection/")) {
+            suffix = ".json";
+        } else {
+            suffix = "";
+        }
+
+        // Add a trailing newline to avoid no-newline warnings. 
+        zip.file(x.metadata.path + suffix, JSON.stringify(x.metadata, null, 2) + "\n");
+    }
+
+    return zip.generateAsync({ type: "uint8array" });
 }

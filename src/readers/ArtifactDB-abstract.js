@@ -439,12 +439,13 @@ class MetadataCacheWrapper {
     }
 
     async metadata(path) {
-        if (path in metadata_cache) {
-            return metadata_cache[path];
+        if (path in this.#metadata_cache) {
+            return this.#metadata_cache[path];
+        } else {
+            let content = await this.#navigator.metadata(path);
+            this.#metadata_cache[path] = content;
+            return content;
         }
-        let content = await this.#navigator.metadata(path);
-        metadata_cache[path] = content;
-        return content;
     }
 
     file(path) {

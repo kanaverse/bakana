@@ -59,3 +59,7 @@ export async function realizeDirectory(files, directory, path_) {
 
     return;
 }
+
+export function loadFilePath(p) {
+    return fs.readFileSync(p);
+}

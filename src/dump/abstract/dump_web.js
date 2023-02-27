@@ -10,3 +10,7 @@ export function realizeDirectory(files, directory) {
     throw new Error("cannot realize files into a directory in a web context");
     return;
 }
+
+export function loadFilePath(p) {
+    throw new Error("cannot load file paths in a web context");
+}
