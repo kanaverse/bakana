@@ -131,6 +131,8 @@ class ArtifactDbLocalDirectoryResult extends bakana.ArtifactDbSummarizedExperime
     }
 }
 
+/***********************************************/
+
 let target_simple = nav.pathExists("H5AD");
 let action_simple = (target_simple == null ? test.skip : test);
 
@@ -205,5 +207,48 @@ action_adt("local ArtifactDB result readers work correctly with multiple modalit
     expect(payload.matrix.get("ADT").numberOfRows()).toEqual(nAdt);
 
     expect(payload.matrix.numberOfColumns()).toEqual(payload.cells.numberOfRows());
+    payload.matrix.free();
+})
+
+/***********************************************/
+
+action_simple("Zipped ArtifactDB result summary and loading works correctly", async () => {
+    // First, zipping the contents of the target directory.
+    let zipped = await nav.zipDirectory(nav.baseDirectory, [ target_simple, target_simple + ".json" ]);
+    let zipfile = new bakana.SimpleFile(zipped, { name: "bundle.zip" });
+
+    // Checking for consistency between zipped and native.
+    let info = new bakana.ZippedArtifactdbResult(target_simple, zipfile);
+    let ref = new ArtifactDbLocalDirectoryResult(target_simple, nav.baseDirectory);
+
+    let details = await info.summary();
+    let rdetails = await ref.summary();
+    expect(Object.keys(details.modality_features)).toEqual(Object.keys(rdetails.modality_features));
+    expect(details.modality_features[""].numberOfRows()).toEqual(rdetails.modality_features[""].numberOfRows());
+    expect(details.modality_features[""].columnNames()).toEqual(rdetails.modality_features[""].columnNames());
+
+    expect(details.cells.numberOfRows()).toEqual(rdetails.cells.numberOfRows());
+    expect(details.cells.columnNames()).toEqual(rdetails.cells.columnNames());
+    expect(details.modality_assay_names).toEqual(rdetails.modality_assay_names);
+    expect(details.reduced_dimension_names).toEqual(rdetails.reduced_dimension_names);
+
+    expect(Object.keys(details.other_metadata)).toEqual(Object.keys(rdetails.other_metadata));
+
+    // Actually loading the log-counts.
+    info.setPrimaryAssay("logcounts");
+    info.setIsPrimaryNormalized(true);
+    info.setReducedDimensionNames(["TSNE", "UMAP"]);
+
+    let payload = await info.load();
+    expect(payload.matrix.numberOfColumns()).toEqual(details.cells.numberOfRows());
+    expect(payload.matrix.get("").numberOfRows()).toEqual(payload.features[""].numberOfRows());
+    expect(Object.keys(payload.reduced_dimensions)).toEqual(["TSNE", "UMAP"]);
+    expect(payload.reduced_dimensions["TSNE"].length).toEqual(2);
+    expect(payload.reduced_dimensions["TSNE"][0].length).toEqual(details.cells.numberOfRows());
+
+    let col0 = payload.matrix.get("").column(0);
+    expect(has_noninteger(col0)).toBe(true);
+
+    info.clear();
     payload.matrix.free();
 })

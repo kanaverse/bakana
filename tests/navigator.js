@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as utils from "./utils.js";
 import * as bakana from "../src/index.js";
+import JSZip from "jszip";
 
 export const baseDirectory = "miscellaneous/from-tests";
 
@@ -51,4 +52,38 @@ export class LocalProjectDirectoryNavigator {
     file(p) {
         return this.#directory + "/" + p;
     }
+}
+
+function list_files(directory, prefix, files) {
+    const target = (prefix == null ? directory : directory + "/" + prefix);
+    return fs.readdirSync(target).forEach(f => {
+        const host = (prefix == null ? f : prefix + "/" + f);
+        const full_path = directory + "/" + host;
+        if (fs.statSync(full_path).isDirectory()) {
+            return list_files(directory, host, files);
+        } else {
+            return files.push(host);
+        }
+    });
+}
+
+
+export async function zipDirectory(directory, children) {
+    let all_files = [];
+
+    for (const x of children) {
+        if (fs.statSync(directory + "/" + x).isDirectory()) {
+            list_files(directory, x, all_files);
+        } else {
+            all_files.push(x);
+        }
+    }
+
+    var zip = new JSZip();
+    for (const f of all_files) {
+        let buffer = fs.readFileSync(directory + "/" + f);
+        zip.file(f, buffer);
+    }
+
+    return await zip.generateAsync({ type : "uint8array" });
 }
