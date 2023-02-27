@@ -1,4 +1,4 @@
-import * as adb from "./ArtifactDB.js";
+import * as adb from "./ArtifactDB-abstract.js";
 import JSZip from "jszip";
 
 class ZippedProjectNavigator {
@@ -53,9 +53,9 @@ class ZippedProjectNavigator {
  * Specifically, the ZIP file should contain the contents of an **ArtifactDB** project directory.
  * This project directory may contain multiple objects; the SummarizedExperiment of interest is identified in the constructor.
  *
- * @extends ArtifactDbSummarizedExperimentDatasetBase
+ * @extends AbstractArtifactdbDataset
  */
-export class ZippedArtifactdbDataset extends adb.ArtifactDbSummarizedExperimentDatasetBase {
+export class ZippedArtifactdbDataset extends adb.AbstractArtifactdbDataset {
     #zipfile;
     #name;
 
@@ -144,9 +144,9 @@ export class ZippedArtifactdbDataset extends adb.ArtifactDbSummarizedExperimentD
  * Specifically, the ZIP file should contain the contents of an **ArtifactDB** project directory.
  * This project directory may contain multiple objects; the SummarizedExperiment of interest is identified in the constructor.
  *
- * @extends ArtifactDbSummarizedExperimentResultBase
+ * @extends AbstractArtifactdbResult
  */
-export class ZippedArtifactdbResult extends adb.ArtifactDbSummarizedExperimentResultBase {
+export class ZippedArtifactdbResult extends adb.AbstractArtifactdbResult {
     /**
      * @param {string} name - Name of the SummarizedExperiment object inside the project directory.
      * @param {SimpleFile} zipfile - A {@linkplain SimpleFile} object representing the ZIP file containing the project directory.

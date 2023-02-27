@@ -125,7 +125,7 @@ test("SummarizedExperiment result readers work correctly with count normalizatio
     payload.matrix.free();
 })
 
-class ArtifactDbLocalDirectoryResult extends bakana.ArtifactDbSummarizedExperimentResultBase {
+class LocalArtifactdbResult extends bakana.AbstractArtifactdbResult {
     constructor(path, dir, options={}) {
         super(path, new nav.LocalProjectDirectoryNavigator(dir), options);
     }
@@ -137,7 +137,7 @@ let target_simple = nav.pathExists("H5AD");
 let action_simple = (target_simple == null ? test.skip : test);
 
 action_simple("local ArtifactDB result readers work correctly with log-count loading", async () => {
-    let info = new ArtifactDbLocalDirectoryResult(target_simple, nav.baseDirectory);
+    let info = new LocalArtifactdbResult(target_simple, nav.baseDirectory);
 
     let details = await info.summary();
     expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
@@ -170,7 +170,7 @@ action_simple("local ArtifactDB result readers work correctly with log-count loa
 })
 
 action_simple("local ArtifactDB result readers work correctly with count normalization", async () => {
-    let info = new ArtifactDbLocalDirectoryResult(target_simple, nav.baseDirectory);
+    let info = new LocalArtifactdbResult(target_simple, nav.baseDirectory);
 
     info.setPrimaryAssay("counts");
     info.setIsPrimaryNormalized(false);
@@ -190,7 +190,7 @@ let target_adt = nav.pathExists("adt");
 let action_adt = (target_adt == null ? test.skip : test);
 
 action_adt("local ArtifactDB result readers work correctly with multiple modalities", async () => {
-    let info = new ArtifactDbLocalDirectoryResult(target_adt, nav.baseDirectory);
+    let info = new LocalArtifactdbResult(target_adt, nav.baseDirectory);
 
     let details = await info.summary();
     expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
@@ -219,7 +219,7 @@ action_simple("Zipped ArtifactDB result summary and loading works correctly", as
 
     // Checking for consistency between zipped and native.
     let info = new bakana.ZippedArtifactdbResult(target_simple, zipfile);
-    let ref = new ArtifactDbLocalDirectoryResult(target_simple, nav.baseDirectory);
+    let ref = new LocalArtifactdbResult(target_simple, nav.baseDirectory);
 
     let details = await info.summary();
     let rdetails = await ref.summary();

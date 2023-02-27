@@ -8,7 +8,7 @@ import * as nav from "./navigator.js";
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
-class ArtifactDbLocalDirectoryDataset extends bakana.ArtifactDbSummarizedExperimentDatasetBase {
+class LocalArtifactdbDataset extends bakana.AbstractArtifactdbDataset {
     #path;
     #dir;
 
@@ -26,7 +26,7 @@ class ArtifactDbLocalDirectoryDataset extends bakana.ArtifactDbSummarizedExperim
         let dec = new TextDecoder;
         let payload = files[0].file.buffer();
         let info = JSON.stringify(dec.decode(payload));
-        return new ArtifactDbLocalDirectoryDataset(info.path, info.directory, options);
+        return new LocalArtifactdbDataset(info.path, info.directory, options);
     }
 
     abbreviate() {
@@ -54,7 +54,7 @@ let target_simple = nav.pathExists("H5AD");
 let action_simple = (target_simple == null ? test.skip : test);
 
 action_simple("ArtifactDB summary works correctly", async () => {
-    let files = { default: new ArtifactDbLocalDirectoryDataset(target_simple, nav.baseDirectory) };
+    let files = { default: new LocalArtifactdbDataset(target_simple, nav.baseDirectory) };
     let summ = await files.default.summary({ cache: true });
 
     expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
@@ -66,7 +66,7 @@ action_simple("ArtifactDB summary works correctly", async () => {
 })
 
 action_simple("runAnalysis works correctly (ArtifactDB)", async () => {
-    let files = { default: new ArtifactDbLocalDirectoryDataset(target_simple, nav.baseDirectory) };
+    let files = { default: new LocalArtifactdbDataset(target_simple, nav.baseDirectory) };
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
     await bakana.runAnalysis(state, files, params);
@@ -100,9 +100,9 @@ action_simple("runAnalysis works correctly (ArtifactDB)", async () => {
         };
 
         let serialized = await bakana.serializeConfiguration(state, saver);
-        bakana.availableReaders["ArtifactDB-local-directory"] = ArtifactDbLocalDirectoryDataset;
+        bakana.availableReaders["ArtifactDB-local-directory"] = LocalArtifactdbDataset;
         let reloaded = bakana.unserializeDatasets(serialized.datasets, x => saved[Number(x) - 1]); 
-        expect(reloaded.default instanceof ArtifactDbLocalDirectoryDataset);
+        expect(reloaded.default instanceof LocalArtifactdbDataset);
         expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
     }
 
@@ -115,7 +115,7 @@ let target_adt = nav.pathExists("adt");
 let action_adt = (target_adt == null ? test.skip : test);
 
 action_adt("ArtifactDB summary and loading works with multiple modalities", async () => {
-    let files = { super: new ArtifactDbLocalDirectoryDataset(target_adt, nav.baseDirectory) };
+    let files = { super: new LocalArtifactdbDataset(target_adt, nav.baseDirectory) };
 
     let summ = await files.super.summary();
     expect(Object.keys(summ.modality_features).sort()).toEqual(["", "ADT"]);
