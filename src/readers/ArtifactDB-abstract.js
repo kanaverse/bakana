@@ -19,6 +19,9 @@ import * as afile from "./abstract/file.js";
  *   The return value should typically be a Uint8Array; on Node.js, methods may alternatively return a string containing a path to the file on the local file system.
  *   The method does not need to handle redirections from `p`.
  *
+ * Optionally, the ArtifactdbProjectNavigator class may implement a `clear()` method to remove any cached content.
+ * This will be called by {@linkcode AbstractArtifactdbDataset#clear AbstractArtifactdbDataset.clear} and  {@linkcode AbstractArtifactdbResult#clear AbstractArtifactdbResult.clear}.
+ *
  * @typedef ArtifactdbProjectNavigator
  */
 
@@ -535,7 +538,13 @@ export class AbstractArtifactdbDataset {
         this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
         this.#primaryCrisprFeatureIdColumn = primaryCrisprFeatureIdColumn;
 
-        this.clear();
+        // Don't call this.clear() here. We don't want to clear the navigator's
+        // cache at this point, as the navigator might contain some cached
+        // values when passed to the constructor. We should respect any caches
+        // until we're specifically told to discard it with clear() or cache =
+        // false in load() or summary().
+        this.#reset_local_caches();
+        return;
     }
 
     /**
@@ -625,13 +634,18 @@ export class AbstractArtifactdbDataset {
         return;
     }
 
-    /**
-     * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode AbstractArtifactdbDataset#load load} or {@linkcodeAbstractArtifactdbDataset#summary summary}.
-     */
-    clear() {
+    #reset_local_caches() {
         this.#raw_features = null;
         this.#raw_cells = null;
+    }
+
+    /**
+     * Destroy caches if present, releasing the associated memory.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode AbstractArtifactdbDataset#load load} or {@linkcode AbstractArtifactdbDataset#summary summary}.
+     */
+    clear() {
+        this.#reset_local_caches();
+        this.#navigator.clear();
     }
 
     async #features() {
@@ -816,7 +830,8 @@ export class AbstractArtifactdbResult {
         this.#isPrimaryNormalized = isPrimaryNormalized;
         this.#reducedDimensionNames = reducedDimensionNames;
 
-        this.clear();
+        // Don't call clear() here, see comments above in the Dataset constructor.
+        this.#reset_local_caches();
     }
 
     /**
@@ -854,14 +869,19 @@ export class AbstractArtifactdbResult {
         return;
     }
 
-    /**
-     * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode AbstractArtifactdbDataset#load load} or {@linkcodeAbstractArtifactdbDataset#summary summary}.
-     */
-    clear() {
+    #reset_local_caches() {
         this.#raw_features = null;
         this.#raw_cells = null;
         this.#raw_other = null;
+    }
+
+    /**
+     * Destroy caches if present, releasing the associated memory.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode AbstractArtifactdbResult#load load} or {@linkcode AbstractArtifactdbResult#summary summary}.
+     */
+    clear() {
+        this.#reset_local_caches();
+        this.#navigator.clear();
     }
 
     async #features() {
