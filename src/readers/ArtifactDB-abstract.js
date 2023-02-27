@@ -916,11 +916,6 @@ export class AbstractArtifactdbResult {
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
      * - `reduced_dimensions`: an object containing the dimensionality reduction results.
      *   Each value is an array of arrays, where each inner array contains the coordinates for one dimension.
-     * - `markers`: an object where each key is a modality name and each value is another object.
-     *   In each inner object, each key is the name of a cluster and each value is a DataFrame containing the marker statistics.
-     * - `custom_selections`: an object where each key is the name of a custom selection and each value is another object.
-     *   Each inner object should contain `indices`, an Int32Array containing the column indices of the cells in the selection.
-     *   Each inner object may also contain `markers`, another object. 
      * - `other_metadata`: an object containing other metadata.
      *
      * @async
