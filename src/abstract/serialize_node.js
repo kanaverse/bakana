@@ -6,50 +6,6 @@ import * as pako from "pako";
 import * as os from "os";
 export { FORMAT_VERSION } from "./utils/serialize.js";
 
-export async function createKanaFileInternal(statePath, inputFiles, { outputPath = null } = {}) {
-    if (outputPath === null) {
-        let dir = fs.mkdtempSync(Path.join(os.tmpdir(), "kana-"));
-        outputPath = Path.join(dir, "analysis.kana");
-    }
-
-    let stream = fs.createWriteStream(outputPath, { flags: 'w' });
-    let embedded = (inputFiles !== null);
-
-    let preamble = sutils.createPreamble(embedded, fs.statSync(statePath).size);
-    await new Promise(resolve => stream.write(Buffer.from(preamble), () => resolve(null)));
-
-    let stateStream = fs.createReadStream(statePath);
-    let piped = stateStream.pipe(stream, { end: false });
-    await new Promise((resolve, reject) => {
-        piped.on("unpipe", () => resolve(true));
-        piped.on("error", e => reject(e));
-    });
-
-    if (embedded) {
-        for (const ipath of inputFiles) {
-            if (typeof ipath == "string") {
-                let istream = fs.createReadStream(ipath);
-                let piped = istream.pipe(stream, { end: false });
-                await new Promise((resolve, reject) => {
-                    piped.on("unpipe", () => resolve(true));
-                    piped.on("error", e => reject(e));
-                });
-            } else if (ipath instanceof Uint8Array) {
-                await new Promise(resolve => stream.write(ipath, () => resolve(null)));
-            } else {
-                throw new Error("expected file paths or Uint8Arrays for file contents");
-            }
-        }
-    }
-
-    stream.end();
-
-    return new Promise((resolve, reject) => {
-        stream.on("finish", () => resolve(outputPath));
-        stream.on("error", (e) => reject(e));
-    });
-}
-
 export async function parseKanaFileInternal(input, statePath, { stageDir = null } = {}) {
     if (input instanceof Uint8Array) {
         return sutils.parseKanaFileFromBuffer(input, statePath);

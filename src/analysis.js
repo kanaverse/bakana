@@ -34,7 +34,6 @@ import * as custom_markers from "./steps/custom_selections.js";
 import * as feature_set_enrichment from "./steps/feature_set_enrichment.js";
 
 import { FORMAT_VERSION } from "./abstract/utils/serialize.js";
-import { bakana_version } from "./version.js";
 
 export { setCreateLink, setResolveLink } from "./steps/inputs.js";
 export { MarkerDetectionState } from "./steps/marker_detection.js";

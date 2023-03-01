@@ -2,36 +2,6 @@ import * as scran from "scran.js";
 
 export const summaries2int = { "min": 0, "mean": 1, "min_rank": 4 };
 
-export function serializeGroupStats(ihandle, obj, group, { no_summaries = false, compute_auc = true } = {}) {
-    for (const x of [ "means", "detected" ]) {
-        let y = obj[x](group, { copy: "view" });
-        ihandle.writeDataSet(x, "Float64", null, y);
-    }
-
-    for (const i of [ "lfc", "delta_detected", "auc", "cohen" ]) {
-        if (i == "auc" && !compute_auc) {
-            continue;
-        }
-
-        let i0 = i;
-        if (i == "delta_detected") {
-            i0 = "deltaDetected";
-        }
-
-        let extractor = (index) => obj[i0](group, { summary: index, copy: "view" });
-        if (no_summaries) {
-            let y = extractor(summaries2int["mean"]);
-            ihandle.writeDataSet(i, "Float64", null, y);
-        } else {
-            let curhandle = ihandle.createGroup(i);
-            for (const [j, k] of Object.entries(summaries2int)) {
-                let y = extractor(k);
-                curhandle.writeDataSet(j, "Float64", null, y);
-            }
-        }
-    }
-}
-
 export function unserializeGroupStats(handle, permuter, { no_summaries = false, compute_auc = true } = {}) {
     let output = {};
     for (const x of [ "means", "detected" ]) {
