@@ -1,6 +1,7 @@
 import * as aserialize from "./abstract/serialize.js";
 import * as readers from "./readers/index.js";
 import * as anal from "./analysis.js";
+import { bakana_version } from "./version.js";
 
 /**
  * Format a collection of {@linkplain Dataset} objects so that they can be saved to file.
@@ -110,6 +111,7 @@ export async function serializeConfiguration(state, saver) {
     }
 
     return {
+        version: bakana_version,
         parameters: parameters,
         datasets: datasets,
 
