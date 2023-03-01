@@ -496,7 +496,7 @@ export class H5adResult {
         this.#primaryMatrixName = primaryMatrixName;
         this.#isPrimaryNormalized = isPrimaryNormalized;
         this.#featureTypeColumnName = featureTypeColumnName;
-        this.#reducedDimensionNames = reducedDimensionNames;
+        this.#reducedDimensionNames = bioc.CLONE(reducedDimensionNames); // avoid pass-by-reference links.
 
         this.clear();
     }
@@ -550,7 +550,7 @@ export class H5adResult {
      * If `null`, all reduced dimensions found in the file are loaded.
      */
     setReducedDimensionNames(names) {
-        this.#reducedDimensionNames = names;
+        this.#reducedDimensionNames = bioc.CLONE(names);
         return;
     }
 

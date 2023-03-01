@@ -1,4 +1,5 @@
 import * as scran from "scran.js";
+import * as bioc from "bioconductor";
 import * as utils from "./utils/general.js";
 import * as rutils from "../readers/index.js";
 import * as inputs_module from "./inputs.js";
@@ -70,7 +71,10 @@ export class CellLabellingState {
      */
     fetchParameters() {
         // Avoid any pass-by-reference activity.
-        return { ...this.#parameters };
+        let out = { ...this.#parameters };
+        out.references = bioc.CLONE(out.references);
+        out.species = bioc.CLONE(out.species);
+        return out;
     }
 
     /**
@@ -464,9 +468,9 @@ export class CellLabellingState {
             delete this.#cache.integrated_results;
         }
 
-        this.#parameters.references = references;
+        this.#parameters.references = bioc.CLONE(references); // make a copy to avoid pass-by-reference behavior.
         this.#parameters.automatic = automatic;
-        this.#parameters.species = species;
+        this.#parameters.species = bioc.CLONE(species);
         this.#parameters.gene_id_column = gene_id_column;
         this.#parameters.gene_id_type = gene_id_type;
 

@@ -221,7 +221,7 @@ export class InputsState {
             if (utils.changedParameters(tmp_abbreviated, this.#abbreviated)) {
                 await load_and_cache(datasets, this.#cache, this.#preserve_dataset_cache);
                 this.#abbreviated = tmp_abbreviated;
-                this.#cache.datasets = datasets;
+                this.#cache.datasets = { ...datasets }; // making a deep-ish copy to avoid pass-by-reference links.
                 delete this.#cache.inferred_rna_types;
                 this.changed = true;
             }

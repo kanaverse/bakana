@@ -829,9 +829,10 @@ export class AbstractArtifactdbResult {
         this.#path = path;
         this.#navigator = new MetadataCacheWrapper(navigator);
 
-        this.#primaryAssay = primaryAssay;
-        this.#isPrimaryNormalized = isPrimaryNormalized;
-        this.#reducedDimensionNames = reducedDimensionNames;
+        // Cloning to avoid pass-by-reference links.
+        this.#primaryAssay = bioc.CLONE(primaryAssay);
+        this.#isPrimaryNormalized = bioc.CLONE(isPrimaryNormalized);
+        this.#reducedDimensionNames = bioc.CLONE(reducedDimensionNames);
 
         // Don't call clear() here, see comments above in the Dataset constructor.
         this.#reset_local_caches();
@@ -846,7 +847,7 @@ export class AbstractArtifactdbResult {
      *   Modalities absent from this object will not be loaded.
      */
     setPrimaryAssay(primary) {
-        this.#primaryAssay = primary;
+        this.#primaryAssay = bioc.CLONE(primary);
         return;
     }
 
@@ -859,7 +860,7 @@ export class AbstractArtifactdbResult {
      *   Modalities absent from this object are assumed to have been normalized.
      */
     setIsPrimaryNormalized(normalized) {
-        this.#isPrimaryNormalized = normalized;
+        this.#isPrimaryNormalized = bioc.CLONE(normalized);
         return;
     }
 
@@ -868,7 +869,7 @@ export class AbstractArtifactdbResult {
      * If `null`, all reduced dimensions found in the file are loaded.
      */
     setReducedDimensionNames(names) {
-        this.#reducedDimensionNames = names;
+        this.#reducedDimensionNames = bioc.CLONE(names);
         return;
     }
 

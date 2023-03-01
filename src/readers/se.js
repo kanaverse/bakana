@@ -966,9 +966,10 @@ export class SummarizedExperimentResult {
             this.#rds_file = new afile.SimpleFile(rdsFile);
         }
 
-        this.#primaryAssay = primaryAssay;
-        this.#isPrimaryNormalized = isPrimaryNormalized;
-        this.#reducedDimensionNames = reducedDimensionNames;
+        // Cloning to avoid pass-by-reference links.
+        this.#primaryAssay = bioc.CLONE(primaryAssay);
+        this.#isPrimaryNormalized = bioc.CLONE(isPrimaryNormalized);
+        this.#reducedDimensionNames = bioc.CLONE(reducedDimensionNames);
 
         this.clear();
     }
@@ -982,7 +983,7 @@ export class SummarizedExperimentResult {
      *   Modalities absent from this object will not be loaded.
      */
     setPrimaryAssay(primary) {
-        this.#primaryAssay = primary;
+        this.#primaryAssay = bioc.CLONE(primary);
         return;
     }
 
@@ -995,7 +996,7 @@ export class SummarizedExperimentResult {
      *   Modalities absent from this object are assumed to have been normalized.
      */
     setIsPrimaryNormalized(normalized) {
-        this.#isPrimaryNormalized = normalized;
+        this.#isPrimaryNormalized = bioc.CLONE(normalized);
         return;
     }
 
@@ -1004,7 +1005,7 @@ export class SummarizedExperimentResult {
      * If `null`, all reduced dimensions found in the file are loaded.
      */
     setReducedDimensionNames(names) {
-        this.#reducedDimensionNames = names;
+        this.#reducedDimensionNames = bioc.CLONE(names);
         return;
     }
 

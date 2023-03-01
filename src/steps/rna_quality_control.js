@@ -1,4 +1,5 @@
 import * as scran from "scran.js"; 
+import * as bioc from "bioconductor";
 import * as utils from "./utils/general.js";
 import * as inputs_module from "./inputs.js";
 import * as rutils from "../readers/index.js";
@@ -70,7 +71,9 @@ export class RnaQualityControlState {
      * @return {object} Object containing the parameters.
      */
     fetchParameters() {
-        return { ...this.#parameters }; // avoid pass-by-reference links.
+        let output = { ...this.#parameters }; // avoid pass-by-reference links.
+        output.species = bioc.CLONE(output.species);
+        return output;
     }
 
     /**
@@ -334,7 +337,7 @@ export class RnaQualityControlState {
         this.#parameters.automatic = automatic;
         this.#parameters.gene_id_column = gene_id_column;
         this.#parameters.use_reference_mito = use_reference_mito;
-        this.#parameters.species = species;
+        this.#parameters.species = bioc.CLONE(species); // avoid pass-by-reference behavior.
         this.#parameters.gene_id_type = gene_id_type;
         this.#parameters.mito_prefix = mito_prefix;
 

@@ -201,7 +201,11 @@ export class FeatureSetEnrichmentState {
      * @return {object} Object containing the parameters.
      */
     fetchParameters() {
-        return { ...this.#parameters };
+        // Avoid pass-by-reference behavior.
+        let out = { ...this.#parameters };
+        out.species = bioc.CLONE(out.species);
+        out.collections = bioc.CLONE(out.collections);
+        return out;
     }
 
     /****************************
@@ -484,8 +488,8 @@ export class FeatureSetEnrichmentState {
         }
 
         this.#parameters.automatic = automatic;
-        this.#parameters.species = species;
-        this.#parameters.collections = collections;
+        this.#parameters.species = bioc.CLONE(species); // make a copy to avoid pass-by-ref behavior.
+        this.#parameters.collections = bioc.CLONE(collections);
         this.#parameters.gene_id_column = gene_id_column;
         this.#parameters.gene_id_type = gene_id_type;
         this.#parameters.top_markers = top_markers;
