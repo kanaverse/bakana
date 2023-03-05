@@ -16,6 +16,10 @@ export const step_name = "marker_detection";
  * @external ScoreMarkersResults
  */
 
+/*******************
+ ****** Core *******
+ *******************/
+
 /**
  * Abstract class for handling marker detection results.
  * Users should construct {@linkplain MarkerDetectionState} or {@linkplain MarkerDetectionStandalone} instances instead.
@@ -220,6 +224,9 @@ class StandaloneGenerator {
             if (block.length && typeof block[0] !== "number") {
                 throw new Error("'block' should encode each block as a non-negative integer starting from zero");
             }
+            if (block.length != N) {
+                throw new Error("'block' should have the same length as 'groups' if not null");
+            }
         }
         this.#block = block;
     }
@@ -263,7 +270,7 @@ class StandaloneGenerator {
  *
  * @extends MarkerDetectionCore
  */
-class MarkerDetectionStandalone extends MarkerDetectionCore {
+export class MarkerDetectionStandalone extends MarkerDetectionCore {
     /**
      * @param {object} normalized - Object where each key is a modality name and each value is a {@linkcode external:ScranMatrix ScranMatrix} of log-normalized values.
      * Each ScranMatrix should have the same number of columns.
@@ -277,6 +284,13 @@ class MarkerDetectionStandalone extends MarkerDetectionCore {
     constructor(normalized, groups, { block = null } = {}) {
         let generator = new StandaloneGenerator(normalized, groups, block);
         super(generator, null, null);
+    }
+
+    /**
+     * @return {object} Default parameters that may be modified and fed into {@linkcode MarkerDetectionCore#compute compute}.
+     */
+    static defaults() {
+        return MarkerDetectionCore.defaults();
     }
 }
 
@@ -358,6 +372,9 @@ export class MarkerDetectionState extends MarkerDetectionCore {
         super(generator, parameters, cache);
     }
 
+    /**
+     * @return {object} Default parameters that may be modified and fed into {@linkcode MarkerDetectionCore#compute compute}.
+     */
     static defaults() {
         return MarkerDetectionCore.defaults();
     }
