@@ -46,12 +46,9 @@ export class CustomSelectionsCore {
      ******** Setters **********
      ***************************/
 
-    #prepare_buffer() {
-
-    }
-
     /**
      * Add a custom selection and compute its markers.
+     * This assumes that {@linkcode CustomSelectionsCore#compute compute} has already been called at least once.
      *
      * @param {string} id A unique identifier for the new custom selection.
      * @param {Array|TypedArray} selection The indices of the cells in the selection.
@@ -268,6 +265,7 @@ export class CustomSelectionsCore {
     /**
      * Extract markers for a pairwise comparison between two selections, 
      * for more detailed examination of the differences between them.
+     * This assumes that {@linkcode CustomSelectionsCore#compute compute} has already been called at least once.
      *
      * @param {string} left - Identifier of one selection in which to find upregulated markers.
      * @param {string} right - Identifier of another selection to be compared against `left`.

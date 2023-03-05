@@ -67,10 +67,11 @@ class MarkerDetectionCore {
      ***************************/
 
     /**
+     * This assumes that {@linkcode MarkerDetectionCore#compute compute} has already been called at least once.
+     *
      * @return {object} Marker detection results for the all modalities.
      * Each key is a modality name and each value is an {@linkplain external:ScoreMarkersResults ScoreMarkerResults} object,
      * containing marker detection statistics for all groups.
-     * This is available after running {@linkcode MarkerDetectionCore#compute compute}.
      */
     fetchResults() {
         return this.#cache.raw;
@@ -88,8 +89,6 @@ class MarkerDetectionCore {
      ***************************/
 
     /**
-     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     *
      * @param {object} parameters - Parameter object, equivalent to the `marker_detection` property of the `parameters` of {@linkcode runAnalysis}.
      * @param {number} parameters.lfc_threshold - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
      * @param {boolean} parameters.compute_auc - Whether to compute the AUCs.
@@ -131,6 +130,7 @@ class MarkerDetectionCore {
     /**
      * Extract markers for a pairwise comparison between two groups, 
      * for more detailed examination of the differences between them.
+     * This assumes that {@linkcode MarkerDetectionCore#compute compute} has already been called at least once.
      *
      * @param {number} left - Index of one group in which to find upregulated markers.
      * @param {number} right - Index of another group to be compared against `left`.
@@ -361,6 +361,9 @@ class StateGenerator {
  * from [**scran.js**](https://github.com/kanaverse/scran.js).
  * The clustering is obtained from the upstream {@linkplain ChooseClusteringState}. 
  * In the documentation for each method, a "group" refers to a cluster from the chosen clustering.
+ *
+ * Users should not construct these instances manually; instead, they are automatically assembled by {@linkcode createAnalysis}.
+ * Similarly, users should not directly call the {@linkcode MarkerDetectionCore#compute compute} method, which is instead invoked by {@linkcode runAnalysis}.
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
