@@ -17,53 +17,45 @@ export const step_name = "marker_detection";
  */
 
 /**
- * This step performs marker detection for each cluster of cells by performing pairwise comparisons to each other cluster.
- * This wraps the [`scoreMarkers`](https://kanaverse.github.io/scran.js/global.html#scoreMarkers) function 
- * from [**scran.js**](https://github.com/kanaverse/scran.js).
- * The clustering is obtained from the upstream {@linkplain ChooseClusteringState}.
- *
- * Methods not documented here are not part of the stable API and should not be used by applications.
+ * Abstract class for handling marker detection results.
+ * Users should construct {@linkplain MarkerDetectionState} or {@linkplain MarkerDetectionStandalone} instances instead.
  * @hideconstructor
  */
-export class MarkerDetectionState {
-    #filter;
-    #norm_states;
-    #choice;
+class MarkerDetectionCore {
+    #generator;
     #parameters;
     #cache;
 
-    constructor(filter, norm_states, choice, parameters = null, cache = null) {
-        if (!(filter instanceof filter_module.CellFilteringState)) {
-            throw new Error("'filter' should be a State object from './cell_filtering.js'");
-        }
-        this.#filter = filter;
-
-        if (!(norm_states.RNA instanceof rna_norm_module.RnaNormalizationState)) {
-            throw new Error("'norm_states.RNA' should be an RnaNormalizationState object");
-        }
-        if (!(norm_states.ADT instanceof adt_norm_module.AdtNormalizationState)) {
-            throw new Error("'norm_states.ADT' should be an AdtNormalizationState object");
-        }
-        if (!(norm_states.CRISPR instanceof crispr_norm_module.CrisprNormalizationState)) {
-            throw new Error("'norm_states.CRISPR' should be an CrisprNormalizationState object");
-        }
-        this.#norm_states = norm_states;
-
-        if (!(choice instanceof choice_module.ChooseClusteringState)) {
-            throw new Error("'choice' should be a State object from './choose_clustering.js'");
-        }
-        this.#choice = choice;
-
+    constructor(generator, parameters = null, cache = null) {
+        this.#generator = generator;
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? { "raw": {} } : cache);
         this.changed = false;
     }
 
+    /**
+     * Frees all resources associated with this instance.
+     */
     free() {
         for (const v of Object.values(this.#cache.raw)) {
             utils.freeCache(v);
         }
         markers.freeVersusResults(this.#cache.versus);
+        this.#generator.free();
+    }
+
+    /******************************
+     ******** Parameters **********
+     ******************************/
+
+    /**
+     * @return {object} Default parameters that may be modified and fed into {@linkcode MarkerDetectionCore#compute compute}.
+     */
+    static defaults() {
+        return {
+            lfc_threshold: 0,
+            compute_auc: true
+        };
     }
 
     /***************************
@@ -73,15 +65,15 @@ export class MarkerDetectionState {
     /**
      * @return {object} Marker detection results for the all modalities.
      * Each key is a modality name and each value is an {@linkplain external:ScoreMarkersResults ScoreMarkerResults} object,
-     * containing marker detection statistics for all clusters.
-     * This is available after running {@linkcode MarkerDetectionState#compute compute}.
+     * containing marker detection statistics for all groups.
+     * This is available after running {@linkcode MarkerDetectionCore#compute compute}.
      */
     fetchResults() {
         return this.#cache.raw;
     }
 
     /**
-     * @return {object} Object containing the parameters.
+     * @return {object} Object containing the parameters that are stored in the object after running {@linkcode MarkerDetectionCore#compute compute}.
      */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
@@ -106,18 +98,18 @@ export class MarkerDetectionState {
         this.changed = false;
         let changed_params = (lfc_threshold !== this.#parameters.lfc_threshold || compute_auc !== this.#parameters.compute_auc);
 
-        for (const [k, v] of Object.entries(this.#norm_states)) {
-            if (!v.valid()) {
+        for (const k of this.#generator.modalities()) {
+            if (!this.#generator.isValid(k)) {
                 continue;
             }
 
-            if (this.#choice.changed || v.changed || changed_params) {
-                var mat = v.fetchNormalizedMatrix();
-                var clusters = this.#choice.fetchClusters();
-                var block = this.#filter.fetchFilteredBlock();
+            if (this.#generator.needsUpdate(k) || changed_params) {
+                var mat = this.#generator.matrix(k);
+                var groups = this.#generator.groups();
+                var block = this.#generator.block();
                 
                 utils.freeCache(this.#cache.raw[k]);
-                this.#cache.raw[k] = scran.scoreMarkers(mat, clusters, { block: block, lfcThreshold: lfc_threshold, computeAuc: compute_auc });
+                this.#cache.raw[k] = scran.scoreMarkers(mat, groups, { block: block, lfcThreshold: lfc_threshold, computeAuc: compute_auc });
 
                 this.changed = true;
             }
@@ -132,11 +124,242 @@ export class MarkerDetectionState {
         return;
     }
 
-    static defaults() {
-        return {
-            lfc_threshold: 0,
-            compute_auc: true
+    /**
+     * Extract markers for a pairwise comparison between two groups, 
+     * for more detailed examination of the differences between them.
+     *
+     * @param {number} left - Index of one group in which to find upregulated markers.
+     * @param {number} right - Index of another group to be compared against `left`.
+     *
+     * @return {object} Object containing:
+     *
+     * - `results`: object containing the marker statistics for the comparison between two groups.
+     *    Each key is a modality name and each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object.
+     * - `left`: index of the group corresponding to the `left` group in each ScoreMarkersResults object,
+     *    e.g., Cohen's d for the RNA markers of the `left` group are defined as `output.results.RNA.cohen(output.left)`.
+     * - `right`: index of the group corresponding to the `right` group in each ScoreMarkersResults object.
+     *    e.g., Cohen's d for the RNA markers of the `left` group are defined as `output.results.RNA.cohen(output.right)`.
+     */
+    computeVersus(left, right) {
+        var groups = this.#generator.groups();
+        var block = this.#generator.block();
+
+        // No need to free this afterwards; we don't own the normalized matrices anyway.
+        let matrices = new scran.MultiMatrix;
+        for (const k of this.#generator.modalities()) {
+            if (!this.#generator.isValid(k)) {
+                continue;
+            }
+            matrices.add(k, this.#generator.matrix(k));
+        }
+
+        if (!("versus" in this.#cache)) {
+            this.#cache["versus"] = {};
+        }
+        let cache = this.#cache.versus;
+
+        let cache_info = markers.locateVersusCache(left, right, cache);
+        let left_index = (cache_info.left_small ? 0 : 1);
+        let right_index = (cache_info.left_small ? 1 : 0);
+
+        if (cache_info.run) {
+            let new_groups = [];
+            let keep = [];
+            let leftfound = false, rightfound = false;
+            groups.forEach((x, i) => {
+                if (x == left) {
+                    new_groups.push(left_index);
+                    keep.push(i);
+                    leftfound = true;
+                } else if (x == right) {
+                    new_groups.push(right_index);
+                    keep.push(i);
+                    rightfound = true;
+                }
+            });
+
+            if (!leftfound || !rightfound) {
+                throw new Error("non-zero entries should be present for both requested groups in versus mode");
+            }
+
+            markers.computeVersusResults(matrices, new_groups, block, keep, cache_info.cached, this.#parameters.lfc_threshold, this.#parameters.compute_auc);
+        }
+
+        return { 
+            results: cache_info.cached,
+            left: left_index,
+            right: right_index
         };
+    }
+}
+
+/*************************
+ ****** Standalone *******
+ *************************/
+
+class StandaloneGenerator {
+    #matrices;
+    #groups;
+    #block;
+
+    constructor(normalized, groups, block) {
+        if (groups.length && typeof groups[0] !== "number") {
+            throw new Error("'groups' should encode each group as a non-negative integer");
+        }
+        let N = groups.length;
+        this.#groups = groups;
+
+        for (const [k, v] of Object.entries(normalized)) {
+            if (v.numberOfColumns() != N) {
+                throw new Error("all matrices in 'normalized' should have the same number of columns as the length of 'groups'");
+            }
+        }
+        this.#matrices = normalized;
+
+        if (block !== null) {
+            if (block.length && typeof block[0] !== "number") {
+                throw new Error("'block' should encode each block as a non-negative integer starting from zero");
+            }
+        }
+        this.#block = block;
+    }
+
+    free() {
+        return;
+    }
+
+    modalities() {
+        return Object.keys(this.#matrices);
+    }
+
+    isValid(modality) {
+        // Always valid, duh.
+        return true;
+    }
+    
+    needsUpdate(modality) {
+        // No concept of 'upstream' changes, so it never needs an update based on that.
+        return false;
+    }
+
+    matrix(modality) {
+        return this.#matrices[modality];
+    }
+
+    block() {
+        return this.#block;
+    }
+
+    groups() {
+        return this.#groups;
+    }
+}
+
+/**
+ * Standalone version of {@linkplain MarkerDetectionState} that provides the same functionality outside of {@linkcode runAnalysis}.
+ * Users can supply their own normalized matrices, groups and blocking factor to compute the various marker statistics for each group.
+ * Users are also responsible for ensuring that the lifetime of the supplied objects exceeds that of the constructed MarkerDetectionStandalone instance,
+ * i.e., the Wasm-related `free()` methods are not called while the MarkerDetectionStandalone instance is still in operation.
+ *
+ * @extends MarkerDetectionCore
+ */
+class MarkerDetectionStandalone extends MarkerDetectionCore {
+    /**
+     * @param {object} normalized - Object where each key is a modality name and each value is a {@linkcode external:ScranMatrix ScranMatrix} of log-normalized values.
+     * Each ScranMatrix should have the same number of columns.
+     * @param {Array|TypedArray} groups - Array of length equal to the number of columns in any value of `normalized`.
+     * This should contain the group assignments for each column, encoded as non-negative integers starting from zero.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in any value of `normalized`.
+     * This should contain the block assignments for each column, encoded as non-negative integers starting from zero.
+     * If `null`, all columns are assigned to the same block.
+     */
+    constructor(normalized, groups, { block = null } = {}) {
+        let generator = new StandaloneGenerator(normalized, groups, block);
+        super(generator, null, null);
+    }
+}
+
+/********************
+ ****** State *******
+ ********************/
+
+class StateGenerator {
+    #filter;
+    #norm_states;
+    #choice;
+
+    constructor(filter, norm_states, choice) {
+        if (!(filter instanceof filter_module.CellFilteringState)) {
+            throw new Error("'filter' should be a State object from './cell_filtering.js'");
+        }
+        this.#filter = filter;
+
+        if (!(norm_states.RNA instanceof rna_norm_module.RnaNormalizationState)) {
+            throw new Error("'norm_states.RNA' should be an RnaNormalizationState object");
+        }
+        if (!(norm_states.ADT instanceof adt_norm_module.AdtNormalizationState)) {
+            throw new Error("'norm_states.ADT' should be an AdtNormalizationState object");
+        }
+        if (!(norm_states.CRISPR instanceof crispr_norm_module.CrisprNormalizationState)) {
+            throw new Error("'norm_states.CRISPR' should be an CrisprNormalizationState object");
+        }
+        this.#norm_states = norm_states;
+
+        if (!(choice instanceof choice_module.ChooseClusteringState)) {
+            throw new Error("'choice' should be a State object from './choose_clustering.js'");
+        }
+        this.#choice = choice;
+    }
+
+    free() {
+        return;
+    }
+
+    modalities() {
+        return Object.keys(this.#norm_states);
+    }
+
+    isValid(modality) {
+        return this.#norm_states[modality].valid();
+    }
+    
+    needsUpdate(modality) {
+        return this.#choice.changed || this.#norm_states[modality].changed;
+    }
+
+    matrix(modality) {
+        return this.#norm_states[modality].fetchNormalizedMatrix();
+    }
+
+    block() {
+        return this.#filter.fetchFilteredBlock();
+    }
+
+    groups() {
+        return this.#choice.fetchClusters();
+    }
+}
+
+/**
+ * This step performs marker detection for each cluster of cells by performing pairwise comparisons to each other cluster.
+ * This wraps the [`scoreMarkers`](https://kanaverse.github.io/scran.js/global.html#scoreMarkers) function 
+ * from [**scran.js**](https://github.com/kanaverse/scran.js).
+ * The clustering is obtained from the upstream {@linkplain ChooseClusteringState}. 
+ * In the documentation for each method, a "group" refers to a cluster from the chosen clustering.
+ *
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ * @hideconstructor
+ * @extends MarkerDetectionCore
+ */
+export class MarkerDetectionState extends MarkerDetectionCore {
+    constructor(filter, norm_states, choice, parameters = null, cache = null) {
+        let generator = new StateGenerator(filter, norm_states, choice);
+        super(generator, parameters, cache);
+    }
+
+    static defaults() {
+        return MarkerDetectionCore.defaults();
     }
 
     /*******************************
@@ -144,8 +367,7 @@ export class MarkerDetectionState {
      *******************************/
 
     /**
-     * Compute markers between two clusters as described for {@linkcode MarkerDetectionState#computeVersus computeVersus}.
-     * This allows applications to run versus-mode comparisons on custom inputs without creating a MarkerDetectionState object.
+     * Soft-deprecated, create a {@linkcode MarkerDetectionStore} instance instead.
      *
      * @param {number} left - Index of one cluster. 
      * @param {number} right - Index of another cluster to be compared against `left`.
@@ -202,47 +424,6 @@ export class MarkerDetectionState {
             left: left_index,
             right: right_index
         };
-    }
-
-    /**
-     * Extract markers for a pairwise comparison between two clusters, 
-     * for more detailed examination of the differences between them.
-     *
-     * @param {number} left - Index of one cluster in which to find upregulated markers.
-     * @param {number} right - Index of another cluster to be compared against `left`.
-     *
-     * @return {object} Object containing:
-     *
-     * - `results`: object containing the marker statistics for the comparison between two clusters.
-     *    Each key is a modality name and each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object.
-     * - `left`: index of the group corresponding to the `left` cluster in each ScoreMarkersResults object,
-     *    e.g., Cohen's d for the RNA markers of the `left` cluster are defined as `output.results.RNA.cohen(output.left)`.
-     * - `right`: index of the group corresponding to the `right` cluster in each ScoreMarkersResults object.
-     *    e.g., Cohen's d for the RNA markers of the `left` cluster are defined as `output.results.RNA.cohen(output.right)`.
-     */
-    computeVersus(left, right) {
-        var clusters = this.#choice.fetchClusters();
-        var block = this.#filter.fetchFilteredBlock();
-
-        // No need to free this afterwards; we don't own the normalized matrices anyway.
-        let matrices = new scran.MultiMatrix;
-        for (const [modality, state] of Object.entries(this.#norm_states)) {
-            if (!state.valid()) {
-                continue;
-            }
-            matrices.add(modality, state.fetchNormalizedMatrix());
-        }
-
-        if (!("versus" in this.#cache)) {
-            this.#cache["versus"] = {};
-        }
-
-        return this.constructor.computeVersusCustom(left, right, matrices, clusters, { 
-            cache: this.#cache.versus, 
-            block: block,
-            lfc_threshold: this.#parameters.lfc_threshold,
-            compute_auc: this.#parameters.compute_auc
-        });
     }
 }
 
