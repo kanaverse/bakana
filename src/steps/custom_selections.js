@@ -48,7 +48,7 @@ export class CustomSelectionsCore {
 
     /**
      * Add a custom selection and compute its markers.
-     * This assumes that {@linkcode CustomSelectionsCore#compute compute} has already been called at least once.
+     * Users should run {@linkcode CustomSelectionsCore#compute compute} at least once before calling this function.
      *
      * @param {string} id A unique identifier for the new custom selection.
      * @param {Array|TypedArray} selection The indices of the cells in the selection.
@@ -205,8 +205,6 @@ export class CustomSelectionsCore {
      ***************************/
 
     /**
-     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     *
      * @param {object} parameters - Parameter object, equivalent to the `custom_selections` property of the `parameters` of {@linkcode runAnalysis}.
      * @param {number} parameters.lfc_threshold - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
      * @param {boolean} parameters.compute_auc - Whether to compute the AUCs.
@@ -265,7 +263,7 @@ export class CustomSelectionsCore {
     /**
      * Extract markers for a pairwise comparison between two selections, 
      * for more detailed examination of the differences between them.
-     * This assumes that {@linkcode CustomSelectionsCore#compute compute} has already been called at least once.
+     * Users should run {@linkcode CustomSelectionsCore#compute compute} at least once before calling this function.
      *
      * @param {string} left - Identifier of one selection in which to find upregulated markers.
      * @param {string} right - Identifier of another selection to be compared against `left`.
@@ -411,7 +409,7 @@ export class CustomSelectionsStandalone extends CustomSelectionsCore {
     }
 
     /**
-     * @return {object} Default parameters that may be modified and fed into {@linkcode CustomSelectionsCore#compute compute}.
+     * See {@linkcode CustomSelectionsCore.defaults} for details.
      */
     static defaults() {
         return CustomSelectionsCore.defaults();
@@ -475,6 +473,9 @@ class StateGenerator {
  * This wraps the [`scoreMarkers`](https://kanaverse.github.io/scran.js/global.html#scoreMarkers) function 
  * from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
+ * Users should not construct these instances manually; instead, they are automatically assembled by {@linkcode createAnalysis}.
+ * Similarly, users should not directly call the {@linkcode CustomSelectionsCore#compute compute} method, which is instead invoked by {@linkcode runAnalysis}.
+ *
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
  * @extends CustomSelectionsCore
@@ -486,7 +487,7 @@ export class CustomSelectionsState extends CustomSelectionsCore {
     }
 
     /**
-     * @return {object} Default parameters that may be modified and fed into {@linkcode CustomSelectionsCore#compute compute}.
+     * See {@linkcode CustomSelectionsCore.defaults} for details.
      */
     static defaults() {
         return CustomSelectionsCore.defaults();

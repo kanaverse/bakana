@@ -13,48 +13,20 @@ const base = "https://github.com/LTLA/kana-feature-sets/releases/download/v1.0.0
 export const step_name = "feature_set_enrichment";
 
 /**
- * This step tests for enrichment of particular feature sets in the set of top marker genes,
- * based on marker rankings from {@linkplain MarkerDetectionState}.
- * It wraps the [`testFeatureSetEnrichment`](https://kanaverse.github.io/scran.js/global.html#testFeatureSetEnrichment) 
- * and [`scoreFeatureSet`](https://kanaverse.github.io/scran.js/global.html#scoreFeatureSet) functions
- * from [**scran.js**](https://github.com/kanaverse/scran.js).
- * 
- * Methods not documented here are not part of the stable API and should not be used by applications.
+ * Abstract class for handling feature set enrichment results.
+ * Users should construct {@linkplain FeatureSetEnrichmentState} or {@linkplain FeatureSetEnrichmentStandalone} instances instead.
  * @hideconstructor
  */
-export class FeatureSetEnrichmentState {
-    #inputs;
-    #filter;
-    #normalized;
-    #markers;
+export class FeatureSetEnrichmentCore {
+    #generator;
     #parameters;
     #cache;
 
-    constructor(inputs, filter, normalized, markers, parameters = null, cache = null) {
-        if (!(inputs instanceof inputs_module.InputsState)) {
-            throw new Error("'inputs' should be a State object from './inputs.js'");
-        }
-        this.#inputs = inputs;
-
-        if (!(filter instanceof filter_module.CellFilteringState)) {
-            throw new Error("'filter' should be a CellFilteringState object");
-        }
-        this.#filter = filter;
-
-        if (!(normalized instanceof norm_module.RnaNormalizationState)) {
-            throw new Error("'normalized' should be a RnaNormalizationState object from './rna_normalization.js'");
-        }
-        this.#normalized = normalized;
-
-        if (!(markers instanceof markers_module.MarkerDetectionState)) {
-            throw new Error("'markers' should be a State object from './marker_detection.js'");
-        }
-        this.#markers = markers;
-
+    constructor(generator, parameters = null, cache = null) {
+        this.#generator = generator;
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
         this.#cache.adhoc_results = {};
-
         this.changed = false;
     }
 
@@ -68,11 +40,12 @@ export class FeatureSetEnrichmentState {
      ***************************/
 
     valid() {
-        let mat = this.#inputs.fetchCountMatrix();
-        return mat.has("RNA");
+        return this.#generator.valid();
     }
 
     /**
+     * Users should call {@linkcode FeatureSetEnrichmentCore#compute compute} at least once before running this function.
+     *
      * @return {object} Object where each entry corresponds to a feature set collection.
      * Each value is itself an object containing:
      *
@@ -91,6 +64,8 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
+     * Users should call {@linkcode FeatureSetEnrichmentCore#compute compute} at least once before running this function.
+     *
      * @param {number} group - Cluster index of interest.
      * @param {string} effect_size - Effect size to use for ranking.
      * This should be one of `"cohen"`, `"auc"`, `"lfc"` or `"delta_detected"`.
@@ -108,7 +83,7 @@ export class FeatureSetEnrichmentState {
         let key = String(group) + ":" + effect_size + ":" + summary;
 
         if (!(key in this.#cache.adhoc_results)) {
-            let res = this.#markers.fetchResults()["RNA"];
+            let res = this.#generator.markers();
             let top_markers = this.#parameters.top_markers;
             let collections = this.#cache.prepared;
 
@@ -162,6 +137,8 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
+     * Users should call {@linkcode FeatureSetEnrichmentCore#compute compute} at least once before running this function.
+     *
      * @param {string} collection - Name of the collection.
      * @param {number} set_index - Index of a feature set inside the specified collection.
      *
@@ -175,6 +152,8 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
+     * Users should call {@linkcode FeatureSetEnrichmentCore#compute compute} at least once before running this function.
+     * 
      * @param {string} collection - Name of the collection.
      * @param {number} set_index - Index of a feature set inside the specified collection.
      *
@@ -186,18 +165,20 @@ export class FeatureSetEnrichmentState {
      */
     fetchPerCellScores(collection, set_index) {
         let indices = this.fetchFeatureSetIndices(collection, set_index);
-        // console.log(bioc.SLICE(this.#inputs.fetchFeatureAnnotations().RNA.column("id"), indices));
+        // console.log(bioc.SLICE(this.#generator.annotations()["RNA"].column("id"), indices));
 
-        let mat = this.#normalized.fetchNormalizedMatrix();
+        let mat = this.#generator.normalized();
         let features = utils.allocateCachedArray(mat.numberOfRows(), "Uint8Array", this.#cache, "set_buffer");
         features.fill(0);
         let farr = features.array();
         indices.forEach(x => { farr[x] = 1; }); 
 
-        return scran.scoreFeatureSet(mat, features, { block: this.#filter.fetchFilteredBlock() });
+        return scran.scoreFeatureSet(mat, features, { block: this.#generator.block() });
     }
 
     /**
+     * Users should call {@linkcode FeatureSetEnrichmentCore#compute compute} at least once before running this function.
+     *
      * @return {object} Object containing the parameters.
      */
     fetchParameters() {
@@ -212,6 +193,9 @@ export class FeatureSetEnrichmentState {
      ******** Defaults **********
      ****************************/
 
+    /**
+     * @return {object} Default parameters that may be modified and fed into {@linkcode FeatureSetEnrichmentCore#compute compute}.
+     */
     static defaults() {
         return {
             collections: [],
@@ -267,7 +251,7 @@ export class FeatureSetEnrichmentState {
      ***************************/
 
     async #load_collection(name) {
-        let loaded = FeatureSetEnrichmentState.#all_loaded;
+        let loaded = FeatureSetEnrichmentCore.#all_loaded;
         if (!(name in loaded)) {
             let suffixes = [
                 "features.csv.gz",
@@ -278,7 +262,7 @@ export class FeatureSetEnrichmentState {
                 suffixes.map(
                     async suffix => {
                         let full = name + "_" + suffix;
-                        let b = await FeatureSetEnrichmentState.#downloadFun(base + "/" + full);
+                        let b = await FeatureSetEnrichmentCore.#downloadFun(base + "/" + full);
                         return new rutils.SimpleFile(b, { name: full })
                     }
                 )
@@ -336,12 +320,12 @@ export class FeatureSetEnrichmentState {
     /**
      * Flush all cached feature set collections.
      *
-     * By default, {@linkcode FeatureSetEnrichmentState#compute compute} will cache the feature set collections in a static member for re-use across {@linkplain FeatureSetEnrichmentState} instances.
+     * By default, {@linkcode FeatureSetEnrichmentCore#compute compute} will cache the feature set collections in a static member for re-use across {@linkplain FeatureSetEnrichmentCore} instances.
      * These cached collections are not tied to any single instance and will not be removed by garbage collectors or by {@linkcode freeAnalysis}.
      * Rather, this function should be called to release the relevant memory.
      */
     static flush() {
-        FeatureSetEnrichmentState.#all_loaded = {};
+        FeatureSetEnrichmentCore.#all_loaded = {};
         return;
     }
 
@@ -357,8 +341,8 @@ export class FeatureSetEnrichmentState {
      * The _previous_ value of the downloader is returned.
      */
     static setDownload(fun) {
-        let previous = FeatureSetEnrichmentState.#downloadFun;
-        FeatureSetEnrichmentState.#downloadFun = fun;
+        let previous = FeatureSetEnrichmentCore.#downloadFun;
+        FeatureSetEnrichmentCore.#downloadFun = fun;
         return previous;
     }
 
@@ -367,7 +351,7 @@ export class FeatureSetEnrichmentState {
      ***************************/
 
     #remap_collection(name, data_id, ref_id) {
-        let feats = this.#inputs.fetchFeatureAnnotations()["RNA"];
+        let feats = this.#generator.annotations();
 
         let data_id_col;
         if (data_id == null) {
@@ -379,7 +363,7 @@ export class FeatureSetEnrichmentState {
             data_id_col = feats.column(data_id);
         }
 
-        let loaded = FeatureSetEnrichmentState.#all_loaded[name];
+        let loaded = FeatureSetEnrichmentCore.#all_loaded[name];
         if (!(ref_id in loaded.features)){
             throw new Error("no column '" + ref_id + "' in the feature set annotations");
         }
@@ -395,8 +379,8 @@ export class FeatureSetEnrichmentState {
     async #prepare_collections(collections, species, gene_id_column, gene_id_type) {
         let allowable = new Set;
         for (const s of species) {
-            if (s in FeatureSetEnrichmentState.availableCollections) {
-                FeatureSetEnrichmentState.availableCollections[s].forEach(x => allowable.add(x));
+            if (s in FeatureSetEnrichmentCore.availableCollections) {
+                FeatureSetEnrichmentCore.availableCollections[s].forEach(x => allowable.add(x));
             }
         }
 
@@ -423,14 +407,12 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
-     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     *
      * @param {object} parameters - Parameter object, equivalent to the `feature_set_enrichment` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {Array} parameters.collections - Array of strings containing the names of collections to be tested, see {@linkcode FeatureSetEnrichmentState#availableCollections availableCollections}.
+     * @param {Array} parameters.collections - Array of strings containing the names of collections to be tested, see {@linkcode FeatureSetEnrichmentCore#availableCollections availableCollections}.
      * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
      * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column`, `gene_id_type`.
      * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
-     * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) as specified in {@linkcode FeatureSetEnrichmentState#availableCollections availableCollections}.
+     * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) as specified in {@linkcode FeatureSetEnrichmentCore#availableCollections availableCollections}.
      * This is used internally to filter `collections` to the entries relevant to these species. 
      * Ignored if `automatic = true`.
      * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the RNA entry of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each gene. 
@@ -446,7 +428,7 @@ export class FeatureSetEnrichmentState {
     async compute(parameters) {
         let { collections, automatic, species, gene_id_column, gene_id_type, top_markers } = parameters;
         this.changed = false;
-        if (this.#inputs.changed) {
+        if (this.#generator.annotationUpdated()) {
             this.#cache.mapped = {};
             this.changed = true;
         }
@@ -469,8 +451,8 @@ export class FeatureSetEnrichmentState {
                 let species2 = species;
 
                 if (automatic) {
-                    let guesses = this.#inputs.guessRnaFeatureTypes();
-                    let auto = FeatureSetEnrichmentState.configureFeatureParameters(guesses);
+                    let guesses = this.#generator.guessFeatureTypes();
+                    let auto = FeatureSetEnrichmentCore.configureFeatureParameters(guesses);
                     gene_id_column2 = auto.gene_id_column;
                     gene_id_type2 = auto.gene_id_type;
                     species2 = auto.species;
@@ -480,7 +462,7 @@ export class FeatureSetEnrichmentState {
                 this.changed = true;
             }
 
-            if (this.changed || this.#markers.changed || top_markers !== this.#parameters.top_markers) {
+            if (this.changed || this.#generator.markersUpdated() || top_markers !== this.#parameters.top_markers) {
                 this.#cache.adhoc_results = {};
                 this.changed = true;
             }
@@ -494,6 +476,251 @@ export class FeatureSetEnrichmentState {
         this.#parameters.gene_id_type = gene_id_type;
         this.#parameters.top_markers = top_markers;
         return;
+    }
+}
+
+/********************
+ ****** State *******
+ ********************/
+
+class StateGenerator {
+    #inputs;
+    #filter;
+    #normalized;
+    #markers;
+
+    constructor(inputs, filter, normalized, markers) {
+        if (!(inputs instanceof inputs_module.InputsState)) {
+            throw new Error("'inputs' should be a State object from './inputs.js'");
+        }
+        this.#inputs = inputs;
+
+        if (!(filter instanceof filter_module.CellFilteringState)) {
+            throw new Error("'filter' should be a CellFilteringState object");
+        }
+        this.#filter = filter;
+
+        if (!(normalized instanceof norm_module.RnaNormalizationState)) {
+            throw new Error("'normalized' should be a RnaNormalizationState object from './rna_normalization.js'");
+        }
+        this.#normalized = normalized;
+
+        if (!(markers instanceof markers_module.MarkerDetectionState)) {
+            throw new Error("'markers' should be a State object from './marker_detection.js'");
+        }
+        this.#markers = markers;
+    }
+
+    valid() {
+        return "RNA" in this.#inputs.fetchFeatureAnnotations();
+    }
+
+    annotations() {
+        return this.#inputs.fetchFeatureAnnotations()["RNA"];
+    }
+
+    guessFeatureTypes() {
+        return this.#inputs.guessRnaFeatureTypes();
+    }
+
+    annotationUpdated() {
+        return this.#inputs.changed;
+    }
+
+    block() {
+        return this.#filter.fetchFilteredBlock() 
+    }
+
+    markers() {
+        return this.#markers.fetchResults()["RNA"];
+    }
+
+    markersUpdated() {
+        return this.#markers.changed;
+    }
+
+    normalized() {
+        return this.#normalized.fetchNormalizedMatrix();
+    }
+}
+
+/**
+ * This step tests for enrichment of particular feature sets in the set of top marker genes,
+ * based on marker rankings from {@linkplain MarkerDetectionState}.
+ * It wraps the [`testFeatureSetEnrichment`](https://kanaverse.github.io/scran.js/global.html#testFeatureSetEnrichment) 
+ * and [`scoreFeatureSet`](https://kanaverse.github.io/scran.js/global.html#scoreFeatureSet) functions
+ * from [**scran.js**](https://github.com/kanaverse/scran.js).
+ * 
+ * Users should not construct these instances manually; instead, they are automatically assembled by {@linkcode createAnalysis}.
+ * Similarly, users should not directly call the {@linkcode CustomSelectionsCore#compute compute} method, which is instead invoked by {@linkcode runAnalysis}.
+ *
+ * Methods not documented here are not part of the stable API and should not be used by applications.
+ * @hideconstructor
+ * @extends FeatureSetEnrichmentCore
+ */
+export class FeatureSetEnrichmentState extends FeatureSetEnrichmentCore {
+    constructor(inputs, filter, normalized, markers, parameters = null, cache = null) {
+        let gen = new StateGenerator(inputs, filter, normalized, markers);
+        super(gen, parameters, cache);
+    }
+
+    /**
+     * See {@linkcode FeatureSetEnrichmentCore.setDownload} for details.
+     */
+    static setDownload(fun) {
+        return FeatureSetEnrichmentCore.setDownload(fun);
+    }
+
+    /**
+     * See {@linkcode FeatureSetEnrichmentCore.defaults} for details.
+     */
+    static defaults() {
+        return FeatureSetEnrichmentCore.defaults();
+    }
+
+    /**
+     * See {@linkcode FeatureSetEnrichmentCore.flush} for details.
+     */
+    static flush() {
+        return FeatureSetEnrichmentCore.flush();
+    }
+
+    /**
+     * See {@linkcode FeatureSetEnrichmentCore#availableCollections FeatureSetEnrichmentCore.availableCollections} for details.
+     */
+    get availableCollections() {
+        return FeatureSetEnrichmentCore.availableCollections;
+    }
+}
+
+/*************************
+ ****** Standalone *******
+ *************************/
+
+class StandaloneGenerator {
+    #annotations;
+    #markers;
+    #normalized;
+    #block;
+    #guesses;
+
+    constructor(annotations, markers, normalized, block) {
+        this.#annotations = annotations;
+        this.#guesses = null;
+
+        this.#markers = markers;
+        if (this.#annotations.numberOfRows() !== this.#markers.cohen(0).length) {
+            throw new Error("number of rows of 'annotations' should equal the number of genes in 'markers'");
+        }
+
+        this.#normalized = normalized;
+        this.#block = block;
+        if (this.#normalized !== null) {
+            if (this.#normalized.numberOfRows() !== this.#annotations.numberOfRows()) {
+                throw new Error("number of rows of 'annotations' and 'normalized' should be identical");
+            }
+            if (this.#block !== null) {
+                if (this.#normalized.numberOfColumns() !== this.#block.length) {
+                    throw new Error("number of columns of 'normalized' should equal the length of 'block'");
+                }
+                if (block.length && typeof block[0] !== "number") {
+                    throw new Error("'block' should encode each block as a non-negative integer starting from zero");
+                }
+            }
+        }
+    }
+
+    valid() {
+        return true;
+    }
+
+    annotations() {
+        return this.#annotations;
+    }
+
+    guessFeatureTypes() {
+        if (this.#guesses == null) {
+            this.#guesses = utils.guessFeatureTypes(this.#annotations);
+        }
+        return this.#guesses;
+    }
+
+    annotationUpdated() {
+        return false;
+    }
+
+    block() {
+        return this.#block;
+    }
+
+    markers() {
+        return this.#markers;
+    }
+
+    markersUpdated() {
+        return false;
+    }
+
+    normalized() {
+        if (this.#normalized == null) {
+            throw new Error("no normalized matrix supplied in constructor");
+        }
+        return this.#normalized;
+    }
+}
+
+/**
+ * Standalone version of {@linkplain FeatureSetEnrichmentState} that provides the same functionality outside of {@linkcode runAnalysis}.
+ * Users can supply their own annotation and marker results to compute the enrichment statistics for each group.
+ * Users are also responsible for ensuring that the lifetime of the supplied objects exceeds that of the constructed instance,
+ * i.e., the Wasm-related `free()` methods of the inputs are not called while the FeatureSetEnrichmentInstance is still in operation.
+ *
+ * @extends FeatureSetEnrichmentCore
+ */
+export class FeatureSetEnrichmentStandalone extends FeatureSetEnrichmentCore {
+    /**
+     * @param {external:DataFrame} annotations - A {@linkplain external:DataFrame DataFrame} of per-gene annotations, where each row corresponds to a gene.
+     * @param {external:ScoreMarkersResults} markers - A {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object produced from **scran.js**'s `scoreMarkers` function.
+     * This should contain marker statistics for the same genes (and in the same order as) in `annotations`.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {?(external:ScranMatrix)} [options.normalized=null] - A {@linkcode external:ScranMatrix ScranMatrix} of log-normalized expression values,
+     * to be used in {@linkcode FeatureSetEnrichmentState#fetchPerCellScores FeatureSetEnrichmentState.fetchPerCellScores}.
+     * Each row corresponds to a gene in the same order as `annotations` and `markers`.
+     * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in `normalized`.
+     * This should contain the block assignments for each column, encoded as non-negative integers starting from zero.
+     * If `null`, all columns are assigned to the same block.
+     */
+    constructor(annotations, markers, { normalized = null, block = null } = {}) {
+        let gen = new StandaloneGenerator(annotations, markers, normalized, block);
+        super(gen, null, null);
+    }
+
+    /**
+     * See {@linkcode FeatureSetEnrichmentCore.setDownload} for details.
+     */
+    static setDownload(fun) {
+        return FeatureSetEnrichmentCore.setDownload(fun);
+    }
+
+    /**
+     * See {@linkcode FeatureSetEnrichmentCore.defaults} for details.
+     */
+    static defaults() {
+        return FeatureSetEnrichmentCore.defaults();
+    }
+
+    /**
+     * See {@linkcode FeatureSetEnrichmentCore.flush} for details.
+     */
+    static flush() {
+        return FeatureSetEnrichmentCore.flush();
+    }
+
+    /**
+     * See {@linkcode FeatureSetEnrichmentCore#availableCollections FeatureSetEnrichmentCore.availableCollections} for details.
+     */
+    get availableCollections() {
+        return FeatureSetEnrichmentCore.availableCollections;
     }
 }
 
@@ -518,5 +745,5 @@ export function unserialize(handle, inputs, filter, normalized, markers) {
         }
     }
 
-    return new FeatureSetEnrichmentState(inputs, filter, normalized, markers, parameters, cache);
+    return new FeatureSetEnrichmentCore(inputs, filter, normalized, markers, parameters, cache);
 }

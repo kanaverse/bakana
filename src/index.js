@@ -15,6 +15,7 @@ export { FeatureSetEnrichmentState } from "./steps/feature_set_enrichment.js"
 // Need these exports for manual construction.
 export { MarkerDetectionStandalone } from "./steps/marker_detection.js";
 export { CustomSelectionsStandalone } from "./steps/custom_selections.js";
+export { FeatureSetEnrichmentStandalone } from "./steps/feature_set_enrichment.js";
 
 import { RnaQualityControlState } from "./steps/rna_quality_control.js";
 import { CellLabellingState } from "./steps/cell_labelling.js";

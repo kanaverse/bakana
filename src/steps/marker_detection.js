@@ -67,7 +67,7 @@ class MarkerDetectionCore {
      ***************************/
 
     /**
-     * This assumes that {@linkcode MarkerDetectionCore#compute compute} has already been called at least once.
+     * Users should run {@linkcode MarkerDetectionCore#compute compute} at least once before calling this function.
      *
      * @return {object} Marker detection results for the all modalities.
      * Each key is a modality name and each value is an {@linkplain external:ScoreMarkersResults ScoreMarkerResults} object,
@@ -130,7 +130,7 @@ class MarkerDetectionCore {
     /**
      * Extract markers for a pairwise comparison between two groups, 
      * for more detailed examination of the differences between them.
-     * This assumes that {@linkcode MarkerDetectionCore#compute compute} has already been called at least once.
+     * Users should run {@linkcode MarkerDetectionCore#compute compute} at least once before calling this function.
      *
      * @param {number} left - Index of one group in which to find upregulated markers.
      * @param {number} right - Index of another group to be compared against `left`.
@@ -287,7 +287,7 @@ export class MarkerDetectionStandalone extends MarkerDetectionCore {
     }
 
     /**
-     * @return {object} Default parameters that may be modified and fed into {@linkcode MarkerDetectionCore#compute compute}.
+     * See {@linkcode MarkerDetectionCore.defaults} for details.
      */
     static defaults() {
         return MarkerDetectionCore.defaults();
@@ -376,7 +376,7 @@ export class MarkerDetectionState extends MarkerDetectionCore {
     }
 
     /**
-     * @return {object} Default parameters that may be modified and fed into {@linkcode MarkerDetectionCore#compute compute}.
+     * See {@linkcode MarkerDetectionCore.defaults} for details.
      */
     static defaults() {
         return MarkerDetectionCore.defaults();
