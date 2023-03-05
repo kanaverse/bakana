@@ -156,11 +156,11 @@ export function freeAnalysis(state) {
  * @param {object} params - An object containing parameters for all steps.
  * See {@linkcode analysisDefaults} for more details.
  * @param {object} [options] - Optional parameters.
- * @param {function} [options.startFun] - Function that is called when each step is started.
+ * @param {?function} [options.startFun=null] - Function that is called when each step is started.
  * This should accept a single argument - the name of the step.
  * The return value is ignored, but any promises will be awaited before the analysis proceeds to the next step.
  * If `null`, nothing is executed.
- * @param {function} [options.finishFun] - Function that is called on successful execution of each step.
+ * @param {?function} [options.finishFun=null] - Function that is called on successful execution of each step.
  * This should accept a single argument - the name of the step.
  * The return value is ignored, but any promises will be awaited before the analysis proceeds to the next step.
  * If `null`, nothing is executed.

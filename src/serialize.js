@@ -8,7 +8,7 @@ import { bakana_version } from "./version.js";
  *
  * @param {object} datasets - Object containing Dataset instances, just like that used in {@linkcode InputsState#compute InputsState.compute}.
  * @param {function} saver - Function that converts a {@linkplain SimpleFile} instance into an identifier string.
- * Specifically, it should accept two arguments:
+ * Specifically, it should accept three arguments:
  *
  * 1. A string containing the name of the Dataset.
  * 2. A string containing the format of the Dataset, e.g., `"10X"`, `"MatrixMarket"`.
