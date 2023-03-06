@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>RnaQualityControlState - Documentation</title>
+    <title>FeatureSetEnrichmentStandalone - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -37,7 +37,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">RnaQualityControlState</h1>
+    <h1 class="page-title">FeatureSetEnrichmentStandalone</h1>
     
 
     
@@ -51,64 +51,42 @@
     
         <h2>
         
-            RnaQualityControlState
+            FeatureSetEnrichmentStandalone
         
         </h2>
         
-            <div class="class-description usertext"><p>This step applies quality control on the RNA count matrix.
-Specifically, it computes the QC metrics and filtering thresholds,
-wrapping the <a href="https://kanaverse.github.io/scran.js/global.html#perCellRnaQcMetrics"><code>perCellRnaQcMetrics</code></a>
-and <a href="https://kanaverse.github.io/scran.js/global.html#suggestRnaQcFilters"><code>suggestRnaQcFilters</code></a> functions
-from <a href="https://github.com/kanaverse/scran.js"><strong>scran.js</strong></a>.
-Note that the actual filtering is done by <a href="CellFilteringState.html">CellFilteringState</a>.</p>
-<p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
+            <div class="class-description usertext"><p>Standalone version of <a href="FeatureSetEnrichmentState.html">FeatureSetEnrichmentState</a> that provides the same functionality outside of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.
+Users can supply their own annotation and marker results to compute the enrichment statistics for each group.
+Users are also responsible for ensuring that the lifetime of the supplied objects exceeds that of the constructed instance,
+i.e., the Wasm-related <code>free()</code> methods of the inputs are not called while the FeatureSetEnrichmentInstance is still in operation.</p></div>
         
     
 </header>
 
 <article>
     
-
-    
-
-    
-
-    
-        <h3 class="subsection-title">Classes</h3>
-
-        <dl>
-            <dt><a href="RnaQualityControlState.html">RnaQualityControlState</a></dt>
-            <dd></dd>
-        </dl>
-    
-    
-    
-
-     
-
-    
-
-    
-        <h3 class="subsection-title">Members</h3>
-
+        <div class="container-overview">
         
             
-<h4 class="name" id="mitochondriaSpecies"><span class="type-signature"></span>mitochondriaSpecies<span class="type-signature"> :Array</span></h4>
 
+    
+    <h2>Constructor</h2>
+    
+
+    <h4 class="name" id="FeatureSetEnrichmentStandalone"><span class="type-signature"></span>new FeatureSetEnrichmentStandalone<span class="signature">(annotations, markers, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+
+    
 
 
 
 
 <dl class="details">
     
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li><p>Array of strings containing the taxonomy IDs for species where mitochondrial gene lists are available.</p></li></ul></dd>
-    
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line146">line 146</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line569">line 569</a>
     </li></ul></dd>
     
 
@@ -147,22 +125,289 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
 
 
-<div class="description usertext">
-    <p>Array of strings containing the taxonomy IDs for species where mitochondrial gene lists are available.</p>
-</div>
 
 
 
-    <h5 class="h5-types">Type:</h5>
-    <ul>
-        <li>
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+        <th>Default</th>
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
             
+                <td class="name"><code>annotations</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="external-DataFrame.html">external:DataFrame</a></span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                </td>
+            
+
+            <td class="description last"><p>A <a href="external-DataFrame.html">DataFrame</a> of per-gene annotations, where each row corresponds to a gene.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>markers</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="external-ScoreMarkersResults.html">external:ScoreMarkersResults</a></span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                </td>
+            
+
+            <td class="description last"><p>A <a href="external-ScoreMarkersResults.html">ScoreMarkersResults</a> object produced from <strong>scran.js</strong>'s <code>scoreMarkers</code> function.
+This should contain marker statistics for the same genes (and in the same order as) in <code>annotations</code>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>{}</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Optional parameters.</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+        <th>Default</th>
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>normalized</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="external-ScranMatrix.html">external:ScranMatrix</a></span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>null</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>A <a href="external-ScranMatrix.html"><code>ScranMatrix</code></a> of log-normalized expression values,
+to be used in <a href="FeatureSetEnrichmentState.html#fetchPerCellScores"><code>FeatureSetEnrichmentState.fetchPerCellScores</code></a>.
+Each row corresponds to a gene in the same order as <code>annotations</code> and <code>markers</code>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>block</code></td>
+            
+
+            <td class="type">
+            
+                
 <span class="param-type">Array</span>
+|
+
+<span class="param-type">TypedArray</span>
 
 
 
-        </li>
-    </ul>
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>null</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Array of length equal to the number of columns in <code>normalized</code>.
+This should contain the block assignments for each column, encoded as non-negative integers starting from zero.
+If <code>null</code>, all columns are assigned to the same block.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -170,6 +415,28 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
 
         
+        </div>
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Classes</h3>
+
+        <dl>
+            <dt><a href="FeatureSetEnrichmentStandalone.html">FeatureSetEnrichmentStandalone</a></dt>
+            <dd></dd>
+        </dl>
+    
+    
+    
+
+     
+
+    
+
     
 
     
@@ -180,7 +447,7 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
     
 
-    <h4 class="name" id="compute"><span class="type-signature type-signature-async">(async) </span>compute<span class="signature">(parameters)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="fetchCollectionDetails"><span class="type-signature"></span>fetchCollectionDetails<span class="signature">()</span><span class="type-signature"> &rarr; {object}</span></h4>
 
     
 
@@ -189,14 +456,117 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
 <dl class="details">
     
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li><p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p></li></ul></dd>
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line659">line 659</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Object where each entry corresponds to a feature set collection,
+see <a href="FeatureSetEnrichmentState.html#fetchCollectionDetails"><code>FeatureSetEnrichmentState.fetchCollectionDetails</code></a> for more details.</p>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="fetchFeatureSetIndices"><span class="type-signature"></span>fetchFeatureSetIndices<span class="signature">(collection, set_index)</span><span class="type-signature"> &rarr; {Int32Array}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line244">line 244</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line684">line 684</a>
     </li></ul></dd>
     
 
@@ -268,13 +638,13 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
         <tr>
             
-                <td class="name"><code>parameters</code></td>
+                <td class="name"><code>collection</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">object</span>
+<span class="param-type">string</span>
 
 
 
@@ -285,9 +655,145 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
             
 
-            <td class="description last"><p>Parameter object, equivalent to the <code>rna_quality_control</code> property of the <code>parameters</code> of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
-                <h6>Properties</h6>
+            <td class="description last"><p>Name of the collection.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>set_index</code></td>
+            
+
+            <td class="type">
+            
                 
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Index of a feature set inside the specified collection.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Array containing the row indices of the RNA count matrix corresponding to the genes in the specified set.</p>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Int32Array</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="fetchGroupResults"><span class="type-signature"></span>fetchGroupResults<span class="signature">(markers, group, effect_size, summary)</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line674">line 674</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
 
 <table class="params">
     <thead>
@@ -298,8 +804,6 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
         <th>Type</th>
 
-        
-        <th>Attributes</th>
         
 
         
@@ -313,13 +817,13 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
         <tr>
             
-                <td class="name"><code>automatic</code></td>
+                <td class="name"><code>markers</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">boolean</span>
+<span class="param-type"><a href="external-ScoreMarkersResults.html">external:ScoreMarkersResults</a></span>
 
 
 
@@ -327,207 +831,17 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
             </td>
 
             
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
 
             
 
-            <td class="description last"><p>Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
-If set to <code>true</code>, the following logic is applied:</p>
-<ul>
-<li>If <code>use_reference_mito = true</code>, the annotation column that best matches human/mouse Ensembl/symbols is set as <code>gene_id_column</code>.
-Based on the identified species and feature type, <code>species</code> and <code>gene_id_type</code> are also set.</li>
-<li>If <code>use_reference_mito = false</code>, the annotation column that best matches human/mouse symbols is set as <code>gene_id_column</code>.</li>
-</ul></td>
+            <td class="description last"><p>Marker detection results for an RNA modality.</p></td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>gene_id_column</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-|
-
-<span class="param-type">number</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-                    &lt;nullable><br>
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Name or index of the column of the feature annotations that contains the gene identifiers for the RNA modality.
-If <code>null</code>, the row names are used.
-Ignored if <code>automatic = true</code>.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>use_reference_mito</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Whether to use the reference lists of mitochondrial genes.
-If <code>false</code>, mitochondrial genes are instead identified from their prefix.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>species</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Array</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Array of strings specifying zero, one or more species to use to obtain a reference list of mitochondrial genes.
-Each entry should be a taxonomy ID (e.g. <code>&quot;9606&quot;</code>, <code>&quot;10090&quot;</code>) as specified in <a href="RnaQualityControlState.html#mitochondriaSpecies"><code>mitochondriaSpecies</code></a>).
-Ignored if <code>automatic = true</code>.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>gene_id_type</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Name of the feature type in the reference list of mitochondrial genes.
-This can be any one of <code>&quot;ENSEMBL&quot;</code>, <code>&quot;SYMBOL&quot;</code>, or <code>&quot;ENTREZ&quot;</code>.
-Ignored if <code>automatic = true</code>.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>mito_prefix</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-                    &lt;nullable><br>
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Case-insensitive prefix to use to identify mitochondrial genes from the dataset.
-Only used when <code>use_reference_mito = false</code>; in such cases, <code>gene_id_column</code> should point to symbols.
-If <code>null</code>, no prefix-based identification is performed.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>nmads</code></td>
+                <td class="name"><code>group</code></td>
             
 
             <td class="type">
@@ -541,25 +855,60 @@ If <code>null</code>, no prefix-based identification is performed.</p></td>
             </td>
 
             
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
 
             
 
-            <td class="description last"><p>Number of MADs to use for automatically selecting the filter threshold for each metric.</p></td>
+            <td class="description last"><p>Group index of interest.</p></td>
         </tr>
 
     
-    </tbody>
-</table>
 
+        <tr>
+            
+                <td class="name"><code>effect_size</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+
+            
             </td>
+
+            
+
+            
+
+            <td class="description last"><p>Effect size to use for ranking.
+This should be one of <code>&quot;cohen&quot;</code>, <code>&quot;auc&quot;</code>, <code>&quot;lfc&quot;</code> or <code>&quot;delta_detected&quot;</code>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>summary</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Summary statistic to use for ranking.
+This should be one of <code>&quot;min&quot;</code>, <code>&quot;mean&quot;</code> or <code>&quot;min_rank&quot;</code>.</p></td>
         </tr>
 
     
@@ -585,100 +934,8 @@ If <code>null</code>, no prefix-based identification is performed.</p></td>
 
         
 <div class="param-desc">
-    <p>The object is updated with the new results.</p>
-</div>
-
-
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="fetchDiscards"><span class="type-signature"></span>fetchDiscards<span class="signature">()</span><span class="type-signature"> &rarr; {Uint8WasmArray}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line83">line 83</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>Buffer containing the discard vector of length equal to the number of cells,
-where each element is truthy if the corresponding cell is to be discarded.</p>
+    <p>Object where each entry corresponds to a feature set collection and contains statistics for the enrichment of the top marker genes in that feature set.
+See <a href="FeatureSetEnrichmentState.html#fetchGroupResults"><code>FeatureSetEnrichmentState.fetchGroupResults</code></a> for more details.</p>
 </div>
 
 
@@ -689,217 +946,7 @@ where each element is truthy if the corresponding cell is to be discarded.</p>
     </dt>
     <dd>
         
-<span class="param-type">Uint8WasmArray</span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="fetchFilters"><span class="type-signature"></span>fetchFilters<span class="signature">()</span><span class="type-signature"> &rarr; {<a href="external-SuggestRnaQcFiltersResults.html">external:SuggestRnaQcFiltersResults</a>}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line90">line 90</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>Result of filtering on the RNA-derived QC metrics.</p>
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type"><a href="external-SuggestRnaQcFiltersResults.html">external:SuggestRnaQcFiltersResults</a></span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="fetchMetrics"><span class="type-signature"></span>fetchMetrics<span class="signature">()</span><span class="type-signature"> &rarr; {<a href="external-PerCellRnaQcMetricsResults.html">external:PerCellRnaQcMetricsResults</a>}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line97">line 97</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>RNA-derived QC metrics.</p>
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type"><a href="external-PerCellRnaQcMetricsResults.html">external:PerCellRnaQcMetricsResults</a></span>
+<span class="param-type">object</span>
 
 
 
@@ -928,7 +975,7 @@ where each element is truthy if the corresponding cell is to be discarded.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line73">line 73</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line691">line 691</a>
     </li></ul></dd>
     
 
@@ -1020,7 +1067,7 @@ where each element is truthy if the corresponding cell is to be discarded.</p>
 
     
 
-    <h4 class="name" id=".flush"><span class="type-signature type-signature-static">(static) </span>flush<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="fetchPerCellScores"><span class="type-signature"></span>fetchPerCellScores<span class="signature">(collection, set_index)</span><span class="type-signature"> &rarr; {Object}</span></h4>
 
     
 
@@ -1029,102 +1076,11 @@ where each element is truthy if the corresponding cell is to be discarded.</p>
 
 <dl class="details">
     
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li><p>Flush all cached lists of mitochondrial genes.</p>
-<p>By default, <a href="RnaQualityControlState.html#compute"><code>compute</code></a> will cache the mitochondrial gene lists in a static member for re-use across <a href="RnaQualityControlState.html">RnaQualityControlState</a> instances.
-These cached lists are not tied to any single instance and will not be removed by garbage collectors or by <a href="global.html#freeAnalysis"><code>freeAnalysis</code></a>.
-Rather, this function should be called to release the relevant memory.</p></li></ul></dd>
-    
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line188">line 188</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id=".setDownload"><span class="type-signature type-signature-static">(static) </span>setDownload<span class="signature">(fun)</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li><p>Specify a function to download the reference mitochondrial gene lists.</p></li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line204">line 204</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line702">line 702</a>
     </li></ul></dd>
     
 
@@ -1196,13 +1152,13 @@ Rather, this function should be called to release the relevant memory.</p></li><
 
         <tr>
             
-                <td class="name"><code>fun</code></td>
+                <td class="name"><code>collection</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">function</span>
+<span class="param-type">string</span>
 
 
 
@@ -1213,8 +1169,31 @@ Rather, this function should be called to release the relevant memory.</p></li><
 
             
 
-            <td class="description last"><p>Function that accepts a single string containing a URL and returns any value that can be used in the <a href="SimpleFile.html">SimpleFile</a> constructor.
-This is most typically a Uint8Array of that URL's contents, but it can also be a path to a locally cached file on Node.js.</p></td>
+            <td class="description last"><p>Name of the collection.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>set_index</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Index of a feature set inside the specified collection.</p></td>
         </tr>
 
     
@@ -1240,8 +1219,251 @@ This is most typically a Uint8Array of that URL's contents, but it can also be a
 
         
 <div class="param-desc">
-    <p><code>fun</code> is set as the global downloader for this step.
-The <em>previous</em> value of the downloader is returned.</p>
+    <p>Object containing the per-cell scores for the feature set activity.
+See <a href="FeatureSetEnrichmentState.html#fetchPerCellScores"><code>FeatureSetEnrichmentState.fetchPerCellScores</code></a> for more details.</p>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="free"><span class="type-signature"></span>free<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Frees all resources associated with this instance.</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line624">line 624</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setParameters"><span class="type-signature type-signature-async">(async) </span>setParameters<span class="signature">(parameters)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>If this method is not called, the parameters default to those in <code>FeatureSetEnrichmentState.defaults</code>.</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line637">line 637</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>parameters</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Parameter object, see the argument of the same name in <a href="FeatureSetEnrichmentState.html#compute"><code>FeatureSetEnrichmentState.compute</code></a> for more details.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>The state is updated with new parameters.</p>
 </div>
 
 

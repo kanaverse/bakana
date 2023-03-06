@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>RnaQualityControlState - Documentation</title>
+    <title>MarkerDetectionStandalone - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -37,7 +37,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">RnaQualityControlState</h1>
+    <h1 class="page-title">MarkerDetectionStandalone</h1>
     
 
     
@@ -51,64 +51,42 @@
     
         <h2>
         
-            RnaQualityControlState
+            MarkerDetectionStandalone
         
         </h2>
         
-            <div class="class-description usertext"><p>This step applies quality control on the RNA count matrix.
-Specifically, it computes the QC metrics and filtering thresholds,
-wrapping the <a href="https://kanaverse.github.io/scran.js/global.html#perCellRnaQcMetrics"><code>perCellRnaQcMetrics</code></a>
-and <a href="https://kanaverse.github.io/scran.js/global.html#suggestRnaQcFilters"><code>suggestRnaQcFilters</code></a> functions
-from <a href="https://github.com/kanaverse/scran.js"><strong>scran.js</strong></a>.
-Note that the actual filtering is done by <a href="CellFilteringState.html">CellFilteringState</a>.</p>
-<p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
+            <div class="class-description usertext"><p>Standalone version of <a href="MarkerDetectionState.html">MarkerDetectionState</a> that provides the same functionality outside of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.
+Users can supply their own normalized matrices, groups and blocking factor to compute the various marker statistics for each group.
+Users are also responsible for ensuring that the lifetime of the supplied objects exceeds that of the constructed MarkerDetectionStandalone instance,
+i.e., the Wasm-related <code>free()</code> methods are not called while the MarkerDetectionStandalone instance is still in operation.</p></div>
         
     
 </header>
 
 <article>
     
-
-    
-
-    
-
-    
-        <h3 class="subsection-title">Classes</h3>
-
-        <dl>
-            <dt><a href="RnaQualityControlState.html">RnaQualityControlState</a></dt>
-            <dd></dd>
-        </dl>
-    
-    
-    
-
-     
-
-    
-
-    
-        <h3 class="subsection-title">Members</h3>
-
+        <div class="container-overview">
         
             
-<h4 class="name" id="mitochondriaSpecies"><span class="type-signature"></span>mitochondriaSpecies<span class="type-signature"> :Array</span></h4>
 
+    
+    <h2>Constructor</h2>
+    
+
+    <h4 class="name" id="MarkerDetectionStandalone"><span class="type-signature"></span>new MarkerDetectionStandalone<span class="signature">(normalized, groups, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+
+    
 
 
 
 
 <dl class="details">
     
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li><p>Array of strings containing the taxonomy IDs for species where mitochondrial gene lists are available.</p></li></ul></dd>
-    
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line146">line 146</a>
+        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line250">line 250</a>
     </li></ul></dd>
     
 
@@ -147,22 +125,248 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
 
 
-<div class="description usertext">
-    <p>Array of strings containing the taxonomy IDs for species where mitochondrial gene lists are available.</p>
-</div>
 
 
 
-    <h5 class="h5-types">Type:</h5>
-    <ul>
-        <li>
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+        <th>Default</th>
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
             
+                <td class="name"><code>normalized</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="external-MultiMatrix.html">external:MultiMatrix</a></span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                </td>
+            
+
+            <td class="description last"><p>A <a href="external-MultiMatrix.html">MultiMatrix</a> of log-normalized values for multiple modalities.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>groups</code></td>
+            
+
+            <td class="type">
+            
+                
 <span class="param-type">Array</span>
+|
+
+<span class="param-type">TypedArray</span>
 
 
 
-        </li>
-    </ul>
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                </td>
+            
+
+            <td class="description last"><p>Array of length equal to the number of columns in any value of <code>normalized</code>.
+This should contain the group assignments for each column, encoded as non-negative integers starting from zero.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>{}</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Optional parameters.</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+        <th>Default</th>
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>block</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array</span>
+|
+
+<span class="param-type">TypedArray</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>null</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Array of length equal to the number of columns in any value of <code>normalized</code>.
+This should contain the block assignments for each column, encoded as non-negative integers starting from zero.
+If <code>null</code>, all columns are assigned to the same block.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -170,6 +374,28 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
 
         
+        </div>
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Classes</h3>
+
+        <dl>
+            <dt><a href="MarkerDetectionStandalone.html">MarkerDetectionStandalone</a></dt>
+            <dd></dd>
+        </dl>
+    
+    
+    
+
+     
+
+    
+
     
 
     
@@ -180,7 +406,7 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
     
 
-    <h4 class="name" id="compute"><span class="type-signature type-signature-async">(async) </span>compute<span class="signature">(parameters)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="computeAll"><span class="type-signature"></span>computeAll<span class="signature">()</span><span class="type-signature"></span></h4>
 
     
 
@@ -190,13 +416,109 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 <dl class="details">
     
     <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li><p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p></li></ul></dd>
+    <dd class="tag-description"><ul class="dummy"><li><p>Compute markers for all groups.</p></li></ul></dd>
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line244">line 244</a>
+        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line341">line 341</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>The state is updated with new results.</p>
+</div>
+
+
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="computeVersus"><span class="type-signature"></span>computeVersus<span class="signature">(left, right)</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Extract markers for a pairwise comparison between two groups,
+for more detailed examination of the differences between them.</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line367">line 367</a>
     </li></ul></dd>
     
 
@@ -268,13 +590,13 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
         <tr>
             
-                <td class="name"><code>parameters</code></td>
+                <td class="name"><code>left</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">object</span>
+<span class="param-type">number</span>
 
 
 
@@ -285,41 +607,20 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
             
 
-            <td class="description last"><p>Parameter object, equivalent to the <code>rna_quality_control</code> property of the <code>parameters</code> of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
-                <h6>Properties</h6>
-                
+            <td class="description last"><p>Index of one group in which to find upregulated markers.</p></td>
+        </tr>
 
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
     
 
         <tr>
             
-                <td class="name"><code>automatic</code></td>
+                <td class="name"><code>right</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">boolean</span>
+<span class="param-type">number</span>
 
 
 
@@ -327,358 +628,44 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
             </td>
 
             
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
 
             
 
-            <td class="description last"><p>Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
-If set to <code>true</code>, the following logic is applied:</p>
+            <td class="description last"><p>Index of another group to be compared against <code>left</code>.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Object containing:</p>
 <ul>
-<li>If <code>use_reference_mito = true</code>, the annotation column that best matches human/mouse Ensembl/symbols is set as <code>gene_id_column</code>.
-Based on the identified species and feature type, <code>species</code> and <code>gene_id_type</code> are also set.</li>
-<li>If <code>use_reference_mito = false</code>, the annotation column that best matches human/mouse symbols is set as <code>gene_id_column</code>.</li>
-</ul></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>gene_id_column</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-|
-
-<span class="param-type">number</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-                    &lt;nullable><br>
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Name or index of the column of the feature annotations that contains the gene identifiers for the RNA modality.
-If <code>null</code>, the row names are used.
-Ignored if <code>automatic = true</code>.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>use_reference_mito</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Whether to use the reference lists of mitochondrial genes.
-If <code>false</code>, mitochondrial genes are instead identified from their prefix.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>species</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Array</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Array of strings specifying zero, one or more species to use to obtain a reference list of mitochondrial genes.
-Each entry should be a taxonomy ID (e.g. <code>&quot;9606&quot;</code>, <code>&quot;10090&quot;</code>) as specified in <a href="RnaQualityControlState.html#mitochondriaSpecies"><code>mitochondriaSpecies</code></a>).
-Ignored if <code>automatic = true</code>.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>gene_id_type</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Name of the feature type in the reference list of mitochondrial genes.
-This can be any one of <code>&quot;ENSEMBL&quot;</code>, <code>&quot;SYMBOL&quot;</code>, or <code>&quot;ENTREZ&quot;</code>.
-Ignored if <code>automatic = true</code>.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>mito_prefix</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-                    &lt;nullable><br>
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Case-insensitive prefix to use to identify mitochondrial genes from the dataset.
-Only used when <code>use_reference_mito = false</code>; in such cases, <code>gene_id_column</code> should point to symbols.
-If <code>null</code>, no prefix-based identification is performed.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>nmads</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Number of MADs to use for automatically selecting the filter threshold for each metric.</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>The object is updated with the new results.</p>
-</div>
-
-
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="fetchDiscards"><span class="type-signature"></span>fetchDiscards<span class="signature">()</span><span class="type-signature"> &rarr; {Uint8WasmArray}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line83">line 83</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>Buffer containing the discard vector of length equal to the number of cells,
-where each element is truthy if the corresponding cell is to be discarded.</p>
+<li><code>results</code>: object containing the marker statistics for the comparison between two groups.
+Each key is a modality name and each value is a <a href="external-ScoreMarkersResults.html">ScoreMarkersResults</a> object.</li>
+<li><code>left</code>: index of the group corresponding to the <code>left</code> group in each ScoreMarkersResults object,
+e.g., Cohen's d for the RNA markers of the <code>left</code> group are defined as <code>output.results.RNA.cohen(output.left)</code>.</li>
+<li><code>right</code>: index of the group corresponding to the <code>right</code> group in each ScoreMarkersResults object.
+e.g., Cohen's d for the RNA markers of the <code>left</code> group are defined as <code>output.results.RNA.cohen(output.right)</code>.</li>
+</ul>
 </div>
 
 
@@ -689,217 +676,7 @@ where each element is truthy if the corresponding cell is to be discarded.</p>
     </dt>
     <dd>
         
-<span class="param-type">Uint8WasmArray</span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="fetchFilters"><span class="type-signature"></span>fetchFilters<span class="signature">()</span><span class="type-signature"> &rarr; {<a href="external-SuggestRnaQcFiltersResults.html">external:SuggestRnaQcFiltersResults</a>}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line90">line 90</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>Result of filtering on the RNA-derived QC metrics.</p>
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type"><a href="external-SuggestRnaQcFiltersResults.html">external:SuggestRnaQcFiltersResults</a></span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="fetchMetrics"><span class="type-signature"></span>fetchMetrics<span class="signature">()</span><span class="type-signature"> &rarr; {<a href="external-PerCellRnaQcMetricsResults.html">external:PerCellRnaQcMetricsResults</a>}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line97">line 97</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>RNA-derived QC metrics.</p>
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type"><a href="external-PerCellRnaQcMetricsResults.html">external:PerCellRnaQcMetricsResults</a></span>
+<span class="param-type">object</span>
 
 
 
@@ -928,7 +705,7 @@ where each element is truthy if the corresponding cell is to be discarded.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line73">line 73</a>
+        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line317">line 317</a>
     </li></ul></dd>
     
 
@@ -1020,7 +797,115 @@ where each element is truthy if the corresponding cell is to be discarded.</p>
 
     
 
-    <h4 class="name" id=".flush"><span class="type-signature type-signature-static">(static) </span>flush<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="fetchResults"><span class="type-signature"></span>fetchResults<span class="signature">()</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line310">line 310</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Marker detection results for the all modalities.
+Each key is a modality name and each value is an <a href="external-ScoreMarkersResults.html">ScoreMarkerResults</a> object,
+containing marker detection statistics for all groups.
+This is available after running <a href="MarkerDetectionState.html#compute"><code>compute</code></a>.</p>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="free"><span class="type-signature"></span>free<span class="signature">()</span><span class="type-signature"></span></h4>
 
     
 
@@ -1030,16 +915,13 @@ where each element is truthy if the corresponding cell is to be discarded.</p>
 <dl class="details">
     
     <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li><p>Flush all cached lists of mitochondrial genes.</p>
-<p>By default, <a href="RnaQualityControlState.html#compute"><code>compute</code></a> will cache the mitochondrial gene lists in a static member for re-use across <a href="RnaQualityControlState.html">RnaQualityControlState</a> instances.
-These cached lists are not tied to any single instance and will not be removed by garbage collectors or by <a href="global.html#freeAnalysis"><code>freeAnalysis</code></a>.
-Rather, this function should be called to release the relevant memory.</p></li></ul></dd>
+    <dd class="tag-description"><ul class="dummy"><li><p>Frees all resources associated with this instance.</p></li></ul></dd>
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line188">line 188</a>
+        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line300">line 300</a>
     </li></ul></dd>
     
 
@@ -1108,7 +990,7 @@ Rather, this function should be called to release the relevant memory.</p></li><
 
     
 
-    <h4 class="name" id=".setDownload"><span class="type-signature type-signature-static">(static) </span>setDownload<span class="signature">(fun)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="setParameters"><span class="type-signature"></span>setParameters<span class="signature">(parameters)</span><span class="type-signature"></span></h4>
 
     
 
@@ -1118,13 +1000,13 @@ Rather, this function should be called to release the relevant memory.</p></li><
 <dl class="details">
     
     <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li><p>Specify a function to download the reference mitochondrial gene lists.</p></li></ul></dd>
+    <dd class="tag-description"><ul class="dummy"><li><p>If this method is not called, the parameters default to those in <code>MarkerDetectionState.defaults</code>.</p></li></ul></dd>
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line204">line 204</a>
+        <a href="steps_marker_detection.js.html">steps/marker_detection.js</a>, <a href="steps_marker_detection.js.html#line328">line 328</a>
     </li></ul></dd>
     
 
@@ -1196,13 +1078,13 @@ Rather, this function should be called to release the relevant memory.</p></li><
 
         <tr>
             
-                <td class="name"><code>fun</code></td>
+                <td class="name"><code>parameters</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">function</span>
+<span class="param-type">object</span>
 
 
 
@@ -1213,8 +1095,7 @@ Rather, this function should be called to release the relevant memory.</p></li><
 
             
 
-            <td class="description last"><p>Function that accepts a single string containing a URL and returns any value that can be used in the <a href="SimpleFile.html">SimpleFile</a> constructor.
-This is most typically a Uint8Array of that URL's contents, but it can also be a path to a locally cached file on Node.js.</p></td>
+            <td class="description last"><p>Parameter object, see the argument of the same name in <a href="MarkerDetectionState.html#compute"><code>MarkerDetectionState.compute</code></a> for more details.</p></td>
         </tr>
 
     
@@ -1240,8 +1121,7 @@ This is most typically a Uint8Array of that URL's contents, but it can also be a
 
         
 <div class="param-desc">
-    <p><code>fun</code> is set as the global downloader for this step.
-The <em>previous</em> value of the downloader is returned.</p>
+    <p>The state is updated with new parameters.</p>
 </div>
 
 
