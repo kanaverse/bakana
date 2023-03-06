@@ -16,6 +16,58 @@ export const step_name = "marker_detection";
  * @external ScoreMarkersResults
  */
 
+/*********************
+ ***** Internals *****
+ *********************/
+
+function _free(cache) {
+    for (const v of Object.values(cache.raw)) {
+        utils.freeCache(v);
+    }
+    cache.raw = {};
+    markers.freeVersusResults(cache.versus);
+    delete cache.versus;
+}
+
+function _computeVersus(left, right, matrices, clusters, { cache = {}, block = null, lfc_threshold = 0, compute_auc = true } = {}) {
+    let cache_info = markers.locateVersusCache(left, right, cache);
+    let left_index = (cache_info.left_small ? 0 : 1);
+    let right_index = (cache_info.left_small ? 1 : 0);
+
+    if (cache_info.run) {
+        let new_clusters = [];
+        let keep = [];
+        let leftfound = false, rightfound = false;
+        clusters.forEach((x, i) => {
+            if (x == left) {
+                new_clusters.push(left_index);
+                keep.push(i);
+                leftfound = true;
+            } else if (x == right) {
+                new_clusters.push(right_index);
+                keep.push(i);
+                rightfound = true;
+            }
+        });
+
+        if (!leftfound || !rightfound) {
+            throw new Error("non-zero entries should be present for both requested clusters in versus mode");
+        }
+
+        markers.computeVersusResults(matrices, new_clusters, block, keep, cache_info.cached, lfc_threshold, compute_auc);
+    }
+
+    return { 
+        results: cache_info.cached,
+        left: left_index,
+        right: right_index
+    };
+}
+
+/*****************
+ ***** State *****
+ *****************/
+
 /**
  * This step performs marker detection for each cluster of cells by performing pairwise comparisons to each other cluster.
  * This wraps the [`scoreMarkers`](https://kanaverse.github.io/scran.js/global.html#scoreMarkers) function 
@@ -59,37 +111,33 @@ export class MarkerDetectionState {
         this.changed = false;
     }
 
+    /**
+     * Frees all resources associated with this instance.
+     */
     free() {
-        for (const v of Object.values(this.#cache.raw)) {
-            utils.freeCache(v);
-        }
-        markers.freeVersusResults(this.#cache.versus);
+        _free(this.#cache);
     }
 
-    /***************************
-     ******** Getters **********
-     ***************************/
-
     /**
-     * @return {object} Marker detection results for the all modalities.
-     * Each key is a modality name and each value is an {@linkplain external:ScoreMarkersResults ScoreMarkerResults} object,
+     * Obtain the marker detection results for all modalities.
+     * It is assumed that {@linkcode runAnalysis} was already run on this MarkerDetectionState instance before calling this method.
+     *
+     * @return {object} Object where each key is a modality name and each value is an {@linkplain external:ScoreMarkersResults ScoreMarkerResults} object,
      * containing marker detection statistics for all clusters.
-     * This is available after running {@linkcode MarkerDetectionState#compute compute}.
      */
     fetchResults() {
         return this.#cache.raw;
     }
 
     /**
+     * Parameters used to compute the results.
+     * It is assumed that {@linkcode runAnalysis} was already run on this MarkerDetectionState instance before calling this method.
+     *
      * @return {object} Object containing the parameters.
      */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
     }
-
-    /***************************
-     ******** Compute **********
-     ***************************/
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
@@ -105,7 +153,7 @@ export class MarkerDetectionState {
         let { lfc_threshold, compute_auc } = parameters;
         this.changed = false;
         let changed_params = (lfc_threshold !== this.#parameters.lfc_threshold || compute_auc !== this.#parameters.compute_auc);
-
+        
         for (const [k, v] of Object.entries(this.#norm_states)) {
             if (!v.valid()) {
                 continue;
@@ -132,6 +180,9 @@ export class MarkerDetectionState {
         return;
     }
 
+    /**
+     * @return {object} Default parameters that may be modified and fed into {@linkcode MarkerDetectionCore#compute compute}.
+     */
     static defaults() {
         return {
             lfc_threshold: 0,
@@ -139,74 +190,14 @@ export class MarkerDetectionState {
         };
     }
 
-    /*******************************
-     ******** Versus mode **********
-     *******************************/
-
-    /**
-     * Compute markers between two clusters as described for {@linkcode MarkerDetectionState#computeVersus computeVersus}.
-     * This allows applications to run versus-mode comparisons on custom inputs without creating a MarkerDetectionState object.
-     *
-     * @param {number} left - Index of one cluster. 
-     * @param {number} right - Index of another cluster to be compared against `left`.
-     * @param {external:MultiMatrix} matrices - A {@linkplain external:MultiMatrix MultiMatrix} object containing log-normalized matrices for each modality.
-     * @param {Array|TypedArray|Int32WasmArray} clusters - Integer array of length equal to the number of cells in `matrices`,
-     * containing the cluster assignments for all cells in `matrices`.
-     * @param {object} [options={}] - Optional parameters.
-     * @param {object} [options.cache={}] - Cache for the results.
-     * @param {?Int32WasmArray} [options.block=null] - Blocking factor of length equal to the number of cells in `mat`, 
-     * see {@linkcode CellFilteringState#fetchFilteredBlock CellFilteringState.fetchFilteredBlock}.
-     * @param {number} [options.lfc_threshold=0] - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
-     * @param {boolean} [options.compute_auc=true] - Whether to compute the AUCs.
-     * Setting this to `false` will skip AUC calculations and improve speed and memory efficiency.
-     *
-     * @return {object} Object containing:
-     *
-     * - `results`: object containing the marker statistics for the comparison between two clusters.
-     *    Each key is a modality name and each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object.
-     * - `left`: index of the group corresponding to the `left` cluster in each ScoreMarkersResults object.
-     *    e.g., Cohen's d for the RNA markers of the `left` cluster are defined as `output.results.RNA.cohen(output.left)`.
-     * - `right`: index of the group corresponding to the `right` cluster in each ScoreMarkersResults object.
-     *    e.g., Cohen's d for the RNA markers of the `right` cluster are defined as `output.results.RNA.cohen(output.right)`.
-     */
+    // Soft-deprecated.
     static computeVersusCustom(left, right, matrices, clusters, { cache = {}, block = null, lfc_threshold = 0, compute_auc = true } = {}) {
-        let cache_info = markers.locateVersusCache(left, right, cache);
-        let left_index = (cache_info.left_small ? 0 : 1);
-        let right_index = (cache_info.left_small ? 1 : 0);
-
-        if (cache_info.run) {
-            let new_clusters = [];
-            let keep = [];
-            let leftfound = false, rightfound = false;
-            clusters.forEach((x, i) => {
-                if (x == left) {
-                    new_clusters.push(left_index);
-                    keep.push(i);
-                    leftfound = true;
-                } else if (x == right) {
-                    new_clusters.push(right_index);
-                    keep.push(i);
-                    rightfound = true;
-                }
-            });
-
-            if (!leftfound || !rightfound) {
-                throw new Error("non-zero entries should be present for both requested clusters in versus mode");
-            }
-
-            markers.computeVersusResults(matrices, new_clusters, block, keep, cache_info.cached, lfc_threshold, compute_auc);
-        }
-
-        return { 
-            results: cache_info.cached,
-            left: left_index,
-            right: right_index
-        };
+        return computeVersus(left, right, matrices, clusters, { cache, block, lfc_threshold, compute_auc });
     }
 
     /**
-     * Extract markers for a pairwise comparison between two clusters, 
-     * for more detailed examination of the differences between them.
+     * Extract markers for a pairwise comparison between two clusters for more detailed examination of the differences between them.
+     * It is assumed that {@linkcode runAnalysis} was already run on this MarkerDetectionState instance before calling this method.
      *
      * @param {number} left - Index of one cluster in which to find upregulated markers.
      * @param {number} right - Index of another cluster to be compared against `left`.
@@ -237,9 +228,149 @@ export class MarkerDetectionState {
             this.#cache["versus"] = {};
         }
 
-        return this.constructor.computeVersusCustom(left, right, matrices, clusters, { 
+        return _computeVersus(left, right, matrices, clusters, { 
             cache: this.#cache.versus, 
             block: block,
+            lfc_threshold: this.#parameters.lfc_threshold,
+            compute_auc: this.#parameters.compute_auc
+        });
+    }
+}
+
+/**********************
+ ***** Standalone *****
+ **********************/
+
+/**
+ * Standalone version of {@linkplain MarkerDetectionState} that provides the same functionality outside of {@linkcode runAnalysis}.
+ * Users can supply their own normalized matrices, groups and blocking factor to compute the various marker statistics for each group.
+ * Users are also responsible for ensuring that the lifetime of the supplied objects exceeds that of the constructed MarkerDetectionStandalone instance,
+ * i.e., the Wasm-related `free()` methods are not called while the MarkerDetectionStandalone instance is still in operation.
+ */
+export class MarkerDetectionStandalone {
+    #matrices;
+    #groups;
+    #block;
+
+    #cache;
+    #parameters;
+
+    /**
+     * @param {external:MultiMatrix} normalized - A {@linkplain external:MultiMatrix MultiMatrix} of log-normalized values for multiple modalities.
+     * @param {Array|TypedArray} groups - Array of length equal to the number of columns in any value of `normalized`.
+     * This should contain the group assignments for each column, encoded as non-negative integers starting from zero.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in any value of `normalized`.
+     * This should contain the block assignments for each column, encoded as non-negative integers starting from zero.
+     * If `null`, all columns are assigned to the same block.
+     */
+    constructor(normalized, groups, { block = null } = {}) {
+        if (groups.length && typeof groups[0] !== "number") {
+            throw new Error("'groups' should encode each group as a non-negative integer");
+        }
+        let N = groups.length;
+        this.#groups = groups;
+
+        for (const k of normalized.available()) {
+            let v = normalized.get(k);
+            if (v.numberOfColumns() != N) {
+                throw new Error("all matrices in 'normalized' should have the same number of columns as the length of 'groups'");
+            }
+        }
+        this.#matrices = normalized;
+
+        if (block !== null) {
+            if (block.length && typeof block[0] !== "number") {
+                throw new Error("'block' should encode each block as a non-negative integer starting from zero");
+            }
+            if (block.length != N) {
+                throw new Error("'block' should have the same length as 'groups' if not null");
+            }
+        }
+        this.#block = block;
+
+        this.#cache = { raw: {}, init: true };
+        this.#parameters = MarkerDetectionState.defaults();
+        this.changed = false;
+    }
+
+    /**
+     * Frees all resources associated with this instance.
+     */
+    free() {
+        _free(this.#cache);
+    }
+
+    /**
+     * @return {object} Marker detection results for the all modalities.
+     * Each key is a modality name and each value is an {@linkplain external:ScoreMarkersResults ScoreMarkerResults} object,
+     * containing marker detection statistics for all groups.
+     * This is available after running {@linkcode MarkerDetectionState#compute compute}.
+     */
+    fetchResults() {
+        return this.#cache.raw;
+    }
+
+    /**
+     * @return {object} Object containing the parameters.
+     */
+    fetchParameters() {
+        return { ...this.#parameters }; // avoid pass-by-reference links.
+    }
+
+    /**
+     * If this method is not called, the parameters default to those in {@linkcode MarkerDetectionState#defaults MarkerDetectionState.defaults}.
+     *
+     * @param {object} parameters - Parameter object, see the argument of the same name in {@linkcode MarkerDetectionState#compute MarkerDetectionState.compute} for more details.
+     *
+     * @return The state is updated with new parameters.
+     */
+    setParameters(parameters) {
+        if (this.#parameters.lfc_threshold !== parameters.lfc_threshold || this.#parameters.compute_auc !== parameters.compute_auc) {
+            this.free();
+        }
+        this.#parameters = { ...parameters };
+        return;
+    }
+
+    /**
+     * Compute markers for all groups.
+     *
+     * @return The state is updated with new results.
+     */
+    computeAll() {
+        let { lfc_threshold, compute_auc } = this.#parameters;
+        for (const k of this.#matrices.available()) {
+            var mat = this.#matrices.get(k);
+            utils.freeCache(this.#cache.raw[k]);
+            this.#cache.raw[k] = scran.scoreMarkers(mat, this.#groups, { block: this.#block, lfcThreshold: lfc_threshold, computeAuc: compute_auc });
+        }
+        return;
+    }
+
+    /**
+     * Extract markers for a pairwise comparison between two groups, 
+     * for more detailed examination of the differences between them.
+     *
+     * @param {number} left - Index of one group in which to find upregulated markers.
+     * @param {number} right - Index of another group to be compared against `left`.
+     *
+     * @return {object} Object containing:
+     *
+     * - `results`: object containing the marker statistics for the comparison between two groups.
+     *    Each key is a modality name and each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object.
+     * - `left`: index of the group corresponding to the `left` group in each ScoreMarkersResults object,
+     *    e.g., Cohen's d for the RNA markers of the `left` group are defined as `output.results.RNA.cohen(output.left)`.
+     * - `right`: index of the group corresponding to the `right` group in each ScoreMarkersResults object.
+     *    e.g., Cohen's d for the RNA markers of the `left` group are defined as `output.results.RNA.cohen(output.right)`.
+     */
+    computeVersus(left, right) {
+        if (!("versus" in this.#cache)) {
+            this.#cache["versus"] = {};
+        }
+        return _computeVersus(left, right, this.#matrices, this.#groups, { 
+            cache: this.#cache.versus, 
+            block: this.#block,
             lfc_threshold: this.#parameters.lfc_threshold,
             compute_auc: this.#parameters.compute_auc
         });

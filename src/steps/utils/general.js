@@ -158,3 +158,21 @@ export async function defaultDownload(url) {
     }
     return new Uint8Array(await resp.arrayBuffer());
 }
+
+export function guessFeatureTypes(genes) {
+    let output = { columns: {} };
+
+    let rn = genes.rowNames();
+    if (rn !== null) {
+        output.row_names = scran.guessFeatures(rn, { forceTaxonomy: true });
+    }
+
+    for (const key of genes.columnNames()) {
+        let curcol = genes.column(key);
+        if (curcol instanceof Array) {
+            output.columns[key] = scran.guessFeatures(genes.column(key), { forceTaxonomy: true });
+        }
+    }
+
+    return output;
+}

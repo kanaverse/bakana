@@ -134,22 +134,7 @@ export class InputsState {
         }
 
         if (!("inferred_rna_types" in this.#cache)) {
-            let genes = this.#cache.genes["RNA"];
-            let output = { columns: {} };
-
-            let rn = genes.rowNames();
-            if (rn !== null) {
-                output.row_names = scran.guessFeatures(rn, { forceTaxonomy: true });
-            }
-
-            for (const key of genes.columnNames()) {
-                let curcol = genes.column(key);
-                if (curcol instanceof Array) {
-                    output.columns[key] = scran.guessFeatures(genes.column(key), { forceTaxonomy: true });
-                }
-            }
-
-            this.#cache.inferred_rna_types = output;
+            this.#cache.inferred_rna_types = utils.guessFeatureTypes(this.#cache.genes["RNA"]);
         }
 
         return this.#cache.inferred_rna_types;
