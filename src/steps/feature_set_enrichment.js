@@ -397,7 +397,8 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
-     * @param {number} group - Cluster index of interest.
+     * @param {external:ScoreMarkersResults} markers - Arbitrary marker detection results for an RNA modality with the same order and identity of genes as from the upstream {@linkplain InputsState}.
+     * @param {number} group - Index of the group of interest inside `markers`.
      * @param {string} effect_size - Effect size to use for ranking.
      * This should be one of `"cohen"`, `"auc"`, `"lfc"` or `"delta_detected"`.
      * @param {string} summary - Summary statistic to use for ranking.
@@ -410,8 +411,24 @@ export class FeatureSetEnrichmentState {
      * - `pvalues`: Float64Array containing the enrichment p-values for each set.
      * - `num_markers`: number of markers selected for testing.
      */
-    fetchGroupResults(group, effect_size, summary) {
+    computeEnrichment(markers, group, effect_size, summary) {
         return this.#manager.fetchGroupResults(group, effect_size, summary, this.#markers.fetchResults()["RNA"], this.#parameters.top_markers);
+    }
+
+    /**
+     * Detect feature set enrichment among the per-cluster markers detected by {@linkplain MarkerDetectionState}.
+     *
+     * @param {number} group - Cluster index of interest.
+     * @param {string} effect_size - Effect size to use for ranking.
+     * This should be one of `"cohen"`, `"auc"`, `"lfc"` or `"delta_detected"`.
+     * @param {string} summary - Summary statistic to use for ranking.
+     * This should be one of `"min"`, `"mean"` or `"min_rank"`.
+     *
+     * @return {object} Object where each entry corresponds to a feature set collection and contains enrichment statistics for all sets in that collection.
+     * See {@linkcode FeatureSetEnrichment#computeEnrichment computeEnrichment} for details.
+     */
+    fetchGroupResults(group, effect_size, summary) {
+        return this.computeEnrichment(this.#markers.fetchResults()["RNA"], group, effect_size, summary);
     }
 
     /**
@@ -422,13 +439,12 @@ export class FeatureSetEnrichmentState {
      * @param {string} effect_size - Effect size to use for ranking.
      * This should be one of `"cohen"`, `"auc"`, `"lfc"` or `"delta_detected"`.
      *
-     * @return {object} An object with the same structure as that returned by {@linkcode fetchGroupResults}.
+     * @return {object} Object where each entry corresponds to a feature set collection and contains enrichment statistics for all sets in that collection.
+     * See {@linkcode FeatureSetEnrichment#computeEnrichment computeEnrichment} for details.
      */
     fetchVersusResults(left, right, effect_size) {
         let output = this.#markers.computeVersus(left, right);
-
-        // Choice of summary doesn't really matter as they're all the same anyway.
-        return this.#manager.fetchGroupResults(output.left, effect_size, "mean", output.results["RNA"], this.#parameters.top_markers);
+        return this.computeEnrichment(output.results["RNA"], output.left, effect_size, "mean"); // Choice of summary doesn't really matter as they're all the same anyway.
     }
 
     /**

@@ -5,6 +5,7 @@ import * as filter_module from "./cell_filtering.js";
 import * as rna_norm_module from "./rna_normalization.js";
 import * as adt_norm_module from "./adt_normalization.js";
 import * as crispr_norm_module from "./crispr_normalization.js";
+import * as enrich_module from "./feature_set_enrichment.js";
 
 export const step_name = "custom_selections";
 
@@ -186,11 +187,12 @@ class SelectionManager {
 export class CustomSelectionsState {
     #filter;
     #norm_states;
+    #enrichment;
 
     #manager;
     #parameters;
 
-    constructor(filter, norm_states, parameters = null, cache = null) {
+    constructor(filter, norm_states, enrich, parameters = null, cache = null) {
         if (!(filter instanceof filter_module.CellFilteringState)) {
             throw new Error("'filter' should be a CellFilteringState object");
         }
@@ -206,6 +208,11 @@ export class CustomSelectionsState {
             throw new Error("'norm_states.CRISPR' should be an CrisprNormalizationState object");
         }
         this.#norm_states = norm_states;
+
+        if (!(enrich instanceof enrich_module.FeatureSetEnrichmentState)) {
+            throw new Error("'enrich' should be an FeatureSetEnrichmentState object");
+        }
+        this.#enrichment = enrich;
 
         let selections = null;
         if (parameters !== null && "selections" in parameters) {
@@ -289,8 +296,31 @@ export class CustomSelectionsState {
      * containing the marker detection results across all features of the corresponding modality.
      * The set of cells in the selection is denoted as group 1, while all cells outside of the selection are denoted as group 0.
      */
-    fetchResults(id) {
+    fetchMarkers(id) {
         return this.#manager.fetchResults(id);
+    }
+
+    // Soft-deprecated.
+    fetchResults(id) {
+        return this.fetchMarkers(id);
+    }
+
+    /**
+     * Compute enrichment among the set of upregulated markers for a custom selection.
+     *
+     * @param {string} id - An identifier for the desired selection.
+     * @param {string} effect_size - Effect size to use for ranking.
+     * This should be one of `"cohen"`, `"auc"`, `"lfc"` or `"delta_detected"`.
+     *
+     * @return {object} Object where each entry corresponds to a feature set collection and contains enrichment statistics for all sets in that collection.
+     * See {@linkcode FeatureSetEnrichment#computeEnrichment FeatureSetEnrichment.computeEnrichment} for details.
+     */
+    computeEnrichment(id, effect_size) {
+        let x = this.fetchMarkers(id);
+        if (!("RNA" in x)) {
+            return null;
+        }
+        return this.#enrichment.computeEnrichment(x["RNA"], 0, effect_size, "mean"); // two groups, so the effect size doesn't really matter.
     }
 
     /**
@@ -361,6 +391,12 @@ export class CustomSelectionsState {
             this.changed = true;
         }
 
+        /**
+         * The status of #enrichment doesn't really affect any of the cached
+         * resources because we don't cache the enrichment results anyway, so
+         * there's no need to do anything if this.#enrichment.changed == true.
+         */
+
         return;
     }
 
@@ -376,7 +412,6 @@ export class CustomSelectionsState {
 
     /**
      * Extract markers for a pairwise comparison between two selections for more detailed examination of the differences between them.
-     * It is assumed that {@linkcode runAnalysis} was already run on this CustomSelectionsState instance before calling this method.
      *
      * @param {string} left - Identifier of one selection in which to find upregulated markers.
      * @param {string} right - Identifier of another selection to be compared against `left`.
@@ -390,7 +425,7 @@ export class CustomSelectionsState {
      * - `right`: index of the group corresponding to the `right` selection in each ScoreMarkersResults object.
      *    e.g., Cohen's d for the RNA markers of the `right` selection are defined as `output.results.RNA.cohen(output.right)`.
      */
-    computeVersus(left, right) {
+    computeVersusMarkers(left, right) {
         let to_use = utils.findValidUpstreamStates(this.#norm_states);
         return this.#manager.computeVersus(
             left, 
@@ -401,6 +436,30 @@ export class CustomSelectionsState {
             this.#parameters.lfc_threshold,
             this.#parameters.compute_auc
         );
+    }
+
+    // Soft-deprecated.
+    computeVersus(left, right) {
+        return this.computeVersusMarkers(left, right);
+    }
+
+    /**
+     * Compute the feature set enrichment among the set of markers upregulated in one selection compared to another.
+     *
+     * @param {string} left - Identifier of one selection in which to find upregulated markers.
+     * @param {string} right - Identifier of another selection to be compared against `left`.
+     * @param {string} effect_size - Effect size to use for ranking.
+     * This should be one of `"cohen"`, `"auc"`, `"lfc"` or `"delta_detected"`.
+     *
+     * @return {object} Object where each entry corresponds to a feature set collection and contains enrichment statistics for all sets in that collection.
+     * See {@linkcode FeatureSetEnrichment#computeEnrichment FeatureSetEnrichment.computeEnrichment} for details.
+     */
+    computeVersusEnrichment(left, right, effect_size) {
+        let x = this.computeVersusMarkers(left, right);
+        if (!("RNA" in x.results)) {
+            return null;
+        }
+        return this.#enrichment.computeEnrichment(x.results["RNA"], x.left, effect_size, "mean"); // two groups, so the effect size doesn't really matter.
     }
 }
 
@@ -632,7 +691,7 @@ function fill_results(stats) {
     return object;
 }
 
-export function unserialize(handle, permuters, filter, norm_states) {
+export function unserialize(handle, permuters, filter, norm_states, enrich) {
     let ghandle = handle.open("custom_selections");
 
     let parameters = CustomSelectionsState.defaults();
@@ -688,6 +747,6 @@ export function unserialize(handle, permuters, filter, norm_states) {
         }
     }
 
-    return new CustomSelectionsState(filter, norm_states, parameters, cache);
+    return new CustomSelectionsState(filter, norm_states, enrich, parameters, cache);
 }
 

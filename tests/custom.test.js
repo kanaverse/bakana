@@ -104,6 +104,23 @@ test("addition, fetching and removal of custom selections works correctly", asyn
         await bakana.freeAnalysis(reloaded);
     }
 
+    // Works with enrichment.
+    {
+        params.feature_set_enrichment.collections = [ "mouse-GO", "human-GO" ];
+        await bakana.runAnalysis(state, files, params);
+        expect(state.custom_selections.changed).toBe(false);
+        expect(state.feature_set_enrichment.changed).toBe(true);
+
+        state.custom_selections.addSelection("evens", [0,2,4,6,8]);
+        state.custom_selections.addSelection("odds", [1,3,5,7,9]);
+
+        let simple_out = state.custom_selections.computeEnrichment("evens", "cohen");
+        expect(simple_out["human-GO"].counts.length).toBeGreaterThan(0);
+
+        let versus_out = state.custom_selections.computeVersusEnrichment("odds", "evens", "cohen");
+        expect(versus_out["human-GO"].counts.length).toBeGreaterThan(0);
+    }
+
     // Freeing.
     await bakana.freeAnalysis(state);
 })
