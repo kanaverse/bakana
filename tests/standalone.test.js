@@ -125,7 +125,7 @@ test("Standalone feature set enrichment works correctly", async () => {
 
     let deets = enrich.fetchCollectionDetails();
     expect("human-GO" in deets).toBe(true);
-    let res = enrich.fetchGroupResults(markers, 1, "cohen", "min_rank");
+    let res = enrich.computeEnrichment(markers, 1, "cohen", "min_rank");
     expect(res["human-GO"].num_markers).toBeGreaterThan(0);
     expect(res["human-GO"].counts).not.toEqual(new Int32Array(normed.numberOfRows()));
 
@@ -137,7 +137,7 @@ test("Standalone feature set enrichment works correctly", async () => {
             break;
         }
     }
-    let scores = enrich.fetchPerCellScores("human-GO", chosen);
+    let scores = enrich.computePerCellScores("human-GO", chosen);
     expect(scores.weights.length).toEqual(human_sizes[chosen]);
 
     // Also works with blocking.
@@ -149,7 +149,7 @@ test("Standalone feature set enrichment works correctly", async () => {
     {
         let enrich2 = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, { normalized: normed, block: block });
         await enrich2.setParameters(params);
-        let scores2 = enrich2.fetchPerCellScores("human-GO", chosen);
+        let scores2 = enrich2.computePerCellScores("human-GO", chosen);
         expect(scores2).not.toEqual(scores);
         enrich2.free();
     }
@@ -158,7 +158,7 @@ test("Standalone feature set enrichment works correctly", async () => {
     {
         let enrich2 = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA);
         await enrich2.setParameters(params);
-        expect(() => enrich2.fetchPerCellScores("human-GO", chosen)).toThrow("no normalized matrix");
+        expect(() => enrich2.computePerCellScores("human-GO", chosen)).toThrow("no normalized matrix");
     }
 
     markers.free();

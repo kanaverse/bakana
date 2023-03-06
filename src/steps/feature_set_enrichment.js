@@ -179,7 +179,7 @@ class FeatureSetManager {
         return output;
     }
 
-    fetchGroupResults(group, effect_size, summary, markers, top_markers) {
+    computeEnrichment(group, effect_size, summary, markers, top_markers) {
         if (effect_size == "delta_detected") {
             effect_size = "deltaDetected";
         }
@@ -233,7 +233,7 @@ class FeatureSetManager {
         return bioc.SLICE(indices, set);
     }
 
-    fetchPerCellScores(collection, set_index, normalized, block) {
+    computePerCellScores(collection, set_index, normalized, block) {
         let indices = this.fetchFeatureSetIndices(collection, set_index);
         // console.log(bioc.SLICE(this.#inputs.fetchFeatureAnnotations().RNA.column("id"), indices));
 
@@ -412,13 +412,13 @@ export class FeatureSetEnrichmentState {
      * - `num_markers`: number of markers selected for testing.
      */
     computeEnrichment(markers, group, effect_size, summary) {
-        return this.#manager.fetchGroupResults(group, effect_size, summary, this.#markers.fetchResults()["RNA"], this.#parameters.top_markers);
+        return this.#manager.computeEnrichment(group, effect_size, summary, this.#markers.fetchResults()["RNA"], this.#parameters.top_markers);
     }
 
     /**
      * Detect feature set enrichment among the per-cluster markers detected by {@linkplain MarkerDetectionState}.
      *
-     * @param {number} group - Cluster index of interest.
+     * @param {number} cluster - Cluster index of interest.
      * @param {string} effect_size - Effect size to use for ranking.
      * This should be one of `"cohen"`, `"auc"`, `"lfc"` or `"delta_detected"`.
      * @param {string} summary - Summary statistic to use for ranking.
@@ -427,8 +427,13 @@ export class FeatureSetEnrichmentState {
      * @return {object} Object where each entry corresponds to a feature set collection and contains enrichment statistics for all sets in that collection.
      * See {@linkcode FeatureSetEnrichment#computeEnrichment computeEnrichment} for details.
      */
+    computeCluster(cluster, effect_size, summary) {
+        return this.computeEnrichment(this.#markers.fetchResults()["RNA"], cluster, effect_size, summary);
+    }
+
+    // Soft-deprecated.
     fetchGroupResults(group, effect_size, summary) {
-        return this.computeEnrichment(this.#markers.fetchResults()["RNA"], group, effect_size, summary);
+        return this.computeCluster(group, effect_size, summary);
     }
 
     /**
@@ -442,7 +447,7 @@ export class FeatureSetEnrichmentState {
      * @return {object} Object where each entry corresponds to a feature set collection and contains enrichment statistics for all sets in that collection.
      * See {@linkcode FeatureSetEnrichment#computeEnrichment computeEnrichment} for details.
      */
-    fetchVersusResults(left, right, effect_size) {
+    computeVersus(left, right, effect_size) {
         let output = this.#markers.computeVersus(left, right);
         return this.computeEnrichment(output.results["RNA"], output.left, effect_size, "mean"); // Choice of summary doesn't really matter as they're all the same anyway.
     }
@@ -467,8 +472,13 @@ export class FeatureSetEnrichmentState {
      * - `weights`: Float64Array containing the weights of each gene in the set.
      * - `scores`: Float64Array containing the feature set score for each cell.
      */
+    computePerCellScores(collection, set_index) {
+        return this.#manager.computePerCellScores(collection, set_index, this.#normalized.fetchNormalizedMatrix(), this.#filter.fetchFilteredBlock());
+    }
+
+    // Soft-deprecated.
     fetchPerCellScores(collection, set_index) {
-        return this.#manager.fetchPerCellScores(collection, set_index, this.#normalized.fetchNormalizedMatrix(), this.#filter.fetchFilteredBlock());
+        return this.computePerCellScores(collection, set_index);
     }
 
     /**
@@ -614,7 +624,7 @@ export class FeatureSetEnrichmentStandalone {
      * This should contain marker statistics for the same genes (and in the same order as) in `annotations`.
      * @param {object} [options={}] - Optional parameters.
      * @param {?(external:ScranMatrix)} [options.normalized=null] - A {@linkcode external:ScranMatrix ScranMatrix} of log-normalized expression values,
-     * to be used in {@linkcode FeatureSetEnrichmentState#fetchPerCellScores FeatureSetEnrichmentState.fetchPerCellScores}.
+     * to be used in {@linkcode FeatureSetEnrichmentState#computePerCellScores FeatureSetEnrichmentState.computePerCellScores}.
      * Each row corresponds to a gene in the same order as `annotations` and `markers`.
      * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in `normalized`.
      * This should contain the block assignments for each column, encoded as non-negative integers starting from zero.
@@ -702,10 +712,10 @@ export class FeatureSetEnrichmentStandalone {
      * This should be one of `"min"`, `"mean"` or `"min_rank"`.
      *
      * @return {object} Object where each entry corresponds to a feature set collection and contains statistics for the enrichment of the top marker genes in that feature set.
-     * See {@linkcode FeatureSetEnrichmentState#fetchGroupResults FeatureSetEnrichmentState.fetchGroupResults} for more details.
+     * See {@linkcode FeatureSetEnrichmentState#computeEnrichment FeatureSetEnrichmentState.computeEnrichment} for more details.
      */
-    fetchGroupResults(markers, group, effect_size, summary) {
-        return this.#manager.fetchGroupResults(group, effect_size, summary, markers, this.#parameters.top_markers);
+    computeEnrichment(markers, group, effect_size, summary) {
+        return this.#manager.computeEnrichment(group, effect_size, summary, markers, this.#parameters.top_markers);
     }
 
     /**
@@ -730,13 +740,13 @@ export class FeatureSetEnrichmentStandalone {
      * @param {number} set_index - Index of a feature set inside the specified collection.
      *
      * @return {Object} Object containing the per-cell scores for the feature set activity.
-     * See {@linkcode FeatureSetEnrichmentState#fetchPerCellScores FeatureSetEnrichmentState.fetchPerCellScores} for more details.
+     * See {@linkcode FeatureSetEnrichmentState#computePerCellScores FeatureSetEnrichmentState.computePerCellScores} for more details.
      */
-    fetchPerCellScores(collection, set_index) {
+    computePerCellScores(collection, set_index) {
         if (this.#normalized == null) {
             throw new Error("no normalized matrix supplied in constructor");
         }
-        return this.#manager.fetchPerCellScores(collection, set_index, this.#normalized, this.#block);
+        return this.#manager.computePerCellScores(collection, set_index, this.#normalized, this.#block);
     }
 }
 

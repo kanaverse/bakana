@@ -31,21 +31,21 @@ test("feature set enrichment works correctly for humans", async () => {
     let clust = ngroups - 1;
 
     {
-        let stats = state.feature_set_enrichment.fetchGroupResults(clust, "cohen", "mean");
+        let stats = state.feature_set_enrichment.computeCluster(clust, "cohen", "mean");
         expect(stats["human-GO"].counts.length).toBeGreaterThan(0);
         expect(stats["human-GO"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["human-GO"].counts).not.toEqual(new Int32Array(nhuman));
     }
 
     {
-        let stats = state.feature_set_enrichment.fetchGroupResults(clust, "cohen", "min_rank");
+        let stats = state.feature_set_enrichment.computeCluster(clust, "cohen", "min_rank");
         expect(stats["human-GO"].counts.length).toBeGreaterThan(0);
         expect(stats["human-GO"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["human-GO"].counts).not.toEqual(new Int32Array(nhuman));
     }
 
     {
-        let stats = state.feature_set_enrichment.fetchGroupResults(clust, "cohen", "min_rank");
+        let stats = state.feature_set_enrichment.computeCluster(clust, "cohen", "min_rank");
         expect(stats["human-GO"].counts.length).toBeGreaterThan(0);
         expect(stats["human-GO"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["human-GO"].counts).not.toEqual(new Int32Array(nhuman));
@@ -63,7 +63,7 @@ test("feature set enrichment works correctly for humans", async () => {
         }
 
         expect(chosen).toBeGreaterThanOrEqual(0);
-        let output = state.feature_set_enrichment.fetchPerCellScores("human-GO", chosen);
+        let output = state.feature_set_enrichment.computePerCellScores("human-GO", chosen);
         expect(output.weights.length).toEqual(human_sizes[chosen]);
         expect(output.scores.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
     }
@@ -83,7 +83,7 @@ test("feature set enrichment works correctly for humans", async () => {
         expect(nmouse).toBeGreaterThan(0);
         expect(deets["mouse-GO"].universe).toBe(0);
 
-        let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
+        let stats = state.feature_set_enrichment.computeCluster(0, "cohen", "mean");
         expect(stats["mouse-GO"].counts).toEqual(new Int32Array(nmouse));
     }
 
@@ -125,7 +125,7 @@ test("feature set enrichment works correctly for mice", async () => {
     expect(deets["mouse-GO"].universe).toBeGreaterThan(0);
 
     {
-        let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
+        let stats = state.feature_set_enrichment.computeCluster(0, "cohen", "mean");
         expect(stats["mouse-GO"].counts.length).toBeGreaterThan(0);
         expect(stats["mouse-GO"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["mouse-GO"].counts).not.toEqual(new Int32Array(nmouse));
@@ -143,7 +143,7 @@ test("feature set enrichment works correctly for mice", async () => {
         }
 
         expect(chosen).toBeGreaterThanOrEqual(0);
-        let output = state.feature_set_enrichment.fetchPerCellScores("mouse-GO", chosen);
+        let output = state.feature_set_enrichment.computePerCellScores("mouse-GO", chosen);
         expect(output.weights.length).toEqual(mouse_sizes[chosen]);
         expect(output.scores.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
     }
@@ -154,23 +154,23 @@ test("feature set enrichment works correctly for mice", async () => {
     params.feature_set_enrichment.species = ["10090"];
     {
         await bakana.runAnalysis(state, mm_files, params);
-        let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
+        let stats = state.feature_set_enrichment.computeCluster(0, "cohen", "mean");
         expect(stats["mouse-GO"].counts).toEqual(new Int32Array(nmouse));
     }
 
     params.feature_set_enrichment.gene_id_type = "SYMBOL";
     {
         await bakana.runAnalysis(state, mm_files, params);
-        let stats = state.feature_set_enrichment.fetchGroupResults(0, "cohen", "mean");
+        let stats = state.feature_set_enrichment.computeCluster(0, "cohen", "mean");
         expect(stats["mouse-GO"].counts).not.toEqual(new Int32Array(nmouse));
     }
 
     // Checking that versus mode works correctly.
     {
-        let v01 = state.feature_set_enrichment.fetchVersusResults(0, 1, "cohen");
+        let v01 = state.feature_set_enrichment.computeVersus(0, 1, "cohen");
         expect(v01["mouse-GO"].counts instanceof Int32Array).toBe(true);
         expect(v01["mouse-GO"].counts).not.toEqual(new Int32Array(nmouse));
-        let v10 = state.feature_set_enrichment.fetchVersusResults(1, 0, "cohen");
+        let v10 = state.feature_set_enrichment.computeVersus(1, 0, "cohen");
         expect(v10["mouse-GO"].counts).not.toEqual(v01["mouse-GO"].counts);
     }
 
