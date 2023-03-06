@@ -415,6 +415,23 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
+     * Detect feature set enrichment among the versus-mode markers from {@linkcode MarkerDetectionState#computeVersus MarkerDetectionState.computeVersus}.
+     *
+     * @param {number} left - Index of one cluster in which to find upregulated markers.
+     * @param {number} right - Index of another cluster to be compared against `left`.
+     * @param {string} effect_size - Effect size to use for ranking.
+     * This should be one of `"cohen"`, `"auc"`, `"lfc"` or `"delta_detected"`.
+     *
+     * @return {object} An object with the same structure as that returned by {@linkcode fetchGroupResults}.
+     */
+    fetchVersusResults(left, right, effect_size) {
+        let output = this.#markers.computeVersus(left, right);
+
+        // Choice of summary doesn't really matter as they're all the same anyway.
+        return this.#manager.fetchGroupResults(output.left, effect_size, "mean", output.results["RNA"], this.#parameters.top_markers);
+    }
+
+    /**
      * @param {string} collection - Name of the collection.
      * @param {number} set_index - Index of a feature set inside the specified collection.
      *

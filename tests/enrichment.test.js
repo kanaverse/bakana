@@ -165,6 +165,15 @@ test("feature set enrichment works correctly for mice", async () => {
         expect(stats["mouse-GO"].counts).not.toEqual(new Int32Array(nmouse));
     }
 
+    // Checking that versus mode works correctly.
+    {
+        let v01 = state.feature_set_enrichment.fetchVersusResults(0, 1, "cohen");
+        expect(v01["mouse-GO"].counts instanceof Int32Array).toBe(true);
+        expect(v01["mouse-GO"].counts).not.toEqual(new Int32Array(nmouse));
+        let v10 = state.feature_set_enrichment.fetchVersusResults(1, 0, "cohen");
+        expect(v10["mouse-GO"].counts).not.toEqual(v01["mouse-GO"].counts);
+    }
+
     // Release me!
     await bakana.freeAnalysis(state);
 })
