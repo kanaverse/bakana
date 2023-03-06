@@ -13,9 +13,9 @@ let files = {
 
 test("Standalone marker detection works correctly", async () => {
     let loaded = files.default.load({ cache: true });
-    let normed = {};
+    let normed = new scran.MultiMatrix;
     for (const m of loaded.matrix.available()) {
-        normed[m] = scran.logNormCounts(loaded.matrix.get(m));
+        normed.add(m, scran.logNormCounts(loaded.matrix.get(m)));
     }
 
     let groups = new Int32Array(loaded.matrix.numberOfColumns());
@@ -28,7 +28,7 @@ test("Standalone marker detection works correctly", async () => {
     expect(() => new bakana.MarkerDetectionStandalone(normed, [])).toThrow("same number of columns");
 
     let markers = new bakana.MarkerDetectionStandalone(normed, groups);
-    markers.compute(bakana.MarkerDetectionStandalone.defaults());
+    markers.computeAll();
     let res = markers.fetchResults();
     expect(res["RNA"] instanceof scran.ScoreMarkersResults).toBe(true);
 
@@ -47,26 +47,25 @@ test("Standalone marker detection works correctly", async () => {
         expect(() => new bakana.MarkerDetectionStandalone(normed, groups, { block: [] })).toThrow("same length");
 
         let markers2 = new bakana.MarkerDetectionStandalone(normed, groups, { block: block } );
-        markers2.compute(bakana.MarkerDetectionStandalone.defaults());
-
+        markers2.computeAll();
         let res2 = markers2.fetchResults();
         expect(res2["RNA"].cohen(0)).not.toEqual(res["RNA"].cohen(0));
 
         markers2.free();
     }
 
+    normed.free();
     markers.free();
 })
 
 test("Standalone custom selections work correctly", async () => {
     let loaded = files.default.load({ cache: true });
-    let normed = {};
+    let normed = new scran.MultiMatrix;
     for (const m of [ "foo", "bar" ]) { // mimicking multiple modalities.
-        normed[m] = scran.logNormCounts(loaded.matrix.get("RNA"));
+        normed.add(m, scran.logNormCounts(loaded.matrix.get("RNA")));
     }
 
     let custom = new bakana.CustomSelectionsStandalone(normed);
-    custom.compute(bakana.CustomSelectionsStandalone.defaults());
     custom.addSelection("WHEEE", [ 1,2,3,4,5,6,7,8,9,10 ]);
     custom.addSelection("BLAH", [ 11,12,13,14,15,16,17 ]);
 
@@ -90,7 +89,6 @@ test("Standalone custom selections work correctly", async () => {
         expect(() => new bakana.CustomSelectionsStandalone(normed, { block: [] })).toThrow("same length");
 
         let custom2 = new bakana.CustomSelectionsStandalone(normed, { block: block } );
-        custom2.compute(bakana.CustomSelectionsStandalone.defaults());
         custom2.addSelection("WHEEE", [ 1,2,3,4,5,6,7,8,9,10 ]);
 
         let res2 = custom2.fetchResults("WHEEE");
@@ -99,6 +97,7 @@ test("Standalone custom selections work correctly", async () => {
         custom2.free();
     }
 
+    normed.free();
     custom.free();
 })
 
