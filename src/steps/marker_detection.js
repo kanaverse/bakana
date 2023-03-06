@@ -29,13 +29,6 @@ function _free(cache) {
     delete cache.versus;
 }
 
-function _defaults() {
-    return {
-        lfc_threshold: 0,
-        compute_auc: true
-    };
-}
-
 function _computeVersus(left, right, matrices, clusters, { cache = {}, block = null, lfc_threshold = 0, compute_auc = true } = {}) {
     let cache_info = markers.locateVersusCache(left, right, cache);
     let left_index = (cache_info.left_small ? 0 : 1);
@@ -191,7 +184,10 @@ export class MarkerDetectionState {
      * @return {object} Default parameters that may be modified and fed into {@linkcode MarkerDetectionCore#compute compute}.
      */
     static defaults() {
-        return _defaults();
+        return {
+            lfc_threshold: 0,
+            compute_auc: true
+        };
     }
 
     // Soft-deprecated.
@@ -294,7 +290,7 @@ export class MarkerDetectionStandalone {
         this.#block = block;
 
         this.#cache = { raw: {}, init: true };
-        this.#parameters = _defaults();
+        this.#parameters = MarkerDetectionState.defaults();
         this.changed = false;
     }
 
@@ -323,6 +319,8 @@ export class MarkerDetectionStandalone {
     }
 
     /**
+     * If this method is not called, the parameters default to those in {@linkcode MarkerDetectionState#defaults MarkerDetectionState.defaults}.
+     *
      * @param {object} parameters - Parameter object, equivalent to the `marker_detection` property of the `parameters` of {@linkcode runAnalysis}.
      * @param {number} parameters.lfc_threshold - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
      * @param {boolean} parameters.compute_auc - Whether to compute the AUCs.
@@ -351,13 +349,6 @@ export class MarkerDetectionStandalone {
             this.#cache.raw[k] = scran.scoreMarkers(mat, this.#groups, { block: this.#block, lfcThreshold: lfc_threshold, computeAuc: compute_auc });
         }
         return;
-    }
-
-    /**
-     * @return {object} Default parameters that may be modified and used in {@linkcode MarkerDetectionCore#setParameters setParameters}.
-     */
-    static defaults() {
-        return _defaults();
     }
 
     /**

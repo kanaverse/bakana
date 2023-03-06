@@ -162,13 +162,6 @@ class SelectionManager {
     }
 }
 
-function _defaults() {
-    return {
-        lfc_threshold: 0,
-        compute_auc: true
-    };
-}
-
 /********************
  ****** State *******
  ********************/
@@ -370,7 +363,10 @@ export class CustomSelectionsState {
      * @return {object} Default parameters that may be modified and fed into {@linkcode MarkerDetectionCore#compute compute}.
      */
     static defaults() {
-        return _defaults();
+        return {
+            lfc_threshold: 0,
+            compute_auc: true
+        };
     }
 
     /**
@@ -452,7 +448,7 @@ export class CustomSelectionsStandalone {
         this.#block = block;
 
         this.#manager = new SelectionManager;
-        this.#parameters = _defaults();
+        this.#parameters = CustomSelectionsState.defaults();
         this.changed = false;
     }
 
@@ -475,6 +471,8 @@ export class CustomSelectionsStandalone {
     }
 
     /**
+     * If this method is not called, the parameters default to those in {@linkcode CustomSelectionsState#defaults CustomSelectionsState.defaults}.
+     *
      * @param {object} parameters - Parameter object, equivalent to the `custom_selections` property of the `parameters` of {@linkcode runAnalysis}.
      * @param {number} parameters.lfc_threshold - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
      * @param {boolean} parameters.compute_auc - Whether to compute the AUCs.
@@ -571,13 +569,6 @@ export class CustomSelectionsStandalone {
      */
     fetchSelections({ copy = true, force = null } = {}) {
         return this.#manager.fetchSelections({ copy, force });
-    }
-
-    /**
-     * @return {object} Default parameters that may be modified and fed into {@linkcode MarkerDetectionCore#compute compute}.
-     */
-    static defaults() {
-        return _defaults();
     }
 
     /**
