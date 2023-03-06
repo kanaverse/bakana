@@ -113,20 +113,19 @@ test("Standalone feature set enrichment works correctly", async () => {
 
     // Checks kick in.
     {
-        expect(() => new bakana.FeatureSetEnrichmentStandalone(bioc.SLICE(loaded.features.RNA, [1,2,3]), markers)).toThrow("number of rows");
         let subnorm = scran.subsetRows(normed, [1,2,3]);
-        expect(() => new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, markers, { normalized: subnorm })).toThrow("number of rows");
+        expect(() => new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, { normalized: subnorm })).toThrow("number of rows");
         subnorm.free();
     }
 
-    let enrich = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, markers, { normalized: normed });
+    let enrich = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, { normalized: normed });
     let params = bakana.FeatureSetEnrichmentState.defaults();
     params.collections.push("human-GO");
-    await enrich.compute(params);
+    await enrich.setParameters(params);
 
     let deets = enrich.fetchCollectionDetails();
     expect("human-GO" in deets).toBe(true);
-    let res = enrich.fetchGroupResults(1, "cohen", "min_rank");
+    let res = enrich.fetchGroupResults(markers, 1, "cohen", "min_rank");
     expect(res["human-GO"].num_markers).toBeGreaterThan(0);
     expect(res["human-GO"].counts).not.toEqual(new Int32Array(normed.numberOfRows()));
 
@@ -148,20 +147,22 @@ test("Standalone feature set enrichment works correctly", async () => {
     }
 
     {
-        let enrich2 = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, markers, { normalized: normed, block: block });
-        await enrich2.compute(params);
+        let enrich2 = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, { normalized: normed, block: block });
+        await enrich2.setParameters(params);
         let scores2 = enrich2.fetchPerCellScores("human-GO", chosen);
         expect(scores2).not.toEqual(scores);
+        enrich2.free();
     }
 
     // Throws an error correctly if no normalized matrix is supplied.
     {
-        let enrich2 = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, markers);
-        await enrich2.compute(params);
+        let enrich2 = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA);
+        await enrich2.setParameters(params);
         expect(() => enrich2.fetchPerCellScores("human-GO", chosen)).toThrow("no normalized matrix");
     }
 
     markers.free();
     normed.free();
+    enrich.free();
 })
 

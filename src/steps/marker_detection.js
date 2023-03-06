@@ -321,10 +321,7 @@ export class MarkerDetectionStandalone {
     /**
      * If this method is not called, the parameters default to those in {@linkcode MarkerDetectionState#defaults MarkerDetectionState.defaults}.
      *
-     * @param {object} parameters - Parameter object, equivalent to the `marker_detection` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {number} parameters.lfc_threshold - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
-     * @param {boolean} parameters.compute_auc - Whether to compute the AUCs.
-     * Setting this to `false` will skip AUC calculations and improve speed and memory efficiency.
+     * @param {object} parameters - Parameter object, see the argument of the same name in {@linkcode MarkerDetectionState#compute MarkerDetectionState.compute} for more details.
      *
      * @return The state is updated with new parameters.
      */

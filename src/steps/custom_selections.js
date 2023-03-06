@@ -26,10 +26,15 @@ class SelectionManager {
 
     free() {
         utils.freeCache(this._cache.buffer);
+        delete this._cache.buffer;
+
         for (const k of Object.keys(this._cache.results)) {
             this.#liberate(k);
         }
+        this._cache.results = {};        
+
         markers.freeVersusResults(this._cache.versus);
+        delete this._cache.versus;
     }
 
     addSelection(id, selection, to_use, matfun, block, copy, lfc_threshold, compute_auc) {
@@ -473,14 +478,14 @@ export class CustomSelectionsStandalone {
     /**
      * If this method is not called, the parameters default to those in {@linkcode CustomSelectionsState#defaults CustomSelectionsState.defaults}.
      *
-     * @param {object} parameters - Parameter object, equivalent to the `custom_selections` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {number} parameters.lfc_threshold - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
-     * @param {boolean} parameters.compute_auc - Whether to compute the AUCs.
-     * Setting this to `false` will skip AUC calculations and improve speed and memory efficiency.
+     * @param {object} parameters - Parameter object, see the argument of the same name in {@linkcode CustomSelectionsState#compute CustomSelectionsState.compute} for more details.
      *
      * @return The state is updated with the new parameters.
      */
     setParameters(parameters) {
+        if (this.#parameters.lfc_threshold !== parameters.lfc_threshold || this.#parameters.compute_auc !== parameters.compute_auc) {
+            this.free();
+        }
         this.#parameters = parameters;
         return;
     }
