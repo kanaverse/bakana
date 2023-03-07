@@ -546,41 +546,64 @@ async function load_datasets(datasets, preserve_dataset_cache) {
  ******* Internals - miscellaneous ********
  ******************************************/
 
+const invalid_block_id = -1;
+
 function harvest_subset_indices(subset, cache) {
+    let keep;
+
     if (RAW_SUBSET_OVERRIDE in cache) {
-        return cache[RAW_SUBSET_OVERRIDE];
-    }
-
-    if (subset == null) {
-        return null;
-    }
-
-    if (!cache.raw_annotations.hasColumn(subset.field)) {
-        throw new Error("failed to find '" + subset.field + "' in the column annotations");
-    }
-
-    let anno = cache.raw_annotations.column(subset.field);
-    let keep = [];
-
-    if ("values" in subset) {
-        let allowed = new Set(subset.values);
-        anno.forEach((x, i) => {
-            if (allowed.has(x)) {
-                keep.push(i);
-            }
-        });
+        keep = cache[RAW_SUBSET_OVERRIDE];
+    } else if (subset == null) {
+        keep = null;
     } else {
-        // Check each entry to see whether it belongs to the range.
-        // This is cheaper than sorting anything, assuming there 
-        // aren't that many ranges.
-        anno.forEach((x, i) => {
-            for (const r of subset.ranges) {
-                if (x >= r[0] && x <= r[1]) {
+        if (!cache.raw_annotations.hasColumn(subset.field)) {
+            throw new Error("failed to find '" + subset.field + "' in the column annotations");
+        }
+
+        let anno = cache.raw_annotations.column(subset.field);
+        keep = [];
+
+        if ("values" in subset) {
+            let allowed = new Set(subset.values);
+            anno.forEach((x, i) => {
+                if (allowed.has(x)) {
                     keep.push(i);
-                    return;
+                }
+            });
+        } else {
+            // Check each entry to see whether it belongs to the range.
+            // This is cheaper than sorting anything, assuming there 
+            // aren't that many ranges.
+            anno.forEach((x, i) => {
+                for (const r of subset.ranges) {
+                    if (x >= r[0] && x <= r[1]) {
+                        keep.push(i);
+                        return;
+                    }
+                }
+            });
+        }
+    }
+
+    // Filter out invalid block IDs.
+    if (cache.raw_block_ids !== null) {
+        let bids = cache.raw_block_ids.array();
+
+        let keep2 = [];
+        if (keep !== null) {
+            for (const i of keep) {
+                if (bids[i] !== invalid_block_id) {
+                    keep2.push(i);
                 }
             }
-        });
+        } else {
+            for (var i = 0; i < bids.length; i++) {
+                if (bids[i] !== invalid_block_id) {
+                    keep2.push(i);
+                }
+            }
+        }
+        keep = keep2;
     }
 
     return keep;
@@ -628,7 +651,7 @@ function block_and_cache(block_factor, cache) {
             if (anno_batch.length != cache.raw_matrix.numberOfColumns()) {
                 throw new Error("length of blocking factor '" + block_factor + "' should be equal to the number of cells"); 
             }
-            let converted = scran.convertBlock(anno_batch);
+            let converted = scran.factorize(anno_batch, { action: "none", placeholder: invalid_block_id });
             blocks = converted.ids;
             block_levels = converted.levels;
         } catch (e) {

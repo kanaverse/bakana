@@ -1,6 +1,7 @@
 import * as bakana from "../src/index.js";
 import * as inputs from "../src/steps/inputs.js";
 import * as scran from "scran.js";
+import * as bioc from "bioconductor";
 import * as utils from "./utils.js"
 import * as fs from "fs";
 
@@ -251,6 +252,54 @@ test("subsetting processes the blocking factors", async () => {
 
     istate.free();
     fullstate.free();
+})
+
+test("subsetting behaves with invalid values in the blocking factors", async () => {
+    let annopath = "files/datasets/pbmc-combined-barcodes.tsv.gz";
+    let files = { 
+        "default": new bakana.TenxMatrixMarketDataset(
+                "files/datasets/pbmc-combined-matrix.mtx.gz",
+                "files/datasets/pbmc-combined-features.tsv.gz",
+                annopath
+            )
+    };
+
+    let deets = await files.default.load({ cache: true });
+    let copy = deets.cells.column("3k").slice();
+    copy[0] = null;
+    deets.cells.$setColumn("dummy", copy);
+
+    let istate = new inputs.InputsState;
+    let params = inputs.InputsState.defaults();
+    params.block_factor = "dummy";
+    await istate.compute(files, params);
+
+    // first column has been removed.
+    expect(istate.fetchCountMatrix().numberOfColumns()).toBe(deets.cells.numberOfRows() - 1);
+    expect(istate.fetchCellAnnotations().column("3k")).toEqual(deets.cells.column("3k").slice(1));
+    expect(istate.fetchCountMatrix().get("RNA").column(0)).toEqual(deets.matrix.get("RNA").column(1)); 
+
+    let sub = [ 0, 1, 2 ];
+    istate.undoSubset(sub);
+    expect(sub).toEqual([1,2,3]);
+    expect(istate.fetchBlock().length).toEqual(deets.cells.numberOfRows() - 1);
+
+    expect(istate.fetchFeatureAnnotations()["RNA"].numberOfRows()).toEqual(deets.features["RNA"].numberOfRows()); // RNA is unaffected.
+
+    // Interacts correctly with additional subsetting; the first column is still dropped.
+    istate.setDirectSubset(new Int32Array([0,2,4,6,8,10]), { onOriginal: true });
+    istate.compute(files, params);
+
+    expect(istate.fetchCountMatrix().numberOfColumns()).toBe(5);
+    expect(istate.fetchCellAnnotations().column("3k")).toEqual(bioc.SLICE(deets.cells.column("3k"), [2, 4, 6, 8, 10]));
+    expect(istate.fetchCountMatrix().get("RNA").column(0)).toEqual(deets.matrix.get("RNA").column(2));
+    expect(istate.fetchCountMatrix().get("RNA").column(1)).toEqual(deets.matrix.get("RNA").column(4));
+
+    sub = [ 0, 1, 2 ];
+    istate.undoSubset(sub);
+    expect(sub).toEqual([2, 4, 6]);
+
+    istate.free();
 })
 
 test("end-to-end run works with (direct) subsetting", async () => {
