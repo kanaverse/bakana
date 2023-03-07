@@ -502,6 +502,8 @@ export class CustomSelectionsStandalone {
 
         this.#block = null;
         this.#block_levels = null;
+        this.#revmap = null;
+
         if (block !== null) {
             if (block.length != N) {
                 throw new Error("'block' should have the same length as the number of columns in each entry of 'normalized'");
@@ -509,6 +511,10 @@ export class CustomSelectionsStandalone {
 
             let dump = utils.subsetInvalidFactors([ block ]);
             if (dump.retain !== null) {
+                this.#revmap = new Int32Array(N);
+                this.#revmap.fill(-1);
+                dump.retain.forEach((y, i) => { this.#revmap[y] = i; });
+
                 let temp = scran.createInt32WasmArray(dump.retain.length);
                 try {
                     temp.set(dump.retain);
@@ -581,6 +587,13 @@ export class CustomSelectionsStandalone {
      * Nothing is returned.
      */
     addSelection(id, selection, { copy = true } = {}) {
+        if (this.#revmap !== null) {
+            let collected = [];
+            for (const i of selection) {
+                let j = this.#revmapcollected
+            }
+        }
+
         this.#manager.addSelection(
             id, 
             selection, 

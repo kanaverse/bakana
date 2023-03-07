@@ -126,6 +126,21 @@ test("Standalone custom selections work correctly", async () => {
         custom2.free();
     }
 
+    // Sanitization works correctly.
+    {
+        let blev = ["x", "y"];
+        let block2 = Array.from(block).map(i => blev[i]);
+        let last = block2.length - 1;
+        block2[last] = null;
+
+        let bpartial = new bakana.MarkerDetectionStandalone(normed, groups2, { block: block2 });
+        expect(bpartial._peekMatrices().get("RNA").row(0)).toEqual(normed.get("RNA").row(0).slice(1, last));
+        expect(bpartial._peekGroups().array()).toEqual(groups.slice(1, last));
+        let extracted = bpartial.fetchBlockLevels();
+        expect(Array.from(bpartial._peekBlock().array()).map(i => extracted[i])).toEqual(Array.from(block.slice(1, last)).map(i => blev[i]));
+        bpartial.free();
+    }
+
     normed.free();
     custom.free();
 })
