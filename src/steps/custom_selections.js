@@ -476,15 +476,17 @@ export class CustomSelectionsState {
 export class CustomSelectionsStandalone {
     #normalized;
     #block;
+    #block_levels;
 
     #manager;
     #parameters;
 
+    #missing_map;
+
     /**
      * @param {external:MultiMatrix} normalized - A {@linkplain external:MultiMatrix MultiMatrix} of log-normalized values for multiple modalities.
      * @param {object} [options={}] - Optional parameters.
-     * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in any value of `normalized`.
-     * This should contain the block assignments for each column, encoded as non-negative integers starting from zero.
+     * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in any value of `normalized`, containing the block assignments for each column.
      * If `null`, all columns are assigned to the same block.
      */
     constructor(normalized, { block = null } = {}) {
@@ -499,17 +501,47 @@ export class CustomSelectionsStandalone {
                 N = alt;
             }
         }
-        this.#normalized = normalized;
+
+        this.#block = null;
+        this.#block_levels = null;
+        this.#missing_map = null;
 
         if (block !== null) {
-            if (block.length && typeof block[0] !== "number") {
-                throw new Error("'block' should encode each block as a non-negative integer starting from zero");
-            }
             if (block.length != N) {
                 throw new Error("'block' should have the same length as the number of columns in each entry of 'normalized'");
             }
+
+            let dump = utils.subsetInvalidFactors([ block ]);
+            if (dump.retain !== null) {
+                let revmap = new Int32Array(N);
+                revmap.fill(-1);
+                dump.retain.forEach((y, i) => { revmap[y] = i; });
+                this.#missing_map = { to: revmap, from: dump.retain };
+
+                let new_matrices = new scran.MultiMatrix;
+                let temp = scran.createInt32WasmArray(dump.retain.length);
+                try {
+                    temp.set(dump.retain);
+                    for (const k of normalized.available()) {
+                        new_matrices.add(k, scran.subsetColumns(normalized.get(k), temp))
+                    }
+                } catch (e) {
+                    scran.free(new_matrices);
+                    throw e;
+                } finally {
+                    scran.free(temp);
+                }
+
+                this.#normalized = new_matrices;
+            } else {
+                this.#normalized = normalized.clone();
+            }
+
+            this.#block = dump.arrays[0].ids;
+            this.#block_levels = dump.arrays[0].levels;
+        } else {
+            this.#normalized = normalized.clone();
         }
-        this.#block = block;
 
         this.#manager = new SelectionManager;
         this.#parameters = CustomSelectionsState.defaults();
@@ -535,6 +567,28 @@ export class CustomSelectionsStandalone {
     }
 
     /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.copy=true] - Whether to copy the return value on output.
+     * Set to `false` for greater efficiency in strictly read-only applications.
+     *
+     * @return {Array} Array of levels for the blocking factor.
+     * Block indices in the {@linkplain external:ScoreMarkersResults ScoreMarkersResults} instances returned by {@linkcode fetchResults} can be cross-referenced to this array.
+     */
+    fetchBlockLevels({ copy = true } = {}) {
+        let ret = this.#block_levels;
+        return (copy ? ret.slice() : ret);
+    }
+
+    // Testing functions to check that the sanitization worked correctly.
+    _peekMatrices() {
+        return this.#normalized;
+    }
+
+    _peekBlock() {
+        return this.#block;
+    }
+
+    /**
      * If this method is not called, the parameters default to those in {@linkcode CustomSelectionsState#defaults CustomSelectionsState.defaults}.
      *
      * @param {object} parameters - Parameter object, see the argument of the same name in {@linkcode CustomSelectionsState#compute CustomSelectionsState.compute} for more details.
@@ -553,9 +607,8 @@ export class CustomSelectionsStandalone {
      * Add a custom selection and compute its markers.
      * Users should run {@linkcode CustomSelectionsCore#compute compute} at least once before calling this function.
      *
-     * @param {string} id A unique identifier for the new custom selection.
-     * @param {Array|TypedArray} selection The indices of the cells in the selection.
-     * Indices should refer to positions of cells in the QC-filtered matrix, not the original matrix.
+     * @param {string} id - A unique identifier for the new custom selection.
+     * @param {Array|TypedArray} selection - The indices of the cells in the selection.
      * @param {object} [options] - Optional parameters.
      * @param {boolean} [options.copy=true] - Whether to make a copy of `selection` before storing it inside this object.
      * If `false`, it is assumed that the caller makes no further modifications to the passed `selection`.
@@ -564,9 +617,24 @@ export class CustomSelectionsStandalone {
      * Nothing is returned.
      */
     addSelection(id, selection, { copy = true } = {}) {
+        let selection_internal = selection;
+
+        // Removing the invalid observations.
+        if (this.#missing_map !== null) { 
+            let collected = [];
+            let revmap = this.#missing_map.to;
+            for (const i of selection) {
+                let j = revmap[i];
+                if (j >= 0) {
+                    collected.push(j);
+                }
+            }
+            selection_internal = collected;
+        }
+
         this.#manager.addSelection(
             id, 
-            selection, 
+            selection_internal,
             this.#normalized.available(),
             modality => this.#normalized.get(modality),
             this.#block,
@@ -574,6 +642,7 @@ export class CustomSelectionsStandalone {
             this.#parameters.lfc_threshold,
             this.#parameters.compute_auc
         );
+
         return;
     }
 
@@ -602,6 +671,17 @@ export class CustomSelectionsStandalone {
         return this.#manager.fetchResults(id);
     }
 
+    #unmap(ids) {
+        // Restoring the indices after adjusting for the invalid observations,
+        // so that users get back indices relative to the input matrices.
+        if (this.#missing_map !== null) {
+            ids.forEach((x, i) => {
+                ids[i] = this.#missing_map.from[x];
+            });
+        }
+        return;
+    }
+
     /**
      * Retrieve the indices for a selection of interest.
      *
@@ -611,11 +691,11 @@ export class CustomSelectionsStandalone {
      * If `false`, it is assumed that the caller does not modify the selection.
      *
      * @return {Array|TypedArray} Array of indices in the requested selection.
-     * Note that indices are relative to the filtered matrix - 
-     * use {@linkcode CellFilteringState#undoFiltering CellFilteringState.undoFiltering} to convert them to indices on the original dataset.
      */
     fetchSelectionIndices(id, { copy = true } = {}) {
-        return this.#manager.fetchSelectionIndices(id, { copy });
+        let output = this.#manager.fetchSelectionIndices(id, { copy });
+        this.#unmap(output);
+        return output;
     }
 
     /**
@@ -629,10 +709,13 @@ export class CustomSelectionsStandalone {
      *
      * @return {object} Object where the keys are the selection names and the values are arrays of indices for each selection.
      * Each array is a copy and can be modified without affecting the CustomSelectionsState.
-     * See {@linkcode CustomSelectionsState#fetchSelectionIndices fetchSelectionIndices} for more details on the interpretation of the indices.
      */
     fetchSelections({ copy = true, force = null } = {}) {
-        return this.#manager.fetchSelections({ copy, force });
+        let output = this.#manager.fetchSelections({ copy, force });
+        for (const [k, v] of Object.entries(output)) {
+            this.#unmap(v);
+        }
+        return output;
     }
 
     /**

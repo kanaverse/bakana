@@ -24,10 +24,12 @@ test("Standalone marker detection works correctly", async () => {
     groups.fill(1, half, groups.length);
 
     // Checks kick in.
-    expect(() => new bakana.MarkerDetectionStandalone(normed, ["A"])).toThrow("non-negative integer");
     expect(() => new bakana.MarkerDetectionStandalone(normed, [])).toThrow("same number of columns");
 
     let markers = new bakana.MarkerDetectionStandalone(normed, groups);
+    expect(markers.fetchGroupLevels()).toEqual([0, 1]);
+    expect(markers._peekGroups().array()).toEqual(groups);
+
     markers.computeAll();
     let res = markers.fetchResults();
     expect(res["RNA"] instanceof scran.ScoreMarkersResults).toBe(true);
@@ -43,15 +45,42 @@ test("Standalone marker detection works correctly", async () => {
 
     {
         // Checks kick in.
-        expect(() => new bakana.MarkerDetectionStandalone(normed, groups, { block: ["A"] })).toThrow("non-negative integer");
         expect(() => new bakana.MarkerDetectionStandalone(normed, groups, { block: [] })).toThrow("same length");
 
         let markers2 = new bakana.MarkerDetectionStandalone(normed, groups, { block: block } );
+        expect(markers2.fetchBlockLevels()).toEqual([1, 0]);
+
         markers2.computeAll();
         let res2 = markers2.fetchResults();
         expect(res2["RNA"].cohen(0)).not.toEqual(res["RNA"].cohen(0));
 
         markers2.free();
+    }
+
+    // Sanitization works correctly.
+    {
+        let lev = ["B", "A"];
+        let groups2 = Array.from(groups).map(i => lev[i]);
+        groups2[0] = null;
+
+        let partial = new bakana.MarkerDetectionStandalone(normed, groups2);
+        expect(partial.fetchGroupLevels()).toEqual(lev);
+        expect(partial._peekMatrices().get("RNA").row(0)).toEqual(normed.get("RNA").row(0).slice(1));
+        expect(partial._peekGroups().array()).toEqual(groups.slice(1));
+        expect(partial._peekBlock()).toBeNull();
+        partial.free();
+
+        let blev = ["x", "y"];
+        let block2 = Array.from(block).map(i => blev[i]);
+        let last = block2.length - 1;
+        block2[last] = null;
+
+        let bpartial = new bakana.MarkerDetectionStandalone(normed, groups2, { block: block2 });
+        expect(bpartial._peekMatrices().get("RNA").row(0)).toEqual(normed.get("RNA").row(0).slice(1, last));
+        expect(bpartial._peekGroups().array()).toEqual(groups.slice(1, last));
+        let extracted = bpartial.fetchBlockLevels();
+        expect(Array.from(bpartial._peekBlock().array()).map(i => extracted[i])).toEqual(Array.from(block.slice(1, last)).map(i => blev[i]));
+        bpartial.free();
     }
 
     normed.free();
@@ -67,7 +96,9 @@ test("Standalone custom selections work correctly", async () => {
 
     let custom = new bakana.CustomSelectionsStandalone(normed);
     custom.addSelection("WHEEE", [ 1,2,3,4,5,6,7,8,9,10 ]);
+    expect(custom.fetchSelectionIndices("WHEEE")).toEqual([ 1,2,3,4,5,6,7,8,9,10 ]);
     custom.addSelection("BLAH", [ 11,12,13,14,15,16,17 ]);
+    expect(custom.fetchSelections()["BLAH"]).toEqual([ 11,12,13,14,15,16,17 ]);
 
     let res = custom.fetchResults("WHEEE");
     expect(res["foo"] instanceof scran.ScoreMarkersResults).toBe(true);
@@ -85,7 +116,6 @@ test("Standalone custom selections work correctly", async () => {
 
     {
         // Checks kick in.
-        expect(() => new bakana.CustomSelectionsStandalone(normed, { block: ["A"] })).toThrow("non-negative integer");
         expect(() => new bakana.CustomSelectionsStandalone(normed, { block: [] })).toThrow("same length");
 
         let custom2 = new bakana.CustomSelectionsStandalone(normed, { block: block } );
@@ -95,6 +125,26 @@ test("Standalone custom selections work correctly", async () => {
         expect(res2["foo"].cohen(0)).not.toEqual(res["foo"].cohen(0));
 
         custom2.free();
+    }
+
+    // Sanitization works correctly.
+    {
+        let blev = ["x", "y"];
+        let block2 = Array.from(block).map(i => blev[i]);
+        block2[0] = null;
+
+        let bpartial = new bakana.CustomSelectionsStandalone(normed, { block: block2 });
+        expect(bpartial._peekMatrices().get("foo").row(0)).toEqual(normed.get("foo").row(0).slice(1));
+        let extracted = bpartial.fetchBlockLevels();
+        expect(Array.from(bpartial._peekBlock().array()).map(i => extracted[i])).toEqual(Array.from(block.slice(1)).map(i => blev[i]));
+
+        bpartial.addSelection("odds", [ 1, 3, 5, 7, 9 ]);
+        expect(bpartial.fetchSelectionIndices("odds")).toEqual([1, 3, 5, 7, 9]);
+        bpartial.addSelection("evens", [ 0, 2, 4, 6, 8 ]); 
+        expect(bpartial.fetchSelectionIndices("evens")).toEqual([2, 4, 6, 8]); // losing the first column as it's got a missing block.
+        expect(bpartial.fetchSelections()["evens"]).toEqual([ 2, 4, 6, 8 ]); // same result.
+
+        bpartial.free();
     }
 
     normed.free();
@@ -138,6 +188,8 @@ test("Standalone feature set enrichment works correctly", async () => {
         }
     }
     let scores = enrich.computePerCellScores("human-GO", chosen);
+    expect(scores.scores.some(Number.isNaN)).toBe(false);
+    expect(scores.scores.length).toEqual(normed.numberOfColumns());
     expect(scores.weights.length).toEqual(human_sizes[chosen]);
 
     // Also works with blocking.
@@ -150,6 +202,7 @@ test("Standalone feature set enrichment works correctly", async () => {
         let enrich2 = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, { normalized: normed, block: block });
         await enrich2.setParameters(params);
         let scores2 = enrich2.computePerCellScores("human-GO", chosen);
+        expect(scores2.scores.length).toEqual(normed.numberOfColumns());
         expect(scores2).not.toEqual(scores);
         enrich2.free();
     }
@@ -159,6 +212,24 @@ test("Standalone feature set enrichment works correctly", async () => {
         let enrich2 = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA);
         await enrich2.setParameters(params);
         expect(() => enrich2.computePerCellScores("human-GO", chosen)).toThrow("no normalized matrix");
+    }
+
+    // Sanitization works correctly.
+    {
+        let blev = ["x", "y"];
+        let block2 = Array.from(block).map(i => blev[i]);
+        block2[0] = null;
+
+        let bpartial = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, { normalized: normed, block: block2 });
+        expect(bpartial._peekMatrices().row(0)).toEqual(normed.row(0).slice(1));
+        expect(bpartial._peekBlock().array()).toEqual(block.slice(1));
+
+        await bpartial.setParameters(params);
+        let scores = bpartial.computePerCellScores("human-GO", chosen);
+        expect(Number.isNaN(scores.scores[0])).toBe(true);
+        expect(scores.scores.slice(1).every(Number.isNaN)).toBe(false);
+
+        bpartial.free();
     }
 
     markers.free();
