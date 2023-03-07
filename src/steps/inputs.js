@@ -585,8 +585,10 @@ function harvest_subset_indices(subset, cache) {
         }
     }
 
-    // Filter out invalid block IDs.
-    if (cache.raw_block_ids !== null) {
+    // Filter out invalid block IDs. Note that this might get called
+    // before compute() is run (via undoSubset), so we need to protect
+    // against the case where the raw_block_ids has not been set yet.
+    if ("raw_block_ids" in cache && cache.raw_block_ids !== null) {
         let bids = cache.raw_block_ids.array();
 
         let keep2 = [];
