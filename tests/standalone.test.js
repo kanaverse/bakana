@@ -24,10 +24,12 @@ test("Standalone marker detection works correctly", async () => {
     groups.fill(1, half, groups.length);
 
     // Checks kick in.
-    expect(() => new bakana.MarkerDetectionStandalone(normed, ["A"])).toThrow("non-negative integer");
     expect(() => new bakana.MarkerDetectionStandalone(normed, [])).toThrow("same number of columns");
 
     let markers = new bakana.MarkerDetectionStandalone(normed, groups);
+    expect(markers.fetchGroupLevels()).toEqual([0, 1]);
+    expect(markers._peekGroups().array()).toEqual(groups);
+
     markers.computeAll();
     let res = markers.fetchResults();
     expect(res["RNA"] instanceof scran.ScoreMarkersResults).toBe(true);
@@ -43,15 +45,42 @@ test("Standalone marker detection works correctly", async () => {
 
     {
         // Checks kick in.
-        expect(() => new bakana.MarkerDetectionStandalone(normed, groups, { block: ["A"] })).toThrow("non-negative integer");
         expect(() => new bakana.MarkerDetectionStandalone(normed, groups, { block: [] })).toThrow("same length");
 
         let markers2 = new bakana.MarkerDetectionStandalone(normed, groups, { block: block } );
+        expect(markers2.fetchBlockLevels()).toEqual([1, 0]);
+
         markers2.computeAll();
         let res2 = markers2.fetchResults();
         expect(res2["RNA"].cohen(0)).not.toEqual(res["RNA"].cohen(0));
 
         markers2.free();
+    }
+
+    // Sanitization works correctly.
+    {
+        let lev = ["B", "A"];
+        let groups2 = Array.from(groups).map(i => lev[i]);
+        groups2[0] = null;
+
+        let partial = new bakana.MarkerDetectionStandalone(normed, groups2);
+        expect(partial.fetchGroupLevels()).toEqual(lev);
+        expect(partial._peekMatrices().get("RNA").row(0)).toEqual(normed.get("RNA").row(0).slice(1));
+        expect(partial._peekGroups().array()).toEqual(groups.slice(1));
+        expect(partial._peekBlock()).toBeNull();
+        partial.free();
+
+        let blev = ["x", "y"];
+        let block2 = Array.from(block).map(i => blev[i]);
+        let last = block2.length - 1;
+        block2[last] = null;
+
+        let bpartial = new bakana.MarkerDetectionStandalone(normed, groups2, { block: block2 });
+        expect(bpartial._peekMatrices().get("RNA").row(0)).toEqual(normed.get("RNA").row(0).slice(1, last));
+        expect(bpartial._peekGroups().array()).toEqual(groups.slice(1, last));
+        let extracted = bpartial.fetchBlockLevels();
+        expect(Array.from(bpartial._peekBlock().array()).map(i => extracted[i])).toEqual(Array.from(block.slice(1, last)).map(i => blev[i]));
+        bpartial.free();
     }
 
     normed.free();

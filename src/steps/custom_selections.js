@@ -476,6 +476,7 @@ export class CustomSelectionsState {
 export class CustomSelectionsStandalone {
     #normalized;
     #block;
+    #block_levels;
 
     #manager;
     #parameters;
@@ -483,8 +484,7 @@ export class CustomSelectionsStandalone {
     /**
      * @param {external:MultiMatrix} normalized - A {@linkplain external:MultiMatrix MultiMatrix} of log-normalized values for multiple modalities.
      * @param {object} [options={}] - Optional parameters.
-     * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in any value of `normalized`.
-     * This should contain the block assignments for each column, encoded as non-negative integers starting from zero.
+     * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in any value of `normalized`, containing the block assignments for each column.
      * If `null`, all columns are assigned to the same block.
      */
     constructor(normalized, { block = null } = {}) {
@@ -499,17 +499,34 @@ export class CustomSelectionsStandalone {
                 N = alt;
             }
         }
-        this.#normalized = normalized;
 
+        this.#block = null;
+        this.#block_levels = null;
         if (block !== null) {
-            if (block.length && typeof block[0] !== "number") {
-                throw new Error("'block' should encode each block as a non-negative integer starting from zero");
-            }
             if (block.length != N) {
                 throw new Error("'block' should have the same length as the number of columns in each entry of 'normalized'");
             }
+
+            let dump = utils.subsetInvalidFactors([ block ]);
+            if (dump.retain !== null) {
+                let temp = scran.createInt32WasmArray(dump.retain.length);
+                try {
+                    temp.set(dump.retain);
+                    for (const k of normalized.available()) {
+                        new_matrices.add(k, scran.subsetColumns(normalized.get(k), temp))
+                    }
+                } finally {
+                    scran.free(temp);
+                }
+            } else {
+                this.#normalized = normalized.clone();
+            }
+
+            this.#block = dump.arrays[0].ids;
+            this.#block_levels = dump.arrays[0].levels;
+        } else {
+            this.#normalized = normalized.clone();
         }
-        this.#block = block;
 
         this.#manager = new SelectionManager;
         this.#parameters = CustomSelectionsState.defaults();

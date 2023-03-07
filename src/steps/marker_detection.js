@@ -249,27 +249,25 @@ export class MarkerDetectionState {
  */
 export class MarkerDetectionStandalone {
     #matrices;
+
     #groups;
+    #group_levels;
     #block;
+    #block_levels;
 
     #cache;
     #parameters;
 
     /**
      * @param {external:MultiMatrix} normalized - A {@linkplain external:MultiMatrix MultiMatrix} of log-normalized values for multiple modalities.
-     * @param {Array|TypedArray} groups - Array of length equal to the number of columns in any value of `normalized`.
-     * This should contain the group assignments for each column, encoded as non-negative integers starting from zero.
+     * @param {Array|TypedArray} groups - Array of length equal to the number of columns in any value of `normalized`, containing the group assignments for each column. 
      * @param {object} [options={}] - Optional parameters.
-     * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in any value of `normalized`.
-     * This should contain the block assignments for each column, encoded as non-negative integers starting from zero.
+     * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in any value of `normalized`, containing the block assignments for each column.
      * If `null`, all columns are assigned to the same block.
      */
     constructor(normalized, groups, { block = null } = {}) {
-        if (groups.length && typeof groups[0] !== "number") {
-            throw new Error("'groups' should encode each group as a non-negative integer");
-        }
+        // Checking dimensions.
         let N = groups.length;
-        this.#groups = groups;
 
         for (const k of normalized.available()) {
             let v = normalized.get(k);
@@ -277,17 +275,50 @@ export class MarkerDetectionStandalone {
                 throw new Error("all matrices in 'normalized' should have the same number of columns as the length of 'groups'");
             }
         }
-        this.#matrices = normalized;
 
         if (block !== null) {
-            if (block.length && typeof block[0] !== "number") {
-                throw new Error("'block' should encode each block as a non-negative integer starting from zero");
-            }
             if (block.length != N) {
                 throw new Error("'block' should have the same length as 'groups' if not null");
             }
         }
-        this.#block = block;
+
+        let arrays = [ groups ];
+        if (block !== null) {
+            arrays.push(block);
+        }
+        let dump = utils.subsetInvalidFactors(arrays);
+
+        // Maybe taking a subset to eliminate invalid entries.
+        let new_matrices;
+        if (dump.retain !== null) {
+            new_matrices = new scran.MultiMatrix;
+            let temp = scran.createInt32WasmArray(dump.retain.length);
+            try {
+                temp.set(dump.retain);
+                for (const k of normalized.available()) {
+                    new_matrices.add(k, scran.subsetColumns(normalized.get(k), temp))
+                }
+            } catch (e) {
+                new_matrices.free();
+                throw e;
+            } finally {
+                scran.free(temp);
+            }
+        } else {
+            new_matrices = normalized.clone();
+        }
+
+        this.#matrices = new_matrices;
+        this.#groups = dump.arrays[0].ids;
+        this.#group_levels = dump.arrays[0].levels;
+
+        if (block !== null) {
+            this.#block = dump.arrays[1].ids;
+            this.#block_levels = dump.arrays[1].levels;
+        } else {
+            this.#block = null;
+            this.#block_levels = null;
+        }
 
         this.#cache = { raw: {}, init: true };
         this.#parameters = MarkerDetectionState.defaults();
@@ -298,6 +329,9 @@ export class MarkerDetectionStandalone {
      * Frees all resources associated with this instance.
      */
     free() {
+        scran.free(this.#groups);
+        scran.free(this.#block);
+        scran.free(this.#matrices);
         _free(this.#cache);
     }
 
@@ -316,6 +350,45 @@ export class MarkerDetectionStandalone {
      */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
+    }
+
+    /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.copy=true] - Whether to copy the return value on output.
+     * Set to `false` for greater efficiency in strictly read-only applications.
+     *
+     * @return {Array} Array of levels for the grouping factor.
+     * Group indices in the {@linkplain external:ScoreMarkersResults ScoreMarkersResults} instances returned by {@linkcode fetchResults} can be cross-referenced to this array.
+     */
+    fetchGroupLevels({ copy = true } = {}) {
+        let ret = this.#group_levels;
+        return (copy ? ret.slice() : ret);
+    }
+
+    /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.copy=true] - Whether to copy the return value on output.
+     * Set to `false` for greater efficiency in strictly read-only applications.
+     *
+     * @return {Array} Array of levels for the blocking factor.
+     * Block indices in the {@linkplain external:ScoreMarkersResults ScoreMarkersResults} instances returned by {@linkcode fetchResults} can be cross-referenced to this array.
+     */
+    fetchBlockLevels({ copy = true } = {}) {
+        let ret = this.#block_levels;
+        return (copy ? ret.slice() : ret);
+    }
+
+    // Testing functions to check that the sanitization worked correctly.
+    _peekMatrices() {
+        return this.#matrices;
+    }
+
+    _peekGroups() {
+        return this.#groups;
+    }
+
+    _peekBlock() {
+        return this.#block;
     }
 
     /**

@@ -612,8 +612,10 @@ export class FeatureSetEnrichmentState {
 export class FeatureSetEnrichmentStandalone {
     #annotations;
     #guesses;
+
     #normalized;
     #block;
+    #block_levels;
 
     #parameters;
     #manager;
@@ -626,27 +628,38 @@ export class FeatureSetEnrichmentStandalone {
      * @param {?(external:ScranMatrix)} [options.normalized=null] - A {@linkcode external:ScranMatrix ScranMatrix} of log-normalized expression values,
      * to be used in {@linkcode FeatureSetEnrichmentState#computePerCellScores FeatureSetEnrichmentState.computePerCellScores}.
      * Each row corresponds to a gene in the same order as `annotations` and `markers`.
-     * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in `normalized`.
-     * This should contain the block assignments for each column, encoded as non-negative integers starting from zero.
+     * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in `normalized`, containing the block assignments for each column. 
      * If `null`, all columns are assigned to the same block.
      */
     constructor(annotations, { normalized = null, block = null } = {}) {
         this.#annotations = annotations;
         this.#guesses = null;
 
-        this.#normalized = normalized;
-        this.#block = block;
+        this.#normalized = null;
+        this.#block = null;
+        this.#block_levels = null;
+
         if (this.#normalized !== null) {
             if (this.#normalized.numberOfRows() !== this.#annotations.numberOfRows()) {
                 throw new Error("number of rows of 'annotations' and 'normalized' should be identical");
             }
+
             if (this.#block !== null) {
                 if (this.#normalized.numberOfColumns() !== this.#block.length) {
                     throw new Error("number of columns of 'normalized' should equal the length of 'block'");
                 }
-                if (block.length && typeof block[0] !== "number") {
-                    throw new Error("'block' should encode each block as a non-negative integer starting from zero");
+
+                let dump = utils.subsetInvalidFactors([ block ]);
+                if (dump.retain !== null) {
+                    this.#normalized = scran.subsetColumns(normalized, dump.retain);
+                } else {
+                    this.#normalized = normalized.clone();
                 }
+
+                this.#block = dump.arrays[0].ids;
+                this.#block_levels = dump.arrays[0].levels;
+            } else {
+                this.#normalized = normalized.clone();
             }
         }
 
@@ -665,6 +678,8 @@ export class FeatureSetEnrichmentStandalone {
      * Frees all resources associated with this instance.
      */
     free() {
+        scran.free(this.#block);
+        scran.free(this.#normalized);
         this.#manager.free();
         return; // nothing extra to free here.
     }

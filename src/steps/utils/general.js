@@ -176,3 +176,51 @@ export function guessFeatureTypes(genes) {
 
     return output;
 }
+
+export function subsetInvalidFactors(arrays) {
+    let N = arrays[0].length;
+    let output = { arrays: [], retain: null };
+
+    let invalid = new Uint8Array(N);
+    invalid.fill(0);
+    for (const x of arrays) {
+        let transformed = scran.factorize(x, { action: "warn", placeholder: -1 });
+        output.arrays.push(transformed);
+        transformed.ids.forEach((y, i) => {
+            if (y == -1) {
+                invalid[i] = 1;
+            }
+        });
+    }
+
+    let num_invalid = 0;
+    invalid.forEach(y => { num_invalid += y; });
+    if (num_invalid == 0) {
+        return output;
+    }
+
+    let retain = new Int32Array(N - num_invalid);
+    {
+        let counter = 0;
+        for (var i = 0; i < N; i++) {
+            if (invalid[i] == 0) {
+                retain[counter] = i;
+                counter++;
+            }
+        }
+    }
+    output.retain = retain;
+
+    for (var i = 0; i < output.arrays.length; i++) {
+        let x = output.arrays[i];
+        let new_ids = scran.subsetBlock(x.ids, retain);
+        let remapping = scran.dropUnusedBlock(new_ids);
+        let new_levels = remapping.map(i => x.levels[i]);
+
+        scran.free(x.ids);
+        x.ids = new_ids;
+        x.levels = new_levels;
+    }
+
+    return output;
+}
