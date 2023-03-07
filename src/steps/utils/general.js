@@ -184,7 +184,7 @@ export function subsetInvalidFactors(arrays) {
     let invalid = new Uint8Array(N);
     invalid.fill(0);
     for (const x of arrays) {
-        let transformed = scran.factorize(x, { action: "warn", placeholder: -1 });
+        let transformed = scran.factorize(x, { action: "none", placeholder: -1 });
         output.arrays.push(transformed);
         transformed.ids.forEach((y, i) => {
             if (y == -1) {
