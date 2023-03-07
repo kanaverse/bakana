@@ -96,7 +96,9 @@ test("Standalone custom selections work correctly", async () => {
 
     let custom = new bakana.CustomSelectionsStandalone(normed);
     custom.addSelection("WHEEE", [ 1,2,3,4,5,6,7,8,9,10 ]);
+    expect(custom.fetchSelectionIndices("WHEEE")).toEqual([ 1,2,3,4,5,6,7,8,9,10 ]);
     custom.addSelection("BLAH", [ 11,12,13,14,15,16,17 ]);
+    expect(custom.fetchSelections()["BLAH"]).toEqual([ 11,12,13,14,15,16,17 ]);
 
     let res = custom.fetchResults("WHEEE");
     expect(res["foo"] instanceof scran.ScoreMarkersResults).toBe(true);
@@ -114,7 +116,6 @@ test("Standalone custom selections work correctly", async () => {
 
     {
         // Checks kick in.
-        expect(() => new bakana.CustomSelectionsStandalone(normed, { block: ["A"] })).toThrow("non-negative integer");
         expect(() => new bakana.CustomSelectionsStandalone(normed, { block: [] })).toThrow("same length");
 
         let custom2 = new bakana.CustomSelectionsStandalone(normed, { block: block } );
@@ -130,14 +131,19 @@ test("Standalone custom selections work correctly", async () => {
     {
         let blev = ["x", "y"];
         let block2 = Array.from(block).map(i => blev[i]);
-        let last = block2.length - 1;
-        block2[last] = null;
+        block2[0] = null;
 
-        let bpartial = new bakana.MarkerDetectionStandalone(normed, groups2, { block: block2 });
-        expect(bpartial._peekMatrices().get("RNA").row(0)).toEqual(normed.get("RNA").row(0).slice(1, last));
-        expect(bpartial._peekGroups().array()).toEqual(groups.slice(1, last));
+        let bpartial = new bakana.CustomSelectionsStandalone(normed, { block: block2 });
+        expect(bpartial._peekMatrices().get("foo").row(0)).toEqual(normed.get("foo").row(0).slice(1));
         let extracted = bpartial.fetchBlockLevels();
-        expect(Array.from(bpartial._peekBlock().array()).map(i => extracted[i])).toEqual(Array.from(block.slice(1, last)).map(i => blev[i]));
+        expect(Array.from(bpartial._peekBlock().array()).map(i => extracted[i])).toEqual(Array.from(block.slice(1)).map(i => blev[i]));
+
+        bpartial.addSelection("odds", [ 1, 3, 5, 7, 9 ]);
+        expect(bpartial.fetchSelectionIndices("odds")).toEqual([1, 3, 5, 7, 9]);
+        bpartial.addSelection("evens", [ 0, 2, 4, 6, 8 ]); 
+        expect(bpartial.fetchSelectionIndices("evens")).toEqual([2, 4, 6, 8]); // losing the first column as it's got a missing block.
+        expect(bpartial.fetchSelections()["evens"]).toEqual([ 2, 4, 6, 8 ]); // same result.
+
         bpartial.free();
     }
 
