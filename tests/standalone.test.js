@@ -188,6 +188,8 @@ test("Standalone feature set enrichment works correctly", async () => {
         }
     }
     let scores = enrich.computePerCellScores("human-GO", chosen);
+    expect(scores.scores.some(Number.isNaN)).toBe(false);
+    expect(scores.scores.length).toEqual(normed.numberOfColumns());
     expect(scores.weights.length).toEqual(human_sizes[chosen]);
 
     // Also works with blocking.
@@ -200,6 +202,7 @@ test("Standalone feature set enrichment works correctly", async () => {
         let enrich2 = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, { normalized: normed, block: block });
         await enrich2.setParameters(params);
         let scores2 = enrich2.computePerCellScores("human-GO", chosen);
+        expect(scores2.scores.length).toEqual(normed.numberOfColumns());
         expect(scores2).not.toEqual(scores);
         enrich2.free();
     }
@@ -209,6 +212,24 @@ test("Standalone feature set enrichment works correctly", async () => {
         let enrich2 = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA);
         await enrich2.setParameters(params);
         expect(() => enrich2.computePerCellScores("human-GO", chosen)).toThrow("no normalized matrix");
+    }
+
+    // Sanitization works correctly.
+    {
+        let blev = ["x", "y"];
+        let block2 = Array.from(block).map(i => blev[i]);
+        block2[0] = null;
+
+        let bpartial = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, { normalized: normed, block: block2 });
+        expect(bpartial._peekMatrices().row(0)).toEqual(normed.row(0).slice(1));
+        expect(bpartial._peekBlock().array()).toEqual(block.slice(1));
+
+        await bpartial.setParameters(params);
+        let scores = bpartial.computePerCellScores("human-GO", chosen);
+        expect(Number.isNaN(scores.scores[0])).toBe(true);
+        expect(scores.scores.slice(1).every(Number.isNaN)).toBe(false);
+
+        bpartial.free();
     }
 
     markers.free();

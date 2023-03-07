@@ -615,7 +615,7 @@ export class FeatureSetEnrichmentStandalone {
 
     #normalized;
     #block;
-    #block_levels;
+    #backmap;
 
     #parameters;
     #manager;
@@ -626,7 +626,7 @@ export class FeatureSetEnrichmentStandalone {
      * This should contain marker statistics for the same genes (and in the same order as) in `annotations`.
      * @param {object} [options={}] - Optional parameters.
      * @param {?(external:ScranMatrix)} [options.normalized=null] - A {@linkcode external:ScranMatrix ScranMatrix} of log-normalized expression values,
-     * to be used in {@linkcode FeatureSetEnrichmentState#computePerCellScores FeatureSetEnrichmentState.computePerCellScores}.
+     * to be used in {@linkcode FeatureSetEnrichmentStandalone#computePerCellScores FeatureSetEnrichmentStandalone.computePerCellScores}.
      * Each row corresponds to a gene in the same order as `annotations` and `markers`.
      * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in `normalized`, containing the block assignments for each column. 
      * If `null`, all columns are assigned to the same block.
@@ -637,27 +637,27 @@ export class FeatureSetEnrichmentStandalone {
 
         this.#normalized = null;
         this.#block = null;
-        this.#block_levels = null;
+        this.#backmap = null;
 
-        if (this.#normalized !== null) {
-            if (this.#normalized.numberOfRows() !== this.#annotations.numberOfRows()) {
+        if (normalized !== null) {
+            if (normalized.numberOfRows() !== this.#annotations.numberOfRows()) {
                 throw new Error("number of rows of 'annotations' and 'normalized' should be identical");
             }
 
-            if (this.#block !== null) {
-                if (this.#normalized.numberOfColumns() !== this.#block.length) {
+            if (block !== null) {
+                if (normalized.numberOfColumns() !== block.length) {
                     throw new Error("number of columns of 'normalized' should equal the length of 'block'");
                 }
 
                 let dump = utils.subsetInvalidFactors([ block ]);
                 if (dump.retain !== null) {
                     this.#normalized = scran.subsetColumns(normalized, dump.retain);
+                    this.#backmap = dump.retain;
                 } else {
                     this.#normalized = normalized.clone();
                 }
 
                 this.#block = dump.arrays[0].ids;
-                this.#block_levels = dump.arrays[0].levels;
             } else {
                 this.#normalized = normalized.clone();
             }
@@ -672,6 +672,15 @@ export class FeatureSetEnrichmentStandalone {
             this.#guesses = utils.guessFeatureTypes(this.#annotations);
         }
         return this.#guesses;
+    }
+
+    // Testing functions to check that the sanitization worked correctly.
+    _peekMatrices() {
+        return this.#normalized;
+    }
+
+    _peekBlock() {
+        return this.#block;
     }
 
     /**
@@ -761,7 +770,19 @@ export class FeatureSetEnrichmentStandalone {
         if (this.#normalized == null) {
             throw new Error("no normalized matrix supplied in constructor");
         }
-        return this.#manager.computePerCellScores(collection, set_index, this.#normalized, this.#block);
+
+        let output = this.#manager.computePerCellScores(collection, set_index, this.#normalized, this.#block);
+
+        if (this.#backmap !== null) {
+            let backfilled = new Float64Array(output.scores.length);
+            backfilled.fill(Number.NaN);
+            this.#backmap.forEach((x, i) => {
+                backfilled[x] = output.scores[i];
+            });
+            output.scores = backfilled;
+        }
+
+        return output;
     }
 }
 
