@@ -114,8 +114,8 @@ function create_analysis(input_state) {
     let norm_states = { "RNA": output[step_norm], "ADT": output[step_norm_adt], "CRISPR": output[step_norm_crispr] };
     output[step_markers] = new cluster_markers.MarkerDetectionState(output[step_filter], norm_states, output[step_choice]);
     output[step_labels] = new label_cells.CellLabellingState(output[step_inputs], output[step_markers]);
-    output[step_enrichment] = new feature_set_enrichment.FeatureSetEnrichmentState(output[step_inputs], output[step_filter], output[step_norm], output[step_markers]);
-    output[step_custom] = new custom_markers.CustomSelectionsState(output[step_filter], norm_states, output[step_enrichment]);
+    output[step_enrichment] = new feature_set_enrichment.FeatureSetEnrichmentState(output[step_inputs], output[step_filter], output[step_norm]);
+    output[step_custom] = new custom_markers.CustomSelectionsState(output[step_filter], norm_states);
 
     return Promise.all([output[step_tsne].ready(), output[step_umap].ready()]).then(val => output);
 }
@@ -476,11 +476,11 @@ export async function loadAnalysis(path, loadFun, { finishFun = null } = {}) {
     }
 
     {
-        state[step_enrichment] = feature_set_enrichment.unserialize(handle, state[step_inputs], state[step_filter], state[step_norm], state[step_markers]);
+        state[step_enrichment] = feature_set_enrichment.unserialize(handle, state[step_inputs], state[step_filter], state[step_norm]);
     }
 
     {
-        state[step_custom] = custom_markers.unserialize(handle, permuters, state[step_filter], norm_states, state[step_enrichment]);
+        state[step_custom] = custom_markers.unserialize(handle, permuters, state[step_filter], norm_states);
         await quickFun(step_custom);
     }
 

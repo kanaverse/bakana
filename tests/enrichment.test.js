@@ -27,25 +27,25 @@ test("feature set enrichment works correctly for humans", async () => {
     expect(nhuman).toBeGreaterThan(0);
     expect(deets["human-GO"].universe).toBeGreaterThan(0);
 
-    let ngroups = state.marker_detection.fetchResults().RNA.numberOfGroups();
+    let ngroups = state.marker_detection.fetchResults()["RNA"].numberOfGroups();
     let clust = ngroups - 1;
 
     {
-        let stats = state.feature_set_enrichment.computeCluster(clust, "cohen", "mean");
+        let stats = state.feature_set_enrichment.computeEnrichment(state.marker_detection.fetchResults()["RNA"], clust, "cohen", "mean");
         expect(stats["human-GO"].counts.length).toBeGreaterThan(0);
         expect(stats["human-GO"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["human-GO"].counts).not.toEqual(new Int32Array(nhuman));
     }
 
     {
-        let stats = state.feature_set_enrichment.computeCluster(clust, "cohen", "min_rank");
+        let stats = state.feature_set_enrichment.computeEnrichment(state.marker_detection.fetchResults()["RNA"], clust, "cohen", "min_rank");
         expect(stats["human-GO"].counts.length).toBeGreaterThan(0);
         expect(stats["human-GO"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["human-GO"].counts).not.toEqual(new Int32Array(nhuman));
     }
 
     {
-        let stats = state.feature_set_enrichment.computeCluster(clust, "cohen", "min_rank");
+        let stats = state.feature_set_enrichment.computeEnrichment(state.marker_detection.fetchResults()["RNA"], clust, "cohen", "min_rank");
         expect(stats["human-GO"].counts.length).toBeGreaterThan(0);
         expect(stats["human-GO"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["human-GO"].counts).not.toEqual(new Int32Array(nhuman));
@@ -83,7 +83,7 @@ test("feature set enrichment works correctly for humans", async () => {
         expect(nmouse).toBeGreaterThan(0);
         expect(deets["mouse-GO"].universe).toBe(0);
 
-        let stats = state.feature_set_enrichment.computeCluster(0, "cohen", "mean");
+        let stats = state.feature_set_enrichment.computeEnrichment(state.marker_detection.fetchResults()["RNA"], 0, "cohen", "mean");
         expect(stats["mouse-GO"].counts).toEqual(new Int32Array(nmouse));
     }
 
@@ -125,7 +125,7 @@ test("feature set enrichment works correctly for mice", async () => {
     expect(deets["mouse-GO"].universe).toBeGreaterThan(0);
 
     {
-        let stats = state.feature_set_enrichment.computeCluster(0, "cohen", "mean");
+        let stats = state.feature_set_enrichment.computeEnrichment(state.marker_detection.fetchResults()["RNA"], 0, "cohen", "mean");
         expect(stats["mouse-GO"].counts.length).toBeGreaterThan(0);
         expect(stats["mouse-GO"].num_markers).toBeLessThan(100 * 1.5); // a bit of leeway for ties.
         expect(stats["mouse-GO"].counts).not.toEqual(new Int32Array(nmouse));
@@ -154,24 +154,27 @@ test("feature set enrichment works correctly for mice", async () => {
     params.feature_set_enrichment.species = ["10090"];
     {
         await bakana.runAnalysis(state, mm_files, params);
-        let stats = state.feature_set_enrichment.computeCluster(0, "cohen", "mean");
+        let stats = state.feature_set_enrichment.computeEnrichment(state.marker_detection.fetchResults()["RNA"], 0, "cohen", "mean");
         expect(stats["mouse-GO"].counts).toEqual(new Int32Array(nmouse));
     }
 
     params.feature_set_enrichment.gene_id_type = "SYMBOL";
     {
         await bakana.runAnalysis(state, mm_files, params);
-        let stats = state.feature_set_enrichment.computeCluster(0, "cohen", "mean");
+        let stats = state.feature_set_enrichment.computeEnrichment(state.marker_detection.fetchResults()["RNA"], 0, "cohen", "mean");
         expect(stats["mouse-GO"].counts).not.toEqual(new Int32Array(nmouse));
     }
 
     // Checking that versus mode works correctly.
     {
-        let v01 = state.feature_set_enrichment.computeVersus(0, 1, "cohen");
-        expect(v01["mouse-GO"].counts instanceof Int32Array).toBe(true);
-        expect(v01["mouse-GO"].counts).not.toEqual(new Int32Array(nmouse));
-        let v10 = state.feature_set_enrichment.computeVersus(1, 0, "cohen");
-        expect(v10["mouse-GO"].counts).not.toEqual(v01["mouse-GO"].counts);
+        let v01 = state.marker_detection.computeVersus(0, 1);
+        let e01 = state.feature_set_enrichment.computeEnrichment(v01.results.RNA, v01.left, "cohen", "mean");
+        expect(e01["mouse-GO"].counts instanceof Int32Array).toBe(true);
+        expect(e01["mouse-GO"].counts).not.toEqual(new Int32Array(nmouse));
+
+        let v10 = state.marker_detection.computeVersus(1, 0);
+        let e10 = state.feature_set_enrichment.computeEnrichment(v10.results.RNA, v10.left, "cohen", "mean");
+        expect(e10["mouse-GO"].counts).not.toEqual(e01["mouse-GO"].counts);
     }
 
     // Release me!

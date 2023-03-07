@@ -339,7 +339,6 @@ export class FeatureSetEnrichmentState {
     #inputs;
     #filter;
     #normalized;
-    #markers;
 
     #parameters;
     #manager;
@@ -359,11 +358,6 @@ export class FeatureSetEnrichmentState {
             throw new Error("'normalized' should be a RnaNormalizationState object from './rna_normalization.js'");
         }
         this.#normalized = normalized;
-
-        if (!(markers instanceof markers_module.MarkerDetectionState)) {
-            throw new Error("'markers' should be a State object from './marker_detection.js'");
-        }
-        this.#markers = markers;
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#manager = new FeatureSetManager;
@@ -397,7 +391,8 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
-     * @param {external:ScoreMarkersResults} markers - Arbitrary marker detection results for an RNA modality with the same order and identity of genes as from the upstream {@linkplain InputsState}.
+     * @param {external:ScoreMarkersResults} markers - Arbitrary marker detection results for an RNA modality, with the same order and identity of genes as from the upstream {@linkplain InputsState}.
+     * This is most typically the output from {@linkcode MarkerDetectionState#fetchResults MarkerDetectionState.fetchResults} or equivalents from {@linkplain CustomSelectionsState}.
      * @param {number} group - Index of the group of interest inside `markers`.
      * @param {string} effect_size - Effect size to use for ranking.
      * This should be one of `"cohen"`, `"auc"`, `"lfc"` or `"delta_detected"`.
@@ -412,44 +407,7 @@ export class FeatureSetEnrichmentState {
      * - `num_markers`: number of markers selected for testing.
      */
     computeEnrichment(markers, group, effect_size, summary) {
-        return this.#manager.computeEnrichment(group, effect_size, summary, this.#markers.fetchResults()["RNA"], this.#parameters.top_markers);
-    }
-
-    /**
-     * Detect feature set enrichment among the per-cluster markers detected by {@linkplain MarkerDetectionState}.
-     *
-     * @param {number} cluster - Cluster index of interest.
-     * @param {string} effect_size - Effect size to use for ranking.
-     * This should be one of `"cohen"`, `"auc"`, `"lfc"` or `"delta_detected"`.
-     * @param {string} summary - Summary statistic to use for ranking.
-     * This should be one of `"min"`, `"mean"` or `"min_rank"`.
-     *
-     * @return {object} Object where each entry corresponds to a feature set collection and contains enrichment statistics for all sets in that collection.
-     * See {@linkcode FeatureSetEnrichment#computeEnrichment computeEnrichment} for details.
-     */
-    computeCluster(cluster, effect_size, summary) {
-        return this.computeEnrichment(this.#markers.fetchResults()["RNA"], cluster, effect_size, summary);
-    }
-
-    // Soft-deprecated.
-    fetchGroupResults(group, effect_size, summary) {
-        return this.computeCluster(group, effect_size, summary);
-    }
-
-    /**
-     * Detect feature set enrichment among the versus-mode markers from {@linkcode MarkerDetectionState#computeVersus MarkerDetectionState.computeVersus}.
-     *
-     * @param {number} left - Index of one cluster in which to find upregulated markers.
-     * @param {number} right - Index of another cluster to be compared against `left`.
-     * @param {string} effect_size - Effect size to use for ranking.
-     * This should be one of `"cohen"`, `"auc"`, `"lfc"` or `"delta_detected"`.
-     *
-     * @return {object} Object where each entry corresponds to a feature set collection and contains enrichment statistics for all sets in that collection.
-     * See {@linkcode FeatureSetEnrichment#computeEnrichment computeEnrichment} for details.
-     */
-    computeVersus(left, right, effect_size) {
-        let output = this.#markers.computeVersus(left, right);
-        return this.computeEnrichment(output.results["RNA"], output.left, effect_size, "mean"); // Choice of summary doesn't really matter as they're all the same anyway.
+        return this.#manager.computeEnrichment(group, effect_size, summary, markers, this.#parameters.top_markers);
     }
 
     /**
@@ -589,7 +547,7 @@ export class FeatureSetEnrichmentState {
                 this.changed = true;
             }
 
-            if (this.#markers.changed || top_markers !== this.#parameters.top_markers) {
+            if (top_markers !== this.#parameters.top_markers) {
                 this.changed = true;
             }
         }
