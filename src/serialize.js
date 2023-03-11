@@ -134,15 +134,22 @@ export async function serializeConfiguration(state, saver) {
  * @param {object} serialized - Configuration object produced by {@linkcode serializeConfiguration}.
  * @param {function} loader - Function to load files, see {@linkcode unserializeDatasets} for more details.
  * @param {object} [options={}] - Optional parameters.
+ * @param {object} [options.state=null] - Existing state object to fill with parameters, typically created by {@linkcode createAnalysis}.
+ * This may need to be specified by the caller when `state` is also required to define the `startFun` and `finishFun` callbacks.
+ * If `null`, a new state object is created within this function.
  * @param {?function} [options.startFun=null] - Passed directly to {@linkcode runAnalysis}.
  * @param {?function} [options.finishFun=null] - Passed directly to {@linkcode runAnalysis}.
  *
  * @return {object} State object containing analysis results.
  * This is identical to the `state` passed into {@linkcode serializeConfiguration}.
+ *
+ * If `state` is supplied, it is used directly as the return value.
  * @async
  */
-export async function unserializeConfiguration(serialized, loader, { startFun = null, finishFun = null } = {}) {
-    let state = await anal.createAnalysis();
+export async function unserializeConfiguration(serialized, loader, { state = null, startFun = null, finishFun = null } = {}) {
+    if (state === null) {
+        state = await anal.createAnalysis();
+    }
 
     // Set this before running the analysis.
     if ("other" in serialized && "inputs" in serialized.other && "direct_subset" in serialized.other.inputs) {
