@@ -580,12 +580,10 @@ export class FeatureSetEnrichmentStandalone {
 
     /**
      * @param {external:DataFrame} annotations - A {@linkplain external:DataFrame DataFrame} of per-gene annotations, where each row corresponds to a gene.
-     * @param {external:ScoreMarkersResults} markers - A {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object produced from **scran.js**'s `scoreMarkers` function.
-     * This should contain marker statistics for the same genes (and in the same order as) in `annotations`.
      * @param {object} [options={}] - Optional parameters.
      * @param {?(external:ScranMatrix)} [options.normalized=null] - A {@linkcode external:ScranMatrix ScranMatrix} of log-normalized expression values,
      * to be used in {@linkcode FeatureSetEnrichmentStandalone#computePerCellScores FeatureSetEnrichmentStandalone.computePerCellScores}.
-     * Each row corresponds to a gene in the same order as `annotations` and `markers`.
+     * Each row corresponds to a gene in the same order as `annotations`. 
      * @param {?(Array|TypedArray)} [options.block=null] - Array of length equal to the number of columns in `normalized`, containing the block assignments for each column. 
      * If `null`, all columns are assigned to the same block.
      */
