@@ -73,7 +73,7 @@ i.e., the Wasm-related <code>free()</code> methods of the inputs are not called 
     <h2>Constructor</h2>
     
 
-    <h4 class="name" id="FeatureSetEnrichmentStandalone"><span class="type-signature"></span>new FeatureSetEnrichmentStandalone<span class="signature">(annotations, markers, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="FeatureSetEnrichmentStandalone"><span class="type-signature"></span>new FeatureSetEnrichmentStandalone<span class="signature">(annotations, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
 
     
 
@@ -198,43 +198,6 @@ i.e., the Wasm-related <code>free()</code> methods of the inputs are not called 
 
         <tr>
             
-                <td class="name"><code>markers</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type"><a href="external-ScoreMarkersResults.html">external:ScoreMarkersResults</a></span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                </td>
-            
-
-            <td class="description last"><p>A <a href="external-ScoreMarkersResults.html">ScoreMarkersResults</a> object produced from <strong>scran.js</strong>'s <code>scoreMarkers</code> function.
-This should contain marker statistics for the same genes (and in the same order as) in <code>annotations</code>.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
                 <td class="name"><code>options</code></td>
             
 
@@ -335,7 +298,7 @@ This should contain marker statistics for the same genes (and in the same order 
 
             <td class="description last"><p>A <a href="external-ScranMatrix.html"><code>ScranMatrix</code></a> of log-normalized expression values,
 to be used in <a href="FeatureSetEnrichmentStandalone.html#computePerCellScores"><code>FeatureSetEnrichmentStandalone.computePerCellScores</code></a>.
-Each row corresponds to a gene in the same order as <code>annotations</code> and <code>markers</code>.</p></td>
+Each row corresponds to a gene in the same order as <code>annotations</code>.</p></td>
         </tr>
 
     
@@ -459,7 +422,7 @@ If <code>null</code>, all columns are assigned to the same block.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line699">line 699</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line697">line 697</a>
     </li></ul></dd>
     
 
@@ -689,7 +652,7 @@ See <a href="FeatureSetEnrichmentState.html#computeEnrichment"><code>FeatureSetE
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line727">line 727</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line725">line 725</a>
     </li></ul></dd>
     
 
@@ -869,7 +832,7 @@ See <a href="FeatureSetEnrichmentState.html#computePerCellScores"><code>FeatureS
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line684">line 684</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line682">line 682</a>
     </li></ul></dd>
     
 
@@ -975,7 +938,7 @@ see <a href="FeatureSetEnrichmentState.html#fetchCollectionDetails"><code>Featur
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line709">line 709</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line707">line 707</a>
     </li></ul></dd>
     
 
@@ -1154,7 +1117,7 @@ see <a href="FeatureSetEnrichmentState.html#fetchCollectionDetails"><code>Featur
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line716">line 716</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line714">line 714</a>
     </li></ul></dd>
     
 
@@ -1262,7 +1225,7 @@ see <a href="FeatureSetEnrichmentState.html#fetchCollectionDetails"><code>Featur
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line647">line 647</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line645">line 645</a>
     </li></ul></dd>
     
 
@@ -1347,7 +1310,7 @@ see <a href="FeatureSetEnrichmentState.html#fetchCollectionDetails"><code>Featur
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line662">line 662</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line660">line 660</a>
     </li></ul></dd>
     
 
@@ -1491,7 +1454,7 @@ see <a href="FeatureSetEnrichmentState.html#fetchCollectionDetails"><code>Featur
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Tue Mar 14 2023 22:40:32 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Tue Mar 14 2023 23:45:09 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
