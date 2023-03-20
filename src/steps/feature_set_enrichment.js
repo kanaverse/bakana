@@ -43,7 +43,9 @@ class FeatureSetManager {
         if (gene_id_column == null) {
             data_id_col = feats.rowNames();
             if (data_id_col == null) {
-                throw new Error("no row names available in the feature annotations");
+                // If there truly is no annotation, then we avoid throwing,
+                // and we just make the rest of this function a no-op.
+                species = []; 
             }
         } else {
             data_id_col = feats.column(gene_id_column);
@@ -51,20 +53,24 @@ class FeatureSetManager {
 
         let search_options = { types: [ gene_id_type.toLowerCase() ] };
 
+        // To avoid repeated rellocations on array resizing, we create
+        // preallocated arrays within each species and then do a single COMBINE
+        // across species. We provide an initial element so that COMBINE works
+        // correctly when there are no species.
         let collection_offset = 0;
-        let all_collection_names = [];
-        let all_collection_descriptions = [];
-        let all_collection_species = [];
+        let all_collection_names = [[]];
+        let all_collection_descriptions = [[]];
+        let all_collection_species = [[]];
 
         let set_offset = 0;
-        let all_set_names = [];
-        let all_set_descriptions = [];
-        let all_set_indices = [];
-        let all_set_sizes = [];
-        let all_set_collections = [];
+        let all_set_names = [[]];
+        let all_set_descriptions = [[]];
+        let all_set_indices = [[]];
+        let all_set_sizes = [new Int32Array];
+        let all_set_collections = [new Int32Array];
 
         let mapped_genes = new Set;
-        let remapped = new Array(data_id_col.length);
+        let remapped = new Array(feats.numberOfRows());
         for (var r = 0; r < remapped.length; r++) {
             remapped[r] = [];
         }
@@ -152,8 +158,14 @@ class FeatureSetManager {
             species: bioc.COMBINE(all_collection_species)
         };
 
-        for (var r = 0; r < remapped.length; r++) {
-            remapped[r] = bioc.COMBINE(remapped[r]);
+        if (species.length > 0) {
+            for (var r = 0; r < remapped.length; r++) {
+                remapped[r] = bioc.COMBINE(remapped[r]);
+            }
+        } else {
+            for (var r = 0; r < remapped.length; r++) {
+                remapped[r] = new Uint32Array;
+            }
         }
         this.#cache.mapping_to_sets = remapped;
 
