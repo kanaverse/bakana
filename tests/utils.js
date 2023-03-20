@@ -49,8 +49,8 @@ async function retrieve(file, old) {
     return { ok: true, arrayBuffer: () => buffer }; // mimic Response object.
 }
 
-gesel.setReferenceDownload(retrieve);
-gesel.setGeneDownload(retrieve);
+gesel.referenceDownload(retrieve);
+gesel.geneDownload(retrieve);
 
 /***********************************/
 

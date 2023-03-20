@@ -63,7 +63,7 @@ class FeatureSetManager {
         let all_set_sizes = [];
         let all_set_collections = [];
 
-        let gene_universe = new Set;
+        let mapped_genes = new Set;
         let remapped = new Array(data_id_col.length);
         for (var r = 0; r < remapped.length; r++) {
             remapped[r] = [];
@@ -72,33 +72,21 @@ class FeatureSetManager {
         for (const spec of species) {
             // Mapping our features to those in the gesel database. 
             let gene_mapping = await gesel.searchGenes(spec, data_id_col, search_options);
-            let reverse_mapping = new Map;
             for (var i = 0; i < gene_mapping.length; i++) {
-                let current = gene_mapping[i];
-                if (current.length == 0) {
-                    continue;
-                }
-
-                gene_universe.add(i);
-                for (const gesel_gene of current) {
-                    let found = reverse_mapping.get(gesel_gene);
-                    if (typeof found == "undefined") {
-                        found = [];
-                        reverse_mapping.set(gesel_gene, found);
-                    }
-                    found.push(i);
+                if (gene_mapping[i].length > 0) {
+                    mapped_genes.add(i);
                 }
             }
 
             // Formatting the details for each set. This includes reindexing
             // the gesel gene IDs to refer to row indices of 'feats'.
-            let all_sets = await gesel.fetchAllSets(spec);
             let all_sets2genes = await gesel.fetchGenesForAllSets(spec);
+            let set_indices = gesel.reindexGenesForAllSets(gene_mapping, all_sets2genes);
 
+            let all_sets = await gesel.fetchAllSets(spec);
             let nsets = all_sets.length;
             let set_names = new Array(nsets);
             let set_descriptions = new Array(nsets);
-            let set_indices = new Array(nsets);
             let set_sizes = new Int32Array(nsets);
             let set_collections = new Int32Array(nsets);
 
@@ -106,20 +94,8 @@ class FeatureSetManager {
                 let current = all_sets[i];
                 set_names[i] = current.name;
                 set_descriptions[i] = current.description;
-                set_collections[i] = current.collection + collection_offset;
-
-                let subset = [];
-                for (const gesel_gene of all_sets2genes[i]) {
-                    let found = reverse_mapping.get(gesel_gene);
-                    if (typeof found !== "undefined") {
-                        for (const gene of found) {
-                            subset.push(gene);
-                        }
-                    }
-                }
-
-                set_indices[i] = (new Int32Array(subset)).sort();
-                set_sizes[i] = subset.length;
+                set_collections[i] = current.collection + collection_offset; // offset effectively "namespaces" collections from different species.
+                set_sizes[i] = set_indices[i].length;
             }
 
             all_set_names.push(set_names);
@@ -130,12 +106,13 @@ class FeatureSetManager {
 
             // Updating the gene->set mapping for input features.
             let all_genes2sets = await gesel.fetchSetsForAllGenes(spec);
+            let current_remapped = gesel.reindexSetsForAllGenes(gene_mapping, all_genes2sets);
             for (var i = 0; i < gene_mapping.length; i++) {
-                for (const gesel_gene of gene_mapping[i]) {
-                    for (const set of all_genes2sets[gesel_gene]) {
-                        remapped[i].push(set + set_offset);
-                    }
+                let current = current_remapped[i];
+                for (var j = 0; j < current.length; j++) {
+                    current[j] += set_offset; // offset effectively "namespaces" sets from different species.
                 }
+                remapped[i].push(current);
             }
 
             // Sticking the collection details somewhere.
@@ -159,7 +136,7 @@ class FeatureSetManager {
             collection_offset += ncollections;
         }
 
-        this.#cache.universe = (new Int32Array(gene_universe)).sort();
+        this.#cache.universe = (new Int32Array(mapped_genes)).sort();
 
         this.#cache.sets = {
             names: bioc.COMBINE(all_set_names),
@@ -176,7 +153,7 @@ class FeatureSetManager {
         };
 
         for (var r = 0; r < remapped.length; r++) {
-            remapped[r] = (new Int32Array(remapped[r])).sort();
+            remapped[r] = bioc.COMBINE(remapped[r]);
         }
         this.#cache.mapping_to_sets = remapped;
 
@@ -216,18 +193,10 @@ class FeatureSetManager {
         let curstats = bioc.SLICE(stats, this.#cache.universe);
         let threshold = scran.computeTopThreshold(curstats, top_markers, { largest: use_largest });
 
-        let set_counts = new Map;
-        let num_top = 0;
-        let add = sub_index => {
-            let gene = this.#cache.universe[sub_index];
-            for (const set of this.#cache.mapping_to_sets[gene]) {
-                let found = set_counts.get(set);
-                if (typeof found == "undefined") {
-                    found = 0;
-                }
-                set_counts.set(set, found + 1);
-            }
-            num_top++;
+        let in_set = [];
+        let add = i => {
+            let gene = this.#cache.universe[i];
+            in_set.push(this.#cache.mapping_to_sets[gene]);
         };
 
         if (use_largest) {
@@ -247,25 +216,29 @@ class FeatureSetManager {
             });
         }
 
-        let indices = new Int32Array(set_counts.size);
-        let set_ids = new Int32Array(set_counts.size);
-        let counts = new Int32Array(set_counts.size);
-        let pvalues = new Float64Array(set_counts.size);
-        let counter = 0;
-        for (const [k, v] of set_counts) {
-            indices[counter] = counter;
-            set_ids[counter] = k;
-            counts[counter] = v;
-            pvalues[counter] = gesel.testEnrichment(v, num_top, this.#cache.sets.sizes[k], this.#cache.universe.length);
-            counter++;
+        let overlaps = gesel.countSetOverlaps(in_set);
+        let num_top = in_set.length;
+        for (const x of overlaps) {
+            x.pvalue = gesel.testEnrichment(x.count, num_top, this.#cache.sets.sizes[x.id], this.#cache.universe.length);
         }
 
         // Sorting by p-value.
-        indices.sort((a, b) => pvalues[a] - pvalues[b]);
+        overlaps.sort((a, b) => a.pvalue - b.pvalue);
+        let set_ids = new Int32Array(overlaps.length);
+        let counts = new Int32Array(overlaps.length);
+        let pvalues = new Float64Array(overlaps.length);
+        let counter = 0;
+        for (const x of overlaps) {
+            set_ids[counter] = x.id;
+            counts[counter] = x.count;
+            pvalues[counter] = x.pvalue;
+            counter++;
+        }
+
         return {
-            set_ids: bioc.SLICE(set_ids, indices),
-            counts: bioc.SLICE(counts, indices),
-            pvalues: bioc.SLICE(pvalues, indices),
+            set_ids: set_ids,
+            counts: counts, 
+            pvalues: pvalues, 
             num_markers: num_top
         };
     }
