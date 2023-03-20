@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as bakana from "../src/index.js";
 import * as valkana from "valkana";
 import * as scran from "scran.js";
+import * as gesel from "gesel";
 import * as wa from "wasmarrays.js";
 
 export async function initializeAll() {
@@ -27,20 +28,31 @@ export function baseParams() {
     return output;
 }
 
+/****************************
+ **** Download overrides ****
+ ****************************/
+
 bakana.CellLabellingState.setDownload(url => {
     let fpath = path.basename(url);
     return fs.readFileSync("files/references/" + fpath).slice(); // Mimic a buffer from fetch().
-});
-
-bakana.FeatureSetEnrichmentState.setDownload(url => {
-    let fpath = path.basename(url);
-    return fs.readFileSync("files/feature-sets/" + fpath).slice(); // Mimic a buffer from fetch().
 });
 
 bakana.RnaQualityControlState.setDownload(url => {
     let fpath = path.basename(url);
     return fs.readFileSync("files/mito-lists/" + fpath).slice(); // Mimic a buffer from fetch().
 });
+
+async function retrieve(file, old) {
+    let cache_path = path.join("files", "feature-sets", file);
+    let contents = fs.readFileSync(cache_path);
+    let buffer = (new Uint8Array(contents)).buffer;
+    return { ok: true, arrayBuffer: () => buffer }; // mimic Response object.
+}
+
+gesel.setReferenceDownload(retrieve);
+gesel.setGeneDownload(retrieve);
+
+/***********************************/
 
 export function mockOffsets(paths) {
     let offsets = {};

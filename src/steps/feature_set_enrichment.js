@@ -39,34 +39,39 @@ class FeatureSetManager {
     }
 
     async prepare(feats, species, gene_id_column, gene_id_type) {
-        let gene_offset = 0;
-        let set_offset = 0;
-        let collection_offset = 0;
-
-        // Finding our genes.
         let data_id_col;
-        if (data_id == null) {
+        if (gene_id_column == null) {
             data_id_col = feats.rowNames();
             if (data_id_col == null) {
                 throw new Error("no row names available in the feature annotations");
             }
         } else {
-            data_id_col = feats.column(data_id);
+            data_id_col = feats.column(gene_id_column);
         }
 
-        let gene_universe = [];
-        let set_names = [];
-        let set_descriptions = [];
-        let set_sets = [];
-        let set_indices = [];
-        let set_collections = [];
-        let remapped = [];
-        let collection_names = [];
-        let collection_descriptions = [];
-        let collection_species = [];
+        let search_options = { types: [ gene_id_type.toLowerCase() ] };
+
+        let collection_offset = 0;
+        let all_collection_names = [];
+        let all_collection_descriptions = [];
+        let all_collection_species = [];
+
+        let set_offset = 0;
+        let all_set_names = [];
+        let all_set_descriptions = [];
+        let all_set_indices = [];
+        let all_set_sizes = [];
+        let all_set_collections = [];
+
+        let gene_universe = new Set;
+        let remapped = new Array(data_id_col.length);
+        for (var r = 0; r < remapped.length; r++) {
+            remapped[r] = [];
+        }
 
         for (const spec of species) {
-            let gene_mapping = gesel.searchGenes(spec, data_id_col, { types: [ gene_id_type.toLowerCase() });
+            // Mapping our features to those in the gesel database. 
+            let gene_mapping = await gesel.searchGenes(spec, data_id_col, search_options);
             let reverse_mapping = new Map;
             for (var i = 0; i < gene_mapping.length; i++) {
                 let current = gene_mapping[i];
@@ -74,79 +79,105 @@ class FeatureSetManager {
                     continue;
                 }
 
-                let gene = i + gene_offset;
-                universe.push(gene);
+                gene_universe.add(i);
                 for (const gesel_gene of current) {
                     let found = reverse_mapping.get(gesel_gene);
                     if (typeof found == "undefined") {
                         found = [];
                         reverse_mapping.set(gesel_gene, found);
                     }
-                    found.push(gene);
+                    found.push(i);
                 }
             }
 
             // Formatting the details for each set. This includes reindexing
-            // the gesel gene indices to refer to indices in the input features.
+            // the gesel gene IDs to refer to row indices of 'feats'.
             let all_sets = await gesel.fetchAllSets(spec);
             let all_sets2genes = await gesel.fetchGenesForAllSets(spec);
 
-            for (var i = 0; i < N; i++) {
-                set_names.push(all_sets[i].name);
-                set_names.push(all_sets[i].description);
-                set_names.push(all_sets[i].collection + collection_offset);
+            let nsets = all_sets.length;
+            let set_names = new Array(nsets);
+            let set_descriptions = new Array(nsets);
+            let set_indices = new Array(nsets);
+            let set_sizes = new Int32Array(nsets);
+            let set_collections = new Int32Array(nsets);
+
+            for (var i = 0; i < nsets; i++) {
+                let current = all_sets[i];
+                set_names[i] = current.name;
+                set_descriptions[i] = current.description;
+                set_collections[i] = current.collection + collection_offset;
 
                 let subset = [];
                 for (const gesel_gene of all_sets2genes[i]) {
                     let found = reverse_mapping.get(gesel_gene);
                     if (typeof found !== "undefined") {
-                        for (const common_index of found) {
+                        for (const gene of found) {
                             subset.push(gene);
                         }
                     }
                 }
 
-                set_indices.push(new Int32Array(subset));
-                set_sizes.push(subset.length);
+                set_indices[i] = (new Int32Array(subset)).sort();
+                set_sizes[i] = subset.length;
             }
 
-            // Reindexing the reverse mapping to get indices to the input features.
+            all_set_names.push(set_names);
+            all_set_descriptions.push(set_descriptions);
+            all_set_indices.push(set_indices);
+            all_set_sizes.push(set_sizes);
+            all_set_collections.push(set_collections);
+
+            // Updating the gene->set mapping for input features.
             let all_genes2sets = await gesel.fetchSetsForAllGenes(spec);
             for (var i = 0; i < gene_mapping.length; i++) {
-                let current = new Set;
                 for (const gesel_gene of gene_mapping[i]) {
                     for (const set of all_genes2sets[gesel_gene]) {
-                        current.add(set);
+                        remapped[i].push(set + set_offset);
                     }
                 }
-                remapped.push((new Int32Array(current)).sort());
             }
 
             // Sticking the collection details somewhere.
             let all_collections = await gesel.fetchAllCollections(spec);
-            for (var i = 0; i < all_collections.length; i++) {
-                collection_names.push(all_collections[i].name);
-                collection_descriptions.push(all_collections[i].description);
-                collection_species.push(spec);
+            let ncollections = all_collections.length;
+            let collection_names = new Array(ncollections);
+            let collection_descriptions = new Array(ncollections);
+            let collection_species = new Array(ncollections);
+
+            for (var i = 0; i < ncollections; i++) {
+                collection_names[i] = all_collections[i].name;
+                collection_descriptions[i] = all_collections[i].description;
+                collection_species[i] = spec;
             }
+
+            all_collection_names.push(collection_names);
+            all_collection_descriptions.push(collection_descriptions);
+            all_collection_species.push(collection_species);
+
+            set_offset += nsets;
+            collection_offset += ncollections;
         }
 
-        this.#cache.universe = new Int32Array(gene_universe);
+        this.#cache.universe = (new Int32Array(gene_universe)).sort();
 
         this.#cache.sets = {
-            names: set_names,
-            descriptions: set_descriptions,
-            sets: set_indices,
-            sizes: new Int32Array(set_sizes),
-            collections: new Int32Array(set_collections)
+            names: bioc.COMBINE(all_set_names),
+            descriptions: bioc.COMBINE(all_set_descriptions),
+            sets: bioc.COMBINE(all_set_indices),
+            sizes: bioc.COMBINE(all_set_sizes),
+            collections: bioc.COMBINE(all_set_collections)
         };
 
         this.#cache.collections = {
-            name: collection_names,
-            descriptions: collection_descriptions,
-            species: collection_species
+            names: bioc.COMBINE(all_collection_names),
+            descriptions: bioc.COMBINE(all_collection_descriptions),
+            species: bioc.COMBINE(all_collection_species)
         };
 
+        for (var r = 0; r < remapped.length; r++) {
+            remapped[r] = (new Int32Array(remapped[r])).sort();
+        }
         this.#cache.mapping_to_sets = remapped;
 
         return;
@@ -225,7 +256,8 @@ class FeatureSetManager {
             indices[counter] = counter;
             set_ids[counter] = k;
             counts[counter] = v;
-            pvalues[counter] = gesel.testEnrichment(v, num_top, this.#cache.sets[k].size, this.#cache.universe.length);
+            pvalues[counter] = gesel.testEnrichment(v, num_top, this.#cache.sets.sizes[k], this.#cache.universe.length);
+            counter++;
         }
 
         // Sorting by p-value.
@@ -312,7 +344,7 @@ async function _buildCollections(old_parameters, manager, automatic, species, ge
     return false;
 }
 
-function _transplantParameters(parameters, collections, automatic, species, gene_id_column, gene_id_type, top_markers) {
+function _transplantParameters(parameters, automatic, species, gene_id_column, gene_id_type, top_markers) {
     parameters.automatic = automatic;
     parameters.species = bioc.CLONE(species); // make a copy to avoid pass-by-ref behavior.
     parameters.gene_id_column = gene_id_column;
@@ -647,8 +679,7 @@ export class FeatureSetEnrichmentStandalone {
         }
 
         this.#parameters = FeatureSetEnrichmentState.defaults();
-        this.#ready = false;
-        this.#manager = new FeatureSetManager; // empty Manager is valid for the defaults, which have no collections anyway.
+        this.#manager = null;
     }
 
     #guessFeatureTypes() {
@@ -700,8 +731,9 @@ export class FeatureSetEnrichmentStandalone {
      */
     async ready() {
         let { automatic, species, gene_id_column, gene_id_type, top_markers } = this.#parameters;
-        if (init) {
-            this.#parameters = {};
+        if (this.#manager == null) {
+            this.#manager = new FeatureSetManager; 
+            this.#parameters = {}; // this gets repopulated by _buildCollections.
         }
 
         await _buildCollections(
