@@ -16,6 +16,7 @@ let hs_files = {
 
 test("feature set enrichment works correctly for humans", async () => {
     let params = utils.baseParams();
+    params.feature_set_enrichment.skip = false;
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, hs_files, params);
 
@@ -126,6 +127,7 @@ let mm_files = {
 
 test("feature set enrichment works correctly for mice", async () => {
     let params = utils.baseParams();
+    params.feature_set_enrichment.skip = false;
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, mm_files, params);
 

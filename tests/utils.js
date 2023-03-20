@@ -25,6 +25,9 @@ export function baseParams() {
     output.tsne.iterations = 10;
     output.umap.num_epochs = 10;
 
+    // Avoid loading in the feature sets.
+    output.feature_set_enrichment.skip = true;
+
     return output;
 }
 

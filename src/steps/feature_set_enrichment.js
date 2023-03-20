@@ -573,6 +573,10 @@ export class FeatureSetEnrichmentState {
         }
 
         if (this.valid() && !skip) {
+            if (this.changed) { // Force an update.
+                this.#parameters = {};
+            }
+
             let modified = await _buildCollections(
                 this.#parameters, 
                 this.#manager,
