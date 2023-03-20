@@ -282,9 +282,8 @@ function _configureFeatureParameters(guesses) {
     };
 }
 
-async function _buildCollections(old_parameters, manager, collections, automatic, species, gene_id_column, gene_id_type, annofun, guessfun) {
+async function _buildCollections(old_parameters, manager, automatic, species, gene_id_column, gene_id_type, annofun, guessfun) {
     if (
-        utils.changedParameters(old_parameters.collections, collections) ||
         automatic !== old_parameters.automatic ||
         (
             !automatic && 
@@ -306,7 +305,7 @@ async function _buildCollections(old_parameters, manager, collections, automatic
             species2 = auto.species;
         }
 
-        await manager.prepare(annofun(), collections, species2, gene_id_column2, gene_id_type2);
+        await manager.prepare(annofun(), species2, gene_id_column2, gene_id_type2);
         return true;
     }
 
@@ -316,7 +315,6 @@ async function _buildCollections(old_parameters, manager, collections, automatic
 function _transplantParameters(parameters, collections, automatic, species, gene_id_column, gene_id_type, top_markers) {
     parameters.automatic = automatic;
     parameters.species = bioc.CLONE(species); // make a copy to avoid pass-by-ref behavior.
-    parameters.collections = bioc.CLONE(collections);
     parameters.gene_id_column = gene_id_column;
     parameters.gene_id_type = gene_id_type;
     parameters.top_markers = top_markers;
@@ -326,7 +324,6 @@ function _fetchParameters(parameters) {
     // Avoid pass-by-reference behavior.
     let out = { ...parameters };
     out.species = bioc.CLONE(out.species);
-    out.collections = bioc.CLONE(out.collections);
     return out;
 }
 
@@ -387,6 +384,9 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
+     * Obtain the details about the feature set collections in the reference database.
+     * It is assumed that {@linkcode runAnalysis} was already run on this FeatureSetEnrichmentState instance before calling this method.
+     *
      * @return {object} Object with the following properties:
      *
      * - `names`: Array of strings of length equal to the number of feature set collections, containing the names of the collections.
@@ -398,6 +398,9 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
+     * Obtain the details about the feature sets in the reference database.
+     * It is assumed that {@linkcode runAnalysis} was already run on this FeatureSetEnrichmentState instance before calling this method.
+     *
      * @return {object} Object with the following properties:
      *
      * - `names`: Array of strings of length equal to the number of feature sets across all collections, containing the names of those sets.
@@ -412,6 +415,9 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
+     * Obtain the size of the universe of features that were successfully mapped to features in the reference database.
+     * It is assumed that {@linkcode runAnalysis} was already run on this FeatureSetEnrichmentState instance before calling this method.
+     *
      * @return {number} Number of features from the input dataset that were successfully mapped to at least one gene in the reference database.
      */
     fetchUniverseSize() {
@@ -419,6 +425,9 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
+     * Compute enrichment of top markers in each feature set.
+     * It is assumed that {@linkcode runAnalysis} was already run on this FeatureSetEnrichmentState instance before calling this method.
+     *
      * @param {external:ScoreMarkersResults} markers - Arbitrary marker detection results for an RNA modality, with the same order and identity of genes as from the upstream {@linkplain InputsState}.
      * This is most typically the output from {@linkcode MarkerDetectionState#fetchResults MarkerDetectionState.fetchResults} or equivalents from {@linkplain CustomSelectionsState}.
      * @param {number} group - Index of the group of interest inside `markers`.
@@ -430,7 +439,7 @@ export class FeatureSetEnrichmentState {
      * @return {object} Object containing the following properties:
      *
      * - `set_ids`: Int32Array of length equal to the number of sets, containing the set IDs.
-     *   Each entry is an index into the arrays returned by {@linkcode fetchSetDetails}.
+     *   Each entry is an index into the arrays returned by {@linkcode FeatureSetEnrichmentState#fetchSetDetails fetchSetDetails}.
      * - `counts`: Int32Array of length equal to `set_ids`, containing the number of markers present in each set.
      * - `pvalues`: Float64Array of length equal to `counts`, containing the enrichment p-values for each set.
      * - `num_markers`: number of markers selected for testing.
@@ -440,7 +449,10 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
-     * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode fetchSetDetails}.
+     * Extract row indices of the members of a desired feature set of interest.
+     * It is assumed that {@linkcode runAnalysis} was already run on this FeatureSetEnrichmentState instance before calling this method.
+     *
+     * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode FeatureSetEnrichmentState#fetchSetDetails fetchSetDetails}.
      *
      * @return {Int32Array} Array containing the row indices of the RNA count matrix corresponding to the genes in the specified set.
      */
@@ -449,7 +461,10 @@ export class FeatureSetEnrichmentState {
     }
 
     /**
-     * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode fetchSetDetails}.
+     * Compute per-cell scores for the activity of a feature set.
+     * It is assumed that {@linkcode runAnalysis} was already run on this FeatureSetEnrichmentState instance before calling this method.
+     *
+     * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode FeatureSetEnrichmentState#fetchSetDetails fetchSetDetails}.
      *
      * @return {Object} Object containing:
      *
@@ -544,7 +559,6 @@ export class FeatureSetEnrichmentState {
             let modified = await _buildCollections(
                 this.#parameters, 
                 this.#manager,
-                collections, 
                 automatic, 
                 species, 
                 gene_id_column, 
@@ -561,7 +575,7 @@ export class FeatureSetEnrichmentState {
             }
         }
 
-        _transplantParameters(this.#parameters, collections, automatic, species, gene_id_column, gene_id_type, top_markers);
+        _transplantParameters(this.#parameters, automatic, species, gene_id_column, gene_id_type, top_markers);
         this.#parameters.skip = skip;
         return;
     }
@@ -576,6 +590,9 @@ export class FeatureSetEnrichmentState {
  * Users can supply their own annotation and marker results to compute the enrichment statistics for each group.
  * Users are also responsible for ensuring that the lifetime of the supplied objects exceeds that of the constructed instance,
  * i.e., the Wasm-related `free()` methods of the inputs are not called while the FeatureSetEnrichmentInstance is still in operation.
+ *
+ * Users should await on the return value of the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method after construction.
+ * Once resolved, other methods in this class may be used.
  */
 export class FeatureSetEnrichmentStandalone {
     #annotations;
@@ -630,6 +647,7 @@ export class FeatureSetEnrichmentStandalone {
         }
 
         this.#parameters = FeatureSetEnrichmentState.defaults();
+        this.#ready = false;
         this.#manager = new FeatureSetManager; // empty Manager is valid for the defaults, which have no collections anyway.
     }
 
@@ -663,17 +681,32 @@ export class FeatureSetEnrichmentStandalone {
      * If this method is not called, the parameters default to those in {@linkcode FeatureSetEnrichmentState#defaults FeatureSetEnrichmentState.defaults}.
      *
      * @param {object} parameters - Parameter object, see the argument of the same name in {@linkcode FeatureSetEnrichmentState#compute FeatureSetEnrichmentState.compute} for more details.
+     * Note that any `skip` property is ignored here.
      *
-     * @return The state is updated with new parameters.
+     * @return The object is updated with new parameters.
+     * Note that the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method should be called in order for the new parameters to take effect.
+     */
+    setParameters(parameters) {
+        let { automatic, species, gene_id_column, gene_id_type, top_markers } = parameters;
+        _transplantParameters(this.#parameters, automatic, species, gene_id_column, gene_id_type, top_markers);
+    }
+
+    /**
+     * This should be called after construction and/or {@linkcode FeatureSetEnrichmenStandalone#setParameters setParameters}. 
+     * Users should wait for the return value to resolve before calling any other methods of this class.
+     * 
+     * @return Feature set collections are loaded into memory. 
      * @async
      */
-    async setParameters(parameters) {
-        let { automatic, species, gene_id_column, gene_id_type, top_markers } = parameters;
+    async ready() {
+        let { automatic, species, gene_id_column, gene_id_type, top_markers } = this.#parameters;
+        if (init) {
+            this.#parameters = {};
+        }
 
         await _buildCollections(
             this.#parameters,
             this.#manager,
-            collections, 
             automatic, 
             species, 
             gene_id_column, 
@@ -681,11 +714,12 @@ export class FeatureSetEnrichmentStandalone {
             () => this.#annotations,
             () => this.#guessFeatureTypes()
         );
-
-        _transplantParameters(this.#parameters, collections, automatic, species, gene_id_column, gene_id_type, top_markers);
     }
 
     /**
+     * Obtain the details about the feature set collections in the reference database.
+     * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
+     *
      * @return {object} Object containing the details about the available feature set collections,
      * see {@linkcode FeatureSetEnrichmentState#fetchCollectionDetails FeatureSetEnrichmentState.fetchCollectionDetails} for more details.
      */
@@ -694,6 +728,9 @@ export class FeatureSetEnrichmentStandalone {
     }
 
     /**
+     * Obtain the details about the feature sets in the reference database.
+     * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
+     *
      * @return {object} Object containing the details about the available feature sets,
      * see {@linkcode FeatureSetEnrichmentState#fetchSetDetails FeatureSetEnrichmentState.fetchSetDetails} for more details.
      */
@@ -702,6 +739,9 @@ export class FeatureSetEnrichmentStandalone {
     }
 
     /**
+     * Obtain the size of the universe of features that were successfully mapped to features in the reference database.
+     * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
+     *
      * @return {number} Number of features from the input dataset that were successfully mapped to at least one gene in the reference database.
      */
     fetchUniverseSize() {
@@ -709,6 +749,9 @@ export class FeatureSetEnrichmentStandalone {
     }
 
     /**
+     * Compute enrichment of top markers in each feature set.
+     * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
+     *
      * @param {external:ScoreMarkersResults} markers - Marker detection results for an RNA modality.
      * @param {number} group - Group index of interest.
      * @param {string} effect_size - Effect size to use for ranking.
@@ -724,7 +767,10 @@ export class FeatureSetEnrichmentStandalone {
     }
 
     /**
-     * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode fetchSetDetails}.
+     * Extract row indices of the members of a desired feature set of interest.
+     * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
+     *
+     * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode FeatureSetEnrichmentStandlone#fetchSetDetails fetchSetDetails}.
      *
      * @return {Int32Array} Array containing the row indices of the RNA count matrix corresponding to the genes in the specified set.
      */
@@ -740,7 +786,10 @@ export class FeatureSetEnrichmentStandalone {
     }
 
     /**
-     * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode fetchSetDetails}.
+     * Compute per-cell scores for the activity of a feature set.
+     * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
+     *
+     * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode FeatureSetEnrichmentStandlone#fetchSetDetails fetchSetDetails}.
      *
      * @return {Object} Object containing the per-cell scores for the feature set activity.
      * See {@linkcode FeatureSetEnrichmentState#computePerCellScores FeatureSetEnrichmentState.computePerCellScores} for more details.
@@ -776,7 +825,7 @@ export function unserialize(handle, inputs, filter, normalized, markers) {
     // Protect against old analysis states that don't have cell_labelling.
     if ("feature_set_enrichment" in handle.children) {
         let ghandle = handle.open("feature_set_enrichment");
-        
+
         {
             let phandle = ghandle.open("parameters");
             parameters.collections = phandle.open("collections", { load: true }).values;
