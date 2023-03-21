@@ -106,7 +106,7 @@ test("addition, fetching and removal of custom selections works correctly", asyn
 
     // Works correctly with enrichment.
     {
-        params.feature_set_enrichment.collections = [ "mouse-GO", "human-GO" ];
+        params.feature_set_enrichment.skip = false;
         await bakana.runAnalysis(state, files, params);
         expect(state.custom_selections.changed).toBe(false);
         expect(state.feature_set_enrichment.changed).toBe(true);
@@ -115,11 +115,11 @@ test("addition, fetching and removal of custom selections works correctly", asyn
         state.custom_selections.addSelection("odds", [1,3,5,7,9]);
 
         let simple_out = state.feature_set_enrichment.computeEnrichment(state.custom_selections.fetchResults("evens").RNA, 1, "cohen", "mean");
-        expect(simple_out["human-GO"].counts.length).toBeGreaterThan(0);
+        expect(simple_out.counts.length).toBeGreaterThan(0);
 
         let versus_raw = state.custom_selections.computeVersus("odds", "evens");
         let versus_out = state.feature_set_enrichment.computeEnrichment(versus_raw.results.RNA, versus_raw.left, "cohen", "mean");
-        expect(versus_out["human-GO"].counts.length).toBeGreaterThan(0);
+        expect(versus_out.counts.length).toBeGreaterThan(0);
     }
 
     // Freeing.

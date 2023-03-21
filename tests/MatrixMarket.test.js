@@ -109,6 +109,13 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
     expect(state.inputs.fetchFeatureAnnotations()["RNA"].numberOfColumns()).toBe(0);
     expect(state.rna_quality_control.fetchFilters().thresholdsSubsetProportions(0)[0]).toBe(0);
 
+    // Feature set enrichment behaves.
+    params.feature_set_enrichment.skip = false;
+    await bakana.runAnalysis(state, minimal_files, params);
+    expect(state.marker_detection.changed).toBe(false);
+    expect(state.feature_set_enrichment.changed).toBe(true);
+    expect(state.feature_set_enrichment.fetchCollectionDetails().names.length).toBe(0);
+
     // Release me!
     await bakana.freeAnalysis(state);
 })

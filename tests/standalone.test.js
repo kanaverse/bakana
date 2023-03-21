@@ -169,28 +169,34 @@ test("Standalone feature set enrichment works correctly", async () => {
     }
 
     let enrich = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, { normalized: normed });
-    let params = bakana.FeatureSetEnrichmentState.defaults();
-    params.collections.push("human-GO");
-    await enrich.setParameters(params);
+    await enrich.ready();
+    {
+        let params = bakana.FeatureSetEnrichmentState.defaults();
+        enrich.setParameters(params);
+        await enrich.ready(); // no-ops if the parameters haven't changed.
+    }
 
-    let deets = enrich.fetchCollectionDetails();
-    expect("human-GO" in deets).toBe(true);
+    let coldeets = enrich.fetchCollectionDetails();
+    let setdeets = enrich.fetchSetDetails();
+    expect(Array.from(new Set(coldeets.species))).toEqual(["9606"]);
+
     let res = enrich.computeEnrichment(markers, 1, "cohen", "min_rank");
-    expect(res["human-GO"].num_markers).toBeGreaterThan(0);
-    expect(res["human-GO"].counts).not.toEqual(new Int32Array(normed.numberOfRows()));
+    expect(res.num_markers).toBeGreaterThan(0);
+    expect(res.counts.length).toBeGreaterThan(0);
+    expect(res.counts.every(x => x > 0)).toBe(true);
+    expect(res.pvalues.some(Number.isNaN)).toBe(false);
 
     let chosen = -1;
-    let human_sizes = deets["human-GO"].sizes;
-    for (var i = 0; i < human_sizes.length; i++) {
-        if (human_sizes[i] > 20) {
+    for (var i = 0; i < setdeets.sizes.length; i++) {
+        if (setdeets.sizes[i] > 20) {
             chosen = i;
             break;
         }
     }
-    let scores = enrich.computePerCellScores("human-GO", chosen);
+    let scores = enrich.computePerCellScores(chosen);
     expect(scores.scores.some(Number.isNaN)).toBe(false);
     expect(scores.scores.length).toEqual(normed.numberOfColumns());
-    expect(scores.weights.length).toEqual(human_sizes[chosen]);
+    expect(scores.weights.length).toEqual(setdeets.sizes[chosen]);
 
     // Also works with blocking.
     let block = new Int32Array(loaded.matrix.numberOfColumns());
@@ -200,8 +206,9 @@ test("Standalone feature set enrichment works correctly", async () => {
 
     {
         let enrich2 = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, { normalized: normed, block: block });
-        await enrich2.setParameters(params);
-        let scores2 = enrich2.computePerCellScores("human-GO", chosen);
+        await enrich2.ready();
+
+        let scores2 = enrich2.computePerCellScores(chosen);
         expect(scores2.scores.length).toEqual(normed.numberOfColumns());
         expect(scores2).not.toEqual(scores);
         enrich2.free();
@@ -210,7 +217,7 @@ test("Standalone feature set enrichment works correctly", async () => {
     // Throws an error correctly if no normalized matrix is supplied.
     {
         let enrich2 = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA);
-        await enrich2.setParameters(params);
+        await enrich2.ready();
         expect(() => enrich2.computePerCellScores("human-GO", chosen)).toThrow("no normalized matrix");
     }
 
@@ -224,8 +231,8 @@ test("Standalone feature set enrichment works correctly", async () => {
         expect(bpartial._peekMatrices().row(0)).toEqual(normed.row(0).slice(1));
         expect(bpartial._peekBlock().array()).toEqual(block.slice(1));
 
-        await bpartial.setParameters(params);
-        let scores = bpartial.computePerCellScores("human-GO", chosen);
+        await bpartial.ready();
+        let scores = bpartial.computePerCellScores(chosen);
         expect(Number.isNaN(scores.scores[0])).toBe(true);
         expect(scores.scores.slice(1).every(Number.isNaN)).toBe(false);
 
