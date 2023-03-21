@@ -354,6 +354,9 @@ function _fetchParameters(parameters) {
  * It wraps the [`testFeatureSetEnrichment`](https://kanaverse.github.io/scran.js/global.html#testFeatureSetEnrichment) 
  * and [`scoreFeatureSet`](https://kanaverse.github.io/scran.js/global.html#scoreFeatureSet) functions
  * from [**scran.js**](https://github.com/kanaverse/scran.js).
+ *
+ * This class uses the [**gesel**](https://npmjs.org/package/gesel) package to download the default gene set databases for the relevant organisms.
+ * Its behavior can be tuned by setting global **gesel** variables, e.g., using the [`referenceDownload`](https://ltla.github.io/gesel/global.html#referenceDownload) function.
  * 
  * Methods not documented here are not part of the stable API and should not be used by applications.
  * @hideconstructor
@@ -614,6 +617,9 @@ export class FeatureSetEnrichmentState {
  *
  * Users should await on the return value of the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method after construction.
  * Once resolved, other methods in this class may be used.
+ *
+ * This class uses the [**gesel**](https://npmjs.org/package/gesel) package to download the default gene set databases for the relevant organisms.
+ * Its behavior can be tuned by setting global **gesel** variables, e.g., using the [`referenceDownload`](https://ltla.github.io/gesel/global.html#referenceDownload) function.
  */
 export class FeatureSetEnrichmentStandalone {
     #annotations;
