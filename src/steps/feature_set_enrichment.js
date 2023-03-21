@@ -463,6 +463,8 @@ export class FeatureSetEnrichmentState {
      * - `counts`: Int32Array of length equal to `set_ids`, containing the number of markers present in each set.
      * - `pvalues`: Float64Array of length equal to `counts`, containing the enrichment p-values for each set.
      * - `num_markers`: number of markers selected for testing.
+     *
+     * Sets are guaranteed to be sorted by increasing p-value in `pvalues`.
      */
     computeEnrichment(markers, group, effect_size, summary) {
         return this.#manager.computeEnrichment(group, effect_size, summary, markers, this.#parameters.top_markers);
