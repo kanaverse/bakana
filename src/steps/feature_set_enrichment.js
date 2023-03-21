@@ -229,25 +229,28 @@ class FeatureSetManager {
         }
 
         let overlaps = gesel.countSetOverlaps(in_set);
-        let set_ids = new Int32Array(overlaps.length);
-        let counts = new Int32Array(overlaps.length);
-        let sizes = new Int32Array(overlaps.length);
-        let indices = new Int32Array(overlaps.length);
-        for (var i = 0; i < overlaps.length; i++) {
-            indices[i] = i;
-            let x = overlaps[i];
-            set_ids[i] = x.id;
-            counts[i] = x.count;
-            sizes[i] = this.#cache.sets.sizes[x.id];
+        let num_top = in_set.length;
+        for (const x of overlaps) {
+            x.pvalue = gesel.testEnrichment(x.count, num_top, this.#cache.sets.sizes[x.id], this.#cache.universe.length);
         }
 
-        let num_top = in_set.length;
-        let pvalues = scran.hypergeometricTest(counts, num_top, sizes, this.#cache.universe.length);
-        indices.sort((a, b) => pvalues[a] - pvalues[b]); // Sorting by p-value.
+        // Sorting by p-value.
+        overlaps.sort((a, b) => a.pvalue - b.pvalue);
+        let set_ids = new Int32Array(overlaps.length);
+        let counts = new Int32Array(overlaps.length);
+        let pvalues = new Float64Array(overlaps.length);
+        let counter = 0;
+        for (const x of overlaps) {
+            set_ids[counter] = x.id;
+            counts[counter] = x.count;
+            pvalues[counter] = x.pvalue;
+            counter++;
+        }
+
         return {
-            set_ids: bioc.SLICE(set_ids, indices),
-            counts: bioc.SLICE(counts, indices),
-            pvalues: bioc.SLICE(pvalues, indices),
+            set_ids: set_ids,
+            counts: counts, 
+            pvalues: pvalues, 
             num_markers: num_top
         };
     }
