@@ -125,6 +125,11 @@ test("runAnalysis works correctly (10X)", async () => {
         let new_sf = state.adt_normalization.fetchSizeFactors().slice();
         expect(new_sf.length).toEqual(old_sf.length);
         expect(new_sf).not.toEqual(old_sf);
+
+        // Parameter changes have no effect when bias removal is disabled.
+        params.adt_normalization.num_pcs = 50;
+        state.adt_normalization.compute(params.adt_normalization);
+        expect(state.adt_normalization.changed).toBe(false);
     }
 
     // Release me!
