@@ -107,29 +107,30 @@ export class AdtNormalizationState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `adt_normalization` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {boolean} parameters.correct_bias - Whether to correct for composition bias.
+     * @param {boolean} parameters.remove_bias - Whether to remove composition bias between cell subpopulations.
      * This is done by clustering cells and computing median-based size factors between the average pseudo-cells for each cluster.
+     * Users can set this to `false` to speed up the compute.
      * @param {number} parameters.num_pcs - Number of PCs to use for creating a low-dimensional embedding for clustering.
-     * Only used if `correct_bias = true`.
+     * Only used if `remove_bias = true`.
      * @param {number} parameters.num_clusters - Number of clusters to create with k-means clustering.
-     * Only used if `correct_bias = true`.
+     * Only used if `remove_bias = true`.
      *
      * @return The object is updated with new results.
      */
     compute(parameters) {
         const { num_pcs, num_clusters } = parameters;
-        let correct_bias = true;
-        if ("correct_bias" in parameters) {
-            correct_bias = parameters.correct_bias;
+        let remove_bias = true;
+        if ("remove_bias" in parameters) {
+            remove_bias = parameters.remove_bias;
         }
 
         this.changed = false;
 
         if (this.#qc.changed || 
             this.#filter.changed || 
-            correct_bias !== this.#parameters.correct_bias ||
+            remove_bias !== this.#parameters.remove_bias ||
             (
-                correct_bias &&
+                remove_bias &&
                 (
                     num_pcs !== this.#parameters.num_pcs || 
                     num_clusters != this.#parameters.num_clusters
@@ -142,7 +143,7 @@ export class AdtNormalizationState {
                 var block = this.#filter.fetchFilteredBlock();
                 var sf_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "sf_buffer");
 
-                if (correct_bias) {
+                if (remove_bias) {
                     scran.quickAdtSizeFactors(mat, { 
                         totals: total_buffer, 
                         block: block, 
@@ -159,7 +160,7 @@ export class AdtNormalizationState {
 
         } 
 
-        this.#parameters.correct_bias = correct_bias;
+        this.#parameters.remove_bias = remove_bias;
         this.#parameters.num_pcs = num_pcs;
         this.#parameters.num_clusters = num_clusters;
 
@@ -174,7 +175,7 @@ export class AdtNormalizationState {
 
     static defaults() {
         return {
-           correct_bias: true,
+           remove_bias: true,
            num_pcs: 25,
            num_clusters: 20
         };
