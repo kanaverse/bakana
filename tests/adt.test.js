@@ -115,6 +115,23 @@ test("runAnalysis works correctly (10X)", async () => {
         expect(state.combine_embeddings.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
     }
 
+    // Checking that we can successfully turn off the bias removal.
+    {
+        let old_sf = state.adt_normalization.fetchSizeFactors().slice();
+        params.adt_normalization.remove_bias = false;
+        state.adt_normalization.compute(params.adt_normalization);
+        expect(state.adt_normalization.changed).toBe(true);
+
+        let new_sf = state.adt_normalization.fetchSizeFactors().slice();
+        expect(new_sf.length).toEqual(old_sf.length);
+        expect(new_sf).not.toEqual(old_sf);
+
+        // Parameter changes have no effect when bias removal is disabled.
+        params.adt_normalization.num_pcs = 50;
+        state.adt_normalization.compute(params.adt_normalization);
+        expect(state.adt_normalization.changed).toBe(false);
+    }
+
     // Release me!
     await bakana.freeAnalysis(state);
 })
