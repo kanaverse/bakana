@@ -92,6 +92,7 @@ test("feature set enrichment works correctly for humans", async () => {
 
         let collections = state.feature_set_enrichment.fetchCollectionDetails();
         expect(collections.names.length).toBeGreaterThan(0);
+        expect(typeof collections.names[0]).toBe("string");
         expect(Array.from(new Set(collections.species))).toEqual(["10090"]);
         expect(state.feature_set_enrichment.fetchUniverseSize()).toBe(0);
 

@@ -129,7 +129,7 @@ class FeatureSetManager {
             let collection_species = new Array(ncollections);
 
             for (var i = 0; i < ncollections; i++) {
-                collection_names[i] = all_collections[i].name;
+                collection_names[i] = all_collections[i].title;
                 collection_descriptions[i] = all_collections[i].description;
                 collection_species[i] = spec;
             }
