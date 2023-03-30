@@ -115,6 +115,16 @@ test("runAnalysis works correctly (10X)", async () => {
         expect(state.combine_embeddings.fetchNumberOfDimensions()).toBe(state.rna_pca.fetchPCs().numberOfPCs());
     }
 
+    // Checking that we can successfully turn off the correction.
+    {
+        let old_sf = state.adt_normalization.fetchSizeFactors().slice();
+        params.adt_normalization.correct_bias = false;
+        state.adt_normalization.compute(params.adt_normalization);
+
+        let new_sf = state.adt_normalization.fetchSizeFactors().slice();
+        expect(new_sf).not.toEqual(old_sf);
+    }
+
     // Release me!
     await bakana.freeAnalysis(state);
 })

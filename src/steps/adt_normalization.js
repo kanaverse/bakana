@@ -107,36 +107,61 @@ export class AdtNormalizationState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `adt_normalization` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {boolean} parameters.correct_bias - Whether to correct for composition bias.
+     * This is done by clustering cells and computing median-based size factors between the average pseudo-cells for each cluster.
      * @param {number} parameters.num_pcs - Number of PCs to use for creating a low-dimensional embedding for clustering.
+     * Only used if `correct_bias = true`.
      * @param {number} parameters.num_clusters - Number of clusters to create with k-means clustering.
+     * Only used if `correct_bias = true`.
      *
      * @return The object is updated with new results.
      */
     compute(parameters) {
         const { num_pcs, num_clusters } = parameters;
+        let correct_bias = true;
+        if ("correct_bias" in parameters) {
+            correct_bias = parameters.correct_bias;
+        }
+
         this.changed = false;
 
-        if (this.#qc.changed || this.#filter.changed || num_pcs !== this.#parameters.num_pcs || num_clusters != this.#parameters.num_clusters) {
+        if (this.#qc.changed || 
+            this.#filter.changed || 
+            correct_bias !== this.#parameters.correct_bias ||
+            (
+                correct_bias &&
+                (
+                    num_pcs !== this.#parameters.num_pcs || 
+                    num_clusters != this.#parameters.num_clusters
+                ) 
+            )
+        ) {
             if (this.valid()) {
                 var mat = this.#filter.fetchFilteredMatrix().get("ADT");
                 let total_buffer = nutils.subsetSums(this.#qc, this.#filter, mat, this.#cache, "total_buffer");
-
                 var block = this.#filter.fetchFilteredBlock();
                 var sf_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "sf_buffer");
-                scran.quickAdtSizeFactors(mat, { 
-                    totals: total_buffer, 
-                    block: block, 
-                    buffer: sf_buffer, 
-                    numberOfPCs: num_pcs, 
-                    numberOfClusters: num_clusters 
-                });
+
+                if (correct_bias) {
+                    scran.quickAdtSizeFactors(mat, { 
+                        totals: total_buffer, 
+                        block: block, 
+                        buffer: sf_buffer, 
+                        numberOfPCs: num_pcs, 
+                        numberOfClusters: num_clusters 
+                    });
+                } else {
+                    scran.centerSizeFactors(total_buffer, { buffer: sf_buffer, block: block });
+                }
 
                 this.changed = true;
             }
 
-            this.#parameters.num_pcs = num_pcs;
-            this.#parameters.num_clusters = num_clusters;
         } 
+
+        this.#parameters.correct_bias = correct_bias;
+        this.#parameters.num_pcs = num_pcs;
+        this.#parameters.num_clusters = num_clusters;
 
         if (this.changed) {
             if (this.valid()) {
@@ -149,6 +174,7 @@ export class AdtNormalizationState {
 
     static defaults() {
         return {
+           correct_bias: true,
            num_pcs: 25,
            num_clusters: 20
         };
