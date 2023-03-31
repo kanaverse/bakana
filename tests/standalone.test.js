@@ -170,11 +170,6 @@ test("Standalone feature set enrichment works correctly", async () => {
 
     let enrich = new bakana.FeatureSetEnrichmentStandalone(loaded.features.RNA, { normalized: normed });
     await enrich.ready();
-    {
-        let params = bakana.FeatureSetEnrichmentState.defaults();
-        enrich.setParameters(params);
-        await enrich.ready(); // no-ops if the parameters haven't changed.
-    }
 
     let coldeets = enrich.fetchCollectionDetails();
     let setdeets = enrich.fetchSetDetails();
@@ -197,6 +192,13 @@ test("Standalone feature set enrichment works correctly", async () => {
     expect(scores.scores.some(Number.isNaN)).toBe(false);
     expect(scores.scores.length).toEqual(normed.numberOfColumns());
     expect(scores.weights.length).toEqual(setdeets.sizes[chosen]);
+
+    // no-ops if the parameters haven't changed.
+    {
+        let params = bakana.FeatureSetEnrichmentState.defaults();
+        enrich.setParameters(params);
+        await enrich.ready(); 
+    }
 
     // Also works with blocking.
     let block = new Int32Array(loaded.matrix.numberOfColumns());

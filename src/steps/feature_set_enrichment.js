@@ -725,13 +725,16 @@ export class FeatureSetEnrichmentStandalone {
      */
     async ready() {
         let { automatic, species, gene_id_column, gene_id_type, top_markers } = this.#parameters;
-        if (this.#manager == null) {
+
+        let params = this.#parameters;
+        let init = this.#manager == null;
+        if (init) {
             this.#manager = new FeatureSetManager; 
-            this.#parameters = {}; // this gets repopulated by _buildCollections.
+            params = {}; // trigger _buildCollections to run if the parameters have not changed from the defaults.
         }
 
         await _buildCollections(
-            this.#parameters,
+            params,
             this.#manager,
             automatic, 
             species, 
@@ -740,6 +743,10 @@ export class FeatureSetEnrichmentStandalone {
             () => this.#annotations,
             () => this.#guessFeatureTypes()
         );
+
+        if (!init) {
+            _transplantParameters(this.#parameters, automatic, species, gene_id_column, gene_id_type, top_markers);
+        }
     }
 
     /**
