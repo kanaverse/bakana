@@ -520,31 +520,11 @@ export class SummarizedExperimentDataset {
     #raw_features;
     #raw_cells;
 
-    #rnaCountAssay;
-    #adtCountAssay;
-    #crisprCountAssay;
-
-    #rnaExperiment;
-    #adtExperiment;
-    #crisprExperiment;
-
-    #primaryRnaFeatureIdColumn;
-    #primaryAdtFeatureIdColumn;
-    #primaryCrisprFeatureIdColumn;
+    #options;
 
     #dump_summary(fun) {
         let files = [{ type: "rds", file: fun(this.#rds_file) }];
-        let options = {
-            rnaCountAssay: this.#rnaCountAssay,
-            adtCountAssay: this.#adtCountAssay,
-            crisprCountAssay: this.#crisprCountAssay,
-            rnaExperiment: this.#rnaExperiment,
-            adtExperiment: this.#adtExperiment,
-            crisprExperiment: this.#crisprExperiment,
-            primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
-            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn,
-            primaryCrisprFeatureIdColumn: this.#primaryCrisprFeatureIdColumn
-        };
+        let options = this.options();
         return { files, options };
     }
 
@@ -580,106 +560,68 @@ export class SummarizedExperimentDataset {
             this.#rds_file = new afile.SimpleFile(rdsFile);
         }
 
-        this.#rnaCountAssay = rnaCountAssay;
-        this.#adtCountAssay = adtCountAssay;
-        this.#crisprCountAssay = crisprCountAssay;
-
-        this.#rnaExperiment = rnaExperiment;
-        this.#adtExperiment = adtExperiment;
-        this.#crisprExperiment = crisprExperiment;
-
-        this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
-        this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
-        this.#primaryCrisprFeatureIdColumn = primaryCrisprFeatureIdColumn;
-
+        this.#options = SummarizedExperimentDataset.defaults();
         this.clear();
     }
 
     /**
-     * @param {string|number} i - Name or index of the assay containing the RNA count matrix.
+     * @return {object} Default options, see {@linkcode SummarizedExperimentDataset#setOptions setOptions} for more details.
      */
-    setRnaCountAssay(i) {
-        this.#rnaCountAssay = i;
-        return;
+    static defaults() {
+        return {
+            rnaCountAssay: 0, 
+            adtCountAssay: 0, 
+            crisprCountAssay: 0,
+            rnaExperiment: "", 
+            adtExperiment: "Antibody Capture", 
+            crisprExperiment: "CRISPR Guide Capture",
+            primaryRnaFeatureIdColumn: null, 
+            primaryAdtFeatureIdColumn: null,
+            primaryCrisprFeatureIdColumn: null 
+        };
     }
 
     /**
-     * @param {string|number} i - Name or index of the assay containing the ADT count matrix.
+     * @return {object} Object containing all options used for loading.
      */
-    setAdtCountAssay(i) {
-        this.#adtCountAssay = i;
-        return;
+    options() {
+        return { ...(this.#options) };
     }
 
     /**
-     * @param {string|number} i - Name or index of the assay containing the CRISPR count matrix.
-     */
-    setCrisprCountAssay(i) {
-        this.#adtCountAssay = i;
-        return;
-    }
-
-    /**
-     * @param {?(string|number)} i - Name or index of the alternative experiment containing gene expression data.
+     * @param {object} options - Optional parameters that affect {@linkcode SummarizedExperimentDataset#load load} (but not {@linkcode SummarizedExperimentDataset#summary summary}.
+     * @param {string|number} [options.rnaCountAssay] - Name or index of the assay containing the RNA count matrix.
+     * @param {string|number} [options.adtCountAssay] - Name or index of the assay containing the ADT count matrix.
+     * @param {string|number} [options.crisprCountAssay] - Name or index of the assay containing the CRISPR count matrix.
+     * @param {?(string|number)} [options.rnaExperiment=""] - Name or index of the alternative experiment containing gene expression data.
+     *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.
      * If `i` is an empty string, the main experiment is assumed to contain the gene expression data.
-     */
-    setRnaExperiment(i) {
-        this.#rnaExperiment = i;
-        return;
-    }
-
-    /**
-     * @param {?(string|number)} i - Name or index of the alternative experiment containing ADT data.
+     * @param {?(string|number)} [options.adtExperiment="Antibody Capture"] - Name or index of the alternative experiment containing ADT data.
+     *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.
      * If `i` is an empty string, the main experiment is assumed to contain the ADT data.
-     */
-    setAdtExperiment(i) {
-        this.#adtExperiment = i;
-        return;
-    }
-
-    /**
-     * @param {?(string|number)} i - Name or index of the alternative experiment containing CRISPR guide data.
+     * @param {?(string|number)} [options.crisprExperiment="CRISPR Guide Capture"] - Name or index of the alternative experiment containing CRISPR guide data.
+     *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.
      * If `i` is an empty string, the main experiment is assumed to contain the guide data.
-     */
-    setCrisprExperiment(i) {
-        this.#crisprExperiment = i;
-        return;
-    }
-
-    /**
-     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * @param {?(string|number)} [options.primaryRnaFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
      *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
      * However, if no row names are present in the SummarizedExperiment, no primary identifier is defined.
-     */
-    setPrimaryRnaFeatureIdColumn(i) {
-        this.#primaryRnaFeatureIdColumn = i;
-        return;
-    }
-
-    /**
-     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     * @param {?(string|number)} [options.primaryAdtFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
      *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
      * However, if no row names are present in the SummarizedExperiment, no primary identifier is defined.
-     */
-    setPrimaryAdtFeatureIdColumn(i) {
-        this.#primaryAdtFeatureIdColumn = i;
-        return;
-    }
-
-    /**
-     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
+     * @param {?(string|number)} [options.primaryCrisprFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
      *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the existing row names (if they exist) are used as the primary identifier.
      * However, if no row names are present in the SummarizedExperiment, no primary identifier is defined.
      */
-    setPrimaryCrisprFeatureIdColumn(i) {
-        this.#primaryCrisprFeatureIdColumn = i;
-        return;
+    setOptions(options) {
+        for (const [k, v] of Object.entries(options)) {
+            this.#options[k] = v;
+        }
     }
 
     /**
@@ -840,9 +782,9 @@ export class SummarizedExperimentDataset {
         };
 
         let mapping = { 
-            RNA: { exp: this.#rnaExperiment, assay: this.#rnaCountAssay },
-            ADT: { exp: this.#adtExperiment, assay: this.#adtCountAssay },
-            CRISPR: { exp: this.#crisprExperiment, assay: this.#crisprCountAssay }
+            RNA: { exp: this.#options.rnaExperiment, assay: this.#options.rnaCountAssay },
+            ADT: { exp: this.#options.adtExperiment, assay: this.#options.adtCountAssay },
+            CRISPR: { exp: this.#options.crisprExperiment, assay: this.#options.crisprCountAssay }
         };
 
         try {
@@ -878,9 +820,9 @@ export class SummarizedExperimentDataset {
             }
 
             let primaries = { 
-                RNA: this.#primaryRnaFeatureIdColumn, 
-                ADT: this.#primaryAdtFeatureIdColumn,
-                CRISPR: this.#primaryCrisprFeatureIdColumn
+                RNA: this.#options.primaryRnaFeatureIdColumn, 
+                ADT: this.#options.primaryAdtFeatureIdColumn,
+                CRISPR: this.#options.primaryCrisprFeatureIdColumn
             };
             output.primary_ids = futils.extractPrimaryIds(output.features, primaries);
 
@@ -942,9 +884,7 @@ export class SummarizedExperimentResult {
     #rd_handles;
     #rd_handle_order;
 
-    #primaryAssay;
-    #isPrimaryNormalized;
-    #reducedDimensionNames;
+    #options;
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} rdsFile - Contents of a RDS file.
@@ -955,11 +895,7 @@ export class SummarizedExperimentResult {
      * @param {object|boolean} [options.isPrimaryNormalized={}] - See {@linkcode SummarizedExperimentResult#setIsPrimaryNormalized setIsPrimaryNormalized}.
      * @param {?Array} [options.reducedDimensionNames=null] - See {@linkcode SummarizedExperimentResult#setReducedDimensionNames setReducedDimensionNames}.
      */
-    constructor(rdsFile, { 
-        primaryAssay = 0,
-        isPrimaryNormalized = true,
-        reducedDimensionNames = null
-    } = {}) {
+    constructor(rdsFile) {
         if (rdsFile instanceof afile.SimpleFile) {
             this.#rds_file = rdsFile;
         } else {
@@ -967,46 +903,50 @@ export class SummarizedExperimentResult {
         }
 
         // Cloning to avoid pass-by-reference links.
-        this.#primaryAssay = bioc.CLONE(primaryAssay);
-        this.#isPrimaryNormalized = bioc.CLONE(isPrimaryNormalized);
-        this.#reducedDimensionNames = bioc.CLONE(reducedDimensionNames);
-
+        this.#options = SummarizedExperimentResult.defaults();
         this.clear();
     }
 
     /**
-     * @param {object|string|number} primary - Assay containing the relevant data for each modality.
+     * @return {object} Default options, see {@linkcode AbstractArtifactdbResults#setOptions setOptions} for more details.
+     */
+    static defaults() {
+        return { 
+            primaryAssay: 0,
+            isPrimaryNormalized: true,
+            reducedDimensionNames: null
+        };
+    }
+
+    /**
+     * @return {object} Object containing all options used for loading.
+     */
+    options() {
+        return { ...(this.#options) };
+    }
+
+    /**
+     * @param {object} options - Optional parameters that affect {@linkcode AbstractArtifactdbResult#load load} (but not {@linkcode AbstractArtifactdbResult#summary summary}.
+     * @param {object|string|number} [options.primaryAssay] - Assay containing the relevant data for each modality.
      *
      * - If a string, this is used as the name of the assay across all modalities.
      * - If a number, this is used as the index of the assay across all modalities.
      * - If any object, the key should be the name of a modality and the value may be either a string or number specifying the assay to use for that modality.
      *   Modalities absent from this object will not be loaded.
-     */
-    setPrimaryAssay(primary) {
-        this.#primaryAssay = bioc.CLONE(primary);
-        return;
-    }
-
-    /**
-     * @param {object|boolean} normalized - Whether or not the assay for a particular modality has already been normalized.
+     * @param {object|boolean} [options.isPrimaryNormalized] - Whether or not the assay for a particular modality has already been normalized.
      *
      * - If a boolean, this is used to indicate normalization status of assays across all modalities.
      *   If `false`, that modality's assay is assumed to contain count data and is subjected to library size normalization. 
      * - If any object, the key should be the name of a modality and the value should be a boolean indicating whether that modality's assay has been normalized.
      *   Modalities absent from this object are assumed to have been normalized.
-     */
-    setIsPrimaryNormalized(normalized) {
-        this.#isPrimaryNormalized = bioc.CLONE(normalized);
-        return;
-    }
-
-    /**
-     * @param {?Array} names - Array of names of the reduced dimensions to load.
+     * @param {?Array} [options.reducedDimensionNames] - Array of names of the reduced dimensions to load.
      * If `null`, all reduced dimensions found in the file are loaded.
      */
-    setReducedDimensionNames(names) {
-        this.#reducedDimensionNames = bioc.CLONE(names);
-        return;
+    setOptions(options) {
+        // Cloning to avoid pass-by-reference links.
+        for (const [k, v] of Object.entries(options)) {
+            this.#options[k] = bioc.CLONE(v);
+        }
     }
 
     /**
@@ -1174,7 +1114,7 @@ export class SummarizedExperimentResult {
         };
 
         // Fetch the reduced dimensions first.
-        let reddims = this.#reducedDimensionNames;
+        let reddims = this.#options.reducedDimensionNames;
         if (reddims == null) {
             reddims = this.#rd_handle_order;
         }
@@ -1193,7 +1133,7 @@ export class SummarizedExperimentResult {
         // Now fetching the assay matrix.
         try {
             for (const [k, v] of Object.entries(this.#raw_features)) {
-                let curassay = this.#primaryAssay;
+                let curassay = this.#options.primaryAssay;
                 if (typeof curassay == "object") {
                     if (k in curassay) {
                         curassay = curassay[k];
@@ -1202,7 +1142,7 @@ export class SummarizedExperimentResult {
                     }
                 }
 
-                let curnormalized = this.#isPrimaryNormalized;
+                let curnormalized = this.#options.isPrimaryNormalized;
                 if (typeof curnormalized == "object") {
                     if (k in curnormalized) {
                         curnormalized = curnormalized[k];

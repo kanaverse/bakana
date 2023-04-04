@@ -112,29 +112,11 @@ export class H5adDataset {
     #raw_cells;
     #assay_details;
 
-    #countMatrixName;
-    #featureTypeColumnName;
-
-    #featureTypeRnaName;
-    #featureTypeAdtName;
-    #featureTypeCrisprName;
-
-    #primaryRnaFeatureIdColumn;
-    #primaryAdtFeatureIdColumn;
-    #primaryCrisprFeatureIdColumn;
+    #options;
 
     #dump_summary(fun) {
         let files = [{ type: "h5", file: fun(this.#h5_file) }]; 
-        let options = {
-            countMatrixName: this.#countMatrixName,
-            featureTypeColumnName: this.#featureTypeColumnName,
-            featureTypeRnaName: this.#featureTypeRnaName,
-            featureTypeAdtName: this.#featureTypeAdtName,
-            featureTypeCrisprName: this.#featureTypeCrisprName,
-            primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
-            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn,
-            primaryCrisprFeatureIdColumn: this.#primaryCrisprFeatureIdColumn
-        };
+        let options = this.options();
         return { files, options };
     }
 
@@ -142,122 +124,70 @@ export class H5adDataset {
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a H5AD file.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
-     * @param {object} [options={}] - Optional parameters.
-     * @param {?string} [options.countMatrixName=null] - See {@linkcode H5adDataset#setCountMatrixName setCountMatrixName}.
-     * @param {?string} [options.featureTypeColumnName=null] - See {@linkcode H5adDataset#setFeatureTypeColumnName setFeatureTypeColumnName}.
-     * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode H5adDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
-     * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode H5adDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
-     * @param {?string} [options.featureTypeCrisprName="CRISPR Guide Capture"] - See {@linkcode H5adDataset#setFeatureTypeCrisprName setFeatureTypeCrisprName}.
-     * @param {?(string|number)} [options.primaryRnaFeatureIdColumn=null] - See {@linkcode H5adDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
-     * @param {?(string|number)} [options.primaryAdtFeatureIdColumn=null] - See {@linkcode H5adDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
-     * @param {?(string|number)} [options.primaryCrisprFeatureIdColumn=null] - See {@linkcode H5adDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
      */
-    constructor(h5File, { 
-        countMatrixName = null, 
-        featureTypeColumnName = null, 
-        featureTypeRnaName = "Gene Expression", 
-        featureTypeAdtName = "Antibody Capture", 
-        featureTypeCrisprName = "CRISPR Guide Capture", 
-        primaryRnaFeatureIdColumn = "_index", 
-        primaryAdtFeatureIdColumn = "_index",
-        primaryCrisprFeatureIdColumn = "_index" 
-    } = {}) {
+    constructor(h5File) {
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
         } else {
             this.#h5_file = new afile.SimpleFile(h5File);
         }
 
-        this.#countMatrixName = countMatrixName;
-        this.#featureTypeColumnName = featureTypeColumnName;
-        
-        this.#featureTypeRnaName = featureTypeRnaName;
-        this.#featureTypeAdtName = featureTypeAdtName;
-        this.#featureTypeCrisprName = featureTypeCrisprName;
-
-        this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
-        this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
-        this.#primaryCrisprFeatureIdColumn = primaryCrisprFeatureIdColumn;
-
+        this.#options = H5adDataset.defaults();
         this.clear();
     }
 
     /**
-     * @param {?string} name - Name of the layer containing the count matrix.
+     * @return {object} Default options, see {@linkcode H5adDataset#setOptions setOptions} for more details.
+     */
+    static defaults() {
+        return {
+            countMatrixName: null, 
+            featureTypeColumnName: null, 
+            featureTypeRnaName: "Gene Expression", 
+            featureTypeAdtName: "Antibody Capture", 
+            featureTypeCrisprName: "CRISPR Guide Capture", 
+            primaryRnaFeatureIdColumn: "_index", 
+            primaryAdtFeatureIdColumn: "_index",
+            primaryCrisprFeatureIdColumn: "_index" 
+        };
+    }
+
+    /**
+     * @return {object} Object containing all options used for loading.
+     */
+    options() {
+        return { ...(this.#options) };
+    }
+
+    /**
+     * @param {object} options - Optional parameters that affect {@linkcode H5adDataset#load load} (but not {@linkcode H5adDataset#summary summary}.
+     * @param {?string} [options.countMatrixName] - Name of the layer containing the count matrix.
      * If `null`, the "X" dataset is used if it is present in the file, or the first available layer if no "X" dataset is present.
-     */
-    setCountMatrixName(name) {
-        this.#countMatrixName = name;
-        return;
-    }
-
-    /**
-     * @param {?string} name - Name of the per-feature annotation column containing the feature types.
+     * @param {?string} [options.featureTypeColumnName] - Name of the per-feature annotation column containing the feature types.
      * If `null`, no column is assumed to contain the feature types, and all features are assumed to be genes (i.e., only the RNA modality is present).
-     */
-    setFeatureTypeColumnName(name) {
-        this.#featureTypeColumnName = name;
-        return;
-    }
-
-    /**
-     * @param {?string} name - Name of the feature type for gene expression.
+     * @param {?string} [options.featureTypeRnaName] - Name of the feature type for gene expression.
      * Alternatively `null`, to indicate that no RNA features are to be loaded.
-     */
-    setFeatureTypeRnaName(name) {
-        this.#featureTypeRnaName = name;
-        return;
-    }
-
-    /**
-     * @param {string} name - Name of the feature type for ADTs.
+     * @param {?string} [options.featureTypeAdtName] - Name of the feature type for ADTs.
      * Alternatively `null`, to indicate that no ADT features are to be loaded.
-     */
-    setFeatureTypeAdtName(name) {
-        this.#featureTypeAdtName = name;
-        return;
-    }
-
-    /**
-     * @param {?string} name - Name of the feature type for CRISPR guides.
+     * @param {?string} [options.featureTypeCrisprName] - Name of the feature type for CRISPR guides.
      * Alternatively `null`, to indicate that no guides are to be loaded.
-     */
-    setFeatureTypeCrisprName(name) {
-        this.#featureTypeCrisprName = name;
-        return;
-    }
-
-    /**
-     * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * @param {?(string|number)} [options.primaryRnaFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     *
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the row names (from the `_index` group) are used as the primary identifiers.
+     * If no row names are present in this situation, no primary identifier is defined.
+     * @param {?(string|number)} [options.primaryAdtFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     *
+     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the row names (from the `_index` group) are used as the primary identifiers.
+     * If no row names are present in this situation, no primary identifier is defined.
+     * @param {?(string|number)} [options.primaryCrisprFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
      *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the row names (from the `_index` group) are used as the primary identifiers.
      * If no row names are present in this situation, no primary identifier is defined.
      */
-    setPrimaryRnaFeatureIdColumn(i) {
-        this.#primaryRnaFeatureIdColumn = i;
-        return;
-    }
-
-    /**
-     * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
-     *
-     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the row names (from the `_index` group) are used as the primary identifiers.
-     * If no row names are present in this situation, no primary identifier is defined.
-     */
-    setPrimaryAdtFeatureIdColumn(i) {
-        this.#primaryAdtFeatureIdColumn = i;
-        return;
-    }
-
-    /**
-     * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
-     *
-     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the row names (from the `_index` group) are used as the primary identifiers.
-     * If no row names are present in this situation, no primary identifier is defined.
-     */
-    setPrimaryCrisprFeatureIdColumn(i) {
-        this.#primaryCrisprFeatureIdColumn = i;
-        return;
+    setOptions(options) {
+        for (const [k, v] of Object.entries(options)) {
+            this.#options[k] = v;
+        }
     }
 
     #instantiate() {
@@ -401,17 +331,17 @@ export class H5adDataset {
         let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, chosen_assay);
 
         let mappings = { 
-            RNA: this.#featureTypeRnaName, 
-            ADT: this.#featureTypeAdtName,
-            CRISPR: this.#featureTypeCrisprName
+            RNA: this.#options.featureTypeRnaName, 
+            ADT: this.#options.featureTypeAdtName,
+            CRISPR: this.#options.featureTypeCrisprName
         };
-        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#featureTypeColumnName, mappings, "RNA");
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#options.featureTypeColumnName, mappings, "RNA");
         output.cells = this.#raw_cells;
 
         let primaries = { 
-            RNA: this.#primaryRnaFeatureIdColumn, 
-            ADT: this.#primaryAdtFeatureIdColumn,
-            CRISPR: this.#primaryCrisprFeatureIdColumn
+            RNA: this.#options.primaryRnaFeatureIdColumn, 
+            ADT: this.#options.primaryAdtFeatureIdColumn,
+            CRISPR: this.#options.primaryCrisprFeatureIdColumn
         };
         output.primary_ids = futils.extractPrimaryIds(output.features, primaries);
 
@@ -466,39 +396,61 @@ export class H5adResult {
     #assay_details;
     #reddim_details;
 
-    #primaryMatrixName;
-    #isPrimaryNormalized;
-    #featureTypeColumnName;
-    #reducedDimensionNames;
+    #options;
 
     /**
      * @param {SimpleFile|string|Uint8Array|File} h5File - Contents of a H5AD file.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
-     * @param {object} [options={}] - Optional parameters.
-     * @param {?string} [options.primaryMatrixName=null] - See {@linkcode H5adResult#setPrimaryMatrixName setPrimaryMatrixName}.
-     * @param {boolean} [options.isPrimaryNormalized=true] - See {@linkcode H5adResult#setIsPrimaryNormalized setIsPrimaryNormalized}.
-     * @param {?string} [options.featureTypeColumnName=null] - See {@linkcode H5adResult#setFeatureTypeColumnName setFeatureTypeColumnName}.
-     * @param {?Array} [options.reducedDimensionNames=null] - See {@linkcode H5adResult#setReducedDimensionNames setReducedDimensionNames}.
      */
-    constructor(h5File, { 
-        primaryMatrixName = null, 
-        isPrimaryNormalized=true,
-        featureTypeColumnName = null, 
-        reducedDimensionNames = null
-    } = {}) {
+    constructor(h5File) {
         if (h5File instanceof afile.SimpleFile) {
             this.#h5_file = h5File;
         } else {
             this.#h5_file = new afile.SimpleFile(h5File);
         }
 
-        this.#primaryMatrixName = primaryMatrixName;
-        this.#isPrimaryNormalized = isPrimaryNormalized;
-        this.#featureTypeColumnName = featureTypeColumnName;
-        this.#reducedDimensionNames = bioc.CLONE(reducedDimensionNames); // avoid pass-by-reference links.
-
+        this.#options = H5adResult.defaults();
         this.clear();
+    }
+
+    /**
+     * @return {object} Default options, see {@linkcode H5adResult#setOptions setOptions} for more details.
+     */
+    static defaults() {
+        return { 
+            primaryMatrixName: null, 
+            isPrimaryNormalized=true,
+            featureTypeColumnName: null, 
+            reducedDimensionNames: null
+        };
+    }
+
+    /**
+     * @return {object} Object containing all options used for loading.
+     */
+    options() {
+        return { ...(this.#options) };
+    }
+
+    /**
+     * @param {object} options - Optional parameters that affect {@linkcode H5adResult#load load} (but not {@linkcode H5adResult#summary summary}.
+     * @param {?string} [options.primaryMatrixName] - Name of the layer containing the primary matrix.
+     * If `null`, the "X" dataset is used if it is present in the file, or the first available layer if no "X" dataset is present.
+     * @param {boolean} [options.isPrimaryNormalized] - Whether the primary matrix is already normalized.
+     * If `false`, it is assumed to contain count data and is subjected to library size normalization within each modality.
+     * @param {?string} [options.featureTypeColumnName] - Name of the per-feature annotation column containing the feature types.
+     * If `null`, no column is assumed to contain the feature types, and all features are assumed to be genes (i.e., only the RNA modality is present).
+     * @param {?Array} [options.reducedDimensionNames=null] - Array of names of the reduced dimensions to load.
+     * If `null`, all reduced dimensions found in the file are loaded.
+     */
+    setOptions(options) {
+        for (const [k, v] of Object.entries(options)) {
+            if (k == "reducedDimensionNames") {
+                v = bioc.CLONE(v); // avoid pass-by-reference links.
+            }
+            this.#options[k] = v;
+        }
     }
 
     /**
@@ -517,41 +469,6 @@ export class H5adResult {
         this.#raw_cells = null;
         this.#assay_details = null;
         this.#reddim_details = null;
-    }
-
-    /**
-     * @param {?string} name - Name of the layer containing the primary matrix.
-     * If `null`, the "X" dataset is used if it is present in the file, or the first available layer if no "X" dataset is present.
-     */
-    setPrimaryMatrixName(name) {
-        this.#primaryMatrixName = name;
-        return;
-    }
-
-    /**
-     * @param {boolean} normalized - Whether the primary matrix is already normalized.
-     * If `false`, it is assumed to contain count data and is subjected to library size normalization within each modality.
-     */
-    setIsPrimaryNormalized(normalized) {
-        this.#isPrimaryNormalized = normalized;
-    }
-
-    /**
-     * @param {?string} name - Name of the per-feature annotation column containing the feature types.
-     * If `null`, no column is assumed to contain the feature types, and all features are assumed to be genes (i.e., only the RNA modality is present).
-     */
-    setFeatureTypeColumnName(name) {
-        this.#featureTypeColumnName = name;
-        return;
-    }
-
-    /**
-     * @param {?Array} names - Array of names of the reduced dimensions to load.
-     * If `null`, all reduced dimensions found in the file are loaded.
-     */
-    setReducedDimensionNames(names) {
-        this.#reducedDimensionNames = bioc.CLONE(names);
-        return;
     }
 
     #instantiate() {
@@ -678,12 +595,12 @@ export class H5adResult {
         this.#fetch_assay_details();
         this.#fetch_reddim_details();
 
-        let chosen_assay = this.#primaryMatrixName;
+        let chosen_assay = this.#options.primaryMatrixName;
         if (chosen_assay == null) {
             chosen_assay = this.#assay_details.names[0];
         }
-        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, chosen_assay, { forceInteger: !this.#isPrimaryNormalized });
-        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#featureTypeColumnName, null, "");
+        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, chosen_assay, { forceInteger: !this.#options.isPrimaryNormalized });
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#options.featureTypeColumnName, null, "");
         output.cells = this.#raw_cells;
         delete output.row_ids;
 
@@ -695,7 +612,7 @@ export class H5adResult {
         }
 
         // Loading the dimensionality reduction results.
-        let chosen_reddims = this.#reducedDimensionNames;
+        let chosen_reddims = this.#options.reducedDimensionNames;
         if (chosen_reddims == null) {
             chosen_reddims = this.#reddim_details.names;
         }

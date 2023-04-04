@@ -730,13 +730,7 @@ export class AbstractArtifactdbResult {
      * @param {string} path - Path to the SummarizedExperiment in the ArtifactDB project directory.
      * @param {ArtifactdbProjectNavigator} navigator - A navigator object that describes how to obtain the various assets from the project directory containing `path`.
      */
-    constructor(path, navigator, 
-
-        { 
-        primaryAssay = 0,
-        isPrimaryNormalized = true,
-        reducedDimensionNames = null
-    } = {}) {
+    constructor(path, navigator) {
         this.#path = path;
         this.#navigator = new MetadataCacheWrapper(navigator);
         this.#options = AbstractArtifactdbResult.defaults();

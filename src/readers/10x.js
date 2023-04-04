@@ -19,7 +19,8 @@ export class TenxHdf5Dataset {
 
     #dump_summary(fun) {
         let files = [{ type: "h5", file: fun(this.#h5_file) }];
-        return { files, this.options() };
+        let options = this.options();
+        return { files, options };
     }
 
     /**
@@ -33,6 +34,7 @@ export class TenxHdf5Dataset {
         } else {
             this.#h5_file = new afile.SimpleFile(h5File);
         }
+
         this.#options = TenxHdf5Dataset.defaults();
         this.clear();
     }
