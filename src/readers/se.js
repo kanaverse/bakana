@@ -589,7 +589,7 @@ export class SummarizedExperimentDataset {
     }
 
     /**
-     * @param {object} options - Optional parameters that affect {@linkcode SummarizedExperimentDataset#load load} (but not {@linkcode SummarizedExperimentDataset#summary summary}.
+     * @param {object} options - Optional parameters that affect {@linkcode SummarizedExperimentDataset#load load} (but not {@linkcode SummarizedExperimentDataset#summary summary}).
      * @param {string|number} [options.rnaCountAssay] - Name or index of the assay containing the RNA count matrix.
      * @param {string|number} [options.adtCountAssay] - Name or index of the assay containing the ADT count matrix.
      * @param {string|number} [options.crisprCountAssay] - Name or index of the assay containing the CRISPR count matrix.
@@ -926,7 +926,7 @@ export class SummarizedExperimentResult {
     }
 
     /**
-     * @param {object} options - Optional parameters that affect {@linkcode AbstractArtifactdbResult#load load} (but not {@linkcode AbstractArtifactdbResult#summary summary}.
+     * @param {object} options - Optional parameters that affect {@linkcode AbstractArtifactdbResult#load load} (but not {@linkcode AbstractArtifactdbResult#summary summary}).
      * @param {object|string|number} [options.primaryAssay] - Assay containing the relevant data for each modality.
      *
      * - If a string, this is used as the name of the assay across all modalities.

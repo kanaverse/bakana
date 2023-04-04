@@ -94,7 +94,7 @@ export class TenxMatrixMarketDataset {
     }
 
     /**
-     * @param {object} options - Optional parameters that affect {@linkcode TenxMatrixMarketDataset#load load} (but not {@linkcode TenxMatrixMarketDataset#summary summary}.
+     * @param {object} options - Optional parameters that affect {@linkcode TenxMatrixMarketDataset#load load} (but not {@linkcode TenxMatrixMarketDataset#summary summary}).
      * @param {?string} [options.featureTypeRnaName] - Name of the feature type for gene expression.
      * Alternatively `null`, to indicate that no RNA features are to be loaded.
      * @param {?string} [options.featureTypeAdtName] - Name of the feature type for ADTs.

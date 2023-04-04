@@ -515,7 +515,7 @@ export class AbstractArtifactdbDataset {
     }
 
     /**
-     * @param {object} options - Optional parameters that affect {@linkcode AbstractArtifactdbDataset#load load} (but not {@linkcode AbstractArtifactdbDataset#summary summary}.
+     * @param {object} options - Optional parameters that affect {@linkcode AbstractArtifactdbDataset#load load} (but not {@linkcode AbstractArtifactdbDataset#summary summary}).
      * @param {string|number} [options.rnaCountAssay] - Name or index of the assay containing the RNA count matrix.
      * @param {string|number} [options.adtCountAssay] - Name or index of the assay containing the ADT count matrix.
      * @param {string|number} [options.crisprCountAssay] - Name or index of the assay containing the CRISPR count matrix.

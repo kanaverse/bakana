@@ -160,7 +160,7 @@ export class H5adDataset {
     }
 
     /**
-     * @param {object} options - Optional parameters that affect {@linkcode H5adDataset#load load} (but not {@linkcode H5adDataset#summary summary}.
+     * @param {object} options - Optional parameters that affect {@linkcode H5adDataset#load load} (but not {@linkcode H5adDataset#summary summary}).
      * @param {?string} [options.countMatrixName] - Name of the layer containing the count matrix.
      * If `null`, the "X" dataset is used if it is present in the file, or the first available layer if no "X" dataset is present.
      * @param {?string} [options.featureTypeColumnName] - Name of the per-feature annotation column containing the feature types.
@@ -434,7 +434,7 @@ export class H5adResult {
     }
 
     /**
-     * @param {object} options - Optional parameters that affect {@linkcode H5adResult#load load} (but not {@linkcode H5adResult#summary summary}.
+     * @param {object} options - Optional parameters that affect {@linkcode H5adResult#load load} (but not {@linkcode H5adResult#summary summary}).
      * @param {?string} [options.primaryMatrixName] - Name of the layer containing the primary matrix.
      * If `null`, the "X" dataset is used if it is present in the file, or the first available layer if no "X" dataset is present.
      * @param {boolean} [options.isPrimaryNormalized] - Whether the primary matrix is already normalized.
