@@ -210,8 +210,8 @@ export class TenxHdf5Dataset {
      * - `primary_ids`: an object where each key is a modality name and each value is an array of strings containing the feature identifiers for each row in that modality.
      *
      * Modality names are guaranteed to be one of `"RNA"`, `"ADT"` or `"CRISPR"`.
-     * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
-     * either in the constructor or in setters like {@linkcode setFeatureTypeRnaName}.
+     * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared, 
+     * either from the {@linkcode TenxHdf5Dataset#defaults defaults} or with {@linkcode TenxHdf5Dataset#setOptions setOptions}.
      *
      * If the feature annotation lacks information about the feature types, it is assumed that all features are genes, i.e., only the RNA modality is present.
      */

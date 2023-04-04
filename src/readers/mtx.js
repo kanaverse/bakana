@@ -286,9 +286,9 @@ export class TenxMatrixMarketDataset {
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
      * - `primary_ids`: an object where each key is a modality name and each value is an array of strings containing the feature identifiers for each row in that modality.
      *
-     * Modality names are guaranteed to be one of `"RNA"` or `"ADT"`.
+     * Modality names are guaranteed to be one of `"RNA"`, `"ADT"` or `"CRIPSR"`.
      * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
-     * either in the constructor or in {@linkcode setFeatureTypeRnaName} and {@linkcode setFeatureTypeAdtName}.
+     * either from the {@linkcode TenxMatrixMarketDataset#defaults defaults} or with {@linkcode TenxMatrixMarketDataset#setOptions setOptions}.
      *
      * If the feature annotation file is absent or if it lacks a third column for the feature types,
      * `load()` will assume that all features are genes (i.e., only the RNA modality is present).

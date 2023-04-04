@@ -315,9 +315,9 @@ export class H5adDataset {
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
      * - `primary_ids`: an object where each key is a modality name and each value is an array of strings containing the feature identifiers for each row in that modality.
      *
-     * Modality names are guaranteed to be one of `"RNA"` or `"ADT"`.
-     * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
-     * either in the constructor or in {@linkcode setFeatureTypeRnaName} and {@linkcode setFeatureTypeAdtName}.
+     * Modality names are guaranteed to be one of `"RNA"`, `"ADT"` or `"CRISPR"`.
+     * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared, 
+     * either from the {@linkcode H5adDataset#defaults defaults} or with {@linkcode H5adDataset#setOptions setOptions}.
      */
     load({ cache = false } = {}) {
         this.#features();
@@ -456,7 +456,7 @@ export class H5adResult {
 
     /**
      * Destroy caches if present, releasing the associated memory. 
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode H5adResult#load load} or {@linkcodeH5adResult#summary summary}.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode H5adResult#load load} or {@linkcode H5adResult#summary summary}.
      */
     clear() {
         if (typeof this.#h5_flush == "function") {
@@ -546,8 +546,8 @@ export class H5adResult {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode H5adDataset#load load}.
-     * If `true`, users should consider calling {@linkcode H5adDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode H5adResult#load load}.
+     * If `true`, users should consider calling {@linkcode H5adResult#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
