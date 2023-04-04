@@ -16,13 +16,7 @@ export class TenxMatrixMarketDataset {
     #raw_features;
     #raw_cells;
 
-    #featureTypeRnaName;
-    #featureTypeAdtName;
-    #featureTypeCrisprName;
-
-    #primaryRnaFeatureIdColumn;
-    #primaryAdtFeatureIdColumn;
-    #primaryCrisprFeatureIdColumn;
+    #options;
 
     #dump_summary(fun) {
         let files = [{ type: "mtx", file: fun(this.#matrix_file) }];
@@ -35,15 +29,7 @@ export class TenxMatrixMarketDataset {
             files.push({ type: "annotations", file: fun(this.#barcode_file) });
         }
 
-        let options = {
-            featureTypeRnaName: this.#featureTypeRnaName,
-            featureTypeAdtName: this.#featureTypeAdtName,
-            featureTypeCrisprName: this.#featureTypeCrisprName,
-            primaryRnaFeatureIdColumn: this.#primaryRnaFeatureIdColumn,
-            primaryAdtFeatureIdColumn: this.#primaryAdtFeatureIdColumn,
-            primaryCrisprFeatureIdColumn: this.#primaryCrisprFeatureIdColumn
-        };
-
+        let options = this.options(); 
         return { files, options };
     }
 
@@ -55,13 +41,6 @@ export class TenxMatrixMarketDataset {
      * If `null`, it is assumed that no file was available.
      * @param {?(SimpleFile|string|Uint8Array|File)} barcodeFile - Contents of a barcode annotation file.
      * If `null`, it is assumed that no file was available.
-     * @param {object} [options={}] - Optional parameters.
-     * @param {?string} [options.featureTypeRnaName="Gene Expression"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeRnaName setFeatureTypeRnaName}.
-     * @param {?string} [options.featureTypeAdtName="Antibody Capture"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeAdtName setFeatureTypeAdtName}.
-     * @param {?string} [options.featureTypeCrisprName="CRISPR Guide Capture"] - See {@linkcode TenxMatrixMarketDataset#setFeatureTypeCrisprName setFeatureTypeCrisprName}.
-     * @param {string|number} [options.primaryRnaFeatureIdColumn=0] - See {@linkcode TenxMatrixMarketDataset#primaryRnaFeatureIdColumn primaryRnaFeatureIdColumn}.
-     * @param {string|number} [options.primaryAdtFeatureIdColumn=0] - See {@linkcode TenxMatrixMarketDataset#primaryAdtFeatureIdColumn primaryAdtFeatureIdColumn}.
-     * @param {string|number} [options.primaryCrisprFeatureIdColumn=0] - See {@linkcode TenxMatrixMarketDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
      */
     constructor(matrixFile, featureFile, barcodeFile, { 
         featureTypeRnaName = "Gene Expression", 
@@ -89,71 +68,51 @@ export class TenxMatrixMarketDataset {
             this.#barcode_file = new afile.SimpleFile(barcodeFile);
         }
 
-        this.#featureTypeRnaName = featureTypeRnaName;
-        this.#featureTypeAdtName = featureTypeAdtName;
-        this.#featureTypeCrisprName = featureTypeCrisprName;
-
-        this.#primaryRnaFeatureIdColumn = primaryRnaFeatureIdColumn;
-        this.#primaryAdtFeatureIdColumn = primaryAdtFeatureIdColumn;
-        this.#primaryCrisprFeatureIdColumn = primaryCrisprFeatureIdColumn;
-
+        this.#options = TenxMatrixMarketDataset.defaults();
         this.clear();
     }
 
     /**
-     * @param {?string} name - Name of the feature type for gene expression.
+     * @return {object} Default options, see {@linkcode TenxMatrixMarketDataset#setOptions setOptions} for more details.
+     */
+    static defaults() {
+        return {
+            featureTypeRnaName: "Gene Expression", 
+            featureTypeAdtName: "Antibody Capture", 
+            featureTypeCrisprName: "CRISPR Guide Capture", 
+            primaryRnaFeatureIdColumn: 0, 
+            primaryAdtFeatureIdColumn: 0,
+            primaryCrisprFeatureIdColumn: 0
+        };
+    }
+
+    /**
+     * @return {object} Object containing all options used for loading.
+     */
+    options() {
+        return { ...(this.#options) };
+    }
+
+    /**
+     * @param {object} options - Optional parameters that affect {@linkcode TenxMatrixMarketDataset#load load} (but not {@linkcode TenxMatrixMarketDataset#summary summary}).
+     * @param {?string} [options.featureTypeRnaName] - Name of the feature type for gene expression.
      * Alternatively `null`, to indicate that no RNA features are to be loaded.
-     */
-    setFeatureTypeRnaName(name) {
-        this.#featureTypeRnaName = name;
-        return;
-    }
-
-    /**
-     * @param {?string} name - Name of the feature type for ADTs.
+     * @param {?string} [options.featureTypeAdtName] - Name of the feature type for ADTs.
      * Alternatively `null`, to indicate that no ADT features are to be loaded.
-     */
-    setFeatureTypeAdtName(name) {
-        this.#featureTypeAdtName = name;
-        return;
-    }
-
-    /**
-     * @param {?string} name - Name of the feature type for CRISPR guides.
+     * @param {?string} [options.featureTypeCrisprName] - Name of the feature type for CRISPR guides.
      * Alternatively `null`, to indicate that no guides are to be loaded.
-     */
-    setFeatureTypeCrisprName(name) {
-        this.#featureTypeCrisprName = name;
-        return;
-    }
-
-    /**
-     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * @param {string|number} [options.primaryRnaFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     * @param {string|number} [options.primaryAdtFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
+     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
+     * @param {string|number} [options.primaryCrisprFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
      * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
      */
-    setPrimaryRnaFeatureIdColumn(i) {
-        this.#primaryRnaFeatureIdColumn = i;
-        return;
+    setOptions(options) {
+        for (const [k, v] of Object.entries(options)) {
+            this.#options[k] = v;
+        }
     }
-
-    /**
-     * @param {string|number} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the ADTs.
-     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
-     */
-    setPrimaryAdtFeatureIdColumn(i) {
-        this.#primaryAdtFeatureIdColumn = i;
-        return;
-    }
-
-    /**
-     * @param {?(string|number)} i - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for the CRISPR guides.
-     * If `i` is invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is treated as undefined.
-     */
-    setPrimaryCrisprFeatureIdColumn(i) {
-        this.#primaryCrisprFeatureIdColumn = i;
-        return;
-    }
-
 
     /**
      * Destroy caches if present, releasing the associated memory.
@@ -344,17 +303,17 @@ export class TenxMatrixMarketDataset {
         let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compressed": is_gz });
 
         let mappings = { 
-            RNA: this.#featureTypeRnaName, 
-            ADT: this.#featureTypeAdtName,
-            CRISPR: this.#featureTypeCrisprName
+            RNA: this.#options.featureTypeRnaName, 
+            ADT: this.#options.featureTypeAdtName,
+            CRISPR: this.#options.featureTypeCrisprName
         };
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", mappings, "RNA"); 
         output.cells = this.#raw_cells;
 
         let primaries = { 
-            RNA: this.#primaryRnaFeatureIdColumn, 
-            ADT: this.#primaryAdtFeatureIdColumn,
-            CRISPR: this.#primaryCrisprFeatureIdColumn
+            RNA: this.#options.primaryRnaFeatureIdColumn, 
+            ADT: this.#options.primaryAdtFeatureIdColumn,
+            CRISPR: this.#options.primaryCrisprFeatureIdColumn
         };
         output.primary_ids = futils.extractPrimaryIds(output.features, primaries);
 

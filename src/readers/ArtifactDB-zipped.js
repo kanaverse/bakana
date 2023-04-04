@@ -62,7 +62,7 @@ export class ZippedArtifactdbDataset extends adb.AbstractArtifactdbDataset {
     /**
      * @param {string} name - Name of the SummarizedExperiment object inside the project directory.
      * @param {SimpleFile} zipfile - A {@linkplain SimpleFile} object representing the ZIP file containing the project directory.
-     * @param {object} [options={}] - Optional parameters, including those to be passed to the {@linkplain AbstractArtifactdbDataset} constructor.
+     * @param {object} [options={}] - Optional parameters. 
      * @param {?JSZip} [options.existingHandle=null] - An existing handle into the ZIP file, generated using the [**JSZip**](https://stuk.github.io/jszip/) package.
      * If an existing handle already exists, passing it in here will allow it to be re-used for greater efficiency.
      * If `null`, a new handle is created for this ZippedArtifactdbDataset instance.
@@ -75,7 +75,7 @@ export class ZippedArtifactdbDataset extends adb.AbstractArtifactdbDataset {
         }
 
         let nav = new ZippedProjectNavigator(zipfile, ziphandle);
-        super(name, nav, options);
+        super(name, nav);
         this.#zipfile = zipfile;
         this.#name = name;
     }
@@ -150,7 +150,7 @@ export class ZippedArtifactdbResult extends adb.AbstractArtifactdbResult {
     /**
      * @param {string} name - Name of the SummarizedExperiment object inside the project directory.
      * @param {SimpleFile} zipfile - A {@linkplain SimpleFile} object representing the ZIP file containing the project directory.
-     * @param {object} [options={}] - Optional parameters, including those to be passed to the {@linkplain AbstractArtifactdbResult} constructor.
+     * @param {object} [options={}] - Optional parameters. 
      * @param {?JSZip} [options.existingHandle=null] - An existing handle into the ZIP file, generated using the [**JSZip**](https://stuk.github.io/jszip/) package.
      * If an existing handle already exists, passing it in here will allow it to be re-used for greater efficiency.
      * If `null`, a new handle is created for this ZippedArtifactdbDataset instance.

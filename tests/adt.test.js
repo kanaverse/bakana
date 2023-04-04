@@ -169,7 +169,8 @@ test("runAnalysis works for ADTs with blocking", async () => {
 test("ADT-only runAnalysis works correctly", async () => {
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
-    let files = { default: new bakana.TenxMatrixMarketDataset(mtx, feats, bars, { featureTypeRnaName: null }) };
+    let files = { default: new bakana.TenxMatrixMarketDataset(mtx, feats, bars) };
+    files.default.setOptions({ featureTypeRnaName: null }); 
     await bakana.runAnalysis(state, files, params);
 
     // Check the results.
