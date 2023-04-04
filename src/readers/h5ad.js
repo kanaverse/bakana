@@ -324,7 +324,7 @@ export class H5adDataset {
         this.#cells();
         this.#fetch_assay_details();
 
-        let chosen_assay = this.#countMatrixName;
+        let chosen_assay = this.#options.countMatrixName;
         if (chosen_assay == null) {
             chosen_assay = this.#assay_details.names[0];
         }
@@ -420,7 +420,7 @@ export class H5adResult {
     static defaults() {
         return { 
             primaryMatrixName: null, 
-            isPrimaryNormalized=true,
+            isPrimaryNormalized: true,
             featureTypeColumnName: null, 
             reducedDimensionNames: null
         };
@@ -604,7 +604,7 @@ export class H5adResult {
         output.cells = this.#raw_cells;
         delete output.row_ids;
 
-        if (!this.#isPrimaryNormalized) {
+        if (!this.#options.isPrimaryNormalized) {
             for (const mod of output.matrix.available()) {
                 let mat = output.matrix.get(mod);
                 output.matrix.add(mod, scran.logNormCounts(mat, { allowZeros: true }));
