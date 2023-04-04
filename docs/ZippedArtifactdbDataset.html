@@ -619,7 +619,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_ArtifactDB-abstract.js.html">readers/ArtifactDB-abstract.js</a>, <a href="readers_ArtifactDB-abstract.js.html#line631">line 631</a>
+        <a href="readers_ArtifactDB-abstract.js.html">readers/ArtifactDB-abstract.js</a>, <a href="readers_ArtifactDB-abstract.js.html#line635">line 635</a>
     </li></ul></dd>
     
 
@@ -838,6 +838,9 @@ This has the following properties:</p>
 <li><code>matrix</code>: a <a href="external-MultiMatrix.html">MultiMatrix</a> containing one <a href="external-ScranMatrix.html">ScranMatrix</a> per modality.</li>
 <li><code>primary_ids</code>: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.</li>
 </ul>
+<p>Modality names are guaranteed to be one of <code>&quot;RNA&quot;</code>, <code>&quot;ADT&quot;</code> or <code>&quot;CRISPR&quot;</code>.
+It is assumed that an appropriate mapping from the feature types inside the <code>featureFile</code> was previously declared,
+either from the <code>defaults</code> or with <a href="AbstractArtifactdbDataset.html#setOptions"><code>setOptions</code></a>.</p>
 </div>
 
 
@@ -1214,8 +1217,6 @@ Each object corresponds to a single file and contains:
         
 
         
-        <th>Default</th>
-        
 
         <th class="last">Description</th>
     </tr>
@@ -1255,10 +1256,6 @@ Each object corresponds to a single file and contains:
             
 
             
-                <td class="default">
-                
-                </td>
-            
 
             <td class="description last"><p>Name or index of the assay containing the RNA count matrix.</p></td>
         </tr>
@@ -1296,10 +1293,6 @@ Each object corresponds to a single file and contains:
             
 
             
-                <td class="default">
-                
-                </td>
-            
 
             <td class="description last"><p>Name or index of the assay containing the ADT count matrix.</p></td>
         </tr>
@@ -1336,10 +1329,6 @@ Each object corresponds to a single file and contains:
                 </td>
             
 
-            
-                <td class="default">
-                
-                </td>
             
 
             <td class="description last"><p>Name or index of the assay containing the CRISPR count matrix.</p></td>
@@ -1379,12 +1368,6 @@ Each object corresponds to a single file and contains:
                 </td>
             
 
-            
-                <td class="default">
-                
-                    <code>""</code>
-                
-                </td>
             
 
             <td class="description last"><p>Name or index of the alternative experiment containing gene expression data.</p>
@@ -1427,12 +1410,6 @@ If <code>i</code> is an empty string, the main experiment is assumed to contain 
             
 
             
-                <td class="default">
-                
-                    <code>"Antibody Capture"</code>
-                
-                </td>
-            
 
             <td class="description last"><p>Name or index of the alternative experiment containing ADT data.</p>
 <p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.
@@ -1473,12 +1450,6 @@ If <code>i</code> is an empty string, the main experiment is assumed to contain 
                 </td>
             
 
-            
-                <td class="default">
-                
-                    <code>"CRISPR Guide Capture"</code>
-                
-                </td>
             
 
             <td class="description last"><p>Name or index of the alternative experiment containing CRISPR guide data.</p>
@@ -1521,10 +1492,6 @@ If <code>i</code> is an empty string, the main experiment is assumed to contain 
             
 
             
-                <td class="default">
-                
-                </td>
-            
 
             <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for gene expression.</p>
 <p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
@@ -1566,10 +1533,6 @@ However, if no row names are present in the SummarizedExperiment, no primary ide
             
 
             
-                <td class="default">
-                
-                </td>
-            
 
             <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for the ADTs.</p>
 <p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
@@ -1610,10 +1573,6 @@ However, if no row names are present in the SummarizedExperiment, no primary ide
                 </td>
             
 
-            
-                <td class="default">
-                
-                </td>
             
 
             <td class="description last"><p>Name or index of the column of the <code>features</code> <a href="external-DataFrame.html">DataFrame</a> that contains the primary feature identifier for the CRISPR guides.</p>
@@ -2212,7 +2171,7 @@ Unnamed assays are represented as <code>null</code> names.</li>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Tue Apr 04 2023 22:55:42 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Tue Apr 04 2023 23:38:52 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

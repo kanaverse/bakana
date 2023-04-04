@@ -581,28 +581,8 @@ export class SummarizedExperimentDataset {
      * @param {SimpleFile|string|Uint8Array|File} rdsFile - Contents of a RDS file.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
-     * @param {object} [options={}] - Optional parameters.
-     * @param {string|number} [options.rnaCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setRnaCountAssay setRnaCountAssay}.
-     * @param {string|number} [options.adtCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setAdtCountAssay setAdtCountAssay}.
-     * @param {string|number} [options.crisprCountAssay=0] - See {@linkcode SummarizedExperimentDataset#setCrisprCountAssay setCrisprCountAssay}.
-     * @param {?(string|number)} [options.rnaExperiment=""] - See {@linkcode SummarizedExperimentDataset#setRnaExperiment setRnaExperiment}.
-     * @param {?(string|number)} [options.adtExperiment="Antibody Capture"] - See {@linkcode SummarizedExperimentDataset#setAdtExperiment setAdtExperiment}.
-     * @param {?(string|number)} [options.crisprExperiment="CRISPR Guide Capture"] - See {@linkcode SummarizedExperimentDataset#setCrisprExperiment setCrisprExperiment}.
-     * @param {string|number} [options.primaryRnaFeatureIdColumn=null] - See {@linkcode SummarizedExperimentDataset#setPrimaryRnaFeatureIdColumn setPrimaryRnaFeatureIdColumn}.
-     * @param {string|number} [options.primaryAdtFeatureIdColumn=null] - See {@linkcode SummarizedExperimentDataset#setPrimaryAdtFeatureIdColumn setPrimaryAdtFeatureIdColumn}.
-     * @param {string|number} [options.primaryCrisprFeatureIdColumn=null] - See {@linkcode SummarizedExperimentDataset#setPrimaryCrisprFeatureIdColumn setPrimaryCrisprFeatureIdColumn}.
      */
-    constructor(rdsFile, { 
-        rnaCountAssay = 0, 
-        adtCountAssay = 0, 
-        crisprCountAssay = 0,
-        rnaExperiment = "", 
-        adtExperiment = "Antibody Capture", 
-        crisprExperiment = "CRISPR Guide Capture",
-        primaryRnaFeatureIdColumn = null, 
-        primaryAdtFeatureIdColumn = null,
-        primaryCrisprFeatureIdColumn = null 
-    } = {}) {
+    constructor(rdsFile) {
         if (rdsFile instanceof afile.SimpleFile) {
             this.#rds_file = rdsFile;
         } else {
@@ -642,15 +622,15 @@ export class SummarizedExperimentDataset {
      * @param {string|number} [options.rnaCountAssay] - Name or index of the assay containing the RNA count matrix.
      * @param {string|number} [options.adtCountAssay] - Name or index of the assay containing the ADT count matrix.
      * @param {string|number} [options.crisprCountAssay] - Name or index of the assay containing the CRISPR count matrix.
-     * @param {?(string|number)} [options.rnaExperiment=""] - Name or index of the alternative experiment containing gene expression data.
+     * @param {?(string|number)} [options.rnaExperiment] - Name or index of the alternative experiment containing gene expression data.
      *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.
      * If `i` is an empty string, the main experiment is assumed to contain the gene expression data.
-     * @param {?(string|number)} [options.adtExperiment="Antibody Capture"] - Name or index of the alternative experiment containing ADT data.
+     * @param {?(string|number)} [options.adtExperiment] - Name or index of the alternative experiment containing ADT data.
      *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.
      * If `i` is an empty string, the main experiment is assumed to contain the ADT data.
-     * @param {?(string|number)} [options.crisprExperiment="CRISPR Guide Capture"] - Name or index of the alternative experiment containing CRISPR guide data.
+     * @param {?(string|number)} [options.crisprExperiment] - Name or index of the alternative experiment containing CRISPR guide data.
      *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.
      * If `i` is an empty string, the main experiment is assumed to contain the guide data.
@@ -817,6 +797,10 @@ export class SummarizedExperimentDataset {
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
      * - `primary_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
+     *
+     * Modality names are guaranteed to be one of `"RNA"`, `"ADT"` or `"CRISPR"`.
+     * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared, 
+     * either from the {@linkcode SummarizedExperimentDataset#defaults defaults} or with {@linkcode SummarizedExperimentDataset#setOptions setOptions}.
      */
     load({ cache = false } = {}) {
         this.#initialize();
@@ -939,10 +923,6 @@ export class SummarizedExperimentResult {
      * @param {SimpleFile|string|Uint8Array|File} rdsFile - Contents of a RDS file.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
-     * @param {object} [options={}] - Optional parameters.
-     * @param {object|string|number} [options.primaryAssay=0] - See {@linkcode SummarizedExperimentResult#setPrimaryAssay setPrimaryAssay}.
-     * @param {object|boolean} [options.isPrimaryNormalized={}] - See {@linkcode SummarizedExperimentResult#setIsPrimaryNormalized setIsPrimaryNormalized}.
-     * @param {?Array} [options.reducedDimensionNames=null] - See {@linkcode SummarizedExperimentResult#setReducedDimensionNames setReducedDimensionNames}.
      */
     constructor(rdsFile) {
         if (rdsFile instanceof afile.SimpleFile) {
@@ -1000,7 +980,7 @@ export class SummarizedExperimentResult {
 
     /**
      * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode SummarizedExperimentDataset#load load} or {@linkcodeSummarizedExperimentDataset#summary summary}.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode SummarizedExperimentResult#load load} or {@linkcodeSummarizedExperimentResult#summary summary}.
      */
     clear() {
         scran.free(this.#se_handle);
@@ -1096,8 +1076,8 @@ export class SummarizedExperimentResult {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#load load}.
-     * If `true`, users should consider calling {@linkcode SummarizedExperimentDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentResult#load load}.
+     * If `true`, users should consider calling {@linkcode SummarizedExperimentResult#clear clear} to release the memory once this dataset instance is no longer needed.
      * 
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
@@ -1138,8 +1118,8 @@ export class SummarizedExperimentResult {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentDataset#summary summary}.
-     * If `true`, users should consider calling {@linkcode SummarizedExperimentDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode SummarizedExperimentResult#summary summary}.
+     * If `true`, users should consider calling {@linkcode SummarizedExperimentResult#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
@@ -1244,7 +1224,7 @@ export class SummarizedExperimentResult {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Tue Apr 04 2023 22:55:41 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Tue Apr 04 2023 23:38:52 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

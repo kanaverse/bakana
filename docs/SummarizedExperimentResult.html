@@ -70,7 +70,7 @@
     <h2>Constructor</h2>
     
 
-    <h4 class="name" id="SummarizedExperimentResult"><span class="type-signature"></span>new SummarizedExperimentResult<span class="signature">(rdsFile, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="SummarizedExperimentResult"><span class="type-signature"></span>new SummarizedExperimentResult<span class="signature">(rdsFile)</span><span class="type-signature"></span></h4>
 
     
 
@@ -83,7 +83,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line874">line 874</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line858">line 858</a>
     </li></ul></dd>
     
 
@@ -143,11 +143,7 @@
         <th>Type</th>
 
         
-        <th>Attributes</th>
-        
 
-        
-        <th>Default</th>
         
 
         <th class="last">Description</th>
@@ -182,225 +178,12 @@
             </td>
 
             
-                <td class="attributes">
-                
 
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                </td>
             
 
             <td class="description last"><p>Contents of a RDS file.
 On browsers, this may be a File object.
 On Node.js, this may also be a string containing a file path.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>options</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    <code>{}</code>
-                
-                </td>
-            
-
-            <td class="description last"><p>Optional parameters.</p>
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-        <th>Default</th>
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>primaryAssay</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-|
-
-<span class="param-type">string</span>
-|
-
-<span class="param-type">number</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    <code>0</code>
-                
-                </td>
-            
-
-            <td class="description last"><p>See <code>setPrimaryAssay</code>.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>isPrimaryNormalized</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-|
-
-<span class="param-type">boolean</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    <code>{}</code>
-                
-                </td>
-            
-
-            <td class="description last"><p>See <code>setIsPrimaryNormalized</code>.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>reducedDimensionNames</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Array</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-                    &lt;nullable><br>
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    <code>null</code>
-                
-                </td>
-            
-
-            <td class="description last"><p>See <code>setReducedDimensionNames</code>.</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
         </tr>
 
     
@@ -469,13 +252,13 @@ On Node.js, this may also be a string containing a file path.</p></td>
     
     <dt class="tag-description">Description:</dt>
     <dd class="tag-description"><ul class="dummy"><li><p>Destroy caches if present, releasing the associated memory.
-This may be called at any time but only has an effect if <code>cache = true</code> in <a href="SummarizedExperimentDataset.html#load"><code>load</code></a> or {@linkcodeSummarizedExperimentDataset#summary summary}.</p></li></ul></dd>
+This may be called at any time but only has an effect if <code>cache = true</code> in <a href="SummarizedExperimentResult.html#load"><code>load</code></a> or {@linkcodeSummarizedExperimentResult#summary summary}.</p></li></ul></dd>
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line956">line 956</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line936">line 936</a>
     </li></ul></dd>
     
 
@@ -557,7 +340,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line1104">line 1104</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line1084">line 1084</a>
     </li></ul></dd>
     
 
@@ -729,8 +512,8 @@ This may be called at any time but only has an effect if <code>cache = true</cod
                 </td>
             
 
-            <td class="description last"><p>Whether to cache the results for re-use in subsequent calls to this method or <a href="SummarizedExperimentDataset.html#summary"><code>summary</code></a>.
-If <code>true</code>, users should consider calling <a href="SummarizedExperimentDataset.html#clear"><code>clear</code></a> to release the memory once this dataset instance is no longer needed.</p></td>
+            <td class="description last"><p>Whether to cache the results for re-use in subsequent calls to this method or <a href="SummarizedExperimentResult.html#summary"><code>summary</code></a>.
+If <code>true</code>, users should consider calling <a href="SummarizedExperimentResult.html#clear"><code>clear</code></a> to release the memory once this dataset instance is no longer needed.</p></td>
         </tr>
 
     
@@ -811,7 +594,7 @@ Each value is an array of arrays, where each inner array contains the coordinate
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line924">line 924</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line904">line 904</a>
     </li></ul></dd>
     
 
@@ -916,7 +699,7 @@ Each value is an array of arrays, where each inner array contains the coordinate
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line945">line 945</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line925">line 925</a>
     </li></ul></dd>
     
 
@@ -1202,7 +985,7 @@ If <code>null</code>, all reduced dimensions found in the file are loaded.</p></
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line1062">line 1062</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line1042">line 1042</a>
     </li></ul></dd>
     
 
@@ -1374,8 +1157,8 @@ If <code>null</code>, all reduced dimensions found in the file are loaded.</p></
                 </td>
             
 
-            <td class="description last"><p>Whether to cache the results for re-use in subsequent calls to this method or <a href="SummarizedExperimentDataset.html#load"><code>load</code></a>.
-If <code>true</code>, users should consider calling <a href="SummarizedExperimentDataset.html#clear"><code>clear</code></a> to release the memory once this dataset instance is no longer needed.</p></td>
+            <td class="description last"><p>Whether to cache the results for re-use in subsequent calls to this method or <a href="SummarizedExperimentResult.html#load"><code>load</code></a>.
+If <code>true</code>, users should consider calling <a href="SummarizedExperimentResult.html#clear"><code>clear</code></a> to release the memory once this dataset instance is no longer needed.</p></td>
         </tr>
 
     
@@ -1456,7 +1239,7 @@ Unnamed assays are represented as <code>null</code> names.</li>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line913">line 913</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line893">line 893</a>
     </li></ul></dd>
     
 
@@ -1563,7 +1346,7 @@ Unnamed assays are represented as <code>null</code> names.</li>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Tue Apr 04 2023 22:55:42 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Tue Apr 04 2023 23:38:52 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
