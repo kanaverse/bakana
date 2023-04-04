@@ -116,7 +116,8 @@ test("CRISPR-only runAnalysis works correctly", async () => {
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
     params.combine_embeddings.crispr_weight = 1;
-    let files = { default: new bakana.TenxHdf5Dataset(h5file, { featureTypeRnaName: null }) };
+    let files = { default: new bakana.TenxHdf5Dataset(h5file) };
+    files.default.setOptions({ featureTypeRnaName: null });
     await bakana.runAnalysis(state, files, params);
 
     // Check the results.
