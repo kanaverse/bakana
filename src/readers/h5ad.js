@@ -447,9 +447,10 @@ export class H5adResult {
     setOptions(options) {
         for (const [k, v] of Object.entries(options)) {
             if (k == "reducedDimensionNames") {
-                v = bioc.CLONE(v); // avoid pass-by-reference links.
+                this.#options[k] = bioc.CLONE(v); // avoid pass-by-reference links.
+            } else {
+                this.#options[k] = v;
             }
-            this.#options[k] = v;
         }
     }
 

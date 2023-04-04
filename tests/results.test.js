@@ -24,9 +24,11 @@ test("H5AD result readers work correctly with log-count loading", async () => {
     expect(details.all_assay_names.length).toEqual(2);
     expect(details.reduced_dimension_names.length).toEqual(3);
 
-    info.setPrimaryMatrixName("layers/logcounts");
-    info.setIsPrimaryNormalized(true);
-    info.setReducedDimensionNames(["TSNE", "UMAP"]);
+    info.setOptions({
+        primaryMatrixName: "layers/logcounts",
+        isPrimaryNormalized: true,
+        reducedDimensionNames: ["TSNE", "UMAP"]
+    });
 
     let payload = info.load();
     expect(payload.matrix.numberOfColumns()).toEqual(details.cells.numberOfRows());
@@ -44,7 +46,7 @@ test("H5AD result readers work correctly with log-count loading", async () => {
 
 test("H5AD result readers work correctly with manual count normalization", async () => {
     let info = new bakana.H5adResult("files/datasets/zeisel-brain-with-results.h5ad");
-    info.setPrimaryMatrixName("X");
+    info.setOptions({ primaryMatrixName: "X" });
 
     let payload = info.load();
     expect(payload.matrix.numberOfColumns()).toEqual(payload.cells.numberOfRows());
@@ -55,7 +57,7 @@ test("H5AD result readers work correctly with manual count normalization", async
     expect(has_noninteger(col0)).toBe(false);
 
     // Trying again after flagging it as normalizable.
-    info.setIsPrimaryNormalized(false);
+    info.setOptions({ isPrimaryNormalized: false });
     let payload2 = info.load();
     let col0_2 = payload2.matrix.get("").column(0);
     expect(has_noninteger(col0_2)).toBe(true);
@@ -78,9 +80,11 @@ test("SummarizedExperiment result readers work correctly with log-count loading"
     expect(details.modality_assay_names[""].length).toEqual(2);
     expect(details.reduced_dimension_names.length).toEqual(3);
 
-    info.setPrimaryAssay({ "": "logcounts" });
-    info.setIsPrimaryNormalized(true);
-    info.setReducedDimensionNames(["TSNE", "UMAP"]);
+    info.setOptions({ 
+        primaryAssay: { "": "logcounts" },
+        isPrimaryNormalized: true,
+        reducedDimensionNames: ["TSNE", "UMAP"]
+    });
 
     let payload = info.load();
     expect(payload.matrix.numberOfColumns()).toEqual(details.cells.numberOfRows());
@@ -101,8 +105,10 @@ test("SummarizedExperiment result readers work correctly with log-count loading"
 test("SummarizedExperiment result readers work correctly with count normalization", async () => {
     let info = new bakana.SummarizedExperimentResult("files/datasets/zeisel-brain-with-results.rds");
 
-    info.setPrimaryAssay("counts");
-    info.setIsPrimaryNormalized({ "ERCC": false });
+    info.setOptions({
+        primaryAssay: "counts",
+        isPrimaryNormalized: { "ERCC": false }
+    });
 
     let payload = info.load();
     expect(payload.matrix.numberOfColumns()).toEqual(payload.cells.numberOfRows());
@@ -151,9 +157,11 @@ action_simple("local ArtifactDB result readers work correctly with log-count loa
     expect("custom_selections" in details.other_metadata).toBe(true);
 
     // Actually loading the log-counts.
-    info.setPrimaryAssay("logcounts");
-    info.setIsPrimaryNormalized(true);
-    info.setReducedDimensionNames(["TSNE", "UMAP"]);
+    info.setOptions({
+        primaryAssay: "logcounts",
+        isPrimaryNormalized: true,
+        reducedDimensionNames: ["TSNE", "UMAP"]
+    });
 
     let payload = await info.load();
     expect(payload.matrix.numberOfColumns()).toEqual(details.cells.numberOfRows());
@@ -172,8 +180,10 @@ action_simple("local ArtifactDB result readers work correctly with log-count loa
 action_simple("local ArtifactDB result readers work correctly with count normalization", async () => {
     let info = new LocalArtifactdbResult(target_simple, nav.baseDirectory);
 
-    info.setPrimaryAssay("counts");
-    info.setIsPrimaryNormalized(false);
+    info.setOptions({
+        primaryAssay: "counts",
+        isPrimaryNormalized: false
+    });
 
     let payload = await info.load();
     expect(payload.matrix.numberOfColumns()).toEqual(payload.cells.numberOfRows());
@@ -235,9 +245,11 @@ action_simple("Zipped ArtifactDB result summary and loading works correctly", as
     expect(Object.keys(details.other_metadata)).toEqual(Object.keys(rdetails.other_metadata));
 
     // Actually loading the log-counts.
-    info.setPrimaryAssay("logcounts");
-    info.setIsPrimaryNormalized(true);
-    info.setReducedDimensionNames(["TSNE", "UMAP"]);
+    info.setOptions({
+        primaryAssay: "logcounts",
+        isPrimaryNormalized: true,
+        reducedDimensionNames: ["TSNE", "UMAP"]
+    });
 
     let payload = await info.load();
     expect(payload.matrix.numberOfColumns()).toEqual(details.cells.numberOfRows());

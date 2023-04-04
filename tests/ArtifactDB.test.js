@@ -122,7 +122,7 @@ action_adt("ArtifactDB summary and loading works with multiple modalities", asyn
     expect(summ.modality_assay_names).toEqual({ "": ["counts", "logcounts"], "ADT": [ "counts", "logcounts" ] });
 
     // Trying with a name for the experiment.
-    files.super.setAdtExperiment("ADT");
+    files.super.setOptions({ adtExperiment: "ADT" });
     {
         let everything = await files.super.load();
 
@@ -140,7 +140,7 @@ action_adt("ArtifactDB summary and loading works with multiple modalities", asyn
     }
 
     // Trying with a numeric index for the ADT experiment.
-    files.super.setAdtExperiment(0);
+    files.super.setOptions({ adtExperiment: 0 });
     {
         let everything = await files.super.load();
 
