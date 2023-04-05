@@ -20,7 +20,7 @@ test("MatrixMarket summary works correctly", async () => {
     expect(summ.cells instanceof bioc.DataFrame).toBe(true);
     expect(summ.cells.numberOfColumns()).toBeGreaterThan(0);
 
-    let preview = files.default.previewPrimaryIds();
+    let preview = await files.default.previewPrimaryIds();
     expect("RNA" in preview).toBe(true);
     expect(preview.RNA.length).toBeGreaterThan(0);
 })
