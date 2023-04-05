@@ -627,7 +627,7 @@ export class AbstractArtifactdbDataset {
      * - `primary_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
      *
      * Modality names are guaranteed to be one of `"RNA"`, `"ADT"` or `"CRISPR"`.
-     * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared, 
+     * We assume that the instance already contains an appropriate mapping from the observed feature types to each expected modality,
      * either from the {@linkcode AbstractArtifactdbDataset#defaults defaults} or with {@linkcode AbstractArtifactdbDataset#setOptions setOptions}.
      *
      * @async

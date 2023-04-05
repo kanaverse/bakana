@@ -287,7 +287,7 @@ export class TenxMatrixMarketDataset {
      * - `primary_ids`: an object where each key is a modality name and each value is an array of strings containing the feature identifiers for each row in that modality.
      *
      * Modality names are guaranteed to be one of `"RNA"`, `"ADT"` or `"CRIPSR"`.
-     * It is assumed that an appropriate mapping from the feature types inside the `featureFile` was previously declared,
+     * We assume that the instance already contains an appropriate mapping from the observed feature types to each expected modality,
      * either from the {@linkcode TenxMatrixMarketDataset#defaults defaults} or with {@linkcode TenxMatrixMarketDataset#setOptions setOptions}.
      *
      * If the feature annotation file is absent or if it lacks a third column for the feature types,
