@@ -30,6 +30,39 @@ function is_subset_noop(indices, full_length) {
     return true;
 }
 
+function renameByModality(input, featureTypeMapping) {
+    let output = {};
+    for (const [k, v] of Object.entries(featureTypeMapping)) {
+        if (v !== null && v in input) {
+            output[k] = input[v];
+        }
+    }
+    return output;
+}
+
+function splitByModality(features, typeField, featureTypeMapping) {
+    let by_type = bioc.presplitFactor(features.column(typeField));
+    if (featureTypeMapping === null) {
+        return by_type;
+    }
+    return renameByModality(by_type, featureTypeMapping);
+}
+
+export function extractSplitPrimaryIds(features, typeField, featureTypeMapping, featureTypeDefault, primary) {
+    if (typeField !== null && features.hasColumn(typeField)) {
+        let by_type = splitByModality(features, typeField, featureTypeMapping);
+        for (const [k, v] of Object.entries(by_type)) {
+            let col = extractPrimaryIdColumn(k, features, primary);
+            by_type[k] = bioc.SLICE(col, v);
+        }
+        return by_type;
+    }
+
+    let output = {};
+    output[featureTypeDefault] = extractPrimaryIdColumn(featureTypeDefault, features, primary);
+    return output;
+}
+
 export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, featureTypeMapping, featureTypeDefault) {
     let output = { matrix: new scran.MultiMatrix };
 
@@ -48,17 +81,7 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
         }
 
         if (typeField !== null && current_features.hasColumn(typeField)) {
-            let by_type = bioc.presplitFactor(current_features.column(typeField));
-            if (featureTypeMapping !== null) {
-                let selected = {};
-                for (const [k, v] of Object.entries(featureTypeMapping)) {
-                    if (v !== null && v in by_type) {
-                        selected[k] = by_type[v];
-                    }
-                }
-                by_type = selected;
-            }
-
+            let by_type = splitByModality(current_features, typeField, featureTypeMapping);
             let type_keys = Object.keys(by_type);
             let skip_subset = is_subset_noop(type_keys[0], out_mat.numberOfRows());
 
@@ -87,20 +110,28 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
     return output;
 }
 
+function extractPrimaryIdColumn(modality, modality_features, primary) {
+    if (!(modality in primary)) {
+        throw new Error("modality '" + modality + "' has no primary key identifier");  
+    }
+    let id = primary[modality];
+
+    if ((typeof id == "string" && modality_features.hasColumn(id)) || (typeof id == "number" && id < modality_features.numberOfColumns())) {
+        return modality_features.column(id);
+    } 
+
+    return modality_features.rowNames();
+}
+
 export function extractPrimaryIds(features, primary) {
     let output = {};
-    for (const k of Object.keys(features)) {
-        if (!(k in primary)) {
-            throw new Error("modality '" + k + "' has no primary key identifier");  
-        }
-
-        let curfeat = features[k];
-        let id = primary[k];
-        if ((typeof id == "string" && curfeat.hasColumn(id)) || (typeof id == "number" && id < curfeat.numberOfColumns())) {
-            output[k] = curfeat.column(id);
-        } else {
-            output[k] = curfeat.rowNames();
-        }
+    for (const [k, v] of Object.entries(features)) {
+        output[k] = extractPrimaryIdColumn(k, v, primary);
     }
     return output;
+}
+
+export function extractRemappedPrimaryIds(features, featureTypeMapping, primary) {
+    let renamed = renameByModality(features, featureTypeMapping);
+    return extractPrimaryIds(renamed, primary);
 }

@@ -246,7 +246,7 @@ export class TenxMatrixMarketDataset {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxMatrixMarketDataset#load load}.
+     * @param {boolean} [options.cache=false] - Whether to cache the intermediate results for re-use in subsequent calls to any methods with a `cache` option.
      * If `true`, users should consider calling {@linkcode TenxMatrixMarketDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
@@ -273,9 +273,43 @@ export class TenxMatrixMarketDataset {
         return output;
     }
 
+    #feature_type_mapping() {
+        return {
+            RNA: this.#options.featureTypeRnaName, 
+            ADT: this.#options.featureTypeAdtName,
+            CRISPR: this.#options.featureTypeCrisprName
+        };
+    }
+
+    #primary_mapping() {
+        return {
+            RNA: this.#options.primaryRnaFeatureIdColumn, 
+            ADT: this.#options.primaryAdtFeatureIdColumn,
+            CRISPR: this.#options.primaryCrisprFeatureIdColumn
+        };
+    }
+
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode TenxMatrixMarketDataset#summary summary}.
+     * @param {boolean} [options.cache=false] - Whether to cache the intermediate results for re-use in subsequent calls to any methods with a `cache` option.
+     * If `true`, users should consider calling {@linkcode TenxMatrixMarketDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     *
+     * @return {object} An object where each key is a modality name and each value is an array (usually of strings) containing the primary feature identifiers for each row in that modality.
+     * The contents are the same as the `primary_ids` returned by {@linkcode TenxMatrixMarketDataset#load load} but the order of values may be different.
+     * @async
+     */
+    async previewPrimaryIds({ cache = false } = {}) {
+        await this.#features();
+        let preview = futils.extractSplitPrimaryIds(this.#raw_features, "type", this.#feature_type_mapping(), "RNA", this.#primary_mapping());
+        if (!cache) {
+            this.clear();
+        }
+        return preview;
+    }
+
+    /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.cache=false] - Whether to cache the intermediate results for re-use in subsequent calls to any methods with a `cache` option.
      * If `true`, users should consider calling {@linkcode TenxMatrixMarketDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
@@ -284,7 +318,7 @@ export class TenxMatrixMarketDataset {
      * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
-     * - `primary_ids`: an object where each key is a modality name and each value is an array of strings containing the feature identifiers for each row in that modality.
+     * - `primary_ids`: an object where each key is a modality name and each value is an array (usually of strings) containing the primary feature identifiers for each row in that modality.
      *
      * Modality names are guaranteed to be one of `"RNA"`, `"ADT"` or `"CRIPSR"`.
      * We assume that the instance already contains an appropriate mapping from the observed feature types to each expected modality,
@@ -302,20 +336,10 @@ export class TenxMatrixMarketDataset {
         var is_gz = this.#matrix_file.name().endsWith(".gz");
         let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compressed": is_gz });
 
-        let mappings = { 
-            RNA: this.#options.featureTypeRnaName, 
-            ADT: this.#options.featureTypeAdtName,
-            CRISPR: this.#options.featureTypeCrisprName
-        };
-        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", mappings, "RNA"); 
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", this.#feature_type_mapping(), "RNA"); 
         output.cells = this.#raw_cells;
 
-        let primaries = { 
-            RNA: this.#options.primaryRnaFeatureIdColumn, 
-            ADT: this.#options.primaryAdtFeatureIdColumn,
-            CRISPR: this.#options.primaryCrisprFeatureIdColumn
-        };
-        output.primary_ids = futils.extractPrimaryIds(output.features, primaries);
+        output.primary_ids = futils.extractPrimaryIds(output.features, this.#primary_mapping());
 
         if (!cache) {
             this.clear();

@@ -16,6 +16,10 @@ test("10X summary works correctly", async () => {
     expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
     expect(summ.modality_features[""].numberOfRows()).toBeGreaterThan(0);
     expect(summ.cells instanceof bioc.DataFrame).toBe(true);
+
+    let preview = files.default.previewPrimaryIds();
+    expect("RNA" in preview).toBe(true);
+    expect(preview.RNA.length).toBeGreaterThan(0);
 })
 
 test("runAnalysis works correctly (10X)", async () => {

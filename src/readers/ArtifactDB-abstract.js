@@ -584,7 +584,7 @@ export class AbstractArtifactdbDataset {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode AbstractArtifactdbDataset#load load}.
+     * @param {boolean} [options.cache=false] - Whether to cache the intermediate results for re-use in subsequent calls to any methods with a `cache` option.
      * If `true`, users should consider calling {@linkcode AbstractArtifactdbDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      * 
      * @return {object} Object containing the per-feature and per-cell annotations.
@@ -613,9 +613,44 @@ export class AbstractArtifactdbDataset {
         return output;
     }
 
+    #primary_mapping() {
+        return {
+            RNA: this.#options.primaryRnaFeatureIdColumn, 
+            ADT: this.#options.primaryAdtFeatureIdColumn,
+            CRISPR: this.#options.primaryCrisprFeatureIdColumn
+        };
+    }
+
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode AbstractArtifactdbDataset#summary summary}.
+     * @param {boolean} [options.cache=false] - Whether to cache the intermediate results for re-use in subsequent calls to any methods with a `cache` option.
+     * If `true`, users should consider calling {@linkcode AbstractArtifactdbDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     *
+     * @return {object} An object where each key is a modality name and each value is an array (usually of strings) containing the primary feature identifiers for each row in that modality.
+     * The contents are the same as the `primary_ids` returned by {@linkcode AbstractArtifactdbDataset#load load} but the order of values may be different.
+     *
+     * @async
+     */
+    async previewPrimaryIds({ cache = false } = {}) {
+        await this.#features();
+
+        let fmapping = {
+            RNA: this.#options.rnaExperiment, 
+            ADT: this.#options.adtExperiment, 
+            CRISPR: this.#options.crisprExperiment 
+        };
+
+        let preview = futils.extractRemappedPrimaryIds(this.#raw_features, fmapping, this.#primary_mapping());
+
+        if (!cache) {
+            this.clear();
+        }
+        return preview;
+    }
+
+    /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.cache=false] - Whether to cache the intermediate results for re-use in subsequent calls to any methods with a `cache` option.
      * If `true`, users should consider calling {@linkcode AbstractArtifactdbDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
@@ -624,7 +659,7 @@ export class AbstractArtifactdbDataset {
      * - `features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
-     * - `primary_ids`: an object where each key is a modality name and each value is an integer array containing the feature identifiers for each row in that modality.
+     * - `primary_ids`: an object where each key is a modality name and each value is an array (usually of strings) containing the primary feature identifiers for each row in that modality.
      *
      * Modality names are guaranteed to be one of `"RNA"`, `"ADT"` or `"CRISPR"`.
      * We assume that the instance already contains an appropriate mapping from the observed feature types to each expected modality,
@@ -691,12 +726,7 @@ export class AbstractArtifactdbDataset {
                 output.features[k] = bioc.SLICE(this.#raw_features[name], out_ids);
             }
 
-            let primaries = { 
-                RNA: this.#options.primaryRnaFeatureIdColumn, 
-                ADT: this.#options.primaryAdtFeatureIdColumn,
-                CRISPR: this.#options.primaryCrisprFeatureIdColumn
-            };
-            output.primary_ids = futils.extractPrimaryIds(output.features, primaries);
+            output.primary_ids = futils.extractPrimaryIds(output.features, this.#primary_mapping());
 
         } catch (e) {
             scran.free(output.matrix);

@@ -16,6 +16,10 @@ test("H5AD summary works correctly", async () => {
     expect(summ.all_features instanceof bioc.DataFrame).toBe(true);
     expect(summ.cells instanceof bioc.DataFrame).toBe(true);
     expect(summ.all_assay_names.length).toBeGreaterThan(0);
+
+    let preview = files.default.previewPrimaryIds();
+    expect("RNA" in preview).toBe(true);
+    expect(preview.RNA.length).toBeGreaterThan(0);
 })
 
 test("runAnalysis works correctly (H5AD)", async () => {

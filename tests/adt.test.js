@@ -27,6 +27,12 @@ test("ADT MatrixMarket summary works correctly", async () => {
     expect(summ.modality_features["Antibody Capture"].numberOfColumns()).toBeGreaterThan(0);
     expect(summ.cells instanceof bioc.DataFrame).toBe(true);
     expect(summ.cells.numberOfColumns()).toBeGreaterThan(0);
+
+    let preview = await files.default.previewPrimaryIds();
+    expect("RNA" in preview).toBe(true);
+    expect("ADT" in preview).toBe(true);
+    expect(preview.RNA.length).toBeGreaterThan(0);
+    expect(preview.ADT.length).toBeGreaterThan(0);
 })
 
 test("runAnalysis works correctly (MatrixMarket)", async () => {
