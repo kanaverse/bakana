@@ -61,7 +61,7 @@ action_simple("ArtifactDB summary works correctly", async () => {
     expect(summ.modality_features[""].numberOfRows()).toBeGreaterThan(0);
     expect(summ.cells instanceof bioc.DataFrame).toBe(true);
 
-    let preview = files.default.previewPrimaryIds({ cache: true });
+    let preview = await files.default.previewPrimaryIds({ cache: true });
     expect("RNA" in preview).toBe(true);
     expect(preview.RNA.length).toBeGreaterThan(0);
 

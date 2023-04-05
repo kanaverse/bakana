@@ -29,7 +29,6 @@ test("ADT MatrixMarket summary works correctly", async () => {
     expect(summ.cells.numberOfColumns()).toBeGreaterThan(0);
 
     let preview = await files.default.previewPrimaryIds();
-    console.log(preview);
     expect("RNA" in preview).toBe(true);
     expect("ADT" in preview).toBe(true);
     expect(preview.RNA.length).toBeGreaterThan(0);
