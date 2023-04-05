@@ -146,9 +146,9 @@ export class H5adDataset {
             featureTypeRnaName: "Gene Expression", 
             featureTypeAdtName: "Antibody Capture", 
             featureTypeCrisprName: "CRISPR Guide Capture", 
-            primaryRnaFeatureIdColumn: "_index", 
-            primaryAdtFeatureIdColumn: "_index",
-            primaryCrisprFeatureIdColumn: "_index" 
+            primaryRnaFeatureIdColumn: null,
+            primaryAdtFeatureIdColumn: null,
+            primaryCrisprFeatureIdColumn: null
         };
     }
 
