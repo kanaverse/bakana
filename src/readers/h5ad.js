@@ -275,7 +275,7 @@ export class H5adDataset {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode H5adDataset#load load}.
+     * @param {boolean} [options.cache=false] - Whether to cache the intermediate results for re-use in subsequent calls to any methods with a `cache` option.
      * If `true`, users should consider calling {@linkcode H5adDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
@@ -302,9 +302,42 @@ export class H5adDataset {
         return output;
     }
 
+    #feature_type_mapping() {
+        return {
+            RNA: this.#options.featureTypeRnaName, 
+            ADT: this.#options.featureTypeAdtName,
+            CRISPR: this.#options.featureTypeCrisprName
+        };
+    }
+
+    #primary_mapping() {
+        return {
+            RNA: this.#options.primaryRnaFeatureIdColumn, 
+            ADT: this.#options.primaryAdtFeatureIdColumn,
+            CRISPR: this.#options.primaryCrisprFeatureIdColumn
+        };
+    }
+
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode H5adDataset#summary summary}.
+     * @param {boolean} [options.cache=false] - Whether to cache the intermediate results for re-use in subsequent calls to any methods with a `cache` option.
+     * If `true`, users should consider calling {@linkcode H5adDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     *
+     * @return {object} An object where each key is a modality name and each value is an array (usually of strings) containing the primary feature identifiers for each row in that modality.
+     * The contents are the same as the `primary_ids` returned by {@linkcode H5adDataset#load load} but the order of values may be different.
+     */
+    previewPrimaryIds({ cache = false } = {}) {
+        this.#features();
+        let preview = futils.extractSplitPrimaryIds(this.#raw_features, this.#options.featureTypeColumnName, this.#feature_type_mapping(), "RNA", this.#primary_mapping());
+        if (!cache) {
+            this.clear();
+        }
+        return preview;
+    }
+
+    /**
+     * @param {object} [options={}] - Optional parameters.
+     * @param {boolean} [options.cache=false] - Whether to cache the intermediate results for re-use in subsequent calls to any methods with a `cache` option.
      * If `true`, users should consider calling {@linkcode H5adDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
@@ -330,20 +363,10 @@ export class H5adDataset {
         }
         let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, chosen_assay);
 
-        let mappings = { 
-            RNA: this.#options.featureTypeRnaName, 
-            ADT: this.#options.featureTypeAdtName,
-            CRISPR: this.#options.featureTypeCrisprName
-        };
-        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#options.featureTypeColumnName, mappings, "RNA");
+        let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#options.featureTypeColumnName, this.#feature_type_mapping(), "RNA");
         output.cells = this.#raw_cells;
 
-        let primaries = { 
-            RNA: this.#options.primaryRnaFeatureIdColumn, 
-            ADT: this.#options.primaryAdtFeatureIdColumn,
-            CRISPR: this.#options.primaryCrisprFeatureIdColumn
-        };
-        output.primary_ids = futils.extractPrimaryIds(output.features, primaries);
+        output.primary_ids = futils.extractPrimaryIds(output.features, this.#primary_mapping());
 
         if (!cache) {
             this.clear();

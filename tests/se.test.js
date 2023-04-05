@@ -176,6 +176,13 @@ test("RDS loaders work correctly for a SingleCellExperiment with altExps", async
     expect(summ.modality_assay_names[""].length).toBeGreaterThan(0);
     expect(summ.modality_assay_names["Antibody Capture"].length).toBeGreaterThan(0);
 
+    // Preview works correctly.
+    let preview = files.default.previewPrimaryIds();
+    expect("RNA" in preview).toBe(true);
+    expect("ADT" in preview).toBe(true);
+    expect(preview.RNA.length).toBeGreaterThan(0);
+    expect(preview.ADT.length).toBeGreaterThan(0);
+
     let fullstate = new inputs.InputsState;
     await fullstate.compute(files, inputs.InputsState.defaults());
 
