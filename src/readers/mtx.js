@@ -296,9 +296,10 @@ export class TenxMatrixMarketDataset {
      *
      * @return {object} An object where each key is a modality name and each value is an array (usually of strings) containing the primary feature identifiers for each row in that modality.
      * The contents are the same as the `primary_ids` returned by {@linkcode TenxMatrixMarketDataset#load load} but the order of values may be different.
+     * @async
      */
-    previewPrimaryIds({ cache = false } = {}) {
-        this.#features();
+    async previewPrimaryIds({ cache = false } = {}) {
+        await this.#features();
         let preview = futils.extractSplitPrimaryIds(this.#raw_features, "type", this.#feature_type_mapping(), "RNA", this.#primary_mapping());
         if (!cache) {
             this.clear();

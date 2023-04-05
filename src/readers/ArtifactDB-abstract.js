@@ -628,6 +628,8 @@ export class AbstractArtifactdbDataset {
      *
      * @return {object} An object where each key is a modality name and each value is an array (usually of strings) containing the primary feature identifiers for each row in that modality.
      * The contents are the same as the `primary_ids` returned by {@linkcode AbstractArtifactdbDataset#load load} but the order of values may be different.
+     *
+     * @async
      */
     async previewPrimaryIds({ cache = false } = {}) {
         await this.#features();
