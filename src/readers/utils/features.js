@@ -49,20 +49,18 @@ function splitByModality(features, typeField, featureTypeMapping) {
 }
 
 export function extractSplitPrimaryIds(features, typeField, featureTypeMapping, featureTypeDefault, primary) {
-    let by_type;
     if (typeField !== null && features.hasColumn(typeField)) {
-        by_type = splitByModality(features, typeField, featureTypeMapping);
-    } else {
-        by_type = {};
-        by_type[featureTypeDefault] = null;
+        let by_type = splitByModality(features, typeField, featureTypeMapping);
+        for (const [k, v] of Object.entries(by_type)) {
+            let col = extractPrimaryIdColumn(k, features, primary);
+            by_type[k] = bioc.SLICE(col, v);
+        }
+        return by_type;
     }
 
-    for (const [k, v] of Object.entries(by_type)) {
-        let col = extractPrimaryIdColumn(k, features, primary);
-        by_type[k] = bioc.SLICE(col, v);
-    }
-
-    return by_type;
+    let output = {};
+    output[featureTypeDefault] = extractPrimaryIdColumn(featureTypeDefault, features, primary);
+    return output;
 }
 
 export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, featureTypeMapping, featureTypeDefault) {
