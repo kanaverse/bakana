@@ -10,8 +10,7 @@ function create_solo_default_object(value, modality) {
 export function reportFeatures(rawFeatures, typeField) {
     if (rawFeatures.hasColumn(typeField)) {
         let by_type = bioc.presplitFactor(rawFeatures.column(typeField));
-        let copy = bioc.CLONE(rawFeatures, { deepCopy: false }); // SPLIT will make a copy anyway.
-        copy.$removeColumn(typeField);
+        let copy = rawFeatures.removeColumn(typeField);
         return bioc.SPLIT(copy, by_type);
     } else {
         return create_solo_default_object(rawFeatures, "");
