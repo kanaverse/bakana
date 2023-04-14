@@ -254,7 +254,7 @@ On Node.js, this may also be a string containing a file path.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line232">line 232</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line239">line 239</a>
     </li></ul></dd>
     
 
@@ -363,7 +363,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line208">line 208</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line215">line 215</a>
     </li></ul></dd>
     
 
@@ -445,7 +445,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line355">line 355</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line362">line 362</a>
     </li></ul></dd>
     
 
@@ -806,7 +806,7 @@ either from the <code>defaults</code> or with <a href="H5adDataset.html#setOptio
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line329">line 329</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line336">line 336</a>
     </li></ul></dd>
     
 
@@ -1053,7 +1053,7 @@ The contents are the same as the <code>primary_ids</code> returned by <a href="H
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line386">line 386</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line393">line 393</a>
     </li></ul></dd>
     
 
@@ -1168,7 +1168,7 @@ Each object corresponds to a single file and contains:
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line187">line 187</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line194">line 194</a>
     </li></ul></dd>
     
 
@@ -1352,7 +1352,7 @@ If <code>null</code>, the &quot;X&quot; dataset is used if it is present in the 
             
 
             <td class="description last"><p>Name of the per-feature annotation column containing the feature types.
-If <code>null</code>, no column is assumed to contain the feature types, and all features are assumed to be genes (i.e., only the RNA modality is present).</p></td>
+If <code>null</code>, no column is assumed to contain feature type information.</p></td>
         </tr>
 
     
@@ -1389,7 +1389,9 @@ If <code>null</code>, no column is assumed to contain the feature types, and all
             
 
             <td class="description last"><p>Name of the feature type for gene expression.
-Alternatively <code>null</code>, to indicate that no RNA features are to be loaded.</p></td>
+If <code>null</code> or the string is not present among the feature types, no RNA features are to be loaded.</p>
+<p>If no feature type information is available in the dataset (i.e., <code>featureTypeColumnName = null</code>), all features are considered to be genes by default.
+This behavior can also be explicitly requested by setting this argument to the only non-<code>null</code> value among all <code>featureType*Name</code> parameters.</p></td>
         </tr>
 
     
@@ -1426,7 +1428,8 @@ Alternatively <code>null</code>, to indicate that no RNA features are to be load
             
 
             <td class="description last"><p>Name of the feature type for ADTs.
-Alternatively <code>null</code>, to indicate that no ADT features are to be loaded.</p></td>
+If <code>null</code> or the string is not present among the feature types, no ADT features are to be loaded.</p>
+<p>If no feature type information is available in the dataset and this argument is set to the only non-<code>null</code> value among all <code>featureType*Name</code> parameters, all features are considered to be ADTs.</p></td>
         </tr>
 
     
@@ -1463,7 +1466,8 @@ Alternatively <code>null</code>, to indicate that no ADT features are to be load
             
 
             <td class="description last"><p>Name of the feature type for CRISPR guides.
-Alternatively <code>null</code>, to indicate that no guides are to be loaded.</p></td>
+If <code>null</code> or the string is not present among the feature types, no guides are to be loaded.</p>
+<p>If no feature type information is available in the dataset and this argument is set to the only non-<code>null</code> value among all <code>featureType*Name</code> parameters, all features are considered to be guides.</p></td>
         </tr>
 
     
@@ -1636,7 +1640,7 @@ If no row names are present in this situation, no primary identifier is defined.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line288">line 288</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line295">line 295</a>
     </li></ul></dd>
     
 
@@ -1993,7 +1997,7 @@ This has the following properties:</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line225">line 225</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line232">line 232</a>
     </li></ul></dd>
     
 
@@ -2098,7 +2102,7 @@ This has the following properties:</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line396">line 396</a>
+        <a href="readers_h5ad.js.html">readers/h5ad.js</a>, <a href="readers_h5ad.js.html#line403">line 403</a>
     </li></ul></dd>
     
 
@@ -2279,7 +2283,7 @@ This has the following properties:</p>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Fri Apr 14 2023 06:09:22 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Fri Apr 14 2023 19:29:16 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

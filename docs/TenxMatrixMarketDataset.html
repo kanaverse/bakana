@@ -352,7 +352,7 @@ If <code>null</code>, it is assumed that no file was available.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line139">line 139</a>
+        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line146">line 146</a>
     </li></ul></dd>
     
 
@@ -462,7 +462,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line121">line 121</a>
+        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line128">line 128</a>
     </li></ul></dd>
     
 
@@ -544,7 +544,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line332">line 332</a>
+        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line339">line 339</a>
     </li></ul></dd>
     
 
@@ -907,7 +907,7 @@ either from the <code>defaults</code> or with <a href="TenxMatrixMarketDataset.h
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line301">line 301</a>
+        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line308">line 308</a>
     </li></ul></dd>
     
 
@@ -1154,7 +1154,7 @@ The contents are the same as the <code>primary_ids</code> returned by <a href="T
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line359">line 359</a>
+        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line366">line 366</a>
     </li></ul></dd>
     
 
@@ -1269,7 +1269,7 @@ Each object corresponds to a single file and contains:
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line111">line 111</a>
+        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line118">line 118</a>
     </li></ul></dd>
     
 
@@ -1416,7 +1416,9 @@ Each object corresponds to a single file and contains:
             
 
             <td class="description last"><p>Name of the feature type for gene expression.
-Alternatively <code>null</code>, to indicate that no RNA features are to be loaded.</p></td>
+If <code>null</code> or the string is not present among the feature types, no RNA features are to be loaded.</p>
+<p>If no feature type information is available in the dataset, all features are considered to be genes by default.
+This behavior can be explicitly requested by setting this argument to the only non-<code>null</code> value among all <code>featureType*Name</code> parameters.</p></td>
         </tr>
 
     
@@ -1453,7 +1455,8 @@ Alternatively <code>null</code>, to indicate that no RNA features are to be load
             
 
             <td class="description last"><p>Name of the feature type for ADTs.
-Alternatively <code>null</code>, to indicate that no ADT features are to be loaded.</p></td>
+If <code>null</code> or the string is not present among the feature types, no ADT features are to be loaded.</p>
+<p>If no feature type information is available in the dataset and this argument is set to the only non-<code>null</code> value among all <code>featureType*Name</code> parameters, all features are considered to be ADTs.</p></td>
         </tr>
 
     
@@ -1490,7 +1493,8 @@ Alternatively <code>null</code>, to indicate that no ADT features are to be load
             
 
             <td class="description last"><p>Name of the feature type for CRISPR guides.
-Alternatively <code>null</code>, to indicate that no guides are to be loaded.</p></td>
+If <code>null</code> or the string is not present among the feature types, no guides are to be loaded.</p>
+<p>If no feature type information is available in the dataset and this argument is set to the only non-<code>null</code> value among all <code>featureType*Name</code> parameters, all features are considered to be guides.</p></td>
         </tr>
 
     
@@ -1654,7 +1658,7 @@ If <code>i</code> is invalid (e.g., out of range index, unavailable name), it is
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line261">line 261</a>
+        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line268">line 268</a>
     </li></ul></dd>
     
 
@@ -2011,7 +2015,7 @@ Unlike <a href="TenxMatrixMarketDataset.html#load"><code>load</code></a>, modali
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line131">line 131</a>
+        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line138">line 138</a>
     </li></ul></dd>
     
 
@@ -2116,7 +2120,7 @@ Unlike <a href="TenxMatrixMarketDataset.html#load"><code>load</code></a>, modali
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line369">line 369</a>
+        <a href="readers_mtx.js.html">readers/mtx.js</a>, <a href="readers_mtx.js.html#line376">line 376</a>
     </li></ul></dd>
     
 
@@ -2297,7 +2301,7 @@ Unlike <a href="TenxMatrixMarketDataset.html#load"><code>load</code></a>, modali
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Fri Apr 14 2023 06:09:22 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Fri Apr 14 2023 19:29:16 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
