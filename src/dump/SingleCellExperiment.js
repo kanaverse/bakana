@@ -82,7 +82,12 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
 
     // Other bits and pieces.
     all_coldata[main_modality].$setColumn("retained", keep);
-    all_coldata[main_modality].$setColumn("clusters", state.choose_clustering.fetchClusters());
+
+    {
+        // Incrementing to avoid cluster names starting from 0.
+        let clusters = state.choose_clustering.fetchClusters().map(x => x + 1);
+        all_coldata[main_modality].$setColumn("clusters", clusters);
+    }
 
     {
         let block = state.cell_filtering.fetchFilteredBlock();

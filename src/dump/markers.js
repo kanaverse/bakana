@@ -28,7 +28,7 @@ export function dumpMarkerDetectionResults(state, modalities, all_rowdata) {
                 }
             }
 
-            rdf.$setColumn(String(group), mdf); 
+            rdf.$setColumn(String(group + 1), mdf); // incrementing to avoid cluster names starting from 0.
         }
 
         all_rowdata[m] = all_rowdata[m].setColumn("marker_detection", rdf);
