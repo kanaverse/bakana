@@ -47,6 +47,25 @@ function splitByModality(features, typeField, featureTypeMapping) {
     return renameByModality(by_type, featureTypeMapping);
 }
 
+function findUnnamedDefault(featureTypeMapping, featureTypeDefault) {
+    let found = null;
+    let multiple = false;
+    for (const [k, v] of Object.entries(featureTypeMapping)) {
+        if (v !== null) {
+            if (found !== null) {
+                multiple = true;
+            }
+            found = k;
+        }
+    }
+
+    if (found === null || multiple) {
+        return featureTypeDefault;
+    } else {
+        return found;
+    }
+}
+
 export function extractSplitPrimaryIds(features, typeField, featureTypeMapping, featureTypeDefault, primary) {
     if (typeField !== null && features.hasColumn(typeField)) {
         let by_type = splitByModality(features, typeField, featureTypeMapping);
@@ -57,8 +76,10 @@ export function extractSplitPrimaryIds(features, typeField, featureTypeMapping, 
         return by_type;
     }
 
+    // Seeing if any featureTypeMapping is set to the unnamed string.
+    let new_default = findUnnamedDefault(featureTypeMapping, featureTypeDefault);
     let output = {};
-    output[featureTypeDefault] = extractPrimaryIdColumn(featureTypeDefault, features, primary);
+    output[new_default] = extractPrimaryIdColumn(new_default, features, primary);
     return output;
 }
 

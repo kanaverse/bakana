@@ -164,13 +164,20 @@ export class H5adDataset {
      * @param {?string} [options.countMatrixName] - Name of the layer containing the count matrix.
      * If `null`, the "X" dataset is used if it is present in the file, or the first available layer if no "X" dataset is present.
      * @param {?string} [options.featureTypeColumnName] - Name of the per-feature annotation column containing the feature types.
-     * If `null`, no column is assumed to contain the feature types, and all features are assumed to be genes (i.e., only the RNA modality is present).
+     * If `null`, no column is assumed to contain feature type information.
      * @param {?string} [options.featureTypeRnaName] - Name of the feature type for gene expression.
-     * Alternatively `null`, to indicate that no RNA features are to be loaded.
+     * If `null` or the string is not present among the feature types, no RNA features are to be loaded.
+     *
+     * If no feature type information is available in the dataset (i.e., `featureTypeColumnName = null`), all features are considered to be genes by default.
+     * This behavior can also be explicitly requested by setting this argument to the only non-`null` value among all `featureType*Name` parameters.
      * @param {?string} [options.featureTypeAdtName] - Name of the feature type for ADTs.
-     * Alternatively `null`, to indicate that no ADT features are to be loaded.
+     * If `null` or the string is not present among the feature types, no ADT features are to be loaded.
+     *
+     * If no feature type information is available in the dataset and this argument is set to the only non-`null` value among all `featureType*Name` parameters, all features are considered to be ADTs.
      * @param {?string} [options.featureTypeCrisprName] - Name of the feature type for CRISPR guides.
-     * Alternatively `null`, to indicate that no guides are to be loaded.
+     * If `null` or the string is not present among the feature types, no guides are to be loaded.
+     *
+     * If no feature type information is available in the dataset and this argument is set to the only non-`null` value among all `featureType*Name` parameters, all features are considered to be guides.
      * @param {?(string|number)} [options.primaryRnaFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
      *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the row names (from the `_index` group) are used as the primary identifiers.

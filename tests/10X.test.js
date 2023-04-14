@@ -20,6 +20,13 @@ test("10X summary works correctly", async () => {
     let preview = files.default.previewPrimaryIds();
     expect("RNA" in preview).toBe(true);
     expect(preview.RNA.length).toBeGreaterThan(0);
+
+    // Trying what happens if we force it to be another modality.
+    files.default.setOptions({ featureTypeAdtName: "", featureTypeCrisprName: null, featureTypeRnaName: null });
+    let preview2 = files.default.previewPrimaryIds();
+    expect("ADT" in preview2).toBe(true);
+    expect("RNA" in preview2).toBe(false);
+    expect(preview2.ADT.length).toBeGreaterThan(0);
 })
 
 test("runAnalysis works correctly (10X)", async () => {
