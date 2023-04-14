@@ -27,6 +27,9 @@ test("analysis works when we skip the QC steps", async () => {
     let ncells = state.inputs.fetchCountMatrix().numberOfColumns();
     expect(state.cell_filtering.fetchFilteredMatrix().numberOfColumns()).toBe(ncells);
 
+    // Check saving of results.
+    await bakana.saveSingleCellExperiment(state, "no-qc", { directory: "miscellaneous/from-tests" });
+
     // Just applying the RNA filtering.
     {
         paramcopy.cell_filtering.use_rna = true;

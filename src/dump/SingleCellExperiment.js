@@ -9,11 +9,7 @@ import * as list from "./List.js";
  ************************************************/
 
 function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadata, all_other_metadata, all_files, forceBuffer) {
-    let keep = [];
-    state.cell_filtering.fetchDiscards().forEach((x, i) => {
-        if (!x) { keep.push(i); }
-    });
-    let retained = keep.length;
+    let retained = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
 
     let all_coldata = {};
     for (const m of Object.keys(modality_prefixes)) {
@@ -80,8 +76,14 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
         all_coldata.CRISPR.$setColumn("sizeFactor", state.crispr_normalization.fetchSizeFactors());
     }
 
-    // Other bits and pieces.
-    all_coldata[main_modality].$setColumn("retained", keep);
+    let disc = state.cell_filtering.fetchDiscards();
+    if (disc !== null) {
+        let keep = [];
+        disc.forEach((x, i) => {
+            if (!x) { keep.push(i); }
+        });
+        all_coldata[main_modality].$setColumn("retained", keep);
+    }
 
     {
         // Incrementing to avoid cluster names starting from 0.
