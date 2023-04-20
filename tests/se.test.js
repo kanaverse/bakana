@@ -69,6 +69,7 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
 
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "se", { directory: "miscellaneous/from-tests" });
+    await bakana.saveGenewiseResults(state, "se_results", { directory: "miscellaneous/from-tests" });
 
     // Check reloading of the parameters/datasets.
     {

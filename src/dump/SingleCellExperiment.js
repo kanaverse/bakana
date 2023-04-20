@@ -1,7 +1,6 @@
 import * as bioc from "bioconductor";
 import * as df from "./DataFrame.js";
 import * as assay from "./assays.js";
-import * as markers from "./markers.js";
 import * as reddim from "./reducedDimensions.js";
 import * as list from "./List.js";
 
@@ -9,22 +8,36 @@ import * as list from "./List.js";
  ************************************************/
 
 function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadata, all_other_metadata, all_files, forceBuffer) {
-    let retained = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
+    let disc = state.cell_filtering.fetchDiscards();
+    let keep = [];
+    if (disc !== null) {
+        disc.forEach((x, i) => {
+            if (!x) { keep.push(i); }
+        });
+    }
 
     let all_coldata = {};
-    for (const m of Object.keys(modality_prefixes)) {
-        all_coldata[m] = new bioc.DataFrame({}, { numberOfRows: retained });
+    {
+        let full = state.inputs.fetchCellAnnotations();
+        all_coldata[main_modality] = (disc === null ? full : bioc.SLICE(full, keep));
+
+        let nrows = all_coldata[main_modality].numberOfRows();
+        for (const k of Object.keys(modality_prefixes)) {
+            if (k !== main_modality) {
+                all_coldata[k] = new bioc.DataFrame({}, { numberOfRows: nrows });
+            }
+        }
     }
 
     // Quality control.
     if (state.rna_quality_control.valid()) {
-        let rdf = new bioc.DataFrame({}, { numberOfRows: retained });
-        rdf.$setColumn("sums", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().sums({ copy: false })));
-        rdf.$setColumn("detected", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().detected({ copy: false })));
-        rdf.$setColumn("proportions", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().subsetProportions(0, { copy: false })));
-        all_coldata.RNA.$setColumn("rna_quality_control", rdf);
+        let rdf = all_coldata.RNA;
+        rdf = rdf.setColumn("kana::quality_control::sums", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().sums({ copy: false })));
+        rdf = rdf.setColumn("kana::quality_control::detected", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().detected({ copy: false })));
+        rdf = rdf.setColumn("kana::quality_control::proportions", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().subsetProportions(0, { copy: false })));
+        all_coldata.RNA = rdf;
 
-        all_other_metadata.RNA["rna_quality_control"] = { 
+        all_other_metadata.RNA["kana::quality_control"] = { 
             "filters": {
                 "sums": state.rna_quality_control.fetchFilters().thresholdsSums(),
                 "detected": state.rna_quality_control.fetchFilters().thresholdsDetected(),
@@ -34,13 +47,13 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
     }
 
     if (state.adt_quality_control.valid()) {
-        let adf = new bioc.DataFrame({}, { numberOfRows: retained });
-        adf.$setColumn("sums", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().sums({ copy: false })));
-        adf.$setColumn("detected", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().detected({ copy: false })));
-        adf.$setColumn("igg_totals", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().subsetTotals(0, { copy: false })));
-        all_coldata.ADT.$setColumn("adt_quality_control", adf);
+        let adf = all_coldata.ADT;
+        adf = adf.setColumn("kana::quality_control::sums", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().sums({ copy: false })));
+        adf = adf.setColumn("kana::quality_control::detected", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().detected({ copy: false })));
+        adf = adf.setColumn("kana::quality_control::igg_totals", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().subsetTotals(0, { copy: false })));
+        all_coldata.ADT = adf;
 
-        all_other_metadata.ADT["adt_quality_control"] = {
+        all_other_metadata.ADT["kana::quality_control"] = {
             "filters": {
                 "detected": state.adt_quality_control.fetchFilters().thresholdsDetected(),
                 "igg_totals": state.adt_quality_control.fetchFilters().thresholdsSubsetTotals(0)
@@ -49,59 +62,65 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
     }
 
     if (state.crispr_quality_control.valid()) {
-        let cdf = new bioc.DataFrame({}, { numberOfRows: retained });
-        cdf.$setColumn("sums", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().sums({ copy: false })));
-        cdf.$setColumn("detected", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().detected({ copy: false })));
-        cdf.$setColumn("max_proportion", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxProportions({ copy: false })));
-        cdf.$setColumn("max_index", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxIndex({ copy: false })));
-        all_coldata.CRISPR.$setColumn("crispr_quality_control", cdf);
+        let cdf = all_coldata.CRISPR;
+        cdf = cdf.setColumn("kana::quality_control::sums", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().sums({ copy: false })));
+        cdf = cdf.setColumn("kana::quality_control::detected", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().detected({ copy: false })));
+        cdf = cdf.setColumn("kana::quality_control::max_proportion", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxProportions({ copy: false })));
+        cdf = cdf.setColumn("kana::quality_control::max_index", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxIndex({ copy: false })));
+        all_coldata.CRISPR = cdf;
 
-        all_other_metadata.CRISPR["crispr_quality_control"] = {
+        all_other_metadata.CRISPR["kana::quality_control"] = {
             "filters": {
                 "max_count": state.crispr_quality_control.fetchFilters().thresholdsMaxCount()
             }
         };
     }
 
+    if (disc !== null) {
+        all_coldata[main_modality] = all_coldata[main_modality].setColumn("kana::quality_control::retained_indices", keep);
+    }
+
     // Size Factors.
     if (state.rna_normalization.valid()) {
-        all_coldata.RNA.$setColumn("sizeFactor", state.rna_normalization.fetchSizeFactors());
+        all_coldata.RNA = all_coldata.RNA.setColumn("kana::size_factors", state.rna_normalization.fetchSizeFactors());
     }
 
     if (state.adt_normalization.valid()) {
-        all_coldata.ADT.$setColumn("sizeFactor", state.adt_normalization.fetchSizeFactors());
+        all_coldata.ADT = all_coldata.ADT.setColumn("kana::size_factors", state.adt_normalization.fetchSizeFactors());
     }
 
     if (state.crispr_normalization.valid()) {
-        all_coldata.CRISPR.$setColumn("sizeFactor", state.crispr_normalization.fetchSizeFactors());
-    }
-
-    let disc = state.cell_filtering.fetchDiscards();
-    if (disc !== null) {
-        let keep = [];
-        disc.forEach((x, i) => {
-            if (!x) { keep.push(i); }
-        });
-        all_coldata[main_modality].$setColumn("retained", keep);
+        all_coldata.CRISPR = all_coldata.CRISPR.setColumn("kana::size_factors", state.crispr_normalization.fetchSizeFactors());
     }
 
     {
-        // Incrementing to avoid cluster names starting from 0.
+        // Incrementing to avoid cluster names starting from 0. Note that there's
+        // no need to respect the reportOneIndex setting, as cluster names are
+        // not indices with respect to anything. The only thing they need to match
+        // with is the marker table names, and we increment there (in markers.js) as well.
         let clusters = state.choose_clustering.fetchClusters().map(x => x + 1);
-        all_coldata[main_modality].$setColumn("clusters", clusters);
+        all_coldata[main_modality] = all_coldata[main_modality].setColumn("kana::clusters", clusters);
     }
 
     {
         let block = state.cell_filtering.fetchFilteredBlock();
         if (block !== null) {
-            all_coldata[main_modality].$setColumn("block", block);
-
             let stringy = new Array(block.length);
             let levels = state.inputs.fetchBlockLevels();
             block.forEach((x, i) => { stringy[i] = levels[x]; }); 
-            all_coldata[main_modality].$setColumn("named_block", stringy);
+            all_coldata[main_modality] = all_coldata[main_modality].setColumn("kana::block", stringy);
+        }
+    }
 
-            all_other_metadata[main_modality].block_levels = levels;
+    // Custom selections, stored as boolean arrays.
+    {
+        let customs = state.custom_selections.fetchSelections({ copy: false });
+        let nrows = all_coldata[main_modality].numberOfRows();
+        for (const [v, k] of Object.entries(customs)) {
+            let as_bool = new Uint8Array(nrows);
+            as_bool.fill(0);
+            k.forEach(index => { as_bool[index] = 1; });
+            all_coldata[main_modality] = all_coldata[main_modality].setColumn("kana::custom_selections::" + v, as_bool);
         }
     }
 
@@ -117,48 +136,6 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
     }
 
     return;
-}
-
-/************************************************
- ************************************************/
-
-function dumpRowData(state, modality_prefixes, main_modality, all_sce_metadata, all_other_metadata, all_files, forceBuffer) {
-    let row_info = state.inputs.fetchFeatureAnnotations();
-
-    let all_rowdata = {};
-    for (const m of Object.keys(modality_prefixes)) {
-        all_rowdata[m] = row_info[m];
-    }
-
-    if ("RNA" in modality_prefixes) {
-        let res = state.feature_selection.fetchResults();
-        let df = new bioc.DataFrame(
-            {
-                mean: res.means({ copy: "view" }),
-                variance: res.variances({ copy: "view" }),
-                fitted: res.fitted({ copy: "view" }),
-                residual: res.residuals({ copy: "view" })
-            }, 
-            { 
-            columnOrder: [ "mean", "variance", "fitted", "residual" ] 
-            }
-        );
-        all_rowdata.RNA = all_rowdata.RNA.setColumn("feature_selection", df);
-    }
-
-    markers.dumpMarkerDetectionResults(state, Object.keys(modality_prefixes), all_rowdata);
-
-    markers.dumpCustomSelectionResults(state, Object.keys(modality_prefixes), main_modality, all_rowdata, all_other_metadata);
-
-    for (const [name, prefix] of Object.entries(modality_prefixes)) {
-        let collected = df.writeHdf5DataFrame(all_rowdata[name], prefix + "rowdata", { forceBuffer });
-        collected.self.metadata.is_child = true;
-        all_sce_metadata[name].summarized_experiment.row_data.resource.path = collected.self.metadata.path;
-        all_files.push(collected.self);
-        for (const x of collected.children) {
-            all_files.push(x);
-        }
-    }
 }
 
 /************************************************
@@ -199,7 +176,7 @@ function mockSingleCellExperimentMetadata(p) {
 /************************************************
  ************************************************/
 
-export async function dumpSingleCellExperiment(state, path, { forceBuffer = false } = {}) {
+export async function dumpSingleCellExperiment(state, path, { reportOneIndex = false, forceBuffer = false } = {}) {
     let row_info = state.inputs.fetchFeatureAnnotations();
 
     let modalities = Object.keys(row_info);
@@ -247,7 +224,18 @@ export async function dumpSingleCellExperiment(state, path, { forceBuffer = fals
     // Saving the column and row data.
     dumpColumnData(state, all_prefixes, main, all_top_meta, all_metadata, all_files, forceBuffer);
 
-    dumpRowData(state, all_prefixes, main, all_top_meta, all_metadata, all_files, forceBuffer);
+    {
+        let row_info = state.inputs.fetchFeatureAnnotations();
+        for (const [name, prefix] of Object.entries(all_prefixes)) {
+            let collected = df.writeHdf5DataFrame(row_info[name], prefix + "rowdata", { forceBuffer });
+            collected.self.metadata.is_child = true;
+            all_top_meta[name].summarized_experiment.row_data.resource.path = collected.self.metadata.path;
+            all_files.push(collected.self);
+            for (const x of collected.children) {
+                all_files.push(x);
+            }
+        }
+    }
 
     // Saving the count assay.
     for (const [m, prefix] of Object.entries(all_prefixes)) {
@@ -323,8 +311,18 @@ export async function dumpSingleCellExperiment(state, path, { forceBuffer = fals
         all_files.push(saved);
     }
 
-    // Saving extra metadata (including cluster labelling assignments).
+    // Saving extra metadata.
     all_metadata[main].cell_labelling = await state.cell_labelling.fetchResults();
+
+    {
+        let customs = state.custom_selections.fetchSelections({ copy: true, force: "Int32Array" });
+        if (reportOneIndex) {
+            for (const [k, v] of Object.entries(customs)) { // incrementing by 1, if requested.
+                v.forEach((x, i) => { v[i] = x + 1; });
+            }
+        }
+        all_metadata[main].custom_selections = customs;
+    }
 
     for (const [m, prefix] of Object.entries(all_prefixes)) {
         let saved = list.dumpList(all_metadata[m], prefix + "other");

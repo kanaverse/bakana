@@ -1,4 +1,5 @@
 import * as sce from "./SingleCellExperiment.js";
+import * as markers from "./markers.js";
 import * as adump from "./abstract/dump.js";
 import JSZip from "jszip";
 
@@ -8,12 +9,11 @@ import JSZip from "jszip";
  * The aim is to facilitate downstream analysis procedures that are not supported by **bakana** itself; 
  * for example, a bench scientist can do a first pass with **kana** before passing the results to a computational collaborator for deeper inspection.
  *
- * Note that all indices are 0-based and should be incremented by 1 before use in 1-based languages like R.
- * This involves the block assignments (indexing the block levels), the cluster assignments (indexing the marker results), and the custom selections (indexing the matrix columns).
- *
  * @param {object} state - Existing analysis state containing results, after one or more runs of {@linkcode runAnalysis}.
  * @param {string} name - Name of the SingleCellExperiment to be saved.
  * @param {object} [options={}] - Optional parameters.
+ * @param {boolean} [options.reportOneIndex=false] - Whether to report 1-based indices, for use in 1-based languages like R.
+ * Currently, this refers to the column indices of the custom selections reported in the SingleCellExperiment's metadata.
  * @param {boolean} [options.forceBuffer=true] - Whether to force all files to be loaded into memory as Uint8Array buffers.
  * @param {?directory} [options.directory=null] - Project directory in which to save the file components of the SingleCellExperiment.
  * Only used for Node.js; if supplied, it overrides any setting of `forceBuffer`.
@@ -31,13 +31,15 @@ import JSZip from "jszip";
  *   see [here](https://kanaverse.github.io/scran.js/global.html#readFile) to extract its contents and to clean up afterwards.
  * - If the function is called from Node.js and `directory` is supplied, `contents` is a string to a file path inside `directory`.
  *   This overrides any expectations from the setting of `forceBuffer` and is the most efficient approach for Node.js.
+ * 
+ * The SingleCellExperiment itself will be accessible from a top-level object at the path defined by `name`.
  */
-export async function saveSingleCellExperiment(state, name, { forceBuffer = null, directory = null } = {}) {
+export async function saveSingleCellExperiment(state, name, { reportOneIndex = false, forceBuffer = null, directory = null } = {}) {
     if (directory !== null) {
         forceBuffer = false;
     } 
 
-    let { metadata, files } = await sce.dumpSingleCellExperiment(state, name, { forceBuffer });
+    let { metadata, files } = await sce.dumpSingleCellExperiment(state, name, { forceBuffer, reportOneIndex });
     files.push({ metadata });
 
     // Added a redirection document.
@@ -55,6 +57,68 @@ export async function saveSingleCellExperiment(state, name, { forceBuffer = null
             }
         }
     });
+
+    await adump.attachMd5sums(files);
+
+    // Either dumping everything to file or returning all the buffers.
+    if (!forceBuffer && directory !== null) {
+        await adump.realizeDirectory(files, directory, name);
+    }
+
+    return files;
+}
+
+/**
+ * Save the per-gene analysis results into [**ArtifactDB** data frames](https://github.com/ArtifactDB/BiocObjectSchemas).
+ * This includes the marker tables for the clusters and custom selections, as well as the variance modelling statistics from the feature selection step.
+ * Each data frames has the same order of rows as the SingleCellExperiment saved by {@linkcode saveSingleCellExperiment};
+ * for easier downstream use, we set the row names of each data frame to row names of the SingleCellExperiment
+ * (or if no row names are available, we set each data frame's row names to the first column of the `rowData`).
+ *
+ * @param {object} state - Existing analysis state containing results, after one or more runs of {@linkcode runAnalysis}.
+ * @param {string} prefix - Prefix to attach to the path for each result.
+ * This can contain subdirectories, or it can be an empty string.
+ * @param {object} [options={}] - Optional parameters.
+ * @param {boolean} [options.includeMarkerDetection=true] - Whether to save the marker detection results.
+ * @param {boolean} [options.includeCustomSelections=true] - Whether to save the custom selection results.
+ * @param {boolean} [options.includeFeatureSelection=true] - Whether to save the feature selection results.
+ * @param {boolean} [options.forceBuffer=true] - Whether to force all files to be loaded into memory as Uint8Array buffers.
+ * @param {?directory} [options.directory=null] - Project directory in which to save the file components of the SingleCellExperiment.
+ * Only used for Node.js; if supplied, it overrides any setting of `forceBuffer`.
+ *
+ * @return {Array} Array of objects where each object corresponds to a data frame of per-gene statistics.
+ * These data frames are grouped by analysis step, i.e., `marker_detection`, `custom_selections` and `feature_selection`.
+ * See {@linkcode saveSingleCellExperiment} for more details on the contents of each object inside the returned array.
+ */
+export async function saveGenewiseResults(state, name, { includeMarkerDetection = true, includeCustomSelections = true, includeFeatureSelection = true, forceBuffer = null, directory = null } = {}) {
+    let modalities = {};
+    let anno = state.inputs.fetchFeatureAnnotations();
+    for (const [k, v] of Object.entries(anno)) {
+        let rn = v.rowNames();
+        if (rn === null && v.numberOfColumns() > 0) {
+            rn = v.column(0);
+        }
+        modalities[k] = rn;
+    }
+
+    // Stripping trailing slashes.
+    if (name.endsWith("/")) {
+        name = name.replace(/\/+$/, "");
+    }
+
+    let files = [];
+
+    if (includeMarkerDetection) {
+        markers.dumpMarkerDetectionResults(state, modalities, name, files, forceBuffer);
+    }
+
+    if (includeCustomSelections) {
+        markers.dumpCustomSelectionResults(state, modalities, name, files, forceBuffer);
+    }
+
+    if (state.feature_selection.valid() && includeFeatureSelection) {
+        markers.dumpFeatureSelectionResults(state, modalities.RNA, name, files, forceBuffer);
+    }
 
     await adump.attachMd5sums(files);
 

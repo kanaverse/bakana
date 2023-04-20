@@ -54,6 +54,7 @@ test("runAnalysis works correctly (10X)", async () => {
 
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "10X", { directory: "miscellaneous/from-tests" });
+    await bakana.saveGenewiseResults(state, "10X_genes", { directory: "miscellaneous/from-tests" });
 
     // Check reloading of the parameters/datasets.
     {
