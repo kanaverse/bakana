@@ -71,6 +71,9 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
 /**
  * Save the per-gene analysis results into [**ArtifactDB** data frames](https://github.com/ArtifactDB/BiocObjectSchemas).
  * This includes the marker tables for the clusters and custom selections, as well as the variance modelling statistics from the feature selection step.
+ * Each data frames has the same order of rows as the SingleCellExperiment saved by {@linkcode saveSingleCellExperiment};
+ * for easier downstream use, we set the row names of each data frame to row names of the SingleCellExperiment
+ * (or if no row names are available, we set each data frame's row names to the first column of the `rowData`).
  *
  * @param {object} state - Existing analysis state containing results, after one or more runs of {@linkcode runAnalysis}.
  * @param {string} prefix - Prefix to attach to the path for each result.
@@ -83,9 +86,9 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
  * @param {?directory} [options.directory=null] - Project directory in which to save the file components of the SingleCellExperiment.
  * Only used for Node.js; if supplied, it overrides any setting of `forceBuffer`.
  *
- * @return {Array} Array of objects where each object corresponds to a data frame of per-gene statistics, in the same order as the rows saved by {@linkcode saveSingleCellExperiment}.
- * These data frames are grouped by analysis step into `marker_detection`, `custom_selections` and `feature_selection`.
- * See {@linkcode saveSingleCellExperiment} for more details on the contents of each object.
+ * @return {Array} Array of objects where each object corresponds to a data frame of per-gene statistics.
+ * These data frames are grouped by analysis step, i.e., `marker_detection`, `custom_selections` and `feature_selection`.
+ * See {@linkcode saveSingleCellExperiment} for more details on the contents of each object inside the returned array.
  */
 export async function saveGenewiseResults(state, name, { includeMarkerDetection = true, includeCustomSelections = true, includeFeatureSelection = true, forceBuffer = null, directory = null } = {}) {
     let modalities = {};
