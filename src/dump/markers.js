@@ -30,7 +30,7 @@ export function dumpMarkerDetectionResults(state, modality_names, prefix, all_fi
             }
 
             let new_name = group + 1; // incrementing to avoid cluster names starting from 0.
-            let collected = df.writeHdf5DataFrame(mdf, prefix + "/marker_detection/" + m + "/" + String(new_name), { forceBuffer });
+            let collected = df.writeHdf5DataFrame(mdf, prefix + "marker_detection/" + m + "/" + String(new_name), { forceBuffer });
             all_files.push(collected.self);
         }
     }
@@ -61,7 +61,7 @@ export function dumpCustomSelectionResults(state, modality_names, prefix, all_fi
                 mdf.$setColumn(eff, res[trans_eff](1, { copy: "view" }));
             }
 
-            let collected = df.writeHdf5DataFrame(mdf, prefix + "/custom_selections/" + m + "/" + sel, { forceBuffer });
+            let collected = df.writeHdf5DataFrame(mdf, prefix + "custom_selections/" + m + "/" + sel, { forceBuffer });
             all_files.push(collected.self);
         }
     }
@@ -84,7 +84,7 @@ export function dumpFeatureSelectionResults(state, rna_names, prefix, all_files,
         }
     );
 
-    let collected = df.writeHdf5DataFrame(fdf, prefix + "/feature_selection", { forceBuffer });
+    let collected = df.writeHdf5DataFrame(fdf, prefix + "feature_selection", { forceBuffer });
     all_files.push(collected.self);
     return;
 }

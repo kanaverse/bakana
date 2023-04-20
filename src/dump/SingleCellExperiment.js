@@ -90,7 +90,7 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
     }
 
     if (state.crispr_normalization.valid()) {
-        all_coldata.CRISPR = allcoldata.CRISPR.setColumn("kana::size_factors", state.crispr_normalization.fetchSizeFactors());
+        all_coldata.CRISPR = all_coldata.CRISPR.setColumn("kana::size_factors", state.crispr_normalization.fetchSizeFactors());
     }
 
     {

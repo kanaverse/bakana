@@ -73,7 +73,8 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
  * This includes the marker tables for the clusters and custom selections, as well as the variance modelling statistics from the feature selection step.
  *
  * @param {object} state - Existing analysis state containing results, after one or more runs of {@linkcode runAnalysis}.
- * @param {string} name - Name of the SingleCellExperiment to be saved.
+ * @param {string} prefix - Prefix to attach to the path for each result.
+ * This can contain subdirectories, or it can be an empty string.
  * @param {object} [options={}] - Optional parameters.
  * @param {boolean} [options.includeMarkerDetection=true] - Whether to save the marker detection results.
  * @param {boolean} [options.includeCustomSelections=true] - Whether to save the custom selection results.
@@ -97,7 +98,13 @@ export async function saveGenewiseResults(state, name, { includeMarkerDetection 
         modalities[k] = rn;
     }
 
+    // Stripping trailing slashes.
+    if (name.endsWith("/")) {
+        name = name.replace(/\/+$/, "");
+    }
+
     let files = [];
+
     if (includeMarkerDetection) {
         markers.dumpMarkerDetectionResults(state, modalities, name, files, forceBuffer);
     }
