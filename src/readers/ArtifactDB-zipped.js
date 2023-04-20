@@ -44,6 +44,68 @@ class ZippedProjectNavigator {
     }
 };
 
+/**
+ * Search a ZIP file for SummarizedExperiments to use in {@linkplain ZippedArtifactdbDataset} or {@linkplain ZippedArtifactdbResult}.
+ *
+ * @param {JSZip} handle - A handle into the ZIP file, generated using the [**JSZip**](https://stuk.github.io/jszip/) package.
+ * 
+ * @return {Map} Object where the keys are the paths/names of possible SummarizedExperiment objects,
+ * and each value is a 2-element array of dimensions.
+ */
+export async function searchZippedArtifactdb(handle) {
+    // Sorting by the number of slashes.
+    let all_json = [];
+    for (const name of Object.keys(handle.files)) {
+        if (name.endsWith(".json")) {
+            all_json.push({ name: name, path: name.split("/") });
+        }
+    }
+    all_json.sort((a, b) => a.path.length - b.path.length);
+
+    let found_se = new Map;
+    let nonchildren = new Map;
+    let redirects = new Map;
+
+    for (const x of all_json) {
+        // Avoid loading JSONs for files in subdirectories of known SEs.
+        let current = found_se;
+        let already_found = false;
+
+        for (const comp of x.path) {
+            let val = current.get(comp);
+            if (typeof val === "undefined") {
+                val = new Map;
+                current.set(comp, val);
+            } else if (val === null) {
+                already_found = true;
+                break;
+            }
+            current = val;
+        }
+
+        // Otherwise, we load it in and peel out some information.
+        if (!already_found) {
+            let contents = await handle.file(x.name).async("string");
+            let values = JSON.parse(contents);
+            if ("summarized_experiment" in values) {
+                nonchildren.set(values.path, values.summarized_experiment.dimensions);            
+            } else if (values["$schema"].startsWith("redirection/")) {
+                redirects.set(values.path, values.redirection.targets[0].location);
+            }
+        }
+    }
+
+    for (const [rr, loc] of redirects) {
+        let found = nonchildren.get(loc);
+        if (typeof found !== "undefined") {
+            nonchildren.delete(loc);
+            nonchildren.set(rr, found);
+        }
+    }
+
+    return nonchildren;
+}
+
 /************************
  ******* Dataset ********
  ************************/

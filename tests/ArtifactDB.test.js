@@ -202,14 +202,17 @@ action_simple("Zipped ArtifactDB dataset summary and loading works correctly", a
     }
 
     // Checking other input modes.
+    let handle = await jszip.loadAsync(await zipfile.buffer());
     {
-        let handle = await jszip.loadAsync(await zipfile.buffer());
         let files2 = { zipped: new bakana.ZippedArtifactdbDataset(target_simple, zipfile, { existingHandle: handle }) };
         let summ2 = await files2.zipped.summary();
         expect(summ2.modality_features[""].rowNames()).toEqual(summ2.modality_features[""].rowNames());
         files2.zipped.clear();
     }
+
+    // Inspection works as expected.
+    {
+        let results = await bakana.searchZippedArtifactdb(handle);
+        expect(results.get(target_simple).length).toEqual(2);
+    }
 })
-
-
-
