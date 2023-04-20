@@ -1,5 +1,6 @@
 import * as adb from "./ArtifactDB-abstract.js";
 import JSZip from "jszip";
+import * as afile from "./abstract/file.js";
 
 class ZippedProjectNavigator {
     #zipfile;
@@ -61,7 +62,9 @@ export class ZippedArtifactdbDataset extends adb.AbstractArtifactdbDataset {
 
     /**
      * @param {string} name - Name of the SummarizedExperiment object inside the project directory.
-     * @param {SimpleFile} zipfile - A {@linkplain SimpleFile} object representing the ZIP file containing the project directory.
+     * @param {SimpleFile|string|File} zipfile - Contents of the ZIP file containing the project directory.
+     * On browsers, this may be a File object.
+     * On Node.js, this may also be a string containing a file path.
      * @param {object} [options={}] - Optional parameters. 
      * @param {?JSZip} [options.existingHandle=null] - An existing handle into the ZIP file, generated using the [**JSZip**](https://stuk.github.io/jszip/) package.
      * If an existing handle already exists, passing it in here will allow it to be re-used for greater efficiency.
@@ -72,6 +75,10 @@ export class ZippedArtifactdbDataset extends adb.AbstractArtifactdbDataset {
         if ("existingHandle" in options) {
             ziphandle = options.existingHandle;
             delete options.existingHandle;
+        } else {
+            if (!(zipfile instanceof afile.SimpleFile)) {
+                zipfile = new afile.SimpleFile(zipfile);
+            }
         }
 
         let nav = new ZippedProjectNavigator(zipfile, ziphandle);
@@ -149,7 +156,9 @@ export class ZippedArtifactdbDataset extends adb.AbstractArtifactdbDataset {
 export class ZippedArtifactdbResult extends adb.AbstractArtifactdbResult {
     /**
      * @param {string} name - Name of the SummarizedExperiment object inside the project directory.
-     * @param {SimpleFile} zipfile - A {@linkplain SimpleFile} object representing the ZIP file containing the project directory.
+     * @param {SimpleFile|string|File} zipfile - Contents of the ZIP file containing the project directory.
+     * On browsers, this may be a File object.
+     * On Node.js, this may also be a string containing a file path.
      * @param {object} [options={}] - Optional parameters. 
      * @param {?JSZip} [options.existingHandle=null] - An existing handle into the ZIP file, generated using the [**JSZip**](https://stuk.github.io/jszip/) package.
      * If an existing handle already exists, passing it in here will allow it to be re-used for greater efficiency.
@@ -160,6 +169,10 @@ export class ZippedArtifactdbResult extends adb.AbstractArtifactdbResult {
         if ("existingHandle" in options) {
             ziphandle = options.existingHandle;
             delete options.existingHandle;
+        } else {
+            if (!(zipfile instanceof afile.SimpleFile)) {
+                zipfile = new afile.SimpleFile(zipfile);
+            }
         }
 
         let nav = new ZippedProjectNavigator(zipfile, ziphandle);

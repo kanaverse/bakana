@@ -4,6 +4,7 @@ import * as utils from "./utils.js";
 import * as bioc from "bioconductor";
 import * as fs from "fs";
 import * as nav from "./navigator.js";
+import jszip from "jszip";
 
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
@@ -198,6 +199,15 @@ action_simple("Zipped ArtifactDB dataset summary and loading works correctly", a
         let reloaded = files.zipped.constructor.unserialize(dump.files, dump.options);
         expect(reloaded instanceof bakana.ZippedArtifactdbDataset).toBe(true);
         expect(reloaded.abbreviate()).toEqual(abbr);
+    }
+
+    // Checking other input modes.
+    {
+        let handle = await jszip.loadAsync(await zipfile.buffer());
+        let files2 = { zipped: new bakana.ZippedArtifactdbDataset(target_simple, zipfile, { existingHandle: handle }) };
+        let summ2 = await files2.zipped.summary();
+        expect(summ2.modality_features[""].rowNames()).toEqual(summ2.modality_features[""].rowNames());
+        files2.zipped.clear();
     }
 })
 
