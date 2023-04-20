@@ -77,6 +77,7 @@ test("runAnalysis works correctly (10X)", async () => {
 
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "crispr", { directory: "miscellaneous/from-tests" });
+    await bakana.saveGenewiseResults(state, "crispr_genes", { directory: "miscellaneous/from-tests" });
 
     // Release me!
     await bakana.freeAnalysis(state);

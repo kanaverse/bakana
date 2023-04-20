@@ -86,6 +86,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
 
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "adt", { directory: "miscellaneous/from-tests" });
+    await bakana.saveGenewiseResults(state, "adt_genes", { directory: "miscellaneous/from-tests" });
 
     // Release me!
     await bakana.freeAnalysis(state);

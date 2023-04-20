@@ -64,6 +64,7 @@ test("multi-matrix analyses work correctly", async () => {
 
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "combined", { directory: "miscellaneous/from-tests" });
+    await bakana.saveGenewiseResults(state, "combined_genes", { directory: "miscellaneous/from-tests" });
 
     // Check reloading of the parameters/datasets.
     {
