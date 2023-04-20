@@ -11,6 +11,7 @@ import { TenxHdf5Dataset } from "./10x.js";
 import { H5adDataset } from "./h5ad.js";
 import { TenxMatrixMarketDataset } from "./mtx.js"
 import { SummarizedExperimentDataset } from "./se.js";
+import { ZippedArtifactdbDataset } from "./ArtifactDB-zipped.js";
 
 /**
  * Any class that satisfies the [Dataset contract](https://github.com/LTLA/bakana/blob/master/docs/related/custom_readers.md).
@@ -51,5 +52,6 @@ export const availableReaders = {
     "10X": TenxHdf5Dataset,
     "MatrixMarket": TenxMatrixMarketDataset,
     "H5AD": H5adDataset,
-    "SummarizedExperiment": SummarizedExperimentDataset
+    "SummarizedExperiment": SummarizedExperimentDataset,
+    "ArtifactDB-zipped": ZippedArtifactdbDataset
 };
