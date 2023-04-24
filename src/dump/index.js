@@ -38,7 +38,7 @@ import JSZip from "jszip";
  * 
  * The SingleCellExperiment itself will be accessible from a top-level object at the path defined by `name`.
  */
-export async function saveSingleCellExperiment(state, name, { reportOneIndex = false, storeModalityColumnData = false, forceBuffer = null, directory = null } = {}) {
+export async function saveSingleCellExperiment(state, name, { reportOneIndex = false, storeModalityColumnData = false, forceBuffer = true, directory = null } = {}) {
     if (directory !== null) {
         forceBuffer = false;
     } 
@@ -80,8 +80,8 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
  * (or if no row names are available, we set each data frame's row names to the first column of the `rowData`).
  *
  * @param {object} state - Existing analysis state containing results, after one or more runs of {@linkcode runAnalysis}.
- * @param {string} prefix - Prefix to attach to the path for each result.
- * This can contain subdirectories, or it can be an empty string.
+ * @param {string} path - Path to a subdirectory inside the project directory in which to save all results.
+ * If `null`, this is treated as the root of the project directory.
  * @param {object} [options={}] - Optional parameters.
  * @param {boolean} [options.includeMarkerDetection=true] - Whether to save the marker detection results.
  * @param {boolean} [options.includeCustomSelections=true] - Whether to save the custom selection results.
@@ -94,7 +94,7 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
  * These data frames are grouped by analysis step, i.e., `marker_detection`, `custom_selections` and `feature_selection`.
  * See {@linkcode saveSingleCellExperiment} for more details on the contents of each object inside the returned array.
  */
-export async function saveGenewiseResults(state, name, { includeMarkerDetection = true, includeCustomSelections = true, includeFeatureSelection = true, forceBuffer = null, directory = null } = {}) {
+export async function saveGenewiseResults(state, path, { includeMarkerDetection = true, includeCustomSelections = true, includeFeatureSelection = true, forceBuffer = true, directory = null } = {}) {
     let modalities = {};
     let anno = state.inputs.fetchFeatureAnnotations();
     for (const [k, v] of Object.entries(anno)) {
@@ -105,30 +105,36 @@ export async function saveGenewiseResults(state, name, { includeMarkerDetection 
         modalities[k] = rn;
     }
 
-    // Stripping trailing slashes.
-    if (name.endsWith("/")) {
-        name = name.replace(/\/+$/, "");
+    if (path === null) {
+        path = ""
+    } else if (path.endsWith("/")) {
+        path = path.replace(/\/+$/, "/"); // Making sure we only have one trailing slash.
+    } else {
+        path = path + "/";
     }
 
     let files = [];
+    if (directory !== null) {
+        forceBuffer = false;
+    } 
 
     if (includeMarkerDetection) {
-        markers.dumpMarkerDetectionResults(state, modalities, name, files, forceBuffer);
+        markers.dumpMarkerDetectionResults(state, modalities, path, files, forceBuffer);
     }
 
     if (includeCustomSelections) {
-        markers.dumpCustomSelectionResults(state, modalities, name, files, forceBuffer);
+        markers.dumpCustomSelectionResults(state, modalities, path, files, forceBuffer);
     }
 
     if (state.feature_selection.valid() && includeFeatureSelection) {
-        markers.dumpFeatureSelectionResults(state, modalities.RNA, name, files, forceBuffer);
+        markers.dumpFeatureSelectionResults(state, modalities.RNA, path, files, forceBuffer);
     }
 
     await adump.attachMd5sums(files);
 
     // Either dumping everything to file or returning all the buffers.
     if (!forceBuffer && directory !== null) {
-        await adump.realizeDirectory(files, directory, name);
+        await adump.realizeDirectory(files, directory, path);
     }
 
     return files;
