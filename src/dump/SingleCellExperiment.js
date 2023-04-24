@@ -7,7 +7,7 @@ import * as list from "./List.js";
 /************************************************
  ************************************************/
 
-function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadata, all_other_metadata, all_files, forceBuffer) {
+function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadata, all_other_metadata, all_files, forceBuffer, store_per_modality) {
     let disc = state.cell_filtering.fetchDiscards();
     let keep = [];
     if (disc !== null) {
@@ -31,13 +31,16 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
 
     // Quality control.
     if (state.rna_quality_control.valid()) {
-        let rdf = all_coldata.RNA;
-        rdf = rdf.setColumn("kana::quality_control::sums", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().sums({ copy: false })));
-        rdf = rdf.setColumn("kana::quality_control::detected", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().detected({ copy: false })));
-        rdf = rdf.setColumn("kana::quality_control::proportions", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().subsetProportions(0, { copy: false })));
-        all_coldata.RNA = rdf;
+        let prefix = (store_per_modality ? "kana::quality_control" : "kana::RNA::quality_control");
+        let target = (store_per_modality ? "RNA" : main_modality);
 
-        all_other_metadata.RNA["kana::quality_control"] = { 
+        let rdf = all_coldata[target];
+        rdf = rdf.setColumn(prefix + "::sums", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().sums({ copy: false })));
+        rdf = rdf.setColumn(prefix + "::detected", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().detected({ copy: false })));
+        rdf = rdf.setColumn(prefix + "::proportions", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().subsetProportions(0, { copy: false })));
+        all_coldata[target] = rdf;
+
+        all_other_metadata[target][prefix] = { 
             "filters": {
                 "sums": state.rna_quality_control.fetchFilters().thresholdsSums(),
                 "detected": state.rna_quality_control.fetchFilters().thresholdsDetected(),
@@ -47,13 +50,16 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
     }
 
     if (state.adt_quality_control.valid()) {
-        let adf = all_coldata.ADT;
-        adf = adf.setColumn("kana::quality_control::sums", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().sums({ copy: false })));
-        adf = adf.setColumn("kana::quality_control::detected", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().detected({ copy: false })));
-        adf = adf.setColumn("kana::quality_control::igg_totals", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().subsetTotals(0, { copy: false })));
-        all_coldata.ADT = adf;
+        let prefix = (store_per_modality ? "kana::quality_control" : "kana::ADT::quality_control");
+        let target = (store_per_modality ? "ADT" : main_modality);
 
-        all_other_metadata.ADT["kana::quality_control"] = {
+        let adf = all_coldata[target];
+        adf = adf.setColumn(prefix + "::sums", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().sums({ copy: false })));
+        adf = adf.setColumn(prefix + "::detected", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().detected({ copy: false })));
+        adf = adf.setColumn(prefix + "::igg_totals", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().subsetTotals(0, { copy: false })));
+        all_coldata[target] = adf;
+
+        all_other_metadata[target][prefix] = {
             "filters": {
                 "detected": state.adt_quality_control.fetchFilters().thresholdsDetected(),
                 "igg_totals": state.adt_quality_control.fetchFilters().thresholdsSubsetTotals(0)
@@ -62,14 +68,17 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
     }
 
     if (state.crispr_quality_control.valid()) {
-        let cdf = all_coldata.CRISPR;
-        cdf = cdf.setColumn("kana::quality_control::sums", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().sums({ copy: false })));
-        cdf = cdf.setColumn("kana::quality_control::detected", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().detected({ copy: false })));
-        cdf = cdf.setColumn("kana::quality_control::max_proportion", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxProportions({ copy: false })));
-        cdf = cdf.setColumn("kana::quality_control::max_index", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxIndex({ copy: false })));
-        all_coldata.CRISPR = cdf;
+        let prefix = (store_per_modality ? "kana::quality_control" : "kana::CRISPR::quality_control");
+        let target = (store_per_modality ? "CRISPR" : main_modality);
 
-        all_other_metadata.CRISPR["kana::quality_control"] = {
+        let cdf = all_coldata[target];
+        cdf = cdf.setColumn(prefix + "::sums", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().sums({ copy: false })));
+        cdf = cdf.setColumn(prefix + "::detected", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().detected({ copy: false })));
+        cdf = cdf.setColumn(prefix + "::max_proportion", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxProportions({ copy: false })));
+        cdf = cdf.setColumn(prefix + "::max_index", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxIndex({ copy: false })));
+        all_coldata[target] = cdf;
+
+        all_other_metadata[target][prefix] = {
             "filters": {
                 "max_count": state.crispr_quality_control.fetchFilters().thresholdsMaxCount()
             }
@@ -82,15 +91,21 @@ function dumpColumnData(state, modality_prefixes, main_modality, all_sce_metadat
 
     // Size Factors.
     if (state.rna_normalization.valid()) {
-        all_coldata.RNA = all_coldata.RNA.setColumn("kana::size_factors", state.rna_normalization.fetchSizeFactors());
+        let field = (store_per_modality ? "kana::size_factors" : "kana::RNA::size_factors");
+        let target = (store_per_modality ? "RNA" : main_modality);
+        all_coldata[target] = all_coldata[target].setColumn(field, state.rna_normalization.fetchSizeFactors());
     }
 
     if (state.adt_normalization.valid()) {
-        all_coldata.ADT = all_coldata.ADT.setColumn("kana::size_factors", state.adt_normalization.fetchSizeFactors());
+        let field = (store_per_modality ? "kana::size_factors" : "kana::ADT::size_factors");
+        let target = (store_per_modality ? "ADT" : main_modality);
+        all_coldata[target] = all_coldata[target].setColumn(field, state.adt_normalization.fetchSizeFactors());
     }
 
     if (state.crispr_normalization.valid()) {
-        all_coldata.CRISPR = all_coldata.CRISPR.setColumn("kana::size_factors", state.crispr_normalization.fetchSizeFactors());
+        let field = (store_per_modality ? "kana::size_factors" : "kana::CRISPR::size_factors");
+        let target = (store_per_modality ? "CRISPR" : main_modality);
+        all_coldata[target] = all_coldata[target].setColumn(field, state.crispr_normalization.fetchSizeFactors());
     }
 
     {
@@ -176,7 +191,7 @@ function mockSingleCellExperimentMetadata(p) {
 /************************************************
  ************************************************/
 
-export async function dumpSingleCellExperiment(state, path, { reportOneIndex = false, forceBuffer = false } = {}) {
+export async function dumpSingleCellExperiment(state, path, { reportOneIndex = false, storeModalityColumnData = false, forceBuffer = false } = {}) {
     let row_info = state.inputs.fetchFeatureAnnotations();
 
     let modalities = Object.keys(row_info);
@@ -222,7 +237,7 @@ export async function dumpSingleCellExperiment(state, path, { reportOneIndex = f
     }
 
     // Saving the column and row data.
-    dumpColumnData(state, all_prefixes, main, all_top_meta, all_metadata, all_files, forceBuffer);
+    dumpColumnData(state, all_prefixes, main, all_top_meta, all_metadata, all_files, forceBuffer, storeModalityColumnData);
 
     {
         let row_info = state.inputs.fetchFeatureAnnotations();

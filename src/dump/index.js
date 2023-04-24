@@ -13,9 +13,13 @@ import JSZip from "jszip";
  * @param {string} name - Name of the SingleCellExperiment to be saved.
  * @param {object} [options={}] - Optional parameters.
  * @param {boolean} [options.reportOneIndex=false] - Whether to report 1-based indices, for use in 1-based languages like R.
- * Currently, this refers to the column indices of the custom selections reported in the SingleCellExperiment's metadata.
+ * Currently, this only refers to the column indices of the custom selections reported in the SingleCellExperiment's metadata.
+ * @param {boolean} [options.storeModalityColumnData=false] - Whether to store modality-specific per-cell statistics (e.g., QC metrics, size factors) in the column data of the associated alternative Experiment.
+ * This can yield a cleaner SingleCellExperiment as statistics are assigned to the relevant modalities.
+ * That said, the default is still `false` as many applications (including **bakana** itself, via the {@linkcode AbstractArtifactdbDataset} and friends) will not parse the column data of alternative Experiments. 
+ * In such cases, all modality-specific metrics are stored in the main experiment's column data with a modality-specific name, e.g., `kana::ADT::quality_control::sums`.
  * @param {boolean} [options.forceBuffer=true] - Whether to force all files to be loaded into memory as Uint8Array buffers.
- * @param {?directory} [options.directory=null] - Project directory in which to save the file components of the SingleCellExperiment.
+ * @param {?string} [options.directory=null] - Project directory in which to save the file components of the SingleCellExperiment.
  * Only used for Node.js; if supplied, it overrides any setting of `forceBuffer`.
  *
  * @return {Array} Array of objects where each object corresponds to a file in the SingleCellExperiment's representation.
@@ -34,12 +38,12 @@ import JSZip from "jszip";
  * 
  * The SingleCellExperiment itself will be accessible from a top-level object at the path defined by `name`.
  */
-export async function saveSingleCellExperiment(state, name, { reportOneIndex = false, forceBuffer = null, directory = null } = {}) {
+export async function saveSingleCellExperiment(state, name, { reportOneIndex = false, storeModalityColumnData = false, forceBuffer = null, directory = null } = {}) {
     if (directory !== null) {
         forceBuffer = false;
     } 
 
-    let { metadata, files } = await sce.dumpSingleCellExperiment(state, name, { forceBuffer, reportOneIndex });
+    let { metadata, files } = await sce.dumpSingleCellExperiment(state, name, { forceBuffer, reportOneIndex, storeModalityColumnData });
     files.push({ metadata });
 
     // Added a redirection document.

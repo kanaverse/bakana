@@ -150,6 +150,10 @@ action_simple("local ArtifactDB result readers work correctly with log-count loa
     expect(details.modality_features[""].rowNames().length).toBeGreaterThan(0);
 
     expect(details.cells.numberOfRows()).toBeGreaterThan(0);
+    expect(details.cells.hasColumn("kana::RNA::quality_control::sums")).toBe(true);
+    expect(details.cells.hasColumn("kana::RNA::size_factors")).toBe(true);
+    expect(details.cells.hasColumn("kana::clusters")).toBe(true);
+
     expect(details.modality_assay_names[""].length).toEqual(2);
     expect(details.reduced_dimension_names.length).toEqual(3);
 
@@ -204,6 +208,7 @@ action_adt("local ArtifactDB result readers work correctly with multiple modalit
     let details = await info.summary();
     expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
     expect(details.modality_features["ADT"].numberOfRows()).toBeGreaterThan(0);
+    expect(details.cells.hasColumn("kana::ADT::quality_control::sums")).toBe(true);
 
     let payload = await info.load();
     let nRna = payload.features[""].numberOfRows();
@@ -217,6 +222,13 @@ action_adt("local ArtifactDB result readers work correctly with multiple modalit
 
     expect(payload.matrix.numberOfColumns()).toEqual(payload.cells.numberOfRows());
     payload.matrix.free();
+
+    // What if it's split by modality?
+    {
+        let info = new LocalArtifactdbResult(target_adt + "_split", nav.baseDirectory);
+        let details = await info.summary();
+        expect(details.cells.hasColumn("kana::quality_control::sums")).toBe(true);
+    }
 })
 
 /***********************************************/
