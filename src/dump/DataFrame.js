@@ -22,7 +22,7 @@ export function writeHdf5DataFrame(x, path, { group = "data", forceBuffer = fals
         }
     };
 
-    let temppath = scran.chooseTemporaryPath({ extension: ".csv.gz" });
+    let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
     let contents = temppath;
     let children = [];
 
