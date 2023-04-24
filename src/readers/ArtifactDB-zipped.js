@@ -199,7 +199,10 @@ export class ZippedArtifactdbDataset extends adb.AbstractArtifactdbDataset {
 
         let name = options.datasetName;
         delete options.datasetName;
-        return new ZippedArtifactdbDataset(name, files[0].file, options);
+
+        let output = new ZippedArtifactdbDataset(name, files[0].file);
+        output.setOptions(output);
+        return output;
     }
 }
 
@@ -238,6 +241,6 @@ export class ZippedArtifactdbResult extends adb.AbstractArtifactdbResult {
         }
 
         let nav = new ZippedProjectNavigator(zipfile, ziphandle);
-        super(name, nav, options);
+        super(name, nav);
     }
 }

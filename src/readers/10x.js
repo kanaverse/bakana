@@ -295,6 +295,8 @@ export class TenxHdf5Dataset {
         if (files.length != 1 || files[0].type != "h5") {
             throw new Error("expected exactly one file of type 'h5' for 10X HDF5 unserialization");
         }
-        return new TenxHdf5Dataset(files[0].file, options);
+        let output = new TenxHdf5Dataset(files[0].file);
+        output.setOptions(output);
+        return output;
     }
 }

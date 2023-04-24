@@ -404,7 +404,9 @@ export class H5adDataset {
         if (files.length != 1 || files[0].type != "h5") {
             throw new Error("expected exactly one file of type 'h5' for H5AD unserialization");
         }
-        return new H5adDataset(files[0].file, options);
+        let output = new H5adDataset(files[0].file);
+        output.setOptions(options);
+        return output;
     }
 }
 

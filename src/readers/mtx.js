@@ -396,6 +396,8 @@ export class TenxMatrixMarketDataset {
             barcode = args.annotations;
         }
 
-        return new TenxMatrixMarketDataset(args.mtx, feat, barcode, options);
+        let output = new TenxMatrixMarketDataset(args.mtx, feat, barcode);
+        output.setOptions(options);
+        return output;
     }
 }

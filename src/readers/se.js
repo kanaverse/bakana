@@ -872,7 +872,9 @@ export class SummarizedExperimentDataset {
         if (files.length != 1 || files[0].type != "rds") {
             throw new Error("expected exactly one file of type 'rds' for SummarizedExperiment unserialization");
         }
-        return new SummarizedExperimentDataset(files[0].file, options);
+        let output = new SummarizedExperimentDataset(files[0].file);
+        output.setOptions(output);
+        return output;
     }
 }
 
