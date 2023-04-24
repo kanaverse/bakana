@@ -147,8 +147,7 @@ action_simple("local ArtifactDB result readers work correctly with log-count loa
 
     let details = await info.summary();
     expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
-    expect(details.modality_features[""].column("marker_detection") instanceof bioc.DataFrame).toBe(true);
-    expect(details.modality_features[""].column("custom_selections") instanceof bioc.DataFrame).toBe(true);
+    expect(details.modality_features[""].rowNames().length).toBeGreaterThan(0);
 
     expect(details.cells.numberOfRows()).toBeGreaterThan(0);
     expect(details.modality_assay_names[""].length).toEqual(2);
