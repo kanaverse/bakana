@@ -863,6 +863,15 @@ export class AbstractArtifactdbResult {
         return;
     }
 
+    async #get_all_reddim_names(rd_meta, store) {
+        for (const red of rd_meta) {
+            let redmeta = await this.#navigator.metadata(red.resource.path);
+            if (redmeta["$schema"].startsWith("hdf5_dense_array/") && redmeta.array.dimensions.length == 2) {
+                store.push(red.name);
+            }
+        }
+    }
+
     /**
      * @param {object} [options={}] - Optional parameters.
      * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode AbstractArtifactdbResult#load load}.
@@ -895,12 +904,8 @@ export class AbstractArtifactdbResult {
 
         let full_meta = await this.#navigator.metadata(this.#path);
         if ("single_cell_experiment" in full_meta) {
-            for (const red of full_meta.single_cell_experiment.reduced_dimensions) {
-                let redmeta = await this.#navigator.metadata(red.resource.path);
-                if (redmeta["$schema"].startsWith("hdf5_dense_array/") && redmeta.array.dimensions.length == 2) {
-                    output.reduced_dimension_names.push(red.name);
-                }
-            }
+            let reddim_meta = full_meta.single_cell_experiment.reduced_dimensions;
+            await this.#get_all_reddim_names(reddim_meta, output.reduced_dimension_names);
         }
 
         if (!cache) {
@@ -944,18 +949,16 @@ export class AbstractArtifactdbResult {
         // Fetch the reduced dimensions first.
         {
             let reddims = this.#options.reducedDimensionNames;
+            let reddim_meta = full_meta.single_cell_experiment.reduced_dimensions;
+
             if (reddims == null) {
                 reddims = [];
-                if ("single_cell_experiment" in full_meta) {
-                    for (const red of full_meta.single_cell_experiment.reduced_dimensions) {
-                        reddims.push(red.name);
-                    }
-                }
+                await this.#get_all_reddim_names(reddim_meta, reddims);
             }
 
             if (reddims.length > 0) {
                 let redmap = {};
-                for (const red of full_meta.single_cell_experiment.reduced_dimensions) {
+                for (const red of reddim_meta) {
                     redmap[red.name] = red.resource.path;
                 }
 
