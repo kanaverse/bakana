@@ -62,9 +62,13 @@ import JSZip from "jszip";
  * @param {string} name - Name of the SingleCellExperiment to be saved.
  * @param {object} [options={}] - Optional parameters.
  * @param {boolean} [options.reportOneIndex=false] - Whether to report 1-based indices, for use in 1-based languages like R.
- * Currently, this refers to the column indices of the custom selections reported in the SingleCellExperiment's metadata.
+ * Currently, this only refers to the column indices of the custom selections reported in the SingleCellExperiment's metadata.
+ * @param {boolean} [options.storeModalityColumnData=false] - Whether to store modality-specific per-cell statistics (e.g., QC metrics, size factors) in the column data of the associated alternative Experiment.
+ * This can yield a cleaner SingleCellExperiment as statistics are assigned to the relevant modalities.
+ * That said, the default is still `false` as many applications (including **bakana** itself, via the {@linkcode AbstractArtifactdbDataset} and friends) will not parse the column data of alternative Experiments. 
+ * In such cases, all modality-specific metrics are stored in the main experiment's column data with a modality-specific name, e.g., `kana::ADT::quality_control::sums`.
  * @param {boolean} [options.forceBuffer=true] - Whether to force all files to be loaded into memory as Uint8Array buffers.
- * @param {?directory} [options.directory=null] - Project directory in which to save the file components of the SingleCellExperiment.
+ * @param {?string} [options.directory=null] - Project directory in which to save the file components of the SingleCellExperiment.
  * Only used for Node.js; if supplied, it overrides any setting of `forceBuffer`.
  *
  * @return {Array} Array of objects where each object corresponds to a file in the SingleCellExperiment's representation.
@@ -83,12 +87,12 @@ import JSZip from "jszip";
  * 
  * The SingleCellExperiment itself will be accessible from a top-level object at the path defined by `name`.
  */
-export async function saveSingleCellExperiment(state, name, { reportOneIndex = false, forceBuffer = null, directory = null } = {}) {
+export async function saveSingleCellExperiment(state, name, { reportOneIndex = false, storeModalityColumnData = false, forceBuffer = true, directory = null } = {}) {
     if (directory !== null) {
         forceBuffer = false;
     } 
 
-    let { metadata, files } = await sce.dumpSingleCellExperiment(state, name, { forceBuffer, reportOneIndex });
+    let { metadata, files } = await sce.dumpSingleCellExperiment(state, name, { forceBuffer, reportOneIndex, storeModalityColumnData });
     files.push({ metadata });
 
     // Added a redirection document.
@@ -125,8 +129,8 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
  * (or if no row names are available, we set each data frame's row names to the first column of the `rowData`).
  *
  * @param {object} state - Existing analysis state containing results, after one or more runs of {@linkcode runAnalysis}.
- * @param {string} prefix - Prefix to attach to the path for each result.
- * This can contain subdirectories, or it can be an empty string.
+ * @param {string} path - Path to a subdirectory inside the project directory in which to save all results.
+ * If `null`, this is treated as the root of the project directory.
  * @param {object} [options={}] - Optional parameters.
  * @param {boolean} [options.includeMarkerDetection=true] - Whether to save the marker detection results.
  * @param {boolean} [options.includeCustomSelections=true] - Whether to save the custom selection results.
@@ -139,7 +143,7 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
  * These data frames are grouped by analysis step, i.e., `marker_detection`, `custom_selections` and `feature_selection`.
  * See {@linkcode saveSingleCellExperiment} for more details on the contents of each object inside the returned array.
  */
-export async function saveGenewiseResults(state, name, { includeMarkerDetection = true, includeCustomSelections = true, includeFeatureSelection = true, forceBuffer = null, directory = null } = {}) {
+export async function saveGenewiseResults(state, path, { includeMarkerDetection = true, includeCustomSelections = true, includeFeatureSelection = true, forceBuffer = true, directory = null } = {}) {
     let modalities = {};
     let anno = state.inputs.fetchFeatureAnnotations();
     for (const [k, v] of Object.entries(anno)) {
@@ -150,30 +154,36 @@ export async function saveGenewiseResults(state, name, { includeMarkerDetection 
         modalities[k] = rn;
     }
 
-    // Stripping trailing slashes.
-    if (name.endsWith("/")) {
-        name = name.replace(/\/+$/, "");
+    if (path === null) {
+        path = ""
+    } else if (path.endsWith("/")) {
+        path = path.replace(/\/+$/, "/"); // Making sure we only have one trailing slash.
+    } else {
+        path = path + "/";
     }
 
     let files = [];
+    if (directory !== null) {
+        forceBuffer = false;
+    } 
 
     if (includeMarkerDetection) {
-        markers.dumpMarkerDetectionResults(state, modalities, name, files, forceBuffer);
+        markers.dumpMarkerDetectionResults(state, modalities, path, files, forceBuffer);
     }
 
     if (includeCustomSelections) {
-        markers.dumpCustomSelectionResults(state, modalities, name, files, forceBuffer);
+        markers.dumpCustomSelectionResults(state, modalities, path, files, forceBuffer);
     }
 
     if (state.feature_selection.valid() &amp;&amp; includeFeatureSelection) {
-        markers.dumpFeatureSelectionResults(state, modalities.RNA, name, files, forceBuffer);
+        markers.dumpFeatureSelectionResults(state, modalities.RNA, path, files, forceBuffer);
     }
 
     await adump.attachMd5sums(files);
 
     // Either dumping everything to file or returning all the buffers.
     if (!forceBuffer &amp;&amp; directory !== null) {
-        await adump.realizeDirectory(files, directory, name);
+        await adump.realizeDirectory(files, directory, path);
     }
 
     return files;
@@ -225,7 +235,7 @@ export function zipFiles(files) {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Mon Apr 24 2023 16:50:27 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Mon Apr 24 2023 21:09:29 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

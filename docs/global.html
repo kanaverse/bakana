@@ -4015,7 +4015,7 @@ The contents of <code>state</code> are modified by reference to reflect the late
 
     
 
-    <h4 class="name" id="saveGenewiseResults"><span class="type-signature"></span>saveGenewiseResults<span class="signature">(state, prefix, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Array}</span></h4>
+    <h4 class="name" id="saveGenewiseResults"><span class="type-signature"></span>saveGenewiseResults<span class="signature">(state, path, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Array}</span></h4>
 
     
 
@@ -4035,7 +4035,7 @@ for easier downstream use, we set the row names of each data frame to row names 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="dump_index.js.html">dump/index.js</a>, <a href="dump_index.js.html#line93">line 93</a>
+        <a href="dump_index.js.html">dump/index.js</a>, <a href="dump_index.js.html#line97">line 97</a>
     </li></ul></dd>
     
 
@@ -4147,7 +4147,7 @@ for easier downstream use, we set the row names of each data frame to row names 
 
         <tr>
             
-                <td class="name"><code>prefix</code></td>
+                <td class="name"><code>path</code></td>
             
 
             <td class="type">
@@ -4176,8 +4176,8 @@ for easier downstream use, we set the row names of each data frame to row names 
                 </td>
             
 
-            <td class="description last"><p>Prefix to attach to the path for each result.
-This can contain subdirectories, or it can be an empty string.</p></td>
+            <td class="description last"><p>Path to a subdirectory inside the project directory in which to save all results.
+If <code>null</code>, this is treated as the root of the project directory.</p></td>
         </tr>
 
     
@@ -4524,7 +4524,7 @@ for example, a bench scientist can do a first pass with <strong>kana</strong> be
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="dump_index.js.html">dump/index.js</a>, <a href="dump_index.js.html#line37">line 37</a>
+        <a href="dump_index.js.html">dump/index.js</a>, <a href="dump_index.js.html#line41">line 41</a>
     </li></ul></dd>
     
 
@@ -4769,7 +4769,50 @@ for example, a bench scientist can do a first pass with <strong>kana</strong> be
             
 
             <td class="description last"><p>Whether to report 1-based indices, for use in 1-based languages like R.
-Currently, this refers to the column indices of the custom selections reported in the SingleCellExperiment's metadata.</p></td>
+Currently, this only refers to the column indices of the custom selections reported in the SingleCellExperiment's metadata.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>storeModalityColumnData</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>false</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Whether to store modality-specific per-cell statistics (e.g., QC metrics, size factors) in the column data of the associated alternative Experiment.
+This can yield a cleaner SingleCellExperiment as statistics are assigned to the relevant modalities.
+That said, the default is still <code>false</code> as many applications (including <strong>bakana</strong> itself, via the <a href="AbstractArtifactdbDataset.html"><code>AbstractArtifactdbDataset</code></a> and friends) will not parse the column data of alternative Experiments.
+In such cases, all modality-specific metrics are stored in the main experiment's column data with a modality-specific name, e.g., <code>kana::ADT::quality_control::sums</code>.</p></td>
         </tr>
 
     
@@ -4822,7 +4865,7 @@ Currently, this refers to the column indices of the custom selections reported i
             <td class="type">
             
                 
-<span class="param-type">directory</span>
+<span class="param-type">string</span>
 
 
 
@@ -7268,7 +7311,7 @@ This may be async.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="dump_index.js.html">dump/index.js</a>, <a href="dump_index.js.html#line141">line 141</a>
+        <a href="dump_index.js.html">dump/index.js</a>, <a href="dump_index.js.html#line151">line 151</a>
     </li></ul></dd>
     
 
@@ -7608,7 +7651,7 @@ and includes <a href="TenxHdf5Dataset.html">TenxHdf5Dataset</a>, <a href="TenxMa
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Mon Apr 24 2023 16:50:27 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Mon Apr 24 2023 21:09:29 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
