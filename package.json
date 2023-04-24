@@ -1,6 +1,6 @@
 {
   "name": "bakana",
-  "version": "2.0.15",
+  "version": "2.0.16",
   "description": "Backend for kana's single-cell analyses. This supports single or multiple samples, execution in Node.js or the browser, in-memory caching of results for iterative analyses, and serialization to/from file for redistribution.",
   "type": "module",
   "main": "main/index.js",
