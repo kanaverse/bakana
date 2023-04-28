@@ -3,7 +3,7 @@ import * as bioc from "bioconductor";
 import * as utils from "./utils/general.js";
 import * as rutils from "../readers/index.js";
 import * as inputs_module from "./inputs.js";
-import * as markers_module from "./marker_detection.js";
+import * as norm_module from "./rna_normalization.js";
 
 const baseUrl = "https://github.com/LTLA/singlepp-references/releases/download/v2.0.0";
 
@@ -23,20 +23,20 @@ export const step_name = "cell_labelling";
  */
 export class CellLabellingState {
     #inputs;
-    #markers;
+    #normalized;
     #parameters;
     #cache;
 
-    constructor(inputs, markers, parameters = null, cache = null) {
+    constructor(inputs, normalized, parameters = null, cache = null) {
         if (!(inputs instanceof inputs_module.InputsState)) {
             throw new Error("'inputs' should be a State object from './inputs.js'");
         }
         this.#inputs = inputs;
 
-        if (!(markers instanceof markers_module.MarkerDetectionState)) {
-            throw new Error("'markers' should be a State object from './marker_detection.js'");
+        if (!(normalized instanceof norm_module.RnaNormalizationState)) {
+            throw new Error("'normalized' should be a RnaNormalizationState object from './rna_normalization.js'");
         }
-        this.#markers = markers;
+        this.#normalized = normalized;
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
@@ -121,7 +121,7 @@ export class CellLabellingState {
 
     static defaults() {
         return {
-            references: [],
+            references: null,
             automatic: true,
             species: [],
             gene_id_column: null,
