@@ -628,6 +628,7 @@ export class FeatureSetEnrichmentStandalone {
     #block;
     #backmap;
 
+    #pre_parameters;
     #parameters;
     #manager;
 
@@ -672,8 +673,9 @@ export class FeatureSetEnrichmentStandalone {
             }
         }
 
-        this.#parameters = FeatureSetEnrichmentState.defaults();
-        this.#manager = null;
+        this.#pre_parameters = FeatureSetEnrichmentState.defaults();
+        this.#parameters = {};
+        this.#manager = new FeatureSetManager; 
     }
 
     #guessFeatureTypes() {
@@ -713,7 +715,7 @@ export class FeatureSetEnrichmentStandalone {
      */
     setParameters(parameters) {
         let { automatic, species, gene_id_column, gene_id_type, top_markers } = parameters;
-        _transplantParameters(this.#parameters, automatic, species, gene_id_column, gene_id_type, top_markers);
+        _transplantParameters(this.#pre_parameters, automatic, species, gene_id_column, gene_id_type, top_markers);
     }
 
     /**
@@ -724,17 +726,10 @@ export class FeatureSetEnrichmentStandalone {
      * @async
      */
     async ready() {
-        let { automatic, species, gene_id_column, gene_id_type, top_markers } = this.#parameters;
-
-        let params = this.#parameters;
-        let init = this.#manager == null;
-        if (init) {
-            this.#manager = new FeatureSetManager; 
-            params = {}; // trigger _buildCollections to run if the parameters have not changed from the defaults.
-        }
+        let { automatic, species, gene_id_column, gene_id_type, top_markers } = this.#pre_parameters;
 
         await _buildCollections(
-            params,
+            this.#parameters,
             this.#manager,
             automatic, 
             species, 
@@ -744,9 +739,7 @@ export class FeatureSetEnrichmentStandalone {
             () => this.#guessFeatureTypes()
         );
 
-        if (!init) {
-            _transplantParameters(this.#parameters, automatic, species, gene_id_column, gene_id_type, top_markers);
-        }
+        this.#parameters = this.#pre_parameters;
     }
 
     /**
@@ -815,7 +808,7 @@ export class FeatureSetEnrichmentStandalone {
      * @return {object} Object containing the parameters.
      */
     fetchParameters() {
-        return _fetchParameters(this.#parameters);
+        return _fetchParameters(this.#pre_parameters);
     }
 
     /**
