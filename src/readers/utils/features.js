@@ -152,11 +152,6 @@ export function extractPrimaryIds(features, primary) {
 }
 
 export function extractRemappedPrimaryIds(features, featureTypeMapping, primary) {
-    let output = {};
-    for (const [k, v] of Object.entries(featureTypeMapping)) {
-        if (v !== null && v in input) {
-            output[k] = extractPrimaryIdColumn(k, input[v], primary);
-        }
-    }
-    return output;
+    let renamed = renameByModality(features, featureTypeMapping);
+    return extractPrimaryIds(renamed, primary);
 }
