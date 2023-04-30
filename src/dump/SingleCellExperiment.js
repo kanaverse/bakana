@@ -327,8 +327,6 @@ export async function dumpSingleCellExperiment(state, path, { reportOneIndex = f
     }
 
     // Saving extra metadata.
-    all_metadata[main].cell_labelling = await state.cell_labelling.fetchResults();
-
     {
         let customs = state.custom_selections.fetchSelections({ copy: true, force: "Int32Array" });
         if (reportOneIndex) {

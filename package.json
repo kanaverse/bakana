@@ -30,13 +30,13 @@
     "jszip": "^3.10.1",
     "pako": "^2.0.4",
     "papaparse": "^5.3.2",
-    "scran.js": "^2.0.3"
+    "scran.js": "^2.1.1"
   },
   "devDependencies": {
     "docdash": "^2.0.1",
     "jest": "^27.5.1",
     "jsdoc": "^4.0.1",
     "valkana": "^1.0.0-alpha.3",
-    "wasmarrays.js": "^0.0.3"
+    "wasmarrays.js": "^0.1.0"
   }
 }
