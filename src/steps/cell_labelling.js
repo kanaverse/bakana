@@ -188,6 +188,9 @@ async function build_reference(cache, references, automatic, species, gene_id_co
 
         let valid = {};
         if (gene_ids !== null) {
+            if (references == null) {
+                references = Array.from(allowable);
+            }
             for (const ref of references) {
                 if (allowable.has(ref)) {
                     await load_reference(ref, gene_id_type2);
@@ -268,7 +271,7 @@ function transform_results(names, results, assigned) {
     return output;
 }
 
-function assign_labels(x, cache) {
+function assign_labels_internal(x, cache) {
     let matrix = x;
     let temp_cluster_means;
     let temp_matrix;
@@ -330,6 +333,44 @@ function assign_labels(x, cache) {
     utils.freeCache(temp_cluster_means);
 
     return results;
+}
+
+function assign_labels(x, group, cache) {
+    if (group === null) {
+        return assign_labels_internal(x, cache);
+    }
+
+    let to_collect = [];
+    let output;
+    try {
+        let dump = utils.subsetInvalidFactors([group]);
+        to_collect.push(dump.arrays[0].ids);
+
+        let mat = x;
+        if (dump.retain !== null) {
+            let sub = scran.subsetColumns(x, dump.retain);
+            to_collect.push(sub);
+            mat = sub;
+        }
+
+        let aggr = scran.aggregateAcrossCells(mat, dump.arrays[0].ids, { average: true });
+        to_collect.push(aggr);
+
+        let aggrmat = scran.ScranMatrix.createDenseMatrix(
+            mat.numberOfRows(), 
+            aggr.numberOfGroups(), 
+            aggr.sums(null, { copy: "view" }),
+            { columnMajor: true, copy: false }
+        );
+        to_collect.push(aggrmat);
+
+        output = assign_labels_internal(aggrmat, cache);
+        output.groups = dump.arrays[0].levels;
+    } finally {
+        to_collect.forEach(utils.freeCache);
+    }
+
+    return output;
 }
 
 /********************
@@ -553,24 +594,30 @@ export class CellLabellingState {
     }
 
     /**
-     * @param {ScranMatrix|ScoreMarkersResults} x - A matrix of (normalized or unnormalized) expression values, with genes in rows and cells/clusters in columns.
+     * @param {external:ScranMatrix|external:ScoreMarkersResults} x - A matrix of (normalized or unnormalized) expression values, with genes in rows and cells/clusters in columns.
      * Alternatively, an object containing marker results, e.g., as computed by {@linkcode MarkerDetectionState}. 
      *
      * In both cases, the identity of genes should correspond to that in the upstream {@linkcode InputsState}.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {?(Array|TypedArray)} [options.group=null] - Array of length equal to the number of columns of `x`, containing grouping assignments.
+     * If provided, the average expression profile of each group is used for cell type labelling.
+     * This is only used if `x` is a {@linkplain external:ScranMatrix ScranMatrix}.
      * 
      * @return {object} Object containing:
      *
      * - `per_reference`: an object where each key is the name of a reference dataset and its value is an array.
-     *   This inner array is of length equal to the number of columns of `x` (if matrix) or groups in `x` (if marker results).
+     *   Each array is of length equal to the number of columns of `x` (if matrix), groups in `x` (if marker results), or groups in `group`.
      *   Each entry is an object containing `best`, the name of the best label assigned to a column/group in this reference;
      *   and `all`, an object where each key is a label in this reference dataset and its value is the score for assigning that label to this column/group.
      * - (optional) `integrated`: an array of length equal to the number of columns/groups.
      *   Each entry is an object containing `best`, the name of the best reference for this column/group;
      *   and `all`, an object where each key is the name of a reference dataset and its value is the score for this column/group.
      *   This property is only reported if multiple references are used.
+     * - (optional) `groups`: an array of length equal to the number of groups, containing the identity of each group.
+     *   Only reported if an input `group` is supplied and `x` is a {@linkplain externl:ScranMatrix ScranMatrix}.
      */
-    computeLabels(x) {
-        return assign_labels(x, this.#cache);
+    computeLabels(x, { group = null } = {}) {
+        return assign_labels(x, group, this.#cache);
     }
 }
 
@@ -718,24 +765,30 @@ export class CellLabellingStandalone {
     }
 
     /**
-     * @param {ScranMatrix|ScoreMarkersResults} x - A matrix of (normalized or unnormalized) expression values, with genes in rows and cells/clusters in columns.
+     * @param {external:ScranMatrix|external:ScoreMarkersResults} x - A matrix of (normalized or unnormalized) expression values, with genes in rows and cells/clusters in columns.
      * Alternatively, an object containing marker results, e.g., as computed by {@linkcode MarkerDetectionState}. 
      *
      * In both cases, the identity of genes should correspond to that in `annotations` in the constructor of this instance.
+     * @param {object} [options={}] - Optional parameters.
+     * @param {?(Array|TypedArray)} [options.group=null] - Array of length equal to the number of columns of `x`, containing grouping assignments.
+     * If provided, the average expression profile of each group is used for cell type labelling.
+     * This is only used if `x` is a {@linkplain external:ScranMatrix ScranMatrix}.
      * 
      * @return {object} Object containing:
      *
      * - `per_reference`: an object where each key is the name of a reference dataset and its value is an array.
-     *   This inner array is of length equal to the number of columns of `x` (if matrix) or groups in `x` (if marker results).
+     *   Each array is of length equal to the number of columns of `x` (if matrix), groups in `x` (if marker results), or groups in `group`.
      *   Each entry is an object containing `best`, the name of the best label assigned to a column/group in this reference;
      *   and `all`, an object where each key is a label in this reference dataset and its value is the score for assigning that label to this column/group.
      * - (optional) `integrated`: an array of length equal to the number of columns/groups.
      *   Each entry is an object containing `best`, the name of the best reference for this column/group;
      *   and `all`, an object where each key is the name of a reference dataset and its value is the score for this column/group.
      *   This property is only reported if multiple references are used.
+     * - (optional) `groups`: an array of length equal to the number of groups, containing the identity of each group.
+     *   Only reported if an input `group` is supplied and `x` is a {@linkplain external:ScranMatrix ScranMatrix}.
      */
-    computeLabels(x) {
-        return assign_labels(x, this.#cache);
+    computeLabels(x, { group = null } = {}) {
+        return assign_labels(x, group, this.#cache);
     }
 }
 

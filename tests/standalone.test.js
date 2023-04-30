@@ -267,6 +267,32 @@ test("Standalone cell labelling works correctly", async () => {
     {
         let sub2 = scran.subsetRows(loaded.matrix.get("RNA"), [0,1]);
         expect(() => labeller.computeLabels(sub2)).toThrow("unexpected number of genes");
+        sub2.free();
+    }
+
+    // Sanitization works correctly.
+    {
+        let grouping = [];
+        for (var i = 0; i < loaded.matrix.numberOfColumns(); i++) {
+            grouping.push(Math.random() > 0.5 ? "A" : "B");
+        }
+        grouping[0] = null;
+        grouping[1] = null;
+        grouping[2] = null;
+
+        let res = labeller.computeLabels(loaded.matrix.get("RNA"), { group: grouping });
+        expect(res.groups.slice().sort()).toEqual(["A", "B"]);
+        expect(res.per_reference.BlueprintEncode.length).toEqual(2);
+
+        // Same results with manual removal of the first few cells.
+        let keep = [];
+        for (var i = 3; i < grouping.length; i++) {
+            keep.push(i);
+        }
+        let sub = scran.subsetColumns(loaded.matrix.get("RNA"), keep);
+        let subgroup = bioc.SLICE(grouping, keep);
+        let subres = labeller.computeLabels(sub, { group: subgroup });
+        expect(subres).toEqual(res);
     }
 
     sub.free();
