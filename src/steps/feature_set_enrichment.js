@@ -12,9 +12,9 @@ import * as markers_module from "./marker_detection.js";
 
 export const step_name = "feature_set_enrichment";
 
-/****************************
- ******** Internals *********
- ****************************/
+/********************************************
+ ******** Internals for collections *********
+ ********************************************/
 
 class FeatureSetManager {
     #cache;
@@ -38,7 +38,7 @@ class FeatureSetManager {
         return;
     }
 
-    async prepare(feats, species, gene_id_column, gene_id_type) {
+    async #prepare(feats, species, gene_id_column, gene_id_type) {
         let data_id_col;
         if (gene_id_column == null) {
             data_id_col = feats.rowNames();
@@ -172,6 +172,36 @@ class FeatureSetManager {
         return;
     }
 
+    async buildCollections(old_parameters, automatic, species, gene_id_column, gene_id_type, annofun, guessfun) {
+        if (
+            automatic !== old_parameters.automatic ||
+            (
+                !automatic && 
+                (
+                    old_parameters.gene_id_column !== gene_id_column || 
+                    old_parameters.gene_id_type !== gene_id_type ||
+                    utils.changedParameters(old_parameters.species, species)
+                )
+            )
+        ) {
+            let gene_id_column2 = gene_id_column;
+            let gene_id_type2 = gene_id_type;
+            let species2 = species;
+
+            if (automatic) {
+                let auto = configure_feature_parameters(guessfun());
+                gene_id_column2 = auto.gene_id_column;
+                gene_id_type2 = auto.gene_id_type;
+                species2 = auto.species;
+            }
+
+            await this.#prepare(annofun(), species2, gene_id_column2, gene_id_type2);
+            return true;
+        }
+
+        return false;
+    }
+
     fetchCollectionDetails() {
         return this.#cache.collections;
     }
@@ -269,9 +299,22 @@ class FeatureSetManager {
     }
 }
 
-// More internal functions, mostly related to wrangling with parameters.
+/*******************************************
+ ******** Internals for parameters *********
+ *******************************************/
 
-function _configureFeatureParameters(guesses) {
+function all_defaults() {
+    return {
+        skip: false,
+        automatic: true,
+        species: [],
+        gene_id_column: null, 
+        gene_id_type: "ENSEMBL", 
+        top_markers: 100
+    };
+}
+
+function configure_feature_parameters(guesses) {
     let best_key = null;
     let best = { type: "symbol", species: "human", confidence: 0 };
 
@@ -296,37 +339,7 @@ function _configureFeatureParameters(guesses) {
     };
 }
 
-async function _buildCollections(old_parameters, manager, automatic, species, gene_id_column, gene_id_type, annofun, guessfun) {
-    if (
-        automatic !== old_parameters.automatic ||
-        (
-            !automatic && 
-            (
-                old_parameters.gene_id_column !== gene_id_column || 
-                old_parameters.gene_id_type !== gene_id_type ||
-                utils.changedParameters(old_parameters.species, species)
-            )
-        )
-    ) {
-        let gene_id_column2 = gene_id_column;
-        let gene_id_type2 = gene_id_type;
-        let species2 = species;
-
-        if (automatic) {
-            let auto = _configureFeatureParameters(guessfun());
-            gene_id_column2 = auto.gene_id_column;
-            gene_id_type2 = auto.gene_id_type;
-            species2 = auto.species;
-        }
-
-        await manager.prepare(annofun(), species2, gene_id_column2, gene_id_type2);
-        return true;
-    }
-
-    return false;
-}
-
-function _transplantParameters(parameters, automatic, species, gene_id_column, gene_id_type, top_markers) {
+function transplant_parameters(parameters, automatic, species, gene_id_column, gene_id_type, top_markers) {
     parameters.automatic = automatic;
     parameters.species = bioc.CLONE(species); // make a copy to avoid pass-by-ref behavior.
     parameters.gene_id_column = gene_id_column;
@@ -334,7 +347,7 @@ function _transplantParameters(parameters, automatic, species, gene_id_column, g
     parameters.top_markers = top_markers;
 }
 
-function _fetchParameters(parameters) {
+function fetch_parameters(parameters) {
     // Avoid pass-by-reference behavior.
     let out = { ...parameters };
     out.species = bioc.CLONE(out.species);
@@ -504,7 +517,7 @@ export class FeatureSetEnrichmentState {
      * @return {object} Object containing the parameters.
      */
     fetchParameters() {
-        return _fetchParameters(this.#parameters);
+        return fetch_parameters(this.#parameters);
     }
 
     /****************************
@@ -515,14 +528,7 @@ export class FeatureSetEnrichmentState {
      * @return {object} Default parameters that may be modified and fed into {@linkcode FeatureSetEnrichmentState#compute compute}.
      */
     static defaults() {
-        return {
-            skip: false,
-            automatic: true,
-            species: [],
-            gene_id_column: null, 
-            gene_id_type: "ENSEMBL", 
-            top_markers: 100
-        };
+        return all_defaults();
     }
 
     /***************************
@@ -550,7 +556,7 @@ export class FeatureSetEnrichmentState {
      * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
      * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column`, `gene_id_type`.
      * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
-     * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) as specified in {@linkcode FeatureSetEnrichmentState#availableCollections availableCollections}.
+     * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) supported by **gesel**.
      * This is used internally to filter `collections` to the entries relevant to these species. 
      * Ignored if `automatic = true`.
      * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the RNA entry of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each gene. 
@@ -579,9 +585,8 @@ export class FeatureSetEnrichmentState {
                 this.#parameters = {};
             }
 
-            let modified = await _buildCollections(
+            let modified = await this.#manager.buildCollections(
                 this.#parameters, 
-                this.#manager,
                 automatic, 
                 species, 
                 gene_id_column, 
@@ -598,7 +603,7 @@ export class FeatureSetEnrichmentState {
             }
         }
 
-        _transplantParameters(this.#parameters, automatic, species, gene_id_column, gene_id_type, top_markers);
+        transplant_parameters(this.#parameters, automatic, species, gene_id_column, gene_id_type, top_markers);
         this.#parameters.skip = skip;
         return;
     }
@@ -610,10 +615,7 @@ export class FeatureSetEnrichmentState {
 
 /**
  * Standalone version of {@linkplain FeatureSetEnrichmentState} that provides the same functionality outside of {@linkcode runAnalysis}.
- * Users can supply their own annotation and marker results to compute the enrichment statistics for each group.
- * Users are also responsible for ensuring that the lifetime of the supplied objects exceeds that of the constructed instance,
- * i.e., the Wasm-related `free()` methods of the inputs are not called while the FeatureSetEnrichmentInstance is still in operation.
- *
+ * Users can supply their own annotations to prepare the collections for enrichment calculations.
  * Users should await on the return value of the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method after construction.
  * Once resolved, other methods in this class may be used.
  *
@@ -673,7 +675,7 @@ export class FeatureSetEnrichmentStandalone {
             }
         }
 
-        this.#pre_parameters = FeatureSetEnrichmentState.defaults();
+        this.#pre_parameters = FeatureSetEnrichmentStandalone.defaults();
         this.#parameters = {};
         this.#manager = new FeatureSetManager; 
     }
@@ -705,17 +707,36 @@ export class FeatureSetEnrichmentStandalone {
     }
 
     /**
-     * If this method is not called, the parameters default to those in {@linkcode FeatureSetEnrichmentState#defaults FeatureSetEnrichmentState.defaults}.
+     * @return {object} Default parameters that may be modified and fed into {@linkcode FeatureSetEnrichmentStandalone#compute compute}.
+     */
+    static defaults() {
+        return all_defaults();
+    }
+
+    /**
+     * If this method is not called, the parameters default to those in {@linkcode FeatureSetEnrichmentStandalone#defaults FeatureSetEnrichmentStandalone.defaults}.
      *
-     * @param {object} parameters - Parameter object, see the argument of the same name in {@linkcode FeatureSetEnrichmentState#compute FeatureSetEnrichmentState.compute} for more details.
-     * Note that any `skip` property is ignored here.
+     * @param {object} parameters - Parameter object.
+     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
+     * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column`, `gene_id_type`.
+     * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
+     * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) supported by **gesel**.
+     * This is used internally to filter `collections` to the entries relevant to these species. 
+     * Ignored if `automatic = true`.
+     * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the `annotations` (supplied in the constructor) containing the identity of each gene. 
+     * If `null`, identifiers are taken from the row names.
+     * Ignored if `automatic = true`.
+     * @param {string} parameters.gene_id_type - Type of feature identifier in `gene_id_column`.
+     * This should be one of `"ENSEMBL"`, `"SYMBOL"` or `"ENTREZ"`
+     * Ignored if `automatic = true`.
+     * @param {number} parameters.top_markers - Number of top markers to use when testing for enrichment.
      *
      * @return The object is updated with new parameters.
      * Note that the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method should be called in order for the new parameters to take effect.
      */
     setParameters(parameters) {
         let { automatic, species, gene_id_column, gene_id_type, top_markers } = parameters;
-        _transplantParameters(this.#pre_parameters, automatic, species, gene_id_column, gene_id_type, top_markers);
+        transplant_parameters(this.#pre_parameters, automatic, species, gene_id_column, gene_id_type, top_markers);
     }
 
     /**
@@ -728,9 +749,8 @@ export class FeatureSetEnrichmentStandalone {
     async ready() {
         let { automatic, species, gene_id_column, gene_id_type, top_markers } = this.#pre_parameters;
 
-        await _buildCollections(
+        await this.#manager.buildCollections(
             this.#parameters,
-            this.#manager,
             automatic, 
             species, 
             gene_id_column, 
@@ -747,7 +767,7 @@ export class FeatureSetEnrichmentStandalone {
      * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
      *
      * @return {object} Object containing the details about the available feature set collections,
-     * see {@linkcode FeatureSetEnrichmentState#fetchCollectionDetails FeatureSetEnrichmentState.fetchCollectionDetails} for more details.
+     * see {@linkcode FeatureSetEnrichmentStandalone#fetchCollectionDetails FeatureSetEnrichmentStandalone.fetchCollectionDetails} for more details.
      */
     fetchCollectionDetails() {
         return this.#manager.fetchCollectionDetails();
@@ -758,7 +778,7 @@ export class FeatureSetEnrichmentStandalone {
      * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
      *
      * @return {object} Object containing the details about the available feature sets,
-     * see {@linkcode FeatureSetEnrichmentState#fetchSetDetails FeatureSetEnrichmentState.fetchSetDetails} for more details.
+     * see {@linkcode FeatureSetEnrichmentStandalone#fetchSetDetails FeatureSetEnrichmentStandalone.fetchSetDetails} for more details.
      */
     fetchSetDetails() {
         return this.#manager.fetchSetDetails();
@@ -786,7 +806,7 @@ export class FeatureSetEnrichmentStandalone {
      * This should be one of `"min"`, `"mean"` or `"min_rank"`.
      *
      * @return {object} Object containing statistics for the enrichment of the top marker genes in each feature set.
-     * See {@linkcode FeatureSetEnrichmentState#computeEnrichment FeatureSetEnrichmentState.computeEnrichment} for more details.
+     * See {@linkcode FeatureSetEnrichmentStandalone#computeEnrichment FeatureSetEnrichmentStandalone.computeEnrichment} for more details.
      */
     computeEnrichment(markers, group, effect_size, summary) {
         return this.#manager.computeEnrichment(group, effect_size, summary, markers, this.#parameters.top_markers);
@@ -808,7 +828,7 @@ export class FeatureSetEnrichmentStandalone {
      * @return {object} Object containing the parameters.
      */
     fetchParameters() {
-        return _fetchParameters(this.#pre_parameters);
+        return fetch_parameters(this.#pre_parameters);
     }
 
     /**
@@ -818,7 +838,7 @@ export class FeatureSetEnrichmentStandalone {
      * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode FeatureSetEnrichmentStandlone#fetchSetDetails fetchSetDetails}.
      *
      * @return {Object} Object containing the per-cell scores for the feature set activity.
-     * See {@linkcode FeatureSetEnrichmentState#computePerCellScores FeatureSetEnrichmentState.computePerCellScores} for more details.
+     * See {@linkcode FeatureSetEnrichmentStandalone#computePerCellScores FeatureSetEnrichmentStandalone.computePerCellScores} for more details.
      */
     computePerCellScores(set_id) {
         if (this.#normalized == null) {
