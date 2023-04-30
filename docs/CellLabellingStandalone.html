@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>steps/feature_selection.js - Documentation</title>
+    <title>CellLabellingStandalone - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -37,176 +37,1482 @@
 
 <div id="main">
     
-    <h1 class="page-title">steps/feature_selection.js</h1>
+    <h1 class="page-title">CellLabellingStandalone</h1>
     
 
     
 
 
 
+
+<section>
+
+<header>
     
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>import * as scran from "scran.js"; 
-import * as utils from "./utils/general.js";
-import * as filter_module from "./cell_filtering.js";
-import * as norm_module from "./rna_normalization.js";
-
-/**
- * Results of per-gene variance modelling,
- * see [here](https://kanaverse.github.io/scran.js/ModelGeneVarResults.html) for details.
- *
- * @external ModelGeneVarResults
- */
-
-/**
- * Feature selection is performed by modelling the per-gene variance and finding highly variable genes.
- * This wraps the [`modelGeneVar`](https://kanaverse.github.io/scran.js/global.html#modelGeneVar) function 
- * from [**scran.js**](https://github.com/kanaverse/scran.js).
- *
- * Methods not documented here are not part of the stable API and should not be used by applications.
- * @hideconstructor
- */
-export class FeatureSelectionState {
-    #filter;
-    #norm;
-    #cache;
-    #parameters;
-
-    constructor(filter, norm, parameters = null, cache = null) {
-        if (!(filter instanceof filter_module.CellFilteringState)) {
-            throw new Error("'filter' should be a CellFilteringState object");
-        }
-        this.#filter = filter;
-
-        if (!(norm instanceof norm_module.RnaNormalizationState)) {
-            throw new Error("'norm' should be an RnaNormalizationState object");
-        }
-        this.#norm = norm;
-
-        this.#parameters = (parameters === null ? {} : parameters);
-        this.#cache = (cache === null ? {} : cache);
-        this.changed = false;
-    }
-
-    free() {
-        utils.freeCache(this.#cache.matrix);
-    }
-
-    /***************************
-     ******** Getters **********
-     ***************************/
-
-    valid() {
-        return this.#norm.valid();
-    }
-
-    /**
-     * @return {external:ModelGeneVarResults} Variance modelling results,
-     * available after running {@linkcode FeatureSelectionState#compute compute}.
-     */
-    fetchResults() {
-        return this.#cache.results;
-    }
-
-    /**
-     * @return {Float64Array} Array of length equal to the number of genes,
-     * containing the sorted residuals after fitting a mean-dependent trend to the variances.
-     * Available after running {@linkcode FeatureSelectionState#compute compute}.
-     */
-    fetchSortedResiduals() {
-        return this.#cache.sorted_residuals;
-    }
-
-    /**
-     * @return {object} Object containing the parameters.
-     */
-    fetchParameters() {
-        return { ...this.#parameters }; // avoid pass-by-reference activity.
-    }
-
-    /***************************
-     ******** Compute **********
-     ***************************/
- 
-    /**
-     * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
-     *
-     * @param {object} parameters - Parameter object, equivalent to the `feature_selection` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {number} parameters.span - Value between 0 and 1 specifying the span for the LOWESS smoother.
-     *
-     * @return The object is updated with the new results.
-     */
-    compute(parameters) {
-        let { span } = parameters;
-        this.changed = false;
+        <h2>
         
-        if (this.#norm.changed || span != this.#parameters.span) {
-            utils.freeCache(this.#cache.results);
+            CellLabellingStandalone
+        
+        </h2>
+        
+            <div class="class-description usertext"><p>Standalone version of <a href="CellLabellingState.html">CellLabellingState</a> that provides the same functionality outside of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.
+Users can supply their own feature annotations to build the reference datasets prior to label assignment.
+Users should await on the return value of the <a href="CellLabellingStandalone.html#ready"><code>ready</code></a> method after construction.
+Once resolved, other methods in this class may be used.</p></div>
+        
+    
+</header>
 
-            if (this.valid()) {
-                let mat = this.#norm.fetchNormalizedMatrix();
-                let block = this.#filter.fetchFilteredBlock();
-                this.#cache.results = scran.modelGeneVar(mat, { span: span, block: block });
+<article>
+    
+        <div class="container-overview">
+        
+            
 
-                this.#cache.sorted_residuals = this.#cache.results.residuals().slice(); // a separate copy.
-                this.#cache.sorted_residuals.sort();
+    
+    <h2>Constructor</h2>
+    
 
-                this.changed = true;
-            }
+    <h4 class="name" id="CellLabellingStandalone"><span class="type-signature"></span>new CellLabellingStandalone<span class="signature">(annotations)</span><span class="type-signature"></span></h4>
 
-            this.#parameters.span = span;
-        }
+    
 
-        return;
-    }
-}
 
-/**************************
- ******** Loading *********
- **************************/
 
-export function unserialize(handle, permuter, filter, norm) {
-    let ghandle = handle.open("feature_selection");
 
-    let parameters;
-    {
-        let phandle = ghandle.open("parameters");
-        parameters = {
-            span: phandle.open("span", { load: true }).values[0]
-        };
-    }
+<dl class="details">
+    
 
-    let cache = {};
-    {
-        let rhandle = ghandle.open("results");
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_cell_labelling.js.html">steps/cell_labelling.js</a>, <a href="steps_cell_labelling.js.html#line634">line 634</a>
+    </li></ul></dd>
+    
 
-        if ("means" in rhandle.children) {
-            // Possibly permuting it to match the new permutation order;
-            // see 'unserialize' in 'inputs.js'.
-            let reloaded = {};
-            for (const key of [ "means", "vars", "fitted", "resids" ]) {
-                let value = rhandle.open(key, { load: true }).values;
-                reloaded[key] = permuter(value);
-            }
+    
 
-            cache.results = scran.emptyModelGeneVarResults(reloaded.means.length, 1);
-            cache.results.means({ fillable: true }).set(reloaded.means);
-            cache.results.variances({ fillable: true }).set(reloaded.vars);
-            cache.results.fitted({ fillable: true }).set(reloaded.fitted);
-            cache.results.residuals({ fillable: true }).set(reloaded.resids);
+    
 
-            cache.sorted_residuals = cache.results.residuals({ copy: true });
-            cache.sorted_residuals.sort();
-        }
-    }
+    
 
-    return new FeatureSelectionState(filter, norm, parameters, cache);
-}
+    
 
-</code></pre>
-        </article>
-    </section>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>annotations</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="external-DataFrame.html">external:DataFrame</a></span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Feature annotations for the dataset.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        </div>
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Classes</h3>
+
+        <dl>
+            <dt><a href="CellLabellingStandalone.html">CellLabellingStandalone</a></dt>
+            <dd></dd>
+        </dl>
+    
+    
+    
+
+     
+
+    
+
+    
+        <h3 class="subsection-title">Members</h3>
+
+        
+            
+<h4 class="name" id="availableReferences"><span class="type-signature"></span>availableReferences<span class="type-signature"> :object</span></h4>
+
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Available references for each species.
+Each key is a taxonomy ID and each value is an array of strings containing the names of references for that species.</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_cell_labelling.js.html">steps/cell_labelling.js</a>, <a href="steps_cell_labelling.js.html#line679">line 679</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+<div class="description usertext">
+    <p>Available references for each species.
+Each key is a taxonomy ID and each value is an array of strings containing the names of references for that species.</p>
+</div>
+
+
+
+    <h5 class="h5-types">Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">object</span>
+
+
+
+        </li>
+    </ul>
+
+
+
+
+
+
+        
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        
+            
+
+    
+
+    <h4 class="name" id="computeLabels"><span class="type-signature"></span>computeLabels<span class="signature">(x, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_cell_labelling.js.html">steps/cell_labelling.js</a>, <a href="steps_cell_labelling.js.html#line790">line 790</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+        <th>Default</th>
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>x</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="external-ScranMatrix.html">external:ScranMatrix</a></span>
+|
+
+<span class="param-type"><a href="external-ScoreMarkersResults.html">external:ScoreMarkersResults</a></span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                </td>
+            
+
+            <td class="description last"><p>A matrix of (normalized or unnormalized) expression values, with genes in rows and cells/clusters in columns.
+Alternatively, an object containing marker results, e.g., as computed by <a href="MarkerDetectionState.html"><code>MarkerDetectionState</code></a>.</p>
+<p>In both cases, the identity of genes should correspond to that in <code>annotations</code> in the constructor of this instance.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>{}</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Optional parameters.</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+        <th>Default</th>
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>group</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array</span>
+|
+
+<span class="param-type">TypedArray</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>null</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Array of length equal to the number of columns of <code>x</code>, containing grouping assignments.
+If provided, the average expression profile of each group is used for cell type labelling.
+This is only used if <code>x</code> is a <a href="external-ScranMatrix.html">ScranMatrix</a>.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Object containing:</p>
+<ul>
+<li><code>per_reference</code>: an object where each key is the name of a reference dataset and its value is an array.
+Each array is of length equal to the number of columns of <code>x</code> (if matrix), groups in <code>x</code> (if marker results), or groups in <code>group</code>.
+Each entry is an object containing <code>best</code>, the name of the best label assigned to a column/group in this reference;
+and <code>all</code>, an object where each key is a label in this reference dataset and its value is the score for assigning that label to this column/group.</li>
+<li>(optional) <code>integrated</code>: an array of length equal to the number of columns/groups.
+Each entry is an object containing <code>best</code>, the name of the best reference for this column/group;
+and <code>all</code>, an object where each key is the name of a reference dataset and its value is the score for this column/group.
+This property is only reported if multiple references are used.</li>
+<li>(optional) <code>groups</code>: an array of length equal to the number of groups, containing the identity of each group.
+Only reported if an input <code>group</code> is supplied and <code>x</code> is a <a href="external-ScranMatrix.html">ScranMatrix</a>.</li>
+</ul>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="fetchParameters"><span class="type-signature"></span>fetchParameters<span class="signature">()</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_cell_labelling.js.html">steps/cell_labelling.js</a>, <a href="steps_cell_labelling.js.html#line666">line 666</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Object containing the parameters.</p>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="ready"><span class="type-signature type-signature-async">(async) </span>ready<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>This should be called after construction and/or <code>setParameters</code>.
+Users should wait for the return value to resolve before calling any other methods of this class.</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_cell_labelling.js.html">steps/cell_labelling.js</a>, <a href="steps_cell_labelling.js.html#line749">line 749</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Reference datasets are loaded into memory.</p>
+</div>
+
+
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setParameters"><span class="type-signature type-signature-async">(async) </span>setParameters<span class="signature">(parameters)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_cell_labelling.js.html">steps/cell_labelling.js</a>, <a href="steps_cell_labelling.js.html#line737">line 737</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>parameters</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Parameter object, equivalent to the <code>cell_labelling</code> property of the <code>parameters</code> of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>references</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Array of strings specifying the names of the reference datasets, see <code>availableReferences</code> for more details.
+If <code>null</code>, all reference datasets from all species are used.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>automatic</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
+If <code>true</code>, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set <code>species</code>, <code>gene_id_column</code> and <code>gene_id_type</code>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>species</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Array of strings specifying zero, one or more species involved in this dataset.
+Each entry should be a taxonomy ID (e.g. <code>&quot;9606&quot;</code>, <code>&quot;10090&quot;</code>) as specified in <code>availableReferences</code>.
+This is used internally to filter <code>references</code> to the entries relevant to these species.
+Ignored if <code>automatic = true</code>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>gene_id_column</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Name or index of the column of the RNA entry of <a href="InputsState.html#fetchFeatureAnnotations"><code>InputsState.fetchFeatureAnnotations</code></a> containing the identity of each gene.
+If <code>null</code>, identifiers are taken from the row names.
+Ignored if <code>automatic = true</code>.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>gene_id_type</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Type of feature identifier in <code>gene_id_column</code>.
+This should be one of <code>&quot;ENSEMBL&quot;</code>, <code>&quot;SYMBOL&quot;</code> or <code>&quot;ENTREZ&quot;</code>
+Ignored if <code>automatic = true</code>.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>The object is updated with the new results.</p>
+</div>
+
+
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id=".defaults"><span class="type-signature type-signature-static">(static) </span>defaults<span class="signature">()</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_cell_labelling.js.html">steps/cell_labelling.js</a>, <a href="steps_cell_labelling.js.html#line659">line 659</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Default parameters that may be modified and fed into <code>compute</code>.</p>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id=".flush"><span class="type-signature type-signature-static">(static) </span>flush<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Flush all cached references.</p>
+<p>By default, this class will cache the loaded references in a global cache for re-use across CellLabellingStandlone instances.
+These cached references are not tied to any single instance and will not be removed by garbage collectors or by <code>free</code>.
+Rather, this function should be called to release the relevant memory.</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_cell_labelling.js.html">steps/cell_labelling.js</a>, <a href="steps_cell_labelling.js.html#line688">line 688</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id=".setDownload"><span class="type-signature type-signature-static">(static) </span>setDownload<span class="signature">(fun)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Specify a function to download references for the cell labelling step.</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="steps_cell_labelling.js.html">steps/cell_labelling.js</a>, <a href="steps_cell_labelling.js.html#line702">line 702</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>fun</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Function that accepts a single string containing a URL and returns any value that can be used in the <a href="SimpleFile.html">SimpleFile</a> constructor.
+This is most typically a Uint8Array of that URL's contents, but it can also be a path to a locally cached file on Node.js.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p><code>fun</code> is set as the global downloader for this step.
+The <em>previous</em> value of the downloader is returned.</p>
+</div>
+
+
+
+    
+
+
+
+        
+    
+
+    
+
+    
+</article>
+
+</section>
 
 
 
