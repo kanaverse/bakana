@@ -20,10 +20,11 @@ test("labelling works correctly for single human reference", async () => {
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, hs_files, params);
 
+    expect(state.cell_labelling.fetchNumberOfSharedFeatures().BlueprintEncode).toBeGreaterThan(0);
+    expect(state.cell_labelling.fetchParameters().references).toEqual(params.cell_labelling.references);
+
     let markers = state.marker_detection.fetchResults().RNA;
     let nclust = markers.numberOfGroups();
-
-    expect(state.cell_labelling.fetchNumberOfSharedFeatures().BlueprintEncode).toBeGreaterThan(0);
 
     {
         let res = state.cell_labelling.computeLabels(markers);

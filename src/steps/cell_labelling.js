@@ -221,12 +221,30 @@ async function build_reference(cache, references, automatic, species, gene_id_co
     return false;
 }
 
+function create_defaults() {
+    return {
+        references: null,
+        automatic: true,
+        species: [],
+        gene_id_column: null,
+        gene_id_type: "ENSEMBL"
+    };
+}
+
 function transplant_parameters(references, automatic, species, gene_id_column, gene_id_type, parameters) {
     parameters.references = bioc.CLONE(references); // make a copy to avoid pass-by-reference behavior.
     parameters.automatic = automatic;
     parameters.species = bioc.CLONE(species);
     parameters.gene_id_column = gene_id_column;
     parameters.gene_id_type = gene_id_type;
+}
+
+function fetch_parameters(parameters) {
+    // Avoid pass-by-reference behavior.
+    let out = { ...parameters };
+    out.references = bioc.CLONE(out.references);
+    out.species = bioc.CLONE(out.species);
+    return out;
 }
 
 /************************************
@@ -258,7 +276,6 @@ function assign_labels(x, cache) {
     // Converting marker results into means.
     if (x instanceof scran.ScoreMarkersResults) {
         let ngroups = x.numberOfGroups();
-        let ngenes = (cache.gene_ids !== null ? cache.gene_ids.length : null);
 
         if (cache.gene_ids === null) {
             matrix = null;                
@@ -269,12 +286,19 @@ function assign_labels(x, cache) {
             temp_cluster_means = scran.createFloat64WasmArray(ngroups * ngenes);
             for (var g = 0; g < ngroups; g++) {
                 let means = x.means(g, { copy: false }); // Warning: direct view in wasm space - be careful.
+                if (means.length !== ngenes) {
+                    throw new Error("unexpected number of genes in marker results");
+                }
                 let cluster_array = temp_cluster_means.array();
                 cluster_array.set(means, g * ngenes);
             }
 
             temp_matrix = scran.ScranMatrix.createDenseMatrix(ngenes, ngroups, temp_cluster_means, { columnMajor: true, copy: false });
             matrix = temp_matrix;
+        }
+    } else {
+        if (cache.gene_ids !== null && x.numberOfRows() !== cache.gene_ids.length) {
+            throw new Error("unexpected number of genes in the input matrix"); 
         }
     }
 
@@ -326,20 +350,14 @@ function assign_labels(x, cache) {
  */
 export class CellLabellingState {
     #inputs;
-    #normalized;
     #parameters;
     #cache;
 
-    constructor(inputs, normalized, parameters = null, cache = null) {
+    constructor(inputs, parameters = null, cache = null) {
         if (!(inputs instanceof inputs_module.InputsState)) {
             throw new Error("'inputs' should be a State object from './inputs.js'");
         }
         this.#inputs = inputs;
-
-        if (!(normalized instanceof norm_module.RnaNormalizationState)) {
-            throw new Error("'normalized' should be a RnaNormalizationState object from './rna_normalization.js'");
-        }
-        this.#normalized = normalized;
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
@@ -389,13 +407,7 @@ export class CellLabellingState {
      * @return {object} Default parameters that may be modified and fed into {@linkcode CellLabellingCore#compute compute}.
      */
     static defaults() {
-        return {
-            references: null,
-            automatic: true,
-            species: [],
-            gene_id_column: null,
-            gene_id_type: "ENSEMBL"
-        };
+        return create_defaults();
     }
 
     static configureFeatureParameters(guesses) {
@@ -421,6 +433,13 @@ export class CellLabellingState {
             species: [best.species],
             gene_id_type: best.type.toUpperCase()
         };
+    }
+
+    /**
+     * @return {object} Object containing the parameters.
+     */
+    fetchParameters() {
+        return fetch_parameters(this.#parameters);
     }
 
     /***************************
@@ -536,6 +555,173 @@ export class CellLabellingState {
     /**
      * @param {ScranMatrix|ScoreMarkersResults} x - A matrix of (normalized or unnormalized) expression values, with genes in rows and cells/clusters in columns.
      * Alternatively, an object containing marker results, e.g., as computed by {@linkcode MarkerDetectionState}. 
+     *
+     * In both cases, the identity of genes should correspond to that in the upstream {@linkcode InputsState}.
+     * 
+     * @return {object} Object containing:
+     *
+     * - `per_reference`: an object where each key is the name of a reference dataset and its value is an array.
+     *   This inner array is of length equal to the number of columns of `x` (if matrix) or groups in `x` (if marker results).
+     *   Each entry is an object containing `best`, the name of the best label assigned to a column/group in this reference;
+     *   and `all`, an object where each key is a label in this reference dataset and its value is the score for assigning that label to this column/group.
+     * - (optional) `integrated`: an array of length equal to the number of columns/groups.
+     *   Each entry is an object containing `best`, the name of the best reference for this column/group;
+     *   and `all`, an object where each key is the name of a reference dataset and its value is the score for this column/group.
+     *   This property is only reported if multiple references are used.
+     */
+    computeLabels(x) {
+        return assign_labels(x, this.#cache);
+    }
+}
+
+/*****************************
+ ******** Standalone *********
+ *****************************/
+
+/**
+ * Standalone version of {@linkplain CellLabellingState} that provides the same functionality outside of {@linkcode runAnalysis}.
+ * Users can supply their own feature annotations to build the reference datasets prior to label assignment.
+ * Users should await on the return value of the {@linkcode CellLabellingStandalone#ready ready} method after construction.
+ * Once resolved, other methods in this class may be used.
+ */
+export class CellLabellingStandalone {
+    #parameters;
+    #cache;
+    #annotations;
+    #guesses;
+    #pre_parameters;
+
+    /**
+     * @param {external:DataFrame} annotations - Feature annotations for the dataset.
+     */
+    constructor(annotations) {
+        this.#parameters = {};
+        this.#pre_parameters = CellLabellingStandalone.defaults();
+        this.#annotations = annotations;
+        this.#cache = {};
+        this.#guesses = null;
+    }
+
+    free() {
+        flush_prepared(this.#cache);
+    }
+
+    /**
+     * @return {object} Default parameters that may be modified and fed into {@linkcode CellLabellingCore#compute compute}.
+     */
+    static defaults() {
+        return create_defaults();
+    }
+
+    /**
+     * @return {object} Object containing the parameters.
+     */
+    fetchParameters() {
+        return fetch_parameters(this.#pre_parameters);
+    }
+
+    /***************************
+     ******** Remotes **********
+     ***************************/
+
+    /**
+     * Available references for each species.
+     * Each key is a taxonomy ID and each value is an array of strings containing the names of references for that species.
+     * @type {object}
+     */
+    static availableReferences = available_references;
+
+    /**
+     * Flush all cached references.
+     *
+     * By default, this class will cache the loaded references in a global cache for re-use across {@linkplain CellLabellingStandlone} instances.
+     * These cached references are not tied to any single instance and will not be removed by garbage collectors or by {@linkcode CellLabellingStandalone#free free}.
+     * Rather, this function should be called to release the relevant memory.
+     */
+    static flush() {
+        flush_loaded();
+        return;
+    }
+
+    /**
+     * Specify a function to download references for the cell labelling step.
+     *
+     * @param {function} fun - Function that accepts a single string containing a URL and returns any value that can be used in the {@linkplain SimpleFile} constructor.
+     * This is most typically a Uint8Array of that URL's contents, but it can also be a path to a locally cached file on Node.js.
+     *
+     * @return `fun` is set as the global downloader for this step. 
+     * The _previous_ value of the downloader is returned.
+     */
+    static setDownload(fun) {
+        return set_download(fun);
+    }
+
+    /***************************
+     ******** Compute **********
+     ***************************/
+
+    #guessFeatureTypes() {
+        if (this.#guesses == null) {
+            this.#guesses = utils.guessFeatureTypes(this.#annotations);
+        }
+        return this.#guesses;
+    }
+
+    /**
+     * @param {object} parameters - Parameter object, equivalent to the `cell_labelling` property of the `parameters` of {@linkcode runAnalysis}.
+     * @param {?Array} parameters.references - Array of strings specifying the names of the reference datasets, see {@linkcode CellLabellingState.availableReferences availableReferences} for more details.
+     * If `null`, all reference datasets from all species are used.
+     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
+     * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column` and `gene_id_type`.
+     * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
+     * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) as specified in {@linkcode CellLabellingState.availableReferences availableReferences}.
+     * This is used internally to filter `references` to the entries relevant to these species. 
+     * Ignored if `automatic = true`.
+     * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the RNA entry of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each gene. 
+     * If `null`, identifiers are taken from the row names.
+     * Ignored if `automatic = true`.
+     * @param {string} parameters.gene_id_type - Type of feature identifier in `gene_id_column`.
+     * This should be one of `"ENSEMBL"`, `"SYMBOL"` or `"ENTREZ"`
+     * Ignored if `automatic = true`.
+     *
+     * @return The object is updated with the new results.
+     * @async
+     */
+    async setParameters(parameters) {
+        let { references, automatic, species, gene_id_column, gene_id_type } = parameters;
+        transplant_parameters(references, automatic, species, gene_id_column, gene_id_type, this.#pre_parameters);
+    }
+
+    /**
+     * This should be called after construction and/or {@linkcode FeatureSetEnrichmenStandalone#setParameters setParameters}. 
+     * Users should wait for the return value to resolve before calling any other methods of this class.
+     * 
+     * @return Reference datasets are loaded into memory. 
+     * @async
+     */
+    async ready() {
+        let { references, automatic, species, gene_id_column, gene_id_type } = this.#pre_parameters;
+
+        await build_reference(
+            this.#cache, 
+            references, 
+            automatic, 
+            species, 
+            gene_id_column, 
+            gene_id_type, 
+            this.#parameters, 
+            () => this.#annotations,
+            () => this.#guessFeatureTypes()
+        );
+
+        this.#parameters = this.#pre_parameters;
+    }
+
+    /**
+     * @param {ScranMatrix|ScoreMarkersResults} x - A matrix of (normalized or unnormalized) expression values, with genes in rows and cells/clusters in columns.
+     * Alternatively, an object containing marker results, e.g., as computed by {@linkcode MarkerDetectionState}. 
+     *
+     * In both cases, the identity of genes should correspond to that in `annotations` in the constructor of this instance.
      * 
      * @return {object} Object containing:
      *
@@ -557,12 +743,8 @@ export class CellLabellingState {
  ******** Loading *********
  **************************/
 
-export function unserialize(handle, inputs, markers) {
-    let parameters =  {
-        mouse_references: [],
-        human_references: []
-    };
-    let cache = { results: {} };
+export function unserialize(handle, inputs) {
+    let parameters = {};
 
     // Protect against old analysis states that don't have cell_labelling.
     if ("cell_labelling" in handle.children) {
@@ -570,24 +752,11 @@ export function unserialize(handle, inputs, markers) {
         
         {
             let phandle = ghandle.open("parameters");
-            parameters.mouse_references = phandle.open("mouse_references", { load: true }).values;
-            parameters.human_references = phandle.open("human_references", { load: true }).values;
-        }
-
-        {
-            let rhandle = ghandle.open("results");
-
-            if ("per_reference" in rhandle.children) {
-                let perhandle = rhandle.open("per_reference");
-                for (const key of Object.keys(perhandle.children)) {
-                    cache.results[key] = perhandle.open(key, { load: true }).values;
-                }
-                if ("integrated" in rhandle.children) {
-                    cache.integrated_results = rhandle.open("integrated", { load: true }).values;
-                }
-            }
+            let mouse_references = phandle.open("mouse_references", { load: true }).values;
+            let human_references = phandle.open("human_references", { load: true }).values;
+            parameters.references = [ ...mouse_references, ...human_references ];
         }
     }
 
-    return new CellLabellingState(inputs, markers, parameters, cache);
+    return new CellLabellingState(inputs, parameters);
 }

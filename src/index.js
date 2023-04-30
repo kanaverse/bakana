@@ -16,6 +16,7 @@ export { FeatureSetEnrichmentState } from "./steps/feature_set_enrichment.js"
 export { MarkerDetectionStandalone } from "./steps/marker_detection.js";
 export { CustomSelectionsStandalone } from "./steps/custom_selections.js";
 export { FeatureSetEnrichmentStandalone } from "./steps/feature_set_enrichment.js";
+export { CellLabellingStandalone } from "./steps/cell_labelling.js";
 
 import { RnaQualityControlState } from "./steps/rna_quality_control.js";
 import { CellLabellingState } from "./steps/cell_labelling.js";

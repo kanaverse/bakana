@@ -246,3 +246,29 @@ test("Standalone feature set enrichment works correctly", async () => {
     enrich.free();
 })
 
+test("Standalone cell labelling works correctly", async () => {
+    let loaded = files.default.load({ cache: true });
+    let labeller = new bakana.CellLabellingStandalone(loaded.features.RNA);
+
+    let params = bakana.CellLabellingStandalone.defaults();
+    params.references = [ "BlueprintEncode", "MouseRNAseq" ];
+    labeller.setParameters(params);
+    await labeller.ready();
+
+    let sub = scran.subsetColumns(loaded.matrix.get("RNA"), [0,1,2,3,4,5,6,7,8,9,10]);
+    let out = labeller.computeLabels(sub);
+    expect(out.per_reference.BlueprintEncode.length).toEqual(sub.numberOfColumns());
+
+    // no-ops if the parameters haven't changed.
+    labeller.setParameters(params);
+    await labeller.ready(); 
+
+    // Checks kick in.
+    {
+        let sub2 = scran.subsetRows(loaded.matrix.get("RNA"), [0,1]);
+        expect(() => labeller.computeLabels(sub2)).toThrow("unexpected number of genes");
+    }
+
+    sub.free();
+    labeller.free();
+})
