@@ -14,18 +14,28 @@ let hs_files = {
         "files/datasets/pbmc3k-barcodes.tsv.gz")
 };
 
-test("labelling works correctly", async () => {
+test("labelling works correctly for single human reference", async () => {
     let params = utils.baseParams();
     params.cell_labelling.references = [ "ImmGen", "BlueprintEncode" ];
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, hs_files, params);
 
-    let nclust = state.marker_detection.fetchResults().RNA.numberOfGroups();
-    let res = state.cell_labelling.fetchResults();
-    expect(res.per_reference["BlueprintEncode"].length).toBe(nclust);
-    expect("ImmGen" in res.per_reference).toBe(false);
+    let markers = state.marker_detection.fetchResults().RNA;
+    let nclust = markers.numberOfGroups();
+
     expect(state.cell_labelling.fetchNumberOfSharedFeatures().BlueprintEncode).toBeGreaterThan(0);
-    expect("integrated" in res).toBe(false);
+
+    {
+        let res = state.cell_labelling.computeLabels(markers);
+        expect(res.per_reference["BlueprintEncode"].length).toBe(nclust);
+
+        let best = res.per_reference["BlueprintEncode"][0].best;
+        expect(typeof best).toBe("string");
+        expect(typeof res.per_reference["BlueprintEncode"][0].all[best]).toBe('number');
+
+        expect("ImmGen" in res.per_reference).toBe(false);
+        expect("integrated" in res).toBe(false);
+    }
 
     // Forcing us to load the mice.
     params.cell_labelling.automatic = false;
@@ -35,7 +45,8 @@ test("labelling works correctly", async () => {
         await bakana.runAnalysis(state, hs_files, params);
         expect(state.marker_detection.changed).toBe(false);
         expect(state.cell_labelling.changed).toBe(true);
-        let res = state.cell_labelling.fetchResults();
+
+        let res = state.cell_labelling.computeLabels(markers);
         expect(res.per_reference["ImmGen"].length).toEqual(nclust);
         expect(state.cell_labelling.fetchNumberOfSharedFeatures().ImmGen).toBe(0); // well, there's no overlap with mouse IDs, obviously.
         expect("BlueprintEncode" in res.per_reference).toBe(false);
@@ -47,7 +58,8 @@ test("labelling works correctly", async () => {
         await bakana.runAnalysis(state, hs_files, params);
         expect(state.marker_detection.changed).toBe(false);
         expect(state.cell_labelling.changed).toBe(true);
-        let res = state.cell_labelling.fetchResults();
+
+        let res = state.cell_labelling.computeLabels(markers);
         expect("BlueprintEncode" in res.per_reference).toBe(true);
     }
 
@@ -66,17 +78,21 @@ let mm_files = {
     default: new bakana.H5adDataset("files/datasets/zeisel-brain.h5ad")
 };
 
-test("feature set enrichment works correctly for multiple mice references", async () => {
+test("labelling works correctly for multiple mice references", async () => {
     let params = utils.baseParams();
     params.cell_labelling.references = [ "ImmGen", "MouseRNAseq" ];
     let state = await bakana.createAnalysis();
     await bakana.runAnalysis(state, mm_files, params);
 
-    let nclust = state.marker_detection.fetchResults().RNA.numberOfGroups();
-    let res = await state.cell_labelling.fetchResults();
-    expect(res.per_reference["ImmGen"].length).toEqual(nclust);
-    expect(res.per_reference["MouseRNAseq"].length).toEqual(nclust);
-    expect(res.integrated.length).toEqual(nclust);
+    let markers = state.marker_detection.fetchResults().RNA;
+    let nclust = markers.numberOfGroups();
+
+    {
+        let res = await state.cell_labelling.computeLabels(markers);
+        expect(res.per_reference["ImmGen"].length).toEqual(nclust);
+        expect(res.per_reference["MouseRNAseq"].length).toEqual(nclust);
+        expect(res.integrated.length).toEqual(nclust);
+    }
 
     // Checking that automatic discovery actually has an effect.
     params.cell_labelling.automatic = false;

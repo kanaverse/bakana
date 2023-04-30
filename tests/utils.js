@@ -28,6 +28,9 @@ export function baseParams() {
     // Avoid loading in the feature sets.
     output.feature_set_enrichment.skip = true;
 
+    // Avoid loading in the reference data.
+    output.cell_labelling.references = [];
+
     return output;
 }
 
