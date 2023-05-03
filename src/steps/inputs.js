@@ -177,6 +177,8 @@ export class InputsState {
      * This is only used if a single count matrix is supplied.
      *
      * If `null`, all cells are assumed to originate from the same sample.
+     *
+     * If any entries of the blocking factor are invalid (i.e., `null`), they are removed from downstream analyses.
      * @param {?subset} parameters.subset - Object describing if any pre-analysis subsetting should be applied.
      * This should contain `field`, a string specifying a field of the column annotation.
      *
@@ -253,6 +255,8 @@ export class InputsState {
 
     /**
      * Undo the effect of subsetting on an array of indices.
+     * This works with all subset specifications, e.g., via `parameters.subset` in {@linkcode InputsState#compute compute}, with {@linkcode InputsState#setDirectSubset setDirectSubset},
+     * or even from the implicit subsetting when the factor specified in `parameters.block` contains `null` entries.
      *
      * @param {Array|TypedArray} indices - Array of column indices to the subsetted matrix.
      * Note that this will be modified in-place.

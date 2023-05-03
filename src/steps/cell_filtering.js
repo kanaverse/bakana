@@ -230,6 +230,8 @@ export class CellFilteringState {
 
     /**
      * Apply the same filter to an array of data for each cell in the unfiltered dataset.
+     * This is typically used to filter the columns of {@linkcode InputsState#fetchCellAnnotations InputsState.fetchCellAnnotations} for downstream use.
+     * (See the {@linkcode CellFilteringState#undoFilter undoFilter} method for the reverse operation.)
      * Any calls to this method should be done after running {@linkcode CellFilteringState#compute compute}.
      *
      * @param {Array|TypedArray} Any array-like object of length equal to the number of cells in the unfiltered dataset.
@@ -253,10 +255,10 @@ export class CellFilteringState {
     }
 
     /**
-     * Undo the effect of filtering on an array of indices.
-     * This is primarily useful for adjusting indices from downstream steps 
-     * (e.g., {@linkcode CustomSelectionsState#fetchSelectionIndices CustomSelectionsState.fetchSelectionIndices})
-     * so that it can be used in {@linkcode subsetInputs}.
+     * Undo the effect of filtering on an array of column indices on the filtered matrix, so that they now refer to column indices on the unfiltered matrix.
+     * This is primarily useful for adjusting indices from downstream steps like {@linkcode CustomSelectionsState#fetchSelectionIndices CustomSelectionsState.fetchSelectionIndices}.
+     * The output of this function can be combined with {@linkcode InputsState#undoSubset InputsState.undoSubset} to obtain column indices on the original matrix,
+     * which can be used in other contexts, e.g., like {@linkcode subsetInputs}.
      *
      * @param {Array|TypedArray} indices - Array of column indices to the filtered matrix.
      * Note that this will be modified in-place.
