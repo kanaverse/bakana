@@ -32,6 +32,93 @@ export function dumpCountMatrix(mat, path, forceBuffer) {
     };
 }
 
+export function dumpDelayedCountMatrix(state, modality, handlers, path, forceBuffer) {
+    let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
+    let contents = temppath;
+
+    // Obtaining the subset.
+    let mat = state.cell_filtering.fetchFilteredMatrix().get(modality);
+    let ncells = mat.numberOfColumns();
+    let current = new Int32Array(ncells);
+    for (var i = 0; i < ncells; i++) {
+        current[i] = i;
+    }
+    state.cell_filtering.undoFilter(current);
+    state.inputs.undoSubset(current);
+
+    // Obtaining the order of blocks.
+    let block_order = [];
+    let all_ds = state.inputs.fetchDatasetDetails();
+    let dsnames = all_ds.keys();
+    if (dsnames.length == 1) {
+        block_order.push(dsnames[0]);
+    } else {
+        block_order = state.inputs.fetchBlockLevels();
+    }
+
+    let save_seed = (handle, name) => {
+        handle.writeAttribute("delayed_type", "String", null, "array");
+        handle.writeDataSet("type", "String", null, "INTEGER");
+        handle.writeDataSet("dimensions", "Int32", null, [all_ds[name].features[modality], all_ds[name].cells]);
+        if (!(name in handlers)) {
+            throw new Error("could not find dataset '" + name + "' in delayed override handlers");
+        }
+        handlers[name](handle);
+    };
+
+    try {
+        let fhandle = scran.createNewHDF5File(temppath);
+
+        // Saving the subsetting operation to get to the QC'd matrix.
+        let dhandle = fhandle.createGroup("counts");
+        dhandle.writeAttribute("delayed_type", "String", null, "operation");
+        dhandle.writeAttribute("delayed_operation", "String", null, "subset");
+        let ghandle = dhandle.createGroup("index");
+        ghandle.writeAttribute("delayed_type", "String", null, "list");
+        ghandle.writeAttribute("delayed_length", "Int32", null, 2);
+        ghandle.writeDataSet("1", "Int32", null, current);
+
+        // Saving the seed, or the bound matrix.
+        let xhandle = sfhandle.createGroup("seed");
+        if (block_order.length == 1) {
+            save_seed(xhandle, block_order[0]);
+        } else {
+            xhandle.writeAttribute("delayed_type", "String", null, "operation");
+            xhandle.writeAttribute("delayed_operation", "String", null, "combine");
+            xhandle.writeDataSet("along", "Int32", null, 1);
+
+            let shandle = dhandle.createGroup("seeds");
+            for (var b = 0; b < block_order.length; b++) {
+                let curhandle = shandle.createGroup(String(b));
+                save_seed(curhandle, block_order[b]);
+            }
+        }
+
+        if (forceBuffer) {
+            contents = scran.readFile(temppath);
+            scran.removeFile(temppath);
+        }
+    } catch (e) {
+        scran.removeFile(temppath);
+        throw e;
+    }
+
+    return {
+        metadata: {
+            "$schema": "hdf5_delayed_array/v1.json",
+            "path": path + "/array.h5",
+            "array": {
+                "dimensions": [mat.numberOfRows(), mat.numberOfColumns()],
+                "type": "integer"
+            },
+            "hdf5_delayed_array": {
+                "group": "counts"
+            }
+        },
+        contents: contents
+    };
+}
+
 export function dumpNormalizedMatrix(mat, sf, path, countPath, forceBuffer) {
     let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
     let contents = temppath;

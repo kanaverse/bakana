@@ -191,7 +191,7 @@ function mockSingleCellExperimentMetadata(p) {
 /************************************************
  ************************************************/
 
-export async function dumpSingleCellExperiment(state, path, { reportOneIndex = false, storeModalityColumnData = false, forceBuffer = false } = {}) {
+export async function dumpSingleCellExperiment(state, path, { reportOneIndex = false, storeModalityColumnData = false, forceBuffer = false, delayedOverrides = null } = {}) {
     let row_info = state.inputs.fetchFeatureAnnotations();
 
     let modalities = Object.keys(row_info);
@@ -254,10 +254,17 @@ export async function dumpSingleCellExperiment(state, path, { reportOneIndex = f
 
     // Saving the count assay.
     for (const [m, prefix] of Object.entries(all_prefixes)) {
-        let mat = state.cell_filtering.fetchFilteredMatrix().get(m);
-        let saved = assay.dumpCountMatrix(mat, prefix + "assay-counts", forceBuffer);
-        saved.metadata.is_child = true;
+        let path = prefix + "assay-counts";
+        let saved;
 
+        if (delayedOverrides == null) {
+            let mat = state.cell_filtering.fetchFilteredMatrix().get(m);
+            saved = assay.dumpCountMatrix(mat, path, forceBuffer);
+        } else {
+            saved = assay.dumpDelayedCountMatrix(state, m, delayedOverrides, path, forceBuffer);
+        }
+
+        saved.metadata.is_child = true;
         all_top_meta[m].summarized_experiment.assays.push({ name: "counts", resource: { type: "local", path: saved.metadata.path } });
         all_files.push(saved);
     }

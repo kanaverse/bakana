@@ -107,6 +107,12 @@ export class InputsState {
         return output;
     }
 
+    // Non-documented method for internal consumption by dumpDelayedCountMatrix().
+    fetchDatasetDetails() {
+        return this.#cache.dataset_details;
+    }
+
+    // Non-documented method for internal consumption by serializeConfiguration().
     fetchDatasets() {
         return this.#cache.datasets;
     }
@@ -523,6 +529,18 @@ async function load_datasets(datasets, preserve_dataset_cache) {
         throw e;
     }
 
+    // Record the original dimensions in the loaded set; we need this in the chihaya
+    // spec when saving the count matrix as a delayed array.
+    let dataset_details = {};
+    for (var i = 0; i < names.length; i++) {
+        let mat = loaded.matrix;
+        let feats = {};
+        for (const mod of mat.available()) {
+            feats[mod] = mat.get(mod).numberOfRows();
+        }
+        dataset_details[names[i]] = { features: feats, cells: mat.numberOfColumns() };
+    }
+
     let output;
     if (names.length == 1) {
         try {
@@ -543,6 +561,7 @@ async function load_datasets(datasets, preserve_dataset_cache) {
         }
     }
 
+    output.dataset_details = dataset_details;
     return output;
 }
 
@@ -642,6 +661,7 @@ async function load_and_cache(new_datasets, cache, preserve_dataset_cache) {
     cache.multi_block_ids = res.block_ids;
     cache.multi_block_levels = res.block_levels;
     cache.genes = res.features;
+    cache.dataset_details = res.dataset_details;
 }
 
 function block_and_cache(block_factor, cache) {

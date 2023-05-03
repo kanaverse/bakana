@@ -86,6 +86,9 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
  * @param {boolean} [options.includeMarkerDetection=true] - Whether to save the marker detection results.
  * @param {boolean} [options.includeCustomSelections=true] - Whether to save the custom selection results.
  * @param {boolean} [options.includeFeatureSelection=true] - Whether to save the feature selection results.
+ * @param {?object} [options.delayedOverrides=null] - Overrides for saving delayed arrays.
+ * Each key is the name of an input dataset in {@linkcode runAnalysis} and each value is a function that accepts a **scran.js** HDF5 handle to an existing group.
+ * It should create a HDF5 dataset containing the input dataset's `delayed_array` type, along with any additional information required to recover this dataset, e.g., database identifiers.
  * @param {boolean} [options.forceBuffer=true] - Whether to force all files to be loaded into memory as Uint8Array buffers.
  * @param {?directory} [options.directory=null] - Project directory in which to save the file components of the SingleCellExperiment.
  * Only used for Node.js; if supplied, it overrides any setting of `forceBuffer`.
@@ -94,7 +97,14 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
  * These data frames are grouped by analysis step, i.e., `marker_detection`, `custom_selections` and `feature_selection`.
  * See {@linkcode saveSingleCellExperiment} for more details on the contents of each object inside the returned array.
  */
-export async function saveGenewiseResults(state, path, { includeMarkerDetection = true, includeCustomSelections = true, includeFeatureSelection = true, forceBuffer = true, directory = null } = {}) {
+export async function saveGenewiseResults(state, path, { 
+    includeMarkerDetection = true, 
+    includeCustomSelections = true, 
+    includeFeatureSelection = true, 
+    delayedOverrides = null,
+    forceBuffer = true, 
+    directory = null } = {})i
+{
     let modalities = {};
     let anno = state.inputs.fetchFeatureAnnotations();
     for (const [k, v] of Object.entries(anno)) {
