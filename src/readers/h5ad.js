@@ -43,7 +43,9 @@ function load_data_frame(handle) {
     for (const [key, val] of Object.entries(handle.children)) {
         if (val == "DataSet") {
             let dhandle = handle.open(key, { load: true });
-            columns[key] = dhandle.values;
+            if (dhandle.type != "Other") {
+                columns[key] = dhandle.values;
+            }
         } else if (val == "Group") {
             // Factor encoding for H5AD versions >= 0.8.0.
             let subhandle = handle.open(key);
