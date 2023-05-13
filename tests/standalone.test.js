@@ -48,7 +48,7 @@ test("Standalone marker detection works correctly", async () => {
         expect(() => new bakana.MarkerDetectionStandalone(normed, groups, { block: [] })).toThrow("same length");
 
         let markers2 = new bakana.MarkerDetectionStandalone(normed, groups, { block: block } );
-        expect(markers2.fetchBlockLevels()).toEqual([1, 0]);
+        expect(markers2.fetchBlockLevels()).toEqual([0, 1]);
 
         markers2.computeAll();
         let res2 = markers2.fetchResults();
@@ -59,7 +59,7 @@ test("Standalone marker detection works correctly", async () => {
 
     // Sanitization works correctly.
     {
-        let lev = ["B", "A"];
+        let lev = ["A", "B"];
         let groups2 = Array.from(groups).map(i => lev[i]);
         groups2[0] = null;
 
