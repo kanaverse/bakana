@@ -43,9 +43,18 @@ function load_data_frame(handle) {
     for (const [key, val] of Object.entries(handle.children)) {
         if (val == "DataSet") {
             let dhandle = handle.open(key, { load: true });
-            if (dhandle.type != "Other") {
+            if (dhandle.type === "Enum") {
+                let dvals = dhandle.values;
+                let options = new Array(dvals.length);
+                let levels = dhandle.levels;
+                dvals.forEach((x, i) => {
+                    options[i] = levels[x];
+                });
+                columns[key] = options;
+            } else if (dhandle.type !== "Other") {
                 columns[key] = dhandle.values;
             }
+
         } else if (val == "Group") {
             // Factor encoding for H5AD versions >= 0.8.0.
             let subhandle = handle.open(key);
