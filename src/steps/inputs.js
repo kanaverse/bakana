@@ -61,14 +61,6 @@ export class InputsState {
     }
 
     /**
-     * @return {object} Object where each key is the name of a modality and each value is an Int32Array.
-     * Each entry of an Int32Array specifies the identity of the corresponding row of its count matrix from {@linkcode InputsState#fetchCountMatrix fetchCountMatrix}.
-     */
-    fetchRowIds() {
-        return this.#cache.row_ids;
-    }
-
-    /**
      * @return {external:DataFrame} {@linkplain external:DataFrame DataFrame} containing per-cell annotations.
      * Each row of the DataFrame corresponds to a cell in {@linkcode InputsState#fetchCountMatrix fetchCountMatrix},
      * and each column represents a per-cell annotation field.
@@ -358,7 +350,7 @@ export class InputsState {
         // These can probably be copied directly, given that they are always
         // replaced wholesale in the various *_and_cache functions, rather than
         // being modified in-place.
-        for (const x of [ "row_ids", "raw_annotations", "genes", "multi_block_levels", "raw_block_levels" ]) {
+        for (const x of [ "raw_annotations", "genes", "multi_block_levels", "raw_block_levels" ]) {
             if (x in this.#cache) {
                 new_cache[x] = this.#cache[x];
             }
@@ -401,7 +393,6 @@ function bind_single_modality(modality, loaded) {
         // Extracting gene information from the first object. We won't make
         // any attempt at merging and deduplication across objects.
         output.features = bioc.SLICE(loaded[0].features[modality], merged.indices);
-        output.row_ids = bioc.SLICE(loaded[0].row_ids[modality], merged.indices);
 
     } catch (e) {
         utils.freeCache(output.matrix);
@@ -433,8 +424,7 @@ function bind_datasets(names, loaded) {
     let blocks;
     let output = { 
         matrix: new scran.MultiMatrix, 
-        features: {},
-        row_ids: {}
+        features: {}
     };
 
     try {
@@ -442,7 +432,6 @@ function bind_datasets(names, loaded) {
             let current = bind_single_modality(k, loaded);
             output.matrix.add(k, current.matrix);
             output.features[k] = current.features;
-            output.row_ids[k] = current.row_ids;
         }
 
         let annos = loaded.map(x => x.cells);
@@ -476,8 +465,7 @@ function rename_dataset(single) {
 
     let output = { 
         matrix: new scran.MultiMatrix, 
-        features: {},
-        row_ids: {}
+        features: {}
     };
 
     try {
@@ -488,7 +476,6 @@ function rename_dataset(single) {
 
             output.matrix.add(k, single.matrix.get(k));
             output.features[k] = single.features[k];
-            output.row_ids[k] = single.row_ids[k];
         }
     } catch (e) {
         scran.free(output.matrix);
@@ -637,7 +624,6 @@ async function load_and_cache(new_datasets, cache, preserve_dataset_cache) {
 
     let res = await load_datasets(new_datasets, preserve_dataset_cache);
     cache.raw_matrix = res.matrix;
-    cache.row_ids = res.row_ids;
     cache.raw_annotations = res.cells;
     cache.multi_block_ids = res.block_ids;
     cache.multi_block_levels = res.block_levels;
