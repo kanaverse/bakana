@@ -88,16 +88,13 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
 
     try {
         let out_mat = loaded.matrix;
-        let out_ids = loaded.row_ids;
         output.matrix.add("", out_mat);
 
         let current_features;
-        if (out_ids !== null) {
-            current_features = bioc.SLICE(rawFeatures, out_ids);
+        if (loaded.row_ids !== null) {
+            current_features = bioc.SLICE(rawFeatures, loaded.row_ids);
         } else {
             current_features = bioc.CLONE(rawFeatures, { deepCopy: false }); // because we're deleting a column.
-            out_ids = new Int32Array(out_mat.numberOfRows());
-            out_ids.forEach((x, i) => { out_ids[i] = i });
         }
 
         if (typeField !== null && current_features.hasColumn(typeField)) {
@@ -115,11 +112,9 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
 
             delete current_features[typeField];
             output.features = bioc.SPLIT(current_features, by_type);
-            output.row_ids = bioc.SPLIT(out_ids, by_type);
 
         } else {
             output.matrix.rename("", featureTypeDefault);
-            output.row_ids = create_solo_default_object(out_ids, featureTypeDefault);
             output.features = create_solo_default_object(current_features, featureTypeDefault);
         }
     } catch (e) {

@@ -82,26 +82,50 @@ function is_same(left, right) {
     return true;
 }
 
-export function checkReorganization(matrix, ids, names, loadedMatrix, loadedIds, loadedNames, { mustDiffer = true, referenceSubset = false } = {}) {
-    if (!referenceSubset && ids !== null) { 
-        throw new Error("reference matrix should not be reorganized");
-    } else if (referenceSubset && ids === null) {
-        throw new Error("subsetted reference matrix should be reorganized");
-    }
-    if (loadedIds === null) {
-        throw new Error("loaded matrix should be reorganized");
-    }
-
+export function checkReorganization(matrix, names, loadedMatrix, loadedNames, { mustDiffer = true } = {}) {
     let NR = matrix.numberOfRows();
     let NC = matrix.numberOfColumns();
     if (loadedMatrix.numberOfRows() != NR || NC != loadedMatrix.numberOfColumns()) {
         throw new Error("loaded and reference matrix have different dimensions");
     }
 
+    if (names.length != NR) {
+        throw new Error("length of 'names' is different from number of matrix rows"); 
+    }
+    if (loadedNames.length != NR) {
+        throw new Error("length of 'loadedNames' is different from number of matrix rows"); 
+    }
+
+    let mapping = new Map;
+    for (var i = 0; i < NR; i++) {
+        let found = mapping.get(names[i], i);
+        if (typeof found !== "undefined") {
+            throw new Error("found duplicated name '" + names[i] + "' in 'names'");
+        }
+        mapping.set(names[i], i);
+    }
+
+    let permuter = new Int32Array(NR);
+    for (var i = 0; i < NR; i++) {
+        let found = mapping.get(loadedNames[i]);
+        if (typeof found == "undefined") {
+            throw new Error("'loadedNames' has unique name '" + loadedNames[i] + "' not in 'names'");
+        } else if (found === null) {
+            throw new Error("found duplicate name '" + loadedNames[i] + "' in 'loadedNames'");
+        }
+
+        permuter[i] = found;
+        mapping.set(loadedNames[i], null);
+    }
+
     if (mustDiffer) {
+        if (is_same(names, loadedNames)) {
+            throw new Error("loaded and reference names should not have been the same");
+        }
+
         let same = true;
-        for (var i = 0; i < loadedIds.length; i++) {
-            if (loadedIds[i] != i) {
+        for (var i = 0; i < permuter.length; i++) {
+            if (permuter[i] != i) {
                 same = false;
                 break;
             }
@@ -111,28 +135,13 @@ export function checkReorganization(matrix, ids, names, loadedMatrix, loadedIds,
         }
     }
 
-    let sorted_ids = loadedIds.slice().sort((a, b) => a - b);
-    let permuter;
-    if (referenceSubset) {
-        // Assume reference IDs are already sorted when referenceSubset = true.
-        if (!is_same(ids, sorted_ids)) {
-            throw new Error("reference and loaded identities should have identical elements");
-        }
+    let converted = new names.constructor(NR);
+    permuter.forEach((x, i) => {
+        converted[i] = names[x];
+    });
 
-        // Creating a mapping to permute the reference to the loaded order.
-        let mapping = {};
-        ids.forEach((x, i) => {
-            mapping[x] = i;
-        });
-        permuter = Array.from(loadedIds).map(x => mapping[x]);
-    } else {
-        // Should contain everything at least once.
-        for (var i = 0; i < sorted_ids.length; i++) {
-            if (sorted_ids[i] != i) {
-                throw new error("loaded identities should contain all consecutive integers");
-            }
-        }
-        permuter = Array.from(loadedIds);
+    if (!is_same(converted, loadedNames)) {
+        throw new Error("loaded matrix's name reorganization is not consistent");
     }
 
     // Checking that the reorganization matches up with the reference for every 100th column.
@@ -157,20 +166,6 @@ export function checkReorganization(matrix, ids, names, loadedMatrix, loadedIds,
     if (mustDiffer && !at_least_one_difference) {
         throw new Error("loaded and reference columns should have some kind of difference");
     }
-
-    // Now checking the identifiers.
-    if (mustDiffer && is_same(names, loadedNames)) {
-        throw new Error("loaded and reference names should not have been the same");
-    }
-
-    let converted = new names.constructor(NR);
-    permuter.forEach((x, i) => {
-        converted[i] = names[x];
-    });
-
-    if (!is_same(converted, loadedNames)) {
-        throw new Error("loaded matrix's name reorganization is not consistent");
-    }
 }
 
 export async function checkStateResultsMinimal(state, { mustFilter = true } = {}) {
@@ -179,14 +174,11 @@ export async function checkStateResultsMinimal(state, { mustFilter = true } = {}
         let counts = state.inputs.fetchCountMatrix();
         expect(counts instanceof scran.MultiMatrix).toBe(true);
         let feat_anno = state.inputs.fetchFeatureAnnotations();
-        let row_ids = state.inputs.fetchRowIds();
 
         for (const a of counts.available()){ 
             let NR = counts.get(a).numberOfRows();
             expect(a in feat_anno).toBe(true);
             expect(feat_anno[a].numberOfRows()).toBe(NR);
-            expect(a in row_ids).toBe(true);
-            expect(row_ids[a].length).toBe(NR);
         }
     }
 
@@ -319,7 +311,6 @@ export async function checkStateResultsRna(state, { exclusive = false, mustFilte
         if (exclusive) {
             expect(state.inputs.fetchCountMatrix().has("ADT")).toBe(false);
             expect("ADT" in state.inputs.fetchFeatureAnnotations()).toBe(false);
-            expect("ADT" in state.inputs.fetchRowIds()).toBe(false);
         }
     }
 
@@ -527,7 +518,6 @@ export function checkStateResultsAdt(state, { exclusive = false } = {}) {
         expect(state.inputs.fetchCountMatrix().has("ADT")).toBe(true);
         let adtmat = state.inputs.fetchCountMatrix().get("ADT");
         expect(state.inputs.fetchFeatureAnnotations()["ADT"].numberOfRows()).toEqual(adtmat.numberOfRows());
-        expect(state.inputs.fetchRowIds()["ADT"].length).toEqual(adtmat.numberOfRows());
     }
 
     // Checking the QCs.
@@ -625,7 +615,6 @@ export function checkStateResultsCrispr(state, { exclusive = false, use_embeddin
         expect(state.inputs.fetchCountMatrix().has("CRISPR")).toBe(true);
         let crisprmat = state.inputs.fetchCountMatrix().get("CRISPR");
         expect(state.inputs.fetchFeatureAnnotations()["CRISPR"].numberOfRows()).toEqual(crisprmat.numberOfRows());
-        expect(state.inputs.fetchRowIds()["CRISPR"].length).toEqual(crisprmat.numberOfRows());
     }
 
     // Checking the QCs.
@@ -801,11 +790,6 @@ export async function compareStates(left, right, { checkRna = true, checkAdt = f
 
         // Checking that the permutation is unchanged on reload.
         for (const a of lavailable) {
-            let old_ids = left.inputs.fetchRowIds()[a];
-            let new_ids = right.inputs.fetchRowIds()[a];
-            expect(old_ids.length).toBeGreaterThan(0);
-            expect(old_ids).toEqual(new_ids);
-
             let old_ids2 = left.inputs.fetchFeatureAnnotations()[a];
             let new_ids2 = right.inputs.fetchFeatureAnnotations()[a];
             expect(old_ids2.columnNames()).toEqual(new_ids2.columnNames());

@@ -793,7 +793,6 @@ export class SummarizedExperimentDataset {
 
         let output = { 
             matrix: new scran.MultiMatrix,
-            row_ids: {},
             features: {},
             cells: this.#raw_cells
         };
@@ -831,9 +830,7 @@ export class SummarizedExperimentDataset {
 
                 let loaded = extract_assay(handle, v.assay, true);
                 output.matrix.add(k, loaded.matrix);
-                let out_ids = loaded.row_ids;
-                output.row_ids[k] = out_ids;
-                output.features[k] = bioc.SLICE(this.#raw_features[name], out_ids);
+                output.features[k] = bioc.SLICE(this.#raw_features[name], loaded.row_ids);
             }
 
             output.primary_ids = futils.extractPrimaryIds(output.features, this.#primary_mapping());

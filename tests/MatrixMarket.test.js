@@ -51,13 +51,12 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     {
         let loaded = state.inputs.fetchCountMatrix().get("RNA");
         let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].column("id");
-        let loaded_ids = state.inputs.fetchRowIds()["RNA"];
 
         let simple = scran.initializeSparseMatrixFromMatrixMarket(mtx_file, { layered: false });
         let parsed = bakana.readTable((new bakana.SimpleFile(feat_file)).buffer(), { compression: "gz" });
         let simple_names = parsed.map(x => x[0]);
 
-        utils.checkReorganization(simple.matrix, simple.row_ids, simple_names, loaded, loaded_ids, loaded_names);
+        utils.checkReorganization(simple.matrix, simple_names, loaded, loaded_names);
         simple.matrix.free();
     }
 

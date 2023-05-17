@@ -45,10 +45,14 @@ test("multi-matrix analyses work correctly", async () => {
             expect(commat.row(i)).toEqual(expected);
         }
 
-        // IDs should be the same as the first matrix.
-        let expected_ids = new Int32Array(combined_names.length);
-        combined_names.forEach((x, i) => { expected_ids[i] = names3k[x]; });
-        expect(state.inputs.fetchRowIds()["RNA"]).toEqual(expected_ids);
+        // Checking that the intersetions is as expected.
+        let common = [];
+        for (const x of parsed3k) {
+            if (x[0] in names4k) {
+                common.push(x[0]);
+            }
+        }
+        expect(common.sort()).toEqual(combined_names.slice().sort());
     }
 
     await utils.overlordCheckBlocked(state);
