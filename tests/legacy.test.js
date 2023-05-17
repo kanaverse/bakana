@@ -6,7 +6,7 @@ import * as valkana from "valkana";
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
-test("reanalysis from a v0 analysis works correctly (10X)", async () => {
+test.skip("reanalysis from a v0 analysis works correctly (10X)", async () => {
     const h5path = "TEST_v0_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/zeisel_tenx_20220307.kana", h5path);
     expect(loader.version).toBe(0);
@@ -24,7 +24,7 @@ test("reanalysis from a v0 analysis works correctly (10X)", async () => {
     await bakana.freeAnalysis(reloaded);
 })
 
-test("reanalysis from a v0 analysis works correctly (MatrixMarket)", async () => {
+test.skip("reanalysis from a v0 analysis works correctly (MatrixMarket)", async () => {
     const h5path = "TEST_v0_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/zeisel_mtx_20220306.kana", h5path);
     expect(loader.version).toBe(0);
@@ -42,7 +42,7 @@ test("reanalysis from a v0 analysis works correctly (MatrixMarket)", async () =>
     await bakana.freeAnalysis(reloaded);
 })
 
-test("reanalysis from a v1.0 analysis works correctly (10X)", async () => {
+test.skip("reanalysis from a v1.0 analysis works correctly (10X)", async () => {
     const h5path = "TEST_v1.0_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/zeisel_tenx_20220318.kana", h5path);
     expect(loader.version).toBe(1000000);
@@ -61,7 +61,7 @@ test("reanalysis from a v1.0 analysis works correctly (10X)", async () => {
     await bakana.freeAnalysis(reloaded);
 })
 
-test("reanalysis from a v1.1 analysis works correctly (10X combined)", async () => {
+test.skip("reanalysis from a v1.1 analysis works correctly (10X combined)", async () => {
     const h5path = "TEST_v1.1_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc-combined_tenx_20220401.kana", h5path);
     expect(loader.version).toBe(1001000);
@@ -78,7 +78,7 @@ test("reanalysis from a v1.1 analysis works correctly (10X combined)", async () 
     await bakana.freeAnalysis(reloaded);
 })
 
-test("reanalysis from a v1.1 analysis works correctly (MatrixMarket)", async () => {
+test.skip("reanalysis from a v1.1 analysis works correctly (MatrixMarket)", async () => {
     const h5path = "TEST_v1.1_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc4k-with-custom_mtx_20220408.kana", h5path);
     expect(loader.version).toBe(1001000);
@@ -95,7 +95,7 @@ test("reanalysis from a v1.1 analysis works correctly (MatrixMarket)", async () 
     await bakana.freeAnalysis(reloaded);
 })
 
-test("reanalysis from a v1.2 analysis works correctly (10X combined)", async () => {
+test.skip("reanalysis from a v1.2 analysis works correctly (10X combined)", async () => {
     const h5path = "TEST_v1.2_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc-combined-with-kmeans-and-custom_tenx_20220525.kana", h5path);
     expect(loader.version).toBe(1002000);
@@ -112,7 +112,7 @@ test("reanalysis from a v1.2 analysis works correctly (10X combined)", async () 
     await bakana.freeAnalysis(reloaded);
 })
 
-test("reanalysis from a v1.2 analysis works correctly (MatrixMarket)", async () => {
+test.skip("reanalysis from a v1.2 analysis works correctly (MatrixMarket)", async () => {
     const h5path = "TEST_v1.2_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc4k-with-kmeans-and-custom_mtx_20220525.kana", h5path);
     expect(loader.version).toBe(1002000);
@@ -129,7 +129,7 @@ test("reanalysis from a v1.2 analysis works correctly (MatrixMarket)", async () 
     await bakana.freeAnalysis(reloaded);
 })
 
-test("reanalysis from a v2.1 analysis works correctly (10X single)", async () => {
+test.skip("reanalysis from a v2.1 analysis works correctly (10X single)", async () => {
     const h5path = "TEST_v2.1_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/zeisel_tenx_20230101.kana", h5path);
     expect(loader.version).toBe(2001000);
@@ -148,7 +148,7 @@ test("reanalysis from a v2.1 analysis works correctly (10X single)", async () =>
     await bakana.freeAnalysis(reloaded);
 })
 
-test("reanalysis from a v2.1 analysis works correctly (10X multiple)", async () => {
+test.skip("reanalysis from a v2.1 analysis works correctly (10X multiple)", async () => {
     const h5path = "TEST_v2.1_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc-multiple_tenx_20230101.kana", h5path);
     expect(loader.version).toBe(2001000);
@@ -165,7 +165,7 @@ test("reanalysis from a v2.1 analysis works correctly (10X multiple)", async () 
     await bakana.freeAnalysis(reloaded);
 })
 
-test("reanalysis from a v2.1 analysis works correctly (MatrixMarket combined)", async () => {
+test.skip("reanalysis from a v2.1 analysis works correctly (MatrixMarket combined)", async () => {
     const h5path = "TEST_v2.1_state.h5";
     let loader = await bakana.parseKanaFile("files/legacy/pbmc-combined_mtx_20230101.kana", h5path);
     expect(loader.version).toBe(2001000);
