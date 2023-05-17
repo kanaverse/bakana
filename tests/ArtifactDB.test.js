@@ -79,7 +79,6 @@ action_simple("runAnalysis works correctly (ArtifactDB)", async () => {
     // Input reorganization is done correctly.
     {
         let loaded = state.inputs.fetchCountMatrix().get("RNA");
-        let loaded_ids = state.inputs.fetchRowIds()["RNA"];
         let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].rowNames();
 
         let fpath = nav.baseDirectory + "/" + target_simple + "/assay-counts/matrix.h5";
@@ -87,7 +86,7 @@ action_simple("runAnalysis works correctly (ArtifactDB)", async () => {
         let rpath = nav.baseDirectory + "/" + target_simple + "/rowdata/simple.h5";
         let simple_names = (new scran.H5DataSet(rpath, "data/row_names", { load: true })).values;
 
-        utils.checkReorganization(simple.matrix, simple.row_ids, simple_names, loaded, loaded_ids, loaded_names, { mustDiffer: false });
+        utils.checkReorganization(simple.matrix, simple_names, loaded, loaded_names);
         simple.matrix.free();
     }
 

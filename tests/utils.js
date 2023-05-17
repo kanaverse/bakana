@@ -141,8 +141,6 @@ export function checkReorganization(matrix, names, loadedMatrix, loadedNames, { 
     });
 
     if (!is_same(converted, loadedNames)) {
-        console.log(permuter);
-        console.log(converted, loadedNames);
         throw new Error("loaded matrix's name reorganization is not consistent");
     }
 
@@ -792,11 +790,6 @@ export async function compareStates(left, right, { checkRna = true, checkAdt = f
 
         // Checking that the permutation is unchanged on reload.
         for (const a of lavailable) {
-            let old_ids = left.inputs.fetchRowIds()[a];
-            let new_ids = right.inputs.fetchRowIds()[a];
-            expect(old_ids.length).toBeGreaterThan(0);
-            expect(old_ids).toEqual(new_ids);
-
             let old_ids2 = left.inputs.fetchFeatureAnnotations()[a];
             let new_ids2 = right.inputs.fetchFeatureAnnotations()[a];
             expect(old_ids2.columnNames()).toEqual(new_ids2.columnNames());

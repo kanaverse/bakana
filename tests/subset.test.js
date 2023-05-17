@@ -384,7 +384,6 @@ test("end-to-end run works with (direct) subsetting", async () => {
         let subanno = subx.inputs.fetchFeatureAnnotations()["RNA"];
         expect(anno.numberOfRows()).toEqual(subanno.numberOfRows());
         expect(anno.column(0)).toEqual(subanno.column(0));
-        expect(state.inputs.fetchRowIds()["RNA"]).toEqual(subx.inputs.fetchRowIds()["RNA"]);
 
         for (const [k, v] of Object.entries(refcol)) {
             expect(subx.inputs.fetchCountMatrix().get("RNA").column(k/2)).toEqual(v);

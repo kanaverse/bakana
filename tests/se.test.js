@@ -20,7 +20,6 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
     // Input reorganization is done correctly. 
     {
         let loaded = state.inputs.fetchCountMatrix().get("RNA");
-        let loaded_ids = state.inputs.fetchRowIds()["RNA"];
         let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].rowNames();
         expect(loaded_names.length).toBeGreaterThan(0);
 
@@ -42,7 +41,7 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
         rhandle.free();
         rdshandle.free();
 
-        utils.checkReorganization(simple.matrix, simple.row_ids, simple_names, loaded, loaded_ids, loaded_names);
+        utils.checkReorganization(simple.matrix, simple_names, loaded, loaded_names);
         simple.matrix.free();
     }
 

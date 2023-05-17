@@ -61,11 +61,10 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
             let simple_ids = keep.slice();
 
             let loaded = state.inputs.fetchCountMatrix().get(k);
-            let loaded_ids = state.inputs.fetchRowIds()[k];
             let loaded_names = state.inputs.fetchFeatureAnnotations()[k].column("id");
 
             expect(simple.matrix.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
-            utils.checkReorganization(simple_mat, simple_ids, simple_names, loaded, loaded_ids, loaded_names, { referenceSubset: true }); 
+            utils.checkReorganization(simple_mat, simple_names, loaded, loaded_names);
             simple_mat.free();
         }
 
