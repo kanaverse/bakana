@@ -20,7 +20,7 @@ export const step_name = "marker_detection";
  ***** Internals *****
  *********************/
 
-function _free(cache) {
+function _free_results(cache) {
     for (const v of Object.values(cache.raw)) {
         utils.freeCache(v);
     }
@@ -115,7 +115,7 @@ export class MarkerDetectionState {
      * Frees all resources associated with this instance.
      */
     free() {
-        _free(this.#cache);
+        _free_results(this.#cache);
     }
 
     /**
@@ -332,7 +332,7 @@ export class MarkerDetectionStandalone {
         scran.free(this.#groups);
         scran.free(this.#block);
         scran.free(this.#matrices);
-        _free(this.#cache);
+        _free_results(this.#cache);
     }
 
     /**
@@ -400,7 +400,8 @@ export class MarkerDetectionStandalone {
      */
     setParameters(parameters) {
         if (this.#parameters.lfc_threshold !== parameters.lfc_threshold || this.#parameters.compute_auc !== parameters.compute_auc) {
-            this.free();
+            // Removing existing results, as they are now invalid.
+            _free_results(this.#cache);
         }
         this.#parameters = { ...parameters };
         return;

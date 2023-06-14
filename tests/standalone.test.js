@@ -37,6 +37,24 @@ test("Standalone marker detection works correctly", async () => {
     let versus = markers.computeVersus(1, 0);
     expect(versus.results["RNA"] instanceof scran.ScoreMarkersResults).toBe(true);
 
+    // Setting options works.
+    {
+        let markers2 = new bakana.MarkerDetectionStandalone(normed, groups);
+
+        let defaults = bakana.MarkerDetectionState.defaults();
+        defaults.compute_auc = false;
+        markers2.setParameters(defaults);
+        markers2.computeAll();
+        let res2 = markers2.fetchResults();
+
+        let rounded = res["RNA"].cohen(0).map(x => Math.round(x * 100));
+        let rounded2 = res2["RNA"].cohen(0).map(x => Math.round(x * 100));
+        expect(rounded2).toEqual(rounded); // avoid discrepancies due to numerical precision.
+        expect(() => res2["RNA"].auc(0)).toThrow("no AUCs");
+
+        markers2.free();
+    }
+
     // Also works with blocking.
     let block = new Int32Array(loaded.matrix.numberOfColumns());
     for (var i = 0; i < block.length; i++) {
@@ -107,6 +125,24 @@ test("Standalone custom selections work correctly", async () => {
     let vres = custom.computeVersus("WHEEE", "BLAH");
     expect(vres.results["foo"] instanceof scran.ScoreMarkersResults).toBe(true);
     expect(vres.results["bar"] instanceof scran.ScoreMarkersResults).toBe(true);
+
+    // Setting options works.
+    {
+        let custom2 = new bakana.CustomSelectionsStandalone(normed);
+
+        let defaults = bakana.CustomSelectionsState.defaults();
+        defaults.compute_auc = false;
+        custom2.setParameters(defaults);
+        custom2.addSelection("WHEEE", [ 1,2,3,4,5,6,7,8,9,10 ]);
+        let res2 = custom2.fetchResults("WHEEE");
+
+        let rounded = res["foo"].cohen(0).map(x => Math.round(x * 100));
+        let rounded2 = res2["foo"].cohen(0).map(x => Math.round(x * 100));
+        expect(rounded2).toEqual(rounded); // avoid discrepancies due to numerical precision.
+        expect(() => res2["foo"].auc(0)).toThrow("no AUCs");
+
+        custom2.free();
+    }
 
     // Also works with blocking.
     let block = new Int32Array(loaded.matrix.numberOfColumns());
