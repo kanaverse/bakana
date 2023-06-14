@@ -492,6 +492,8 @@ export class CustomSelectionsStandalone {
      * Frees all resources associated with this instance.
      */
     free() {
+        scran.free(this.#normalized);
+        scran.free(this.#block);
         this.#manager.free();
         return;
     }
@@ -537,7 +539,7 @@ export class CustomSelectionsStandalone {
      */
     setParameters(parameters) {
         if (this.#parameters.lfc_threshold !== parameters.lfc_threshold || this.#parameters.compute_auc !== parameters.compute_auc) {
-            this.free();
+            this.#manager.free();
         }
         this.#parameters = parameters;
         return;
