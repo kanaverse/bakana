@@ -74,11 +74,9 @@ function load_data_frame(handle) {
             if (key in columns) {
                 let current_levels = eutils.extractHDF5Strings(chandle, key);
                 if (!current_levels) {
-                    // don't slice if its null
-                    console.warn(`levels shouldn't be null, but it is for ${key}`)
+                    console.warn(`ignoring invalid levels for nominally categorical key '${key}' in the H5AD reader`)
                     continue;
                 }
-
                 columns[key] = bioc.SLICE(current_levels, columns[key]);
             }
         }
