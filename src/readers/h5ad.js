@@ -73,6 +73,12 @@ function load_data_frame(handle) {
         for (const [key, val] of Object.entries(chandle.children)) {
             if (key in columns) {
                 let current_levels = eutils.extractHDF5Strings(chandle, key);
+                if (!current_levels) {
+                    // don't slice if its null
+                    console.warn(`levels shouldn't be null, but it is for ${key}`)
+                    continue;
+                }
+
                 columns[key] = bioc.SLICE(current_levels, columns[key]);
             }
         }
