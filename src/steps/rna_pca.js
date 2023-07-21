@@ -92,12 +92,15 @@ export class RnaPcaState {
      *
      * - `"none"`, in which case nothing is done using the sample information. 
      * - `"regress"`, where linear regression is applied to remove mean differences between samples.
-     * - `"weight"`, where samples are weighted so that they contribute equally regardless of the number of cells.
+     * - `"project"`, where samples are weighted so that they contribute equally regardless of the number of cells.
      *
      * @return The object is updated with the new results.
      */
     compute(parameters) {
         let { num_hvgs, num_pcs, block_method } = parameters;
+        if (block_method == "weight") {
+            block_method = "project";
+        }
         this.changed = false;
 
         if (this.#feat.changed || num_hvgs !== this.#parameters.num_hvgs) {
@@ -176,7 +179,7 @@ export function unserialize(handle, filter, norm, feat) {
         if ("block_method" in phandle.children) {
             parameters.block_method = phandle.open("block_method", { load: true }).values[0];
             if (parameters.block_method == "mnn") {
-                parameters.block_method = "weight";
+                parameters.block_method = "project";
             }
         } else {
             parameters.block_method = "none";

@@ -73,12 +73,15 @@ export class AdtPcaState {
      * @param {object} parameters - Parameter object, equivalent to the `adt_pca` property of the `parameters` of {@linkcode runAnalysis}.
      * @param {number} parameters.num_pcs - Number of PCs to return.
      * @param {string} parameters.block_method - Blocking method to use when dealing with multiple samples.
-     * This can be `"none"`, `"regress"` or `"weight"`, see comments in {@linkplain RnaPcaState}.
+     * This can be `"none"`, `"regress"` or `"project"`, see comments in {@linkplain RnaPcaState}.
      *
      * @return The object is updated with the new results.
      */
     compute(parameters) {
         let { num_pcs, block_method } = parameters;
+        if (block_method == "weight") {
+            block_method = "project";
+        }
         this.changed = false;
 
         if (this.#norm.changed || num_pcs !== this.#parameters.num_pcs || block_method !== this.#parameters.block_method) { 

@@ -112,9 +112,9 @@ const correctible_pca_steps = [pca.step_name, pcaadt.step_name, pcacrispr.step_n
 /**
  * Set the batch correction parameters across multiple steps.
  * This is a convenient helper as the correction process is split across the PCA and batch correction steps.
- * For MNN, we need to weight by block in the {@linkplain PcaState} before performing MNN correction in {@linkplain BatchCorrectionState};
- * for linear regression, we need to regress by block in {@linkplain PcaState} without any additional correctioni in {@linkplain BatchCorrectionState};
- * and for no correction, we need to turn off any block handling in {@linkplain PcaState}as well as removing any additional correction in {@linkplain BatchCorrectionState}.
+ * For MNN, we project cells onto rotation vectors computed within each batch in the various PCA steps (e.g., {@linkplain PcaState}) before performing MNN correction in {@linkplain BatchCorrectionState};
+ * for linear regression, we need to regress by block in the PCA without any additional correction in {@linkplain BatchCorrectionState};
+ * and for no correction, we need to turn off any block handling in the PCA as well as removing any additional correction in {@linkplain BatchCorrectionState}.
  *
  * @param {object} parameters Object containing parameters for all steps, e.g., from {@linkcode analysisDefaults}.
  * @param {string} method Correction method to perform, one of `"mnn"`, "`regress"` or `"none"`.
@@ -127,7 +127,7 @@ export function configureBatchCorrection(parameters, method) {
 
     if (method == "mnn") {
         correct_method = method;
-        pca_blocker = "weight";
+        pca_blocker = "project";
     } else if (method == "regress") {
         correct_method = "none";
         pca_blocker = method;
@@ -165,7 +165,7 @@ export function guessBatchCorrectionConfig(parameters, { strict = false } = {}) 
     if (parameters[correct.step_name].method == "mnn") {
         resp = "mnn";
         if (strict) {
-            if (pca_blockers.size > 1 || !pca_blockers.has("weight")) {
+            if (pca_blockers.size > 1 || !pca_blockers.has("project")) {
                 resp = null;
             }
         }
@@ -183,7 +183,7 @@ export function guessBatchCorrectionConfig(parameters, { strict = false } = {}) 
                 resp = "none";
             }
         } else {
-            // If pca block_methods are set to 'weight',
+            // If pca block_methods are set to 'project',
             // this doesn't really correspond to anything,
             // but is closest to 'none'.
             if (strict) {
