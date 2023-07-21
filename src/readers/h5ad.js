@@ -29,7 +29,7 @@ function fetch_assay_details(handle, path) {
         throw new Error("failed to find any assay in the H5AD file");
     }
 
-    let deets = scran.extractHDF5MatrixDetails(path, available[0]);
+    let deets = scran.extractHdf5MatrixDetails(path, available[0]);
     return {
         names: available,
         rows: deets.rows,
@@ -59,7 +59,7 @@ function load_data_frame(handle) {
             // Factor encoding for H5AD versions >= 0.8.0.
             let subhandle = handle.open(key);
             if ("categories" in subhandle.children && "codes" in subhandle.children) {
-                let current_levels = eutils.extractHDF5Strings(subhandle, "categories");
+                let current_levels = eutils.extractHdf5Strings(subhandle, "categories");
                 let codes = subhandle.open("codes", { load: true }).values;
                 columns[key] = bioc.SLICE(current_levels, codes);
             }
@@ -72,7 +72,7 @@ function load_data_frame(handle) {
 
         for (const [key, val] of Object.entries(chandle.children)) {
             if (key in columns) {
-                let current_levels = eutils.extractHDF5Strings(chandle, key);
+                let current_levels = eutils.extractHdf5Strings(chandle, key);
                 if (!current_levels) {
                     console.warn(`ignoring invalid levels for nominally categorical key '${key}' in the H5AD reader`)
                     continue;
@@ -383,7 +383,7 @@ export class H5adDataset {
         if (chosen_assay == null) {
             chosen_assay = this.#assay_details.names[0];
         }
-        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, chosen_assay);
+        let loaded = scran.initializeSparseMatrixFromHdf5(this.#h5_path, chosen_assay);
 
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#options.featureTypeColumnName, this.#feature_type_mapping(), "RNA");
         output.cells = this.#raw_cells;
@@ -647,7 +647,7 @@ export class H5adResult {
         if (chosen_assay == null) {
             chosen_assay = this.#assay_details.names[0];
         }
-        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, chosen_assay, { forceInteger: !this.#options.isPrimaryNormalized });
+        let loaded = scran.initializeSparseMatrixFromHdf5(this.#h5_path, chosen_assay, { forceInteger: !this.#options.isPrimaryNormalized });
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#options.featureTypeColumnName, null, "");
         output.cells = this.#raw_cells;
 

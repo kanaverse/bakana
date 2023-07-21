@@ -39,11 +39,11 @@ test("runAnalysis works correctly (10X)", async () => {
         let loaded = state.inputs.fetchCountMatrix().get("RNA");
         let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].column("id");
 
-        let simple = scran.initializeSparseMatrixFromHDF5(h5path, "matrix", { layered: false });
+        let simple = scran.initializeSparseMatrixFromHdf5(h5path, "matrix", { layered: false });
         let simple_names = (new scran.H5File(h5path)).open("matrix").open("features").open("id", { load: true }).values;
 
-        utils.checkReorganization(simple.matrix, simple_names, loaded, loaded_names);
-        simple.matrix.free();
+        utils.checkMatrixContents(simple, simple_names, loaded, loaded_names);
+        simple.free();
     }
 
     // Basic consistency checks.

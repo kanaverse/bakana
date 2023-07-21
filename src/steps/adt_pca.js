@@ -8,7 +8,7 @@ export const step_name = "adt_pca";
 /**
  * This step performs a principal components analysis (PCA) to compact and denoise ADT data.
  * The resulting PCs can be used as input to various per-cell analyses like clustering and dimensionality reduction.
- * It wraps the [`runPCA`](https://kanaverse.github.io/scran.js/global.html#runPCA) function
+ * It wraps the [`runPca`](https://kanaverse.github.io/scran.js/global.html#runPca) function
  * from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
@@ -86,7 +86,7 @@ export class AdtPcaState {
                 let block = this.#filter.fetchFilteredBlock();
                 var mat = this.#norm.fetchNormalizedMatrix();
                 utils.freeCache(this.#cache.pcs);
-                this.#cache.pcs = scran.runPCA(mat, { numberOfPCs: num_pcs, block: block, blockMethod: block_method });
+                this.#cache.pcs = scran.runPca(mat, { numberOfPCs: num_pcs, block: block, blockMethod: block_method });
 
                 this.changed = true;
             }

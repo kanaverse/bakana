@@ -6,7 +6,7 @@ export const step_name = "snn_graph_cluster";
 
 /**
  * This step does SNN graph clustering based on the neighbor search index built by {@linkplain NeighborIndexState}.
- * This wraps [`clusterSNNGraph`](https://kanaverse.github.io/scran.js/global.html#clusterSNNGraph) 
+ * This wraps [`clusterSnnGraph`](https://kanaverse.github.io/scran.js/global.html#clusterSnnGraph) 
  * and related functions from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
@@ -74,7 +74,7 @@ export class SnnGraphClusterState {
         if (!("neighbors" in this.#cache)) { // need to check as reloaded state will not populate the internals.
             this.#compute_neighbors(this.#parameters.k);
         }
-        this.#cache.graph = scran.buildSNNGraph(this.#cache.neighbors, { scheme: scheme });
+        this.#cache.graph = scran.buildSnnGraph(this.#cache.neighbors, { scheme: scheme });
         return;
     }
 
@@ -82,7 +82,7 @@ export class SnnGraphClusterState {
         if (!("graph" in this.#cache)) {
             this.#compute_graph(this.#parameters.scheme);
         }
-        this.#cache.clusters = scran.clusterSNNGraph(this.#cache.graph, {
+        this.#cache.clusters = scran.clusterSnnGraph(this.#cache.graph, {
             method: algorithm,
             multiLevelResolution: multilevel_resolution,
             leidenResolution: leiden_resolution,
@@ -204,7 +204,7 @@ export function unserialize(handle, index) {
         let rhandle = ghandle.open("results");
         if ("clusters" in rhandle.children) {
             let clusters = rhandle.open("clusters", { load: true }).values;
-            cache.clusters = scran.emptyClusterSNNGraphResults(clusters.length, 1);
+            cache.clusters = scran.emptyClusterSnnGraphResults(clusters.length, 1);
             cache.clusters.setBest(0); // whatever.
             cache.clusters.membership({ fillable: true }).set(clusters);
         }

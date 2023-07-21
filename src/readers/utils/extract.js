@@ -3,7 +3,7 @@ import ppp from "papaparse";
 import * as astream from "./abstract/stream.js";
 import * as afile from "../abstract/file.js";
 
-export function extractHDF5Strings(handle, name) {
+export function extractHdf5Strings(handle, name) {
     if (!(name in handle.children)) {
         return null;
     }
