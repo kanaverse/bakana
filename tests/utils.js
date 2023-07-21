@@ -425,14 +425,6 @@ export async function checkStateResultsBlocked(state) {
         expect(corrected_pcs.array()).not.toEqual(original_pcs.array());
     }
 
-    // Checking that the marker results show up with multiple blocks.
-    {
-        let res = state.marker_detection.fetchResults();
-        for (const v of Object.values(res)) {
-            expect(v.numberOfBlocks()).toEqual(nlevels);
-        }
-    }
-
     return;
 }
 

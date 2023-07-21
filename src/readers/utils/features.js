@@ -93,7 +93,7 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
         if (typeField !== null && current_features.hasColumn(typeField)) {
             let by_type = splitByModality(current_features, typeField, featureTypeMapping);
             let type_keys = Object.keys(by_type);
-            let skip_subset = is_subset_noop(type_keys[0], out_mat.numberOfRows());
+            let skip_subset = is_subset_noop(type_keys[0], loaded.numberOfRows());
 
             if (type_keys.length > 1 || !skip_subset) {
                 let replacement = new scran.MultiMatrix({ store: scran.splitRows(loaded, by_type) });

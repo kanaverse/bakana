@@ -82,12 +82,12 @@ action_simple("runAnalysis works correctly (ArtifactDB)", async () => {
         let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].rowNames();
 
         let fpath = nav.baseDirectory + "/" + target_simple + "/assay-counts/matrix.h5";
-        let simple = scran.initializeSparseMatrixFromHDF5(fpath, "matrix", { layered: false });
+        let simple = scran.initializeSparseMatrixFromHdf5(fpath, "matrix", { layered: false });
         let rpath = nav.baseDirectory + "/" + target_simple + "/rowdata/simple.h5";
         let simple_names = (new scran.H5DataSet(rpath, "data/row_names", { load: true })).values;
 
-        utils.checkReorganization(simple.matrix, simple_names, loaded, loaded_names);
-        simple.matrix.free();
+        utils.checkMatrixContents(simple, simple_names, loaded, loaded_names);
+        simple.free();
     }
 
     // Basic checks.

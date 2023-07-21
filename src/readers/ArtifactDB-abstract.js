@@ -274,13 +274,14 @@ async function extract_logcounts(handle, navigator) {
     let path = ahandle.open("path", { load: true }).values[0];
 
     let mat;
+    let output;
     try {
         mat = await extract_assay_raw(path, navigator, false); // don't force it to be integer, but we don't mind if it is.
-        mat = scran.logNormCounts(mat, { sizeFactors: sf, center: false });
+        output = scran.logNormCounts(mat, { sizeFactors: sf, center: false });
     } finally {
         scran.free(mat);
     }
-                
+
     return output;
 }
 

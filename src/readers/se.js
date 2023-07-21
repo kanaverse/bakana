@@ -829,7 +829,7 @@ export class SummarizedExperimentDataset {
                 }
 
                 let loaded = extract_assay(handle, v.assay, true);
-                output.matrix.add(k, loaded.matrix);
+                output.matrix.add(k, loaded);
                 output.features[k] = this.#raw_features[name];
             }
 
@@ -1166,10 +1166,10 @@ export class SummarizedExperimentResult {
                 }
 
                 let loaded = extract_assay(handle, curassay, !curnormalized);
-                output.matrix.add(k, loaded.matrix);
+                output.matrix.add(k, loaded);
 
                 if (!curnormalized) {
-                    let normed = scran.logNormCounts(loaded.matrix, { allowZeros: true });
+                    let normed = scran.logNormCounts(loaded, { allowZeros: true });
                     output.matrix.add(k, normed);
                 }
 

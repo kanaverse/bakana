@@ -56,8 +56,8 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
         let parsed = bakana.readTable((new bakana.SimpleFile(feat_file)).buffer(), { compression: "gz" });
         let simple_names = parsed.map(x => x[0]);
 
-        utils.checkReorganization(simple.matrix, simple_names, loaded, loaded_names);
-        simple.matrix.free();
+        utils.checkMatrixContents(simple, simple_names, loaded, loaded_names);
+        simple.free();
     }
 
     // Basic consistency checks.
