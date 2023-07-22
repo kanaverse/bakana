@@ -83,7 +83,7 @@ export class BatchCorrectionState {
      * @param {object} parameters - Parameter object, equivalent to the `batch_correction` property of the `parameters` of {@linkcode runAnalysis}.
      * @param {string} parameters.method - The correction method to use.
      * Currently this can be either `"mnn"` or `"none"`.
-     * If `"mnn"`, it is recommended that upstream PCA steps (i.e., {@linkplain RnaPcaState} and {@linkplain AdtPcaState}) use `block_method = "weight"`.
+     * If `"mnn"`, it is recommended that upstream PCA steps (i.e., {@linkplain RnaPcaState} and {@linkplain AdtPcaState}) use `block_method = "project"`.
      * @param {number} parameters.num_neighbors - Number of neighbors to use during MNN correction.
      * @param {boolean} parameters.approximate - Whether to use an approximate method to identify MNNs.
      *
@@ -137,59 +137,4 @@ export class BatchCorrectionState {
             approximate: true
         };
     }
-}
-
-/**************************
- ******** Loading *********
- **************************/
-
-export function unserialize(handle, filter, combined) {
-    let cache = {};
-    let parameters = BatchCorrectionState.defaults();
-    let output;
-    
-    if (step_name in handle.children) {
-        let ghandle = handle.open(step_name);
-
-        let phandle = ghandle.open("parameters"); 
-        parameters.method = phandle.open("method", { load: true }).values[0];
-        parameters.num_neighbors = phandle.open("num_neighbors", { load: true }).values[0];
-        parameters.approximate = phandle.open("approximate", { load: true }).values[0] > 0;
-
-        try {
-            let rhandle = ghandle.open("results");
-
-            if ("corrected" in rhandle.children) {
-                let corrected = rhandle.open("corrected", { load: true }).values;
-                cache.corrected = scran.createFloat64WasmArray(corrected.length);
-                cache.corrected.set(corrected);
-            } else {
-                // Creating a view from the upstream combined state.
-                let pcs = combined.fetchCombined();
-                cache.corrected = pcs.view();
-            }
-
-            output = new BatchCorrectionState(filter, combined, parameters, cache);
-        } catch (e) {
-            utils.freeCache(cache.corrected);
-            utils.freeCache(output);
-            throw e;
-        }
-    } else {
-        // Fallback for v1.
-        let ghandle = handle.open("pca");
-
-        let rhandle = ghandle.open("results");
-        if ("corrected" in rhandle.children) {
-            let corrected = rhandle.open("corrected", { load: true }).values;
-            let corbuffer = utils.allocateCachedArray(corrected.length, "Float64Array", cache, "corrected");
-            corbuffer.set(corrected);
-        } else {
-            cache.corrected = combined.fetchCombined().view();
-        }
-
-        output = new BatchCorrectionState(filter, combined, parameters, cache);
-    }
-
-    return output;
 }

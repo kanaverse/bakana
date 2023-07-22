@@ -791,25 +791,3 @@ export class CellLabellingStandalone {
         return assign_labels(x, group, this.#cache);
     }
 }
-
-/**************************
- ******** Loading *********
- **************************/
-
-export function unserialize(handle, inputs) {
-    let parameters = {};
-
-    // Protect against old analysis states that don't have cell_labelling.
-    if ("cell_labelling" in handle.children) {
-        let ghandle = handle.open("cell_labelling");
-        
-        {
-            let phandle = ghandle.open("parameters");
-            let mouse_references = phandle.open("mouse_references", { load: true }).values;
-            let human_references = phandle.open("human_references", { load: true }).values;
-            parameters.references = [ ...mouse_references, ...human_references ];
-        }
-    }
-
-    return new CellLabellingState(inputs, parameters);
-}

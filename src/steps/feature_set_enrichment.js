@@ -859,27 +859,3 @@ export class FeatureSetEnrichmentStandalone {
         return output;
     }
 }
-
-/**************************
- ******** Loading *********
- **************************/
-
-export function unserialize(handle, inputs, filter, normalized, markers) {
-    let parameters = {};
-    let cache = {};
-
-    // Protect against old analysis states that don't have cell_labelling.
-    if ("feature_set_enrichment" in handle.children) {
-        let ghandle = handle.open("feature_set_enrichment");
-
-        {
-            let phandle = ghandle.open("parameters");
-            parameters.collections = phandle.open("collections", { load: true }).values;
-            for (const k of [ "gene_id_column", "gene_id_type", "top_markers" ]) {
-                parameters[k] = phandle.open(k, { load: true }).values[0];
-            }
-        }
-    }
-
-    return new FeatureSetEnrichmentState(inputs, filter, normalized, markers, parameters, cache);
-}

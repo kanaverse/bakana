@@ -1,18 +1,12 @@
 import * as path from "path";
 import * as fs from "fs";
 import * as bakana from "../src/index.js";
-import * as valkana from "valkana";
 import * as scran from "scran.js";
 import * as gesel from "gesel";
 import * as wa from "wasmarrays.js";
 
 export async function initializeAll() {
     await bakana.initialize({ localFile: true });
-    await valkana.initialize({ localFile: true });
-}
-
-export function validateState(path, embedded = true) {
-    valkana.validateState(path, embedded, bakana.kanaFormatVersion);
 }
 
 export function baseParams() {
@@ -82,7 +76,7 @@ function is_same(left, right) {
     return true;
 }
 
-export function checkReorganization(matrix, names, loadedMatrix, loadedNames, { mustDiffer = true } = {}) {
+export function checkMatrixContents(matrix, names, loadedMatrix, loadedNames, { mustDiffer = true } = {}) {
     let NR = matrix.numberOfRows();
     let NC = matrix.numberOfColumns();
     if (loadedMatrix.numberOfRows() != NR || NC != loadedMatrix.numberOfColumns()) {
@@ -92,79 +86,17 @@ export function checkReorganization(matrix, names, loadedMatrix, loadedNames, { 
     if (names.length != NR) {
         throw new Error("length of 'names' is different from number of matrix rows"); 
     }
-    if (loadedNames.length != NR) {
-        throw new Error("length of 'loadedNames' is different from number of matrix rows"); 
+    if (!is_same(names, loadedNames)) {
+        throw new Error("loaded and reference names should be the same");
     }
 
-    let mapping = new Map;
-    for (var i = 0; i < NR; i++) {
-        let found = mapping.get(names[i], i);
-        if (typeof found !== "undefined") {
-            throw new Error("found duplicated name '" + names[i] + "' in 'names'");
-        }
-        mapping.set(names[i], i);
-    }
-
-    let permuter = new Int32Array(NR);
-    for (var i = 0; i < NR; i++) {
-        let found = mapping.get(loadedNames[i]);
-        if (typeof found == "undefined") {
-            throw new Error("'loadedNames' has unique name '" + loadedNames[i] + "' not in 'names'");
-        } else if (found === null) {
-            throw new Error("found duplicate name '" + loadedNames[i] + "' in 'loadedNames'");
-        }
-
-        permuter[i] = found;
-        mapping.set(loadedNames[i], null);
-    }
-
-    if (mustDiffer) {
-        if (is_same(names, loadedNames)) {
-            throw new Error("loaded and reference names should not have been the same");
-        }
-
-        let same = true;
-        for (var i = 0; i < permuter.length; i++) {
-            if (permuter[i] != i) {
-                same = false;
-                break;
-            }
-        }
-        if (same) {
-            throw new Error("identities should not be trivial after reorganization");
-        }
-    }
-
-    let converted = new names.constructor(NR);
-    permuter.forEach((x, i) => {
-        converted[i] = names[x];
-    });
-
-    if (!is_same(converted, loadedNames)) {
-        throw new Error("loaded matrix's name reorganization is not consistent");
-    }
-
-    // Checking that the reorganization matches up with the reference for every 100th column.
-    let at_least_one_difference = false;
-
+    // Checking that the contents match up with the reference for every 100th column.
     for (var c = 0; c < NC; c += 100) {
         let loaded_first = loadedMatrix.column(c);
         let reference_first = matrix.column(c);
-        if (mustDiffer && !is_same(loaded_first, reference_first)) {
-            at_least_one_difference = true;
+        if (!is_same(loaded_first, reference_first)) {
+            throw new Error("loaded and reference matrix contents are not the same"); 
         }
-
-        let converted = new reference_first.constructor(NR);
-        permuter.forEach((x, i) => {
-            converted[i] = reference_first[x];
-        });
-        if (!is_same(loaded_first, converted)) {
-            throw new Error("loaded matrix's reorganization is not consistent"); 
-        }
-    }
-
-    if (mustDiffer && !at_least_one_difference) {
-        throw new Error("loaded and reference columns should have some kind of difference");
     }
 }
 
@@ -372,7 +304,7 @@ export async function checkStateResultsRna(state, { exclusive = false, mustFilte
     // Feature selection:
     {
         let feats = state.feature_selection.fetchResults();
-        expect(feats instanceof scran.ModelGeneVarResults).toBe(true);
+        expect(feats instanceof scran.ModelGeneVariancesResults).toBe(true);
 
         let resids = feats.residuals();
         expect(resids.length).toBe(ngenes);
@@ -385,7 +317,7 @@ export async function checkStateResultsRna(state, { exclusive = false, mustFilte
     // PCA:
     {
         let pcs = state.rna_pca.fetchPCs();
-        expect(pcs instanceof scran.RunPCAResults).toBe(true);
+        expect(pcs instanceof scran.RunPcaResults).toBe(true);
         expect(pcs.numberOfCells()).toBe(nfiltered);
         expect(pcs.numberOfPCs()).toBe(state.rna_pca.fetchParameters().num_pcs);
     }
@@ -448,14 +380,6 @@ export async function checkStateResultsUnblocked(state) {
     {
         expect(state.cell_filtering.fetchFilteredBlock()).toBeNull();
     }
-
-    // Marker detection has a single block.
-    {
-        let res = state.marker_detection.fetchResults();
-        for (const v of Object.values(res)) {
-            expect(v.numberOfBlocks()).toBe(1);
-        }
-    }
 }
 
 export async function checkStateResultsBlocked(state) {
@@ -499,14 +423,6 @@ export async function checkStateResultsBlocked(state) {
         let original_pcs = state.combine_embeddings.fetchCombined();
         expect(corrected_pcs.length).toEqual(original_pcs.length);
         expect(corrected_pcs.array()).not.toEqual(original_pcs.array());
-    }
-
-    // Checking that the marker results show up with multiple blocks.
-    {
-        let res = state.marker_detection.fetchResults();
-        for (const v of Object.values(res)) {
-            expect(v.numberOfBlocks()).toEqual(nlevels);
-        }
     }
 
     return;

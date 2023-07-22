@@ -57,18 +57,18 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
             });
 
             let simple_names = keep.map(x => simple_names_all[x]);
-            let simple_mat = scran.subsetRows(simple.matrix, keep);
+            let simple_mat = scran.subsetRows(simple, keep);
             let simple_ids = keep.slice();
 
             let loaded = state.inputs.fetchCountMatrix().get(k);
             let loaded_names = state.inputs.fetchFeatureAnnotations()[k].column("id");
 
-            expect(simple.matrix.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
-            utils.checkReorganization(simple_mat, simple_names, loaded, loaded_names);
+            expect(simple.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
+            utils.checkMatrixContents(simple_mat, simple_names, loaded, loaded_names);
             simple_mat.free();
         }
 
-        simple.matrix.free();
+        simple.free();
     }
 
     // Running through some basic checks.
@@ -161,13 +161,12 @@ test("runAnalysis works for ADTs with blocking", async () => {
     await utils.checkStateResultsBlocked(state);
 
     let vres = utils.checkClusterVersusMode(state);
-    expect(vres.results.RNA.numberOfBlocks()).toEqual(nblocks);
-    expect(vres.results.ADT.numberOfBlocks()).toEqual(nblocks);
+    expect(vres.results.ADT instanceof scran.ScoreMarkersResults).toBe(true);
 
     let custom = utils.launchCustomSelections(state);
-    expect(custom.first.ADT.numberOfBlocks()).toEqual(nblocks);
-    expect(custom.last.ADT.numberOfBlocks()).toEqual(nblocks);
-    expect(custom.versus.results.ADT.numberOfBlocks()).toBeGreaterThan(1); // as subset might not actually have all 3 blocks.
+    expect(custom.first.ADT instanceof scran.ScoreMarkersResults).toBe(true);
+    expect(custom.last.ADT instanceof scran.ScoreMarkersResults).toBe(true);
+    expect(custom.versus.results.ADT instanceof scran.ScoreMarkersResults).toBe(true);
 
     // Freeing everyone.
     await bakana.freeAnalysis(state);

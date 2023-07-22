@@ -7,7 +7,7 @@ export function dumpPcaResultsToHdf5(pcs, path, forceBuffer) {
     let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
     let content = temppath;
 
-    let fhandle = scran.createNewHDF5File(temppath);
+    let fhandle = scran.createNewHdf5File(temppath);
     let buffer;
 
     try {
@@ -62,7 +62,7 @@ export function dumpOtherReducedDimensionsToHdf5(dimensions, path, forceBuffer) 
     let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
     let content = temppath;
 
-    let fhandle = scran.createNewHDF5File(temppath);
+    let fhandle = scran.createNewHdf5File(temppath);
     let buffer;
 
     try {

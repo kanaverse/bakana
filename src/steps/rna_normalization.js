@@ -121,11 +121,3 @@ export class RnaNormalizationState {
         return {};
     }
 }
-
-/**************************
- ******** Loading *********
- **************************/
-
-export function unserialize(handle, qc, filter) {
-    return new RnaNormalizationState(qc, filter);
-}

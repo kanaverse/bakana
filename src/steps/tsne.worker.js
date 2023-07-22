@@ -16,7 +16,7 @@ function rerun(animate, iterations) {
 
     try {
         for (; current_status.iterations() < iterations; ) {
-            scran.runTSNE(current_status, { runTime: delay, maxIterations: iterations }); 
+            current_status.run({ runTime: delay, maxIterations: iterations }); 
   
             if (animate) {
                 let xy = current_status.extractCoordinates();
@@ -82,7 +82,7 @@ aworkers.registerCallback(msg => {
                     init_changed = false;
                 } else {
                     utils.freeCache(cache.init);
-                    cache.init = scran.initializeTSNE(cache.neighbors, { perplexity: init_args.perplexity });
+                    cache.init = scran.initializeTsne(cache.neighbors, { perplexity: init_args.perplexity });
                     init_parameters = init_args;
                     init_changed = true;
                 }

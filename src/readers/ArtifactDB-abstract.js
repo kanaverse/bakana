@@ -274,15 +274,14 @@ async function extract_logcounts(handle, navigator) {
     let path = ahandle.open("path", { load: true }).values[0];
 
     let mat;
-    let output = {};
+    let output;
     try {
         mat = await extract_assay_raw(path, navigator, false); // don't force it to be integer, but we don't mind if it is.
-        output.matrix = scran.logNormCounts(mat.matrix, { sizeFactors: sf, center: false });
-        output.row_ids = mat.row_ids;
+        output = scran.logNormCounts(mat, { sizeFactors: sf, center: false });
     } finally {
-        scran.free(mat.matrix);
+        scran.free(mat);
     }
-                
+
     return output;
 }
 
@@ -322,7 +321,7 @@ async function extract_assay_raw(asspath, navigator, forceInteger) {
         let name = (is_sparse ?  assmeta.hdf5_sparse_matrix.group : assmeta.hdf5_dense_array.dataset);
         let stuff = scran.realizeFile(contents);
         try {
-            output = scran.initializeSparseMatrixFromHDF5(stuff.path, name, { forceInteger });
+            output = scran.initializeSparseMatrixFromHdf5(stuff.path, name, { forceInteger });
         } finally {
             stuff.flush();
         }
@@ -719,8 +718,8 @@ export class AbstractArtifactdbDataset {
                 }
 
                 let loaded = await extract_assay(meta, v.assay, this.#navigator, true);
-                output.matrix.add(k, loaded.matrix);
-                output.features[k] = bioc.SLICE(this.#raw_features[name], loaded.row_ids);
+                output.matrix.add(k, loaded);
+                output.features[k] = this.#raw_features[name]; 
             }
 
             output.primary_ids = futils.extractPrimaryIds(output.features, this.#primary_mapping());
@@ -1019,18 +1018,14 @@ export class AbstractArtifactdbResult {
                     }
 
                     let loaded = await extract_assay(meta, curassay, this.#navigator, !curnormalized);
-                    output.matrix.add(k, loaded.matrix);
+                    output.matrix.add(k, loaded);
 
                     if (!curnormalized) {
-                        let normed = scran.logNormCounts(loaded.matrix, { allowZeros: true });
+                        let normed = scran.logNormCounts(loaded, { allowZeros: true });
                         output.matrix.add(k, normed);
                     }
 
-                    if (loaded.row_ids !== null) {
-                        output.features[k] = bioc.SLICE(this.#raw_features[k], loaded.row_ids);
-                    } else {
-                        output.features[k] = this.#raw_features[k];
-                    }
+                    output.features[k] = this.#raw_features[k];
                 }
 
             } catch (e) {

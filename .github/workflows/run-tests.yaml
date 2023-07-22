@@ -43,13 +43,6 @@ jobs:
         path: '**/files/references'
         key: references-${{ hashFiles('**/files/download-references.sh') }}
 
-
-    - name: Restore the legacy files 
-      uses: actions/cache@v3
-      with:
-        path: '**/files/legacy'
-        key: references-${{ hashFiles('**/files/download-legacy.sh') }}
-
     - name: Install packages
       run: npm i --include-dev
 
@@ -64,9 +57,6 @@ jobs:
 
     - name: Download mitochondrial lists
       run: cd files && bash download-mito-lists.sh
-
-    - name: Download legacy 
-      run: cd files && bash download-legacy.sh
 
     - name: Run tests
       run: npm run test

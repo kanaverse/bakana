@@ -41,7 +41,7 @@ test("runAnalysis works correctly (10X)", async () => {
 
     // Input reorganization is done correctly. 
     {
-        let simple = scran.initializeSparseMatrixFromHDF5(h5file, "matrix", { layered: false });
+        let simple = scran.initializeSparseMatrixFromHdf5(h5file, "matrix", { layered: false });
         let fhandle = (new scran.H5File(h5file)).open("matrix").open("features");
         let simple_names_all = fhandle.open("id", { load: true }).values;
         let simple_types = fhandle.open("feature_type", { load: true }).values;
@@ -56,18 +56,17 @@ test("runAnalysis works correctly (10X)", async () => {
             });
 
             let simple_names = keep.map(x => simple_names_all[x]);
-            let simple_mat = scran.subsetRows(simple.matrix, keep);
-            let simple_ids = keep.slice();
+            let simple_mat = scran.subsetRows(simple, keep);
 
             let loaded = state.inputs.fetchCountMatrix().get(k);
             let loaded_names = state.inputs.fetchFeatureAnnotations()[k].column("id");
 
-            expect(simple.matrix.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
-            utils.checkReorganization(simple_mat, simple_names, loaded, loaded_names);
+            expect(simple.numberOfRows()).toBeGreaterThan(loaded.numberOfRows());
+            utils.checkMatrixContents(simple_mat, simple_names, loaded, loaded_names);
             simple_mat.free();
         }
 
-        simple.matrix.free();
+        simple.free();
     }
 
     // Simple checks, where CRISPR is used in the combined embeddings.
@@ -106,13 +105,12 @@ test("runAnalysis works for CRISPR (MatrixMarket) with blocking", async () => {
 
     // However, CRISPR should still show up in the marker analyses.
     let vres = utils.checkClusterVersusMode(state);
-    expect(vres.results.RNA.numberOfBlocks()).toEqual(nblocks);
-    expect(vres.results.CRISPR.numberOfBlocks()).toEqual(nblocks);
+    expect(vres.results.CRISPR instanceof scran.ScoreMarkersResults).toBe(true);
 
     let custom = utils.launchCustomSelections(state);
-    expect(custom.first.CRISPR.numberOfBlocks()).toEqual(nblocks);
-    expect(custom.last.CRISPR.numberOfBlocks()).toEqual(nblocks);
-    expect(custom.versus.results.CRISPR.numberOfBlocks()).toBeGreaterThan(1); // as subset might not actually have all 3 blocks.
+    expect(custom.first.CRISPR instanceof scran.ScoreMarkersResults).toBe(true);
+    expect(custom.last.CRISPR instanceof scran.ScoreMarkersResults).toBe(true);
+    expect(custom.versus.results.CRISPR instanceof scran.ScoreMarkersResults).toBe(true);
 
     // Freeing everyone.
     await bakana.freeAnalysis(state);

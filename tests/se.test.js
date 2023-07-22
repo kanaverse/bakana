@@ -41,8 +41,8 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
         rhandle.free();
         rdshandle.free();
 
-        utils.checkReorganization(simple.matrix, simple_names, loaded, loaded_names);
-        simple.matrix.free();
+        utils.checkMatrixContents(simple, simple_names, loaded, loaded_names);
+        simple.free();
     }
 
     // Basic checks.

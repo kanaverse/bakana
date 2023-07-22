@@ -26,7 +26,7 @@ export function writeHdf5DataFrame(x, path, { group = "data", forceBuffer = fals
     let contents = temppath;
     let children = [];
 
-    let fhandle = scran.createNewHDF5File(temppath);
+    let fhandle = scran.createNewHdf5File(temppath);
     try {
         let ghandle = fhandle.createGroup(group);
 

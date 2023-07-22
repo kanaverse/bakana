@@ -87,23 +87,16 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
     let output = { matrix: new scran.MultiMatrix };
 
     try {
-        let out_mat = loaded.matrix;
-        output.matrix.add("", out_mat);
+        output.matrix.add("", loaded);
 
-        let current_features;
-        if (loaded.row_ids !== null) {
-            current_features = bioc.SLICE(rawFeatures, loaded.row_ids);
-        } else {
-            current_features = bioc.CLONE(rawFeatures, { deepCopy: false }); // because we're deleting a column.
-        }
-
+        let current_features = bioc.CLONE(rawFeatures, { deepCopy: false }); // because we're deleting a column.
         if (typeField !== null && current_features.hasColumn(typeField)) {
             let by_type = splitByModality(current_features, typeField, featureTypeMapping);
             let type_keys = Object.keys(by_type);
-            let skip_subset = is_subset_noop(type_keys[0], out_mat.numberOfRows());
+            let skip_subset = is_subset_noop(type_keys[0], loaded.numberOfRows());
 
             if (type_keys.length > 1 || !skip_subset) {
-                let replacement = new scran.MultiMatrix({ store: scran.splitRows(out_mat, by_type) });
+                let replacement = new scran.MultiMatrix({ store: scran.splitRows(loaded, by_type) });
                 scran.free(output.matrix);
                 output.matrix = replacement;
             } else {

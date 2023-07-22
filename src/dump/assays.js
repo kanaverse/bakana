@@ -37,7 +37,7 @@ export function dumpNormalizedMatrix(mat, sf, path, countPath, forceBuffer) {
     let contents = temppath;
 
     try {
-        let fhandle = scran.createNewHDF5File(temppath);
+        let fhandle = scran.createNewHdf5File(temppath);
 
         // Saving the division by log(2).
         let dhandle = fhandle.createGroup("logcounts");

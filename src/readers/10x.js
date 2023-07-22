@@ -146,18 +146,18 @@ export class TenxHdf5Dataset {
         }
         let fhandle = mhandle.open("features");
 
-        let ids = eutils.extractHDF5Strings(fhandle, "id");
+        let ids = eutils.extractHdf5Strings(fhandle, "id");
         if (ids == null) {
             throw new Error("expected a 'matrix/features/id' string dataset containing the feature IDs");
         }
         let feats = new bioc.DataFrame({ id: ids }); // build it piece-by-piece for a well-defined ordering.
 
-        let names = eutils.extractHDF5Strings(fhandle, "name");
+        let names = eutils.extractHdf5Strings(fhandle, "name");
         if (names !== null) {
             feats.$setColumn("name", names);
         }
 
-        let ftype = eutils.extractHDF5Strings(fhandle, "feature_type");
+        let ftype = eutils.extractHdf5Strings(fhandle, "feature_type");
         if (ftype !== null) {
             feats.$setColumn("type", ftype);
         }
@@ -172,7 +172,7 @@ export class TenxHdf5Dataset {
         }
 
         this.#instantiate();
-        let details = scran.extractHDF5MatrixDetails(this.#h5_path, "matrix");
+        let details = scran.extractHdf5MatrixDetails(this.#h5_path, "matrix");
         this.#raw_cells = new bioc.DataFrame({}, { numberOfRows: details.columns });
     }
 
@@ -259,7 +259,7 @@ export class TenxHdf5Dataset {
         this.#features();
         this.#cells();
 
-        let loaded = scran.initializeSparseMatrixFromHDF5(this.#h5_path, "matrix"); // collection gets handled inside splitScranMatrixAndFeatures.
+        let loaded = scran.initializeSparseMatrixFromHdf5(this.#h5_path, "matrix"); // collection gets handled inside splitScranMatrixAndFeatures.
 
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", this.#feature_type_mapping(), "RNA");
         output.cells = this.#raw_cells;

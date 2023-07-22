@@ -16,7 +16,7 @@ function rerun(animate) {
     try {
         cache.total = current_status.totalEpochs();
         for (; current_status.currentEpoch() < cache.total; ) {
-            scran.runUMAP(current_status, { runTime: delay });
+            current_status.run({ runTime: delay });
 
             if (animate) {
                 var xy = current_status.extractCoordinates();
@@ -81,7 +81,7 @@ aworkers.registerCallback(msg => {
                     init_changed = false;
                 } else {
                     utils.freeCache(cache.init);
-                    cache.init = scran.initializeUMAP(cache.neighbors, { epochs: init_args.num_epochs, minDist: init_args.min_dist });
+                    cache.init = scran.initializeUmap(cache.neighbors, { epochs: init_args.num_epochs, minDist: init_args.min_dist });
                     init_parameters = init_args;
                     init_changed = true;
                 }

@@ -17,8 +17,8 @@ test("configureBatchCorrection works as expected", () => {
 
     params.configureBatchCorrection(stuff, "mnn");
     expect(stuff.batch_correction.method).toEqual('mnn');
-    expect(stuff.rna_pca.block_method).toEqual('weight');
-    expect(stuff.adt_pca.block_method).toEqual('weight');
+    expect(stuff.rna_pca.block_method).toEqual('project');
+    expect(stuff.adt_pca.block_method).toEqual('project');
     expect(params.guessBatchCorrectionConfig(stuff)).toBe("mnn");
 
     expect(() => params.configureBatchCorrection(stuff, "foo")).toThrow("unknown");
@@ -37,11 +37,11 @@ test("guessBatchCorrection handles ambiguity properly", () => {
     expect(params.guessBatchCorrectionConfig(stuff, { strict: true })).toBeNull();
 
     stuff.rna_pca.block_method = "none";
-    stuff.adt_pca.block_method = "weight";
+    stuff.adt_pca.block_method = "project";
     expect(params.guessBatchCorrectionConfig(stuff)).toBe("none");
     expect(params.guessBatchCorrectionConfig(stuff, { strict: true })).toBeNull();
 
-    stuff.rna_pca.block_method = "weight";
+    stuff.rna_pca.block_method = "project";
     expect(params.guessBatchCorrectionConfig(stuff)).toBe("none");
     expect(params.guessBatchCorrectionConfig(stuff, { strict: true })).toBeNull();
 });

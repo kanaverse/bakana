@@ -25,7 +25,7 @@ test("multi-matrix analyses work correctly", async () => {
         let names3k = {};
         parsed3k.forEach((x, i) => { names3k[x[0]] = i; })
 
-        let loaded4k = scran.initializeSparseMatrixFromHDF5(fpath4k, "matrix", { layered: false });
+        let loaded4k = scran.initializeSparseMatrixFromHdf5(fpath4k, "matrix", { layered: false });
         let info4k = (new scran.H5File(fpath4k)).open("matrix").open("features").open("id", { load: true }).values;
         let names4k = {};
         info4k.forEach((x, i) => { names4k[x] = i; }); 
@@ -35,9 +35,9 @@ test("multi-matrix analyses work correctly", async () => {
         let commat = state.inputs.fetchCountMatrix().get("RNA");
         for (var i = 0; i < combined_names.length; i+=100) {
             let i3 = names3k[combined_names[i]];
-            let x3 = loaded3k.matrix.row(i3);
+            let x3 = loaded3k.row(i3);
             let i4 = names4k[combined_names[i]];
-            let x4 = loaded4k.matrix.row(i4);
+            let x4 = loaded4k.row(i4);
 
             let expected = new Float64Array(x3.length + x4.length);
             expected.set(x3, 0);
@@ -59,12 +59,12 @@ test("multi-matrix analyses work correctly", async () => {
     expect(state.inputs.fetchBlockLevels()).toEqual(["3K", "4K"]); 
 
     let vres = utils.checkClusterVersusMode(state);
-    expect(vres.results.RNA.numberOfBlocks()).toEqual(2);
+    expect(vres.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
 
     let custom = utils.launchCustomSelections(state);
-    expect(custom.first.RNA.numberOfBlocks()).toEqual(2);
-    expect(custom.last.RNA.numberOfBlocks()).toEqual(2);
-    expect(custom.versus.results.RNA.numberOfBlocks()).toEqual(2);
+    expect(custom.first.RNA instanceof scran.ScoreMarkersResults).toBe(true);
+    expect(custom.last.RNA instanceof scran.ScoreMarkersResults).toBe(true);
+    expect(custom.versus.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
 
     // Check saving of results.
     await bakana.saveSingleCellExperiment(state, "combined", { directory: "miscellaneous/from-tests" });

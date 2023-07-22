@@ -829,8 +829,8 @@ export class SummarizedExperimentDataset {
                 }
 
                 let loaded = extract_assay(handle, v.assay, true);
-                output.matrix.add(k, loaded.matrix);
-                output.features[k] = bioc.SLICE(this.#raw_features[name], loaded.row_ids);
+                output.matrix.add(k, loaded);
+                output.features[k] = this.#raw_features[name];
             }
 
             output.primary_ids = futils.extractPrimaryIds(output.features, this.#primary_mapping());
@@ -1166,15 +1166,14 @@ export class SummarizedExperimentResult {
                 }
 
                 let loaded = extract_assay(handle, curassay, !curnormalized);
-                output.matrix.add(k, loaded.matrix);
+                output.matrix.add(k, loaded);
 
                 if (!curnormalized) {
-                    let normed = scran.logNormCounts(loaded.matrix, { allowZeros: true });
+                    let normed = scran.logNormCounts(loaded, { allowZeros: true });
                     output.matrix.add(k, normed);
-                    output.features[k] = bioc.SLICE(this.#raw_features[k], loaded.row_ids);
-                } else {
-                    output.features[k] = this.#raw_features[k];
                 }
+
+                output.features[k] = this.#raw_features[k];
             }
 
         } catch (e) {

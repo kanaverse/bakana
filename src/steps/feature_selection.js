@@ -12,7 +12,7 @@ import * as norm_module from "./rna_normalization.js";
 
 /**
  * Feature selection is performed by modelling the per-gene variance and finding highly variable genes.
- * This wraps the [`modelGeneVar`](https://kanaverse.github.io/scran.js/global.html#modelGeneVar) function 
+ * This wraps the [`modelGeneVariances`](https://kanaverse.github.io/scran.js/global.html#modelGeneVariances) function 
  * from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
@@ -98,7 +98,7 @@ export class FeatureSelectionState {
             if (this.valid()) {
                 let mat = this.#norm.fetchNormalizedMatrix();
                 let block = this.#filter.fetchFilteredBlock();
-                this.#cache.results = scran.modelGeneVar(mat, { span: span, block: block });
+                this.#cache.results = scran.modelGeneVariances(mat, { span: span, block: block });
 
                 this.#cache.sorted_residuals = this.#cache.results.residuals().slice(); // a separate copy.
                 this.#cache.sorted_residuals.sort();
@@ -112,46 +112,3 @@ export class FeatureSelectionState {
         return;
     }
 }
-
-/**************************
- ******** Loading *********
- **************************/
-
-export function unserialize(handle, permuter, filter, norm) {
-    let ghandle = handle.open("feature_selection");
-
-    let parameters;
-    {
-        let phandle = ghandle.open("parameters");
-        parameters = {
-            span: phandle.open("span", { load: true }).values[0]
-        };
-    }
-
-    let cache = {};
-    {
-        let rhandle = ghandle.open("results");
-
-        if ("means" in rhandle.children) {
-            // Possibly permuting it to match the new permutation order;
-            // see 'unserialize' in 'inputs.js'.
-            let reloaded = {};
-            for (const key of [ "means", "vars", "fitted", "resids" ]) {
-                let value = rhandle.open(key, { load: true }).values;
-                reloaded[key] = permuter(value);
-            }
-
-            cache.results = scran.emptyModelGeneVarResults(reloaded.means.length, 1);
-            cache.results.means({ fillable: true }).set(reloaded.means);
-            cache.results.variances({ fillable: true }).set(reloaded.vars);
-            cache.results.fitted({ fillable: true }).set(reloaded.fitted);
-            cache.results.residuals({ fillable: true }).set(reloaded.resids);
-
-            cache.sorted_residuals = cache.results.residuals({ copy: true });
-            cache.sorted_residuals.sort();
-        }
-    }
-
-    return new FeatureSelectionState(filter, norm, parameters, cache);
-}
-
