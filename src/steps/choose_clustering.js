@@ -90,22 +90,3 @@ export class ChooseClusteringState {
         return;
     }
 }
-
-/**************************
- ******** Loading *********
- **************************/
-
-export function unserialize(handle, snn, kmeans) {
-    let ghandle = handle.open("choose_clustering");
-
-    let parameters;
-    {
-        let phandle = ghandle.open("parameters");
-        parameters = {
-            method: phandle.open("method", { load: true }).values[0]
-        };
-    }
-
-    let cache = {};
-    return new ChooseClusteringState(snn, kmeans, parameters, cache);
-}

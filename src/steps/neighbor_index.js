@@ -96,22 +96,3 @@ export class NeighborIndexState {
         return;
     }
 }
-
-/**************************
- ******** Loading *********
- **************************/
-
-export function unserialize(handle, pca) {
-    let ghandle = handle.open("neighbor_index");
-
-    let parameters = {};
-    {
-        let phandle = ghandle.open("parameters");
-        parameters = {
-            approximate: phandle.open("approximate", { load: true }).values[0] > 0
-        };
-    }
-
-    let cache = {};
-    return new NeighborIndexState(pca, parameters, cache);
-}

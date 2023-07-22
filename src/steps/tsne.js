@@ -190,34 +190,3 @@ export class TsneState {
         }
     }
 }
-
-/**************************
- ******** Loading *********
- **************************/
-
-export async function unserialize(handle, index) {
-    let ghandle = handle.open("tsne");
-
-    let parameters;
-    {
-        let phandle = ghandle.open("parameters");
-        parameters = {
-            perplexity: phandle.open("perplexity", { load: true }).values[0],
-            iterations: phandle.open("iterations", { load: true }).values[0],
-            animate: phandle.open("animate", { load: true }).values[0] > 0
-        };
-    }
-
-    let reloaded;
-    {
-        let rhandle = ghandle.open("results");
-        reloaded = {
-            x: rhandle.open("x", { load: true }).values,
-            y: rhandle.open("y", { load: true }).values
-        };
-    }
-
-    let output = new TsneState(index, parameters, reloaded);
-    await output.ready();
-    return output;
-}

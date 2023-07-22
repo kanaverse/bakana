@@ -95,35 +95,3 @@ export class KmeansClusterState {
         return;
     }
 }
-
-/**************************
- ******** Loading *********
- **************************/
-
-export function unserialize(handle, pca) {
-    let parameters = {
-        k: 10
-    };
-    let cache = {};
-
-    // Protect against old analysis states that don't have kmeans_cluster.
-    if ("kmeans_cluster" in handle.children) {
-        let ghandle = handle.open("kmeans_cluster");
-
-        {
-            let phandle = ghandle.open("parameters");
-            parameters.k = phandle.open("k", { load: true }).values[0];
-        }
-
-        {
-            let rhandle = ghandle.open("results");
-            if ("clusters" in rhandle.children) {
-                let clusters = rhandle.open("clusters", { load: true }).values;
-                cache.raw = scran.emptyClusterKmeansResults(clusters.length, parameters.k, pca.fetchNumberOfDimensions());
-                cache.raw.clusters({ fillable: true }).set(clusters);
-            }
-        }
-    }
-
-    return new KmeansClusterState(pca, parameters, cache);
-}

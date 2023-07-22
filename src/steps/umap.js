@@ -191,35 +191,3 @@ export class UmapState {
         }
     }
 }
-
-/**************************
- ******** Loading *********
- **************************/
-
-export async function unserialize(handle, index) {
-    let ghandle = handle.open("umap");
-
-    let parameters;
-    {
-        let phandle = ghandle.open("parameters");
-        parameters = {
-            num_neighbors: phandle.open("num_neighbors", { load: true }).values[0],
-            num_epochs: phandle.open("num_epochs", { load: true }).values[0],
-            min_dist: phandle.open("min_dist", { load: true }).values[0],
-            animate: phandle.open("animate", { load: true }).values[0] > 0
-        };
-    }
-
-    let reloaded;
-    {
-        let rhandle = ghandle.open("results");
-        reloaded = {
-            x: rhandle.open("x", { load: true }).values,
-            y: rhandle.open("y", { load: true }).values
-        };
-    }
-
-    let output = new UmapState(index, parameters, reloaded);
-    await output.ready();
-    return output;
-}

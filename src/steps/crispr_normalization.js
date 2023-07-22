@@ -130,11 +130,3 @@ export class CrisprNormalizationState {
         let rhandle = ghandle.createGroup("results"); 
     }
 }
-
-/**************************
- ******** Loading *********
- **************************/
-
-export function unserialize(handle, qc, filter) {
-    return new CrisprNormalizationState(qc, filter);
-}
