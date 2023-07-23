@@ -1,4 +1,3 @@
-import * as aserialize from "./abstract/serialize.js";
 import * as readers from "./readers/index.js";
 import * as anal from "./analysis.js";
 import { bakana_version } from "./version.js";
@@ -169,37 +168,4 @@ export async function unserializeConfiguration(serialized, loader, { state = nul
     }
 
     return state;
-}
-
-/****************************
- ********* LEGACY ***********
- ****************************/
-
-/**
- * Parse a `*.kana` file by extracting the HDF5 state file and returning a function to extract embeddded data files.
- *
- * @param {string|Uint8Array} input - The input `*.kana` file.
- * In general, this should be a Uint8Array containing the full file contents.
- * For Node.js, this may also be a string containing a path to the file.
- * @param {string} statePath - String containing a file path to save the HDF5 state file.
- * This will also be the path supplied to {@linkcode loadAnalysis} to load the state into memory.
- * On browsers, this will exist inside the virtual file system of the **scran.js** module.
- * @param {object} [options] - Further options. 
- * For Node.js, callers can specify `stageDir`, a string containing a path to a staging directory for the extracted data files.
- *
- * @return {object|Promise<object>}
- * An object containing:
- *
- * - `version`: the version number of the `kana` format, as XXXYYYZZZ for "X.Y.Z".
- * - `embedded`: whether the data files are embedded in `input`. 
- * - `loader`: a function that extracts each data file given its offset and size.
- *   This should be used as `loadFun` in {@linkcode loadAnalysis}.
- *   If `embedded = false`, this is set to `null` instead.
- *
- * For Node.js, a promise is returned that evaluates to the above object.
- *
- * The HDF5 state file is also written to `statePath`.
- */
-export function parseKanaFile(input, statePath, options = {}) {
-    return aserialize.parseKanaFileInternal(input, statePath, options);
 }
