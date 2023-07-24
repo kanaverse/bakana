@@ -102,8 +102,13 @@ export class AdtQualityControlState {
             automatic: true,
             tag_id_column: null,
             igg_prefix: "IgG",
+
+            filter_strategy: "automatic", 
             nmads: 3,
-            min_detected_drop: 0.1
+            min_detected_drop: 0.1,
+
+            detected_threshold: 0,
+            igg_threshold: 1
         };
     }
 
@@ -152,13 +157,23 @@ export class AdtQualityControlState {
      * Ignored if `automatic = true`.
      * @param {?string} parameters.igg_prefix - Prefix of the identifiers for isotype controls.
      * If `null`, no prefix-based identification is performed.
+     * @param {string} parameters.filter_strategy - Strategy for defining a filter threshold for the QC metrics.
+     * This can be `"automatic"` or `"manual"`.
      * @param {number} parameters.nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
+     * Only used when `filter_strategy = "automatic"`.
      * @param {number} parameters.min_detected_drop - Minimum proportional drop in the number of detected features before a cell is to be considered low-quality.
+     * Only used when `filter_strategy = "automatic"`.
+     * @param {number} parameters.detected_threshold - Manual threshold on the detected number of features for each cell.
+     * Cells are only retained if the detected number is equal to or greater than this threshold.
+     * Only used when `filter_strategy = "manual"`.
+     * @param {number} parameters.igg_threshold - Manual threshold on the isotype control totals for each cell.
+     * Cells are only retained if their totals are less than or equal to this threshold.
+     * Only used when `filter_strategy = "manual"`.
      *
      * @return The object is updated with the new results.
      */
     compute(parameters) {
-        let { igg_prefix, nmads, min_detected_drop } = parameters;
+        let { igg_prefix, filter_strategy, nmads, min_detected_drop, detected_threshold, igg_threshold  } = parameters;
         this.changed = false;
 
         let automatic;
@@ -214,12 +229,29 @@ export class AdtQualityControlState {
         this.#parameters.tag_id_column = tag_id_column;
         this.#parameters.igg_prefix = igg_prefix;
 
-        if (this.changed || nmads !== this.#parameters.nmads || min_detected_drop !== this.#parameters.min_detected_drop) {
+        if (this.changed || 
+            filter_strategy !== this.#parameters.filter_strategy ||
+            nmads !== this.#parameters.nmads || 
+            min_detected_drop !== this.#parameters.min_detected_drop ||
+            detected_threshold !== this.#paramters.detected_threshold ||
+            igg_threshold !== this.#paramters.igg_threshold
+        ) {
             utils.freeCache(this.#cache.filters);
 
             if (this.valid()) {
                 let block = this.#inputs.fetchBlock();
-                this.#cache.filters = scran.suggestAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, minDetectedDrop: min_detected_drop, block: block });
+
+                if (filter_strategy === "automatic") {
+                    this.#cache.filters = scran.suggestRnaQcFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
+                } else if (filter_strategy === "manual") {
+                    let block_levels = this.#inputs.fetchBlockLevels();
+                    this.#cache.filters = scran.emptySuggestAdtQcFiltersResults(block_levels === null ? 1 : block_levels.length);
+                    this.#cache.filters.thresholdsDetected({ copy: false }).fill(detected_threshold);
+                    this.#cache.filters.thresholdsSubsetTotals(0, { copy: false }).fill(igg_threshold);
+                } else {
+                    throw new Error("unknown ADT QC filtering strategy '" + filter_strategy + "'");
+                }
+
                 var discard = utils.allocateCachedArray(this.#cache.metrics.numberOfCells(), "Uint8Array", this.#cache, "discard_buffer");
                 this.#cache.filters.filter(this.#cache.metrics, { block: block, buffer: discard });
                 this.changed = true;
@@ -227,8 +259,11 @@ export class AdtQualityControlState {
                 delete this.#cache.filters;
             }
 
+            this.#parameters.filter_strategy = filter_strategy;
             this.#parameters.nmads = nmads;
             this.#parameters.min_detected_drop = min_detected_drop;
+            this.#parameters.detected_threshold = detected_threshold;
+            this.#parameters.igg_threshold = igg_threshold;
         }
 
         return;
