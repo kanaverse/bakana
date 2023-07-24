@@ -86,7 +86,6 @@ export class RnaQualityControlState {
     #inputs;
     #cache;
     #parameters;
-    #automatic;
 
     constructor(inputs, parameters = null, cache = null) {
         if (!(inputs instanceof inputs_module.InputsState)) {
@@ -96,7 +95,6 @@ export class RnaQualityControlState {
 
         this.#parameters = (parameters === null ? {} : parameters);
         this.#cache = (cache === null ? {} : cache);
-        this.#automatic = false;
         this.changed = false;
     }
 
@@ -153,7 +151,7 @@ export class RnaQualityControlState {
 
     static defaults () {
         return {
-            automatic: true,
+            guess_ids: true,
             gene_id_column: null,
             use_reference_mito: true,
             species: [],
@@ -270,7 +268,7 @@ export class RnaQualityControlState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `rna_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
+     * @param {boolean} parameters.guess_ids - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
      * If set to `true`, the following logic is applied:
      *
      * - If `use_reference_mito = true`, the annotation column that best matches human/mouse Ensembl/symbols is set as `gene_id_column`.
@@ -279,15 +277,15 @@ export class RnaQualityControlState {
      *
      * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the feature annotations that contains the gene identifiers for the RNA modality.
      * If `null`, the row names are used.
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {boolean} parameters.use_reference_mito - Whether to use the reference lists of mitochondrial genes.
      * If `false`, mitochondrial genes are instead identified from their prefix.
      * @param {Array} parameters.species - Array of strings specifying zero, one or more species to use to obtain a reference list of mitochondrial genes.
      * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) as specified in {@linkcode RnaQualityControlState#mitochondriaSpecies mitochondriaSpecies}).
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {string} parameters.gene_id_type - Name of the feature type in the reference list of mitochondrial genes.
      * This can be any one of `"ENSEMBL"`, `"SYMBOL"`, or `"ENTREZ"`.
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {?string} parameters.mito_prefix - Case-insensitive prefix to use to identify mitochondrial genes from the dataset.
      * Only used when `use_reference_mito = false`; in such cases, `gene_id_column` should point to symbols.
      * If `null`, no prefix-based identification is performed.
@@ -309,37 +307,30 @@ export class RnaQualityControlState {
      * @async
      */
     async compute(parameters) {
-        let { mito_prefix, filter_strategy, nmads, sum_threshold, detected_threshold, mito_threshold } = parameters;
-        let automatic;
-        let use_reference_mito;
-        let gene_id_column;
-        let species;
-        let gene_id_type;
+        let { guess_ids, gene_id_column, use_reference_mito, species, gene_id_type, mito_prefix, filter_strategy, nmads, sum_threshold, detected_threshold, mito_threshold } = parameters;
 
         // Some back-compatibility here.
-        if ("use_reference_mito" in parameters) {
-            automatic = parameters.automatic;
-            use_reference_mito = parameters.use_reference_mito;
-            gene_id_column = parameters.gene_id_column;
-            species = parameters.species;
-            gene_id_type = parameters.gene_id_type;
-        } else {
-            automatic = true;
-            use_reference_mito = parameters.use_mito_default;
-            let def = RnaQualityControlState.defaults();
-            gene_id_column = def.gene_id_column;
-            species = def.species;
-            gene_id_type = def.gene_id_type;
+        if (typeof guess_ids == "undefined") {
+            if ("automatic" in parameters) {
+                guess_ids = parameters.automatic;
+            } else {
+                guess_ids = true;
+                use_reference_mito = parameters.use_mito_default;
+                let def = RnaQualityControlState.defaults();
+                gene_id_column = def.gene_id_column;
+                species = def.species;
+                gene_id_type = def.gene_id_type;
+            }
         }
 
         this.changed = false;
 
         if (
             this.#inputs.changed || 
-            automatic !== this.#parameters.automatic ||
+            guess_ids !== this.#parameters.guess_ids ||
             use_reference_mito !== this.#parameters.use_reference_mito || 
             (
-                !automatic &amp;&amp; 
+                !guess_ids &amp;&amp; 
                 (
                     gene_id_column !== this.#parameters.gene_id_column || 
                     (!use_reference_mito &amp;&amp; mito_prefix !== this.#parameters.mito_prefix) ||
@@ -360,7 +351,7 @@ export class RnaQualityControlState {
                 let species2 = species;
                 let gene_id_type2 = gene_id_type;
 
-                if (automatic) {
+                if (guess_ids) {
                     let guesses = this.#inputs.guessRnaFeatureTypes();
                     let backcomp = RnaQualityControlState.configureFeatureParameters(use_reference_mito, guesses);
                     gene_id_column2 = backcomp.gene_id_column;
@@ -401,7 +392,7 @@ export class RnaQualityControlState {
             }
         }
 
-        this.#parameters.automatic = automatic;
+        this.#parameters.guess_ids = guess_ids;
         this.#parameters.gene_id_column = gene_id_column;
         this.#parameters.use_reference_mito = use_reference_mito;
         this.#parameters.species = bioc.CLONE(species); // avoid pass-by-reference behavior.
@@ -463,7 +454,7 @@ export class RnaQualityControlState {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Mon Jul 24 2023 17:18:46 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Mon Jul 24 2023 19:52:55 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

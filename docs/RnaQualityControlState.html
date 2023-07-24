@@ -108,7 +108,7 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line152">line 152</a>
+        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line150">line 150</a>
     </li></ul></dd>
     
 
@@ -196,7 +196,7 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line262">line 262</a>
+        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line260">line 260</a>
     </li></ul></dd>
     
 
@@ -313,7 +313,7 @@ Note that the actual filtering is done by <a href="CellFilteringState.html">Cell
 
         <tr>
             
-                <td class="name"><code>automatic</code></td>
+                <td class="name"><code>guess_ids</code></td>
             
 
             <td class="type">
@@ -383,7 +383,7 @@ Based on the identified species and feature type, <code>species</code> and <code
 
             <td class="description last"><p>Name or index of the column of the feature annotations that contains the gene identifiers for the RNA modality.
 If <code>null</code>, the row names are used.
-Ignored if <code>automatic = true</code>.</p></td>
+Ignored if <code>guess_ids = true</code>.</p></td>
         </tr>
 
     
@@ -450,7 +450,7 @@ If <code>false</code>, mitochondrial genes are instead identified from their pre
 
             <td class="description last"><p>Array of strings specifying zero, one or more species to use to obtain a reference list of mitochondrial genes.
 Each entry should be a taxonomy ID (e.g. <code>&quot;9606&quot;</code>, <code>&quot;10090&quot;</code>) as specified in <a href="RnaQualityControlState.html#mitochondriaSpecies"><code>mitochondriaSpecies</code></a>).
-Ignored if <code>automatic = true</code>.</p></td>
+Ignored if <code>guess_ids = true</code>.</p></td>
         </tr>
 
     
@@ -484,7 +484,7 @@ Ignored if <code>automatic = true</code>.</p></td>
 
             <td class="description last"><p>Name of the feature type in the reference list of mitochondrial genes.
 This can be any one of <code>&quot;ENSEMBL&quot;</code>, <code>&quot;SYMBOL&quot;</code>, or <code>&quot;ENTREZ&quot;</code>.
-Ignored if <code>automatic = true</code>.</p></td>
+Ignored if <code>guess_ids = true</code>.</p></td>
         </tr>
 
     
@@ -748,7 +748,7 @@ Only used when <code>filter_strategy = &quot;manual&quot;</code>.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line83">line 83</a>
+        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line81">line 81</a>
     </li></ul></dd>
     
 
@@ -854,7 +854,7 @@ where each element is truthy if the corresponding cell is to be discarded.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line90">line 90</a>
+        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line88">line 88</a>
     </li></ul></dd>
     
 
@@ -959,7 +959,7 @@ where each element is truthy if the corresponding cell is to be discarded.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line97">line 97</a>
+        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line95">line 95</a>
     </li></ul></dd>
     
 
@@ -1064,7 +1064,7 @@ where each element is truthy if the corresponding cell is to be discarded.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line73">line 73</a>
+        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line71">line 71</a>
     </li></ul></dd>
     
 
@@ -1175,7 +1175,7 @@ Rather, this function should be called to release the relevant memory.</p></li><
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line194">line 194</a>
+        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line192">line 192</a>
     </li></ul></dd>
     
 
@@ -1260,7 +1260,7 @@ Rather, this function should be called to release the relevant memory.</p></li><
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line210">line 210</a>
+        <a href="steps_rna_quality_control.js.html">steps/rna_quality_control.js</a>, <a href="steps_rna_quality_control.js.html#line208">line 208</a>
     </li></ul></dd>
     
 
@@ -1406,7 +1406,7 @@ The <em>previous</em> value of the downloader is returned.</p>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Mon Jul 24 2023 17:18:46 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Mon Jul 24 2023 19:52:55 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

@@ -428,7 +428,7 @@ It is assumed that the <code>ready</code> method has already resolved before cal
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line811">line 811</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line822">line 822</a>
     </li></ul></dd>
     
 
@@ -662,7 +662,7 @@ It is assumed that the <code>ready</code> method has already resolved before cal
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line843">line 843</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line854">line 854</a>
     </li></ul></dd>
     
 
@@ -822,7 +822,7 @@ It is assumed that the <code>ready</code> method has already resolved before cal
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line772">line 772</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line783">line 783</a>
     </li></ul></dd>
     
 
@@ -932,7 +932,7 @@ It is assumed that the <code>ready</code> method has already resolved before cal
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line823">line 823</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line834">line 834</a>
     </li></ul></dd>
     
 
@@ -1087,7 +1087,7 @@ It is assumed that the <code>ready</code> method has already resolved before cal
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line830">line 830</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line841">line 841</a>
     </li></ul></dd>
     
 
@@ -1196,7 +1196,7 @@ It is assumed that the <code>ready</code> method has already resolved before cal
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line783">line 783</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line794">line 794</a>
     </li></ul></dd>
     
 
@@ -1306,7 +1306,7 @@ It is assumed that the <code>ready</code> method has already resolved before cal
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line793">line 793</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line804">line 804</a>
     </li></ul></dd>
     
 
@@ -1500,7 +1500,7 @@ Users should wait for the return value to resolve before calling any other metho
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line749">line 749</a>
+        <a href="steps_feature_set_enrichment.js.html">steps/feature_set_enrichment.js</a>, <a href="steps_feature_set_enrichment.js.html#line755">line 755</a>
     </li></ul></dd>
     
 
@@ -1712,7 +1712,7 @@ Users should wait for the return value to resolve before calling any other metho
 
         <tr>
             
-                <td class="name"><code>automatic</code></td>
+                <td class="name"><code>guess_ids</code></td>
             
 
             <td class="type">
@@ -1773,7 +1773,7 @@ If <code>true</code>, the column of the annotation that best matches human/mouse
             <td class="description last"><p>Array of strings specifying zero, one or more species involved in this dataset.
 Each entry should be a taxonomy ID (e.g. <code>&quot;9606&quot;</code>, <code>&quot;10090&quot;</code>) supported by <strong>gesel</strong>.
 This is used internally to filter <code>collections</code> to the entries relevant to these species.
-Ignored if <code>automatic = true</code>.</p></td>
+Ignored if <code>guess_ids = true</code>.</p></td>
         </tr>
 
     
@@ -1812,7 +1812,7 @@ Ignored if <code>automatic = true</code>.</p></td>
 
             <td class="description last"><p>Name or index of the column of the <code>annotations</code> (supplied in the constructor) containing the identity of each gene.
 If <code>null</code>, identifiers are taken from the row names.
-Ignored if <code>automatic = true</code>.</p></td>
+Ignored if <code>guess_ids = true</code>.</p></td>
         </tr>
 
     
@@ -1846,7 +1846,7 @@ Ignored if <code>automatic = true</code>.</p></td>
 
             <td class="description last"><p>Type of feature identifier in <code>gene_id_column</code>.
 This should be one of <code>&quot;ENSEMBL&quot;</code>, <code>&quot;SYMBOL&quot;</code> or <code>&quot;ENTREZ&quot;</code>
-Ignored if <code>automatic = true</code>.</p></td>
+Ignored if <code>guess_ids = true</code>.</p></td>
         </tr>
 
     
@@ -2046,7 +2046,7 @@ Note that the <a href="FeatureSetEnrichmentStandalone.html#ready"><code>ready</c
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Mon Jul 24 2023 17:18:46 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> on Mon Jul 24 2023 19:52:55 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
