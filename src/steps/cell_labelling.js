@@ -150,12 +150,12 @@ function internal_build_reference(name, gene_ids, gene_id_type) {
     return output;
 }
 
-async function build_reference(cache, references, automatic, species, gene_id_column, gene_id_type, old_parameters, annofun, guessfun) {
+async function build_reference(cache, references, guess_ids, species, gene_id_column, gene_id_type, old_parameters, annofun, guessfun) {
     if (
-        automatic !== old_parameters.automatic ||
+        guess_ids !== old_parameters.guess_ids ||
         utils.changedParameters(references, old_parameters.references) ||
         (
-            !automatic &&
+            !guess_ids &&
             (
                 species !== old_parameters.species ||
                 gene_id_column !== old_parameters.gene_id_column ||
@@ -167,7 +167,7 @@ async function build_reference(cache, references, automatic, species, gene_id_co
         let gene_id_column2 = gene_id_column;
         let gene_id_type2 = gene_id_type;
 
-        if (automatic) {
+        if (guess_ids) {
             let auto = CellLabellingState.configureFeatureParameters(guessfun());
             species2 = auto.species;
             gene_id_column2 = auto.gene_id_column;
@@ -227,16 +227,16 @@ async function build_reference(cache, references, automatic, species, gene_id_co
 function create_defaults() {
     return {
         references: null,
-        automatic: true,
+        guess_ids: true,
         species: [],
         gene_id_column: null,
         gene_id_type: "ENSEMBL"
     };
 }
 
-function transplant_parameters(references, automatic, species, gene_id_column, gene_id_type, parameters) {
+function transplant_parameters(references, guess_ids, species, gene_id_column, gene_id_type, parameters) {
     parameters.references = bioc.CLONE(references); // make a copy to avoid pass-by-reference behavior.
-    parameters.automatic = automatic;
+    parameters.guess_ids = guess_ids;
     parameters.species = bioc.CLONE(species);
     parameters.gene_id_column = gene_id_column;
     parameters.gene_id_type = gene_id_type;
@@ -529,38 +529,38 @@ export class CellLabellingState {
      * @param {object} parameters - Parameter object, equivalent to the `cell_labelling` property of the `parameters` of {@linkcode runAnalysis}.
      * @param {?Array} parameters.references - Array of strings specifying the names of the reference datasets, see {@linkcode CellLabellingState.availableReferences availableReferences} for more details.
      * If `null`, all reference datasets from all species are used.
-     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
+     * @param {boolean} parameters.guess_ids - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
      * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column` and `gene_id_type`.
      * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
      * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) as specified in {@linkcode CellLabellingState.availableReferences availableReferences}.
      * This is used internally to filter `references` to the entries relevant to these species. 
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the RNA entry of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each gene. 
      * If `null`, identifiers are taken from the row names.
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {string} parameters.gene_id_type - Type of feature identifier in `gene_id_column`.
      * This should be one of `"ENSEMBL"`, `"SYMBOL"` or `"ENTREZ"`
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      *
      * @return The object is updated with the new results.
      * @async
      */
     async compute(parameters) {
         let references;
-        let automatic;
+        let guess_ids;
         let species;
         let gene_id_column;
         let gene_id_type;
 
         if ("references" in parameters) {
             references = parameters.references;
-            automatic = parameters.automatic;
+            guess_ids = parameters.guess_ids;
             species = parameters.species;
             gene_id_column = parameters.gene_id_column;
             gene_id_type = parameters.gene_id_type;
         } else {
             references = null;
-            automatic = true;
+            guess_ids = true;
             let def = CellLabellingState.defaults();
             species = def.species;
             gene_id_column = def.gene_id_column;
@@ -573,7 +573,7 @@ export class CellLabellingState {
             this.changed = await build_reference(
                 this.#cache, 
                 references, 
-                automatic, 
+                guess_ids, 
                 species, 
                 gene_id_column, 
                 gene_id_type, 
@@ -585,7 +585,7 @@ export class CellLabellingState {
 
         transplant_parameters(
             references, 
-            automatic, 
+            guess_ids, 
             species, 
             gene_id_column, 
             gene_id_type, 
@@ -718,25 +718,25 @@ export class CellLabellingStandalone {
      * @param {object} parameters - Parameter object, equivalent to the `cell_labelling` property of the `parameters` of {@linkcode runAnalysis}.
      * @param {?Array} parameters.references - Array of strings specifying the names of the reference datasets, see {@linkcode CellLabellingState.availableReferences availableReferences} for more details.
      * If `null`, all reference datasets from all species are used.
-     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
+     * @param {boolean} parameters.guess_ids - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
      * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column` and `gene_id_type`.
      * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
      * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) as specified in {@linkcode CellLabellingState.availableReferences availableReferences}.
      * This is used internally to filter `references` to the entries relevant to these species. 
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the RNA entry of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each gene. 
      * If `null`, identifiers are taken from the row names.
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {string} parameters.gene_id_type - Type of feature identifier in `gene_id_column`.
      * This should be one of `"ENSEMBL"`, `"SYMBOL"` or `"ENTREZ"`
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      *
      * @return The object is updated with the new results.
      * @async
      */
     async setParameters(parameters) {
-        let { references, automatic, species, gene_id_column, gene_id_type } = parameters;
-        transplant_parameters(references, automatic, species, gene_id_column, gene_id_type, this.#pre_parameters);
+        let { references, guess_ids, species, gene_id_column, gene_id_type } = parameters;
+        transplant_parameters(references, guess_ids, species, gene_id_column, gene_id_type, this.#pre_parameters);
     }
 
     /**
@@ -747,12 +747,12 @@ export class CellLabellingStandalone {
      * @async
      */
     async ready() {
-        let { references, automatic, species, gene_id_column, gene_id_type } = this.#pre_parameters;
+        let { references, guess_ids, species, gene_id_column, gene_id_type } = this.#pre_parameters;
 
         await build_reference(
             this.#cache, 
             references, 
-            automatic, 
+            guess_ids, 
             species, 
             gene_id_column, 
             gene_id_type, 

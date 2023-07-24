@@ -99,7 +99,7 @@ export class AdtQualityControlState {
 
     static defaults() {
         return {
-            automatic: true,
+            guess_ids: true,
             tag_id_column: null,
             igg_prefix: "IgG",
 
@@ -150,11 +150,11 @@ export class AdtQualityControlState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * 
      * @param {object} parameters - Parameter object, equivalent to the `adt_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotations. 
+     * @param {boolean} parameters.guess_ids - Automatically choose feature-based parameters based on the feature annotations. 
      * Specifically, `tag_id_column` is set to the column with the most matches to `igg_prefix`.
      * @param {?(string|number)} parameters.tag_id_column - Name or index of the column of the feature annotations that contains the tag identifiers.
      * If `null`, the row names are used.
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {?string} parameters.igg_prefix - Prefix of the identifiers for isotype controls.
      * If `null`, no prefix-based identification is performed.
      * @param {string} parameters.filter_strategy - Strategy for defining a filter threshold for the QC metrics.
@@ -173,24 +173,24 @@ export class AdtQualityControlState {
      * @return The object is updated with the new results.
      */
     compute(parameters) {
-        let { igg_prefix, filter_strategy, nmads, min_detected_drop, detected_threshold, igg_threshold  } = parameters;
+        let { guess_ids, tag_id_column, igg_prefix, filter_strategy, nmads, min_detected_drop, detected_threshold, igg_threshold } = parameters;
         this.changed = false;
 
-        let automatic;
-        let tag_id_column; 
-        if ("automatic" in parameters) {
-            automatic = parameters.automatic;
-            tag_id_column = parameters.tag_id_column;
-        } else {
-            automatic = true;
-            tag_id_column = null;
+        // Some back-compatibility here.
+        if (typeof guess_ids === "undefined") {
+            if ("automatic" in parameters) {
+                guess_ids = parameters.automatic;
+            } else {
+                guess_ids = true;
+                tag_id_column = null;
+            }
         }
 
         if (
             this.#inputs.changed || 
-            automatic !== this.#parameters.automatic ||
+            guess_ids !== this.#parameters.guess_ids ||
             igg_prefix !== this.#parameters.igg_prefix ||
-            (!automatic && tag_id_column !== this.#parameters.tag_id_column)
+            (!guess_ids && tag_id_column !== this.#parameters.tag_id_column)
         ) {
             utils.freeCache(this.#cache.metrics);
 
@@ -202,7 +202,7 @@ export class AdtQualityControlState {
                 if (igg_prefix !== null) {
                     var lower_igg = igg_prefix.toLowerCase();
                     let key = tag_id_column;
-                    if (automatic) {
+                    if (guess_ids) {
                         key = AdtQualityControlState.configureFeatureParameters(lower_igg, tag_info);
                     }
 
@@ -225,7 +225,7 @@ export class AdtQualityControlState {
             }
         }
 
-        this.#parameters.automatic = automatic;
+        this.#parameters.guess_ids = guess_ids;
         this.#parameters.tag_id_column = tag_id_column;
         this.#parameters.igg_prefix = igg_prefix;
 

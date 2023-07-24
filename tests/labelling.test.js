@@ -39,7 +39,7 @@ test("labelling works correctly for single human reference", async () => {
     }
 
     // Forcing us to load the mice.
-    params.cell_labelling.automatic = false;
+    params.cell_labelling.guess_ids = false;
     params.cell_labelling.species = ["10090"];
     params.cell_labelling.gene_id_column = "id";
     {
@@ -54,7 +54,7 @@ test("labelling works correctly for single human reference", async () => {
     }
 
     // Checking that reloading works.
-    params.cell_labelling.automatic = true;
+    params.cell_labelling.guess_ids = true;
     {
         await bakana.runAnalysis(state, hs_files, params);
         expect(state.marker_detection.changed).toBe(false);
@@ -68,7 +68,7 @@ test("labelling works correctly for single human reference", async () => {
     {
         await bakana.runAnalysis(state, hs_files, params);
         expect(state.marker_detection.changed).toBe(false);
-        expect(state.cell_labelling.changed).toBe(false); // no effect when automatic = true.
+        expect(state.cell_labelling.changed).toBe(false); // no effect when guess_ids = true.
     }
 
     // Release me!
@@ -95,8 +95,8 @@ test("labelling works correctly for multiple mice references", async () => {
         expect(res.integrated.length).toEqual(nclust);
     }
 
-    // Checking that automatic discovery actually has an effect.
-    params.cell_labelling.automatic = false;
+    // Checking that ID guessing actually has an effect.
+    params.cell_labelling.guess_ids = false;
     params.cell_labelling.gene_id_type = "ENSEMBL";
     params.cell_labelling.species = ["10090"];
     {
