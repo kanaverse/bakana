@@ -81,7 +81,7 @@ test("feature set enrichment works correctly for humans", async () => {
     }
 
     // Forcing us to load the mice.
-    params.feature_set_enrichment.automatic = false;
+    params.feature_set_enrichment.guess_ids = false;
     params.feature_set_enrichment.species = ["10090"];
     params.feature_set_enrichment.gene_id_column = "id";
 
@@ -101,7 +101,7 @@ test("feature set enrichment works correctly for humans", async () => {
     }
 
     // Checking that reloading works.
-    params.feature_set_enrichment.automatic = true;
+    params.feature_set_enrichment.guess_ids = true;
     {
         await bakana.runAnalysis(state, hs_files, params);
         expect(state.marker_detection.changed).toBe(false);
@@ -115,7 +115,7 @@ test("feature set enrichment works correctly for humans", async () => {
     {
         await bakana.runAnalysis(state, hs_files, params);
         expect(state.marker_detection.changed).toBe(false);
-        expect(state.feature_set_enrichment.changed).toBe(false); // no effect when automatic=true.
+        expect(state.feature_set_enrichment.changed).toBe(false); // no effect when guess_ids=true.
     }
 
     // Release me!
@@ -165,8 +165,8 @@ test("feature set enrichment works correctly for mice", async () => {
         expect(output.scores.length).toEqual(state.cell_filtering.fetchFilteredMatrix().numberOfColumns());
     }
 
-    // Checking that automatic discovery actually has an effect.
-    params.feature_set_enrichment.automatic = false;
+    // Checking that ID guessing actually has an effect.
+    params.feature_set_enrichment.guess_ids = false;
     params.feature_set_enrichment.gene_id_type = "ENSEMBL";
     params.feature_set_enrichment.species = ["10090"];
     {

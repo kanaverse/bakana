@@ -256,7 +256,7 @@ export async function checkStateResultsRna(state, { exclusive = false, mustFilte
         let ncells = state.inputs.fetchCountMatrix().numberOfColumns();
         expect(sumvec.length).toBe(ncells);
 
-        // Check that the automatic feature resolvers find the mitochondrial genes.
+        // Check that the gene ID guessers find the mitochondrial genes.
         let mitovec = metres.subsetProportions(0);
         let sum = mitovec.reduce((a, b) => a+b);
         if (hasMito) {
@@ -445,7 +445,7 @@ export function checkStateResultsAdt(state, { exclusive = false } = {}) {
         amet.subsetTotals(0, { copy: false }).forEach(x => { positive_total += (x > 0); });
         expect(positive_total).toBeGreaterThan(0);
 
-        // Check that the automatic feature resolvers find the IgGs.
+        // Check that the feature ID guessers find the IgGs.
         let igvec = amet.subsetTotals(0);
         let sum = igvec.reduce((a, b) => a+b);
         expect(sum).toBeGreaterThan(0);

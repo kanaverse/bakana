@@ -172,11 +172,11 @@ class FeatureSetManager {
         return;
     }
 
-    async buildCollections(old_parameters, automatic, species, gene_id_column, gene_id_type, annofun, guessfun) {
+    async buildCollections(old_parameters, guess_ids, species, gene_id_column, gene_id_type, annofun, guessfun) {
         if (
-            automatic !== old_parameters.automatic ||
+            guess_ids !== old_parameters.guess_ids ||
             (
-                !automatic && 
+                !guess_ids && 
                 (
                     old_parameters.gene_id_column !== gene_id_column || 
                     old_parameters.gene_id_type !== gene_id_type ||
@@ -188,7 +188,7 @@ class FeatureSetManager {
             let gene_id_type2 = gene_id_type;
             let species2 = species;
 
-            if (automatic) {
+            if (guess_ids) {
                 let auto = configure_feature_parameters(guessfun());
                 gene_id_column2 = auto.gene_id_column;
                 gene_id_type2 = auto.gene_id_type;
@@ -306,7 +306,7 @@ class FeatureSetManager {
 function all_defaults() {
     return {
         skip: false,
-        automatic: true,
+        guess_ids: true,
         species: [],
         gene_id_column: null, 
         gene_id_type: "ENSEMBL", 
@@ -339,8 +339,8 @@ function configure_feature_parameters(guesses) {
     };
 }
 
-function transplant_parameters(parameters, automatic, species, gene_id_column, gene_id_type, top_markers) {
-    parameters.automatic = automatic;
+function transplant_parameters(parameters, guess_ids, species, gene_id_column, gene_id_type, top_markers) {
+    parameters.guess_ids = guess_ids;
     parameters.species = bioc.CLONE(species); // make a copy to avoid pass-by-ref behavior.
     parameters.gene_id_column = gene_id_column;
     parameters.gene_id_type = gene_id_type;
@@ -553,18 +553,18 @@ export class FeatureSetEnrichmentState {
      * @param {object} parameters - Parameter object, equivalent to the `feature_set_enrichment` property of the `parameters` of {@linkcode runAnalysis}.
      * @param {boolean} parameters.skip - Whether to skip the preparation of feature set collections.
      * If `true`, none of the other methods (e.g., {@linkcode computeEnrichment}, {@linkcode computePerCellScores}) should be called.
-     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
+     * @param {boolean} parameters.guess_ids - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
      * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column`, `gene_id_type`.
      * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
      * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) supported by **gesel**.
      * This is used internally to filter `collections` to the entries relevant to these species. 
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the RNA entry of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each gene. 
      * If `null`, identifiers are taken from the row names.
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {string} parameters.gene_id_type - Type of feature identifier in `gene_id_column`.
      * This should be one of `"ENSEMBL"`, `"SYMBOL"` or `"ENTREZ"`
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {number} parameters.top_markers - Number of top markers to use when testing for enrichment.
      *
      * @return The state is updated with new results.
@@ -575,7 +575,7 @@ export class FeatureSetEnrichmentState {
             this.changed = true;
         }
 
-        let { skip, automatic, species, gene_id_column, gene_id_type, top_markers } = parameters;
+        let { skip, guess_ids, species, gene_id_column, gene_id_type, top_markers } = parameters;
         if (skip !== this.#parameters.skip) {
             this.changed = true;
         }
@@ -587,7 +587,7 @@ export class FeatureSetEnrichmentState {
 
             let modified = await this.#manager.buildCollections(
                 this.#parameters, 
-                automatic, 
+                guess_ids, 
                 species, 
                 gene_id_column, 
                 gene_id_type, 
@@ -603,7 +603,7 @@ export class FeatureSetEnrichmentState {
             }
         }
 
-        transplant_parameters(this.#parameters, automatic, species, gene_id_column, gene_id_type, top_markers);
+        transplant_parameters(this.#parameters, guess_ids, species, gene_id_column, gene_id_type, top_markers);
         this.#parameters.skip = skip;
         return;
     }
@@ -717,26 +717,32 @@ export class FeatureSetEnrichmentStandalone {
      * If this method is not called, the parameters default to those in {@linkcode FeatureSetEnrichmentStandalone#defaults FeatureSetEnrichmentStandalone.defaults}.
      *
      * @param {object} parameters - Parameter object.
-     * @param {boolean} parameters.automatic - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
+     * @param {boolean} parameters.guess_ids - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
      * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column`, `gene_id_type`.
      * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
      * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) supported by **gesel**.
      * This is used internally to filter `collections` to the entries relevant to these species. 
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the `annotations` (supplied in the constructor) containing the identity of each gene. 
      * If `null`, identifiers are taken from the row names.
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {string} parameters.gene_id_type - Type of feature identifier in `gene_id_column`.
      * This should be one of `"ENSEMBL"`, `"SYMBOL"` or `"ENTREZ"`
-     * Ignored if `automatic = true`.
+     * Ignored if `guess_ids = true`.
      * @param {number} parameters.top_markers - Number of top markers to use when testing for enrichment.
      *
      * @return The object is updated with new parameters.
      * Note that the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method should be called in order for the new parameters to take effect.
      */
     setParameters(parameters) {
-        let { automatic, species, gene_id_column, gene_id_type, top_markers } = parameters;
-        transplant_parameters(this.#pre_parameters, automatic, species, gene_id_column, gene_id_type, top_markers);
+        let { guess_ids, species, gene_id_column, gene_id_type, top_markers } = parameters;
+
+        // For some back-compatibility.
+        if (typeof guess_ids == "undefined") {
+            guess_ids = parameters.automatic;
+        }
+
+        transplant_parameters(this.#pre_parameters, guess_ids, species, gene_id_column, gene_id_type, top_markers);
     }
 
     /**
@@ -747,11 +753,16 @@ export class FeatureSetEnrichmentStandalone {
      * @async
      */
     async ready() {
-        let { automatic, species, gene_id_column, gene_id_type, top_markers } = this.#pre_parameters;
+        let { guess_ids, species, gene_id_column, gene_id_type, top_markers } = this.#pre_parameters;
+
+        // For some back-compatibility.
+        if (typeof guess_ids == "undefined") {
+            guess_ids = parameters.automatic;
+        }
 
         await this.#manager.buildCollections(
             this.#parameters,
-            automatic, 
+            guess_ids, 
             species, 
             gene_id_column, 
             gene_id_type, 

@@ -54,11 +54,11 @@ test("different options for choosing mitochondrial genes in RNA QC works as expe
     let paramcopy = utils.baseParams();
     await state.inputs.compute(files, paramcopy.inputs);
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
-    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0); // automatic choice works.
+    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0); // ID guessing works.
 
     await state.inputs.compute(files, paramcopy.inputs); // running it again to set changed = false.
 
-    paramcopy.rna_quality_control.automatic = false;
+    paramcopy.rna_quality_control.guess_ids = false;
     paramcopy.rna_quality_control.gene_id_column = "id";
     paramcopy.rna_quality_control.species = [ "9606" ];
     paramcopy.rna_quality_control.gene_id_type = "SYMBOL";
@@ -83,8 +83,8 @@ test("different options for choosing mitochondrial genes in RNA QC works as expe
     expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBe(0);
     paramcopy.rna_quality_control.mito_prefix = "mt-";  // restoring.
 
-    // When automatic discovery is enabled, changes to the other parameters have no effect.
-    paramcopy.rna_quality_control.automatic = true;
+    // When ID guessing is enabled, changes to the other parameters have no effect.
+    paramcopy.rna_quality_control.guess_ids = true;
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
     expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
     expect(state.rna_quality_control.changed).toBe(true);
@@ -104,12 +104,12 @@ test("different options for choosing IgG tags in ADT QC works as expected", asyn
     let paramcopy = utils.baseParams();
     await state.inputs.compute(files, paramcopy.inputs);
     await state.adt_quality_control.compute(paramcopy.adt_quality_control);
-    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toBeGreaterThan(0); // automatic choice works.
+    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toBeGreaterThan(0); // ID guessing works.
 
     await state.inputs.compute(files, paramcopy.inputs); // running it again to set changed = false.
 
     // Disabling everything.
-    paramcopy.adt_quality_control.automatic = false;
+    paramcopy.adt_quality_control.guess_ids = false;
     paramcopy.adt_quality_control.tag_id_column = "id";
     paramcopy.adt_quality_control.igg_prefix = "igg1_"; // underscore is deliberate, otherwise we'd just match all the IDs.
     await state.adt_quality_control.compute(paramcopy.adt_quality_control);
@@ -124,8 +124,8 @@ test("different options for choosing IgG tags in ADT QC works as expected", asyn
     expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toEqual(0); 
     paramcopy.adt_quality_control.igg_prefix = "igg";
 
-    // When automatic discovery is enabled, changes to the other parameters have no effect.
-    paramcopy.adt_quality_control.automatic = true;
+    // When ID guessing is enabled, changes to the other parameters have no effect.
+    paramcopy.adt_quality_control.guess_ids = true;
     await state.adt_quality_control.compute(paramcopy.adt_quality_control);
     expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toBeGreaterThan(0); 
     expect(state.adt_quality_control.changed).toBe(true);
