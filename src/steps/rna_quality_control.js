@@ -110,7 +110,13 @@ export class RnaQualityControlState {
             species: [],
             gene_id_type: "ENSEMBL",
             mito_prefix: "mt-",
-            nmads: 3
+
+            filter_strategy: "automatic", 
+            nmads: 3,
+
+            sum_threshold: 100,
+            detected_threshold: 100,
+            mito_threshold: 0.2
         };
     }
 
@@ -236,13 +242,25 @@ export class RnaQualityControlState {
      * @param {?string} parameters.mito_prefix - Case-insensitive prefix to use to identify mitochondrial genes from the dataset.
      * Only used when `use_reference_mito = false`; in such cases, `gene_id_column` should point to symbols.
      * If `null`, no prefix-based identification is performed.
+     * @param {string} parameters.filter_strategy - Strategy for defining a filter threshold for the QC metrics.
+     * This can be `"automatic"` or `"manual"`.
      * @param {number} parameters.nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
+     * Only used when `filter_strategy = "automatic"`.
+     * @param {number} parameters.sum_threshold - Manual threshold on the sum of counts for each cell.
+     * Cells are only retained if their sums are equal to or greater than this threshold.
+     * Only used when `filter_strategy = "manual"`.
+     * @param {number} parameters.detected_threshold - Manual threshold on the detected number of features for each cell.
+     * Cells are only retained if the detected number is equal to or greater than this threshold.
+     * Only used when `filter_strategy = "manual"`.
+     * @param {number} parameters.mito_threshold - Manual threshold on the mitochondrial proportion for each cell.
+     * Cells are only retained if their totals are less than or equal to this threshold.
+     * Only used when `filter_strategy = "manual"`.
      *
      * @return The object is updated with the new results.
      * @async
      */
     async compute(parameters) {
-        let { mito_prefix, nmads } = parameters;
+        let { mito_prefix, filter_strategy, nmads, sum_threshold, detected_threshold, mito_threshold } = parameters;
         let automatic;
         let use_reference_mito;
         let gene_id_column;
@@ -341,12 +359,30 @@ export class RnaQualityControlState {
         this.#parameters.gene_id_type = gene_id_type;
         this.#parameters.mito_prefix = mito_prefix;
 
-        if (this.changed || nmads !== this.#parameters.nmads) {
+        if (this.changed || 
+            filter_strategy !== this.#parameters.filter_strategy ||
+            nmads !== this.#parameters.nmads ||
+            sum_threshold !== this.#parameters.sum_threshold ||
+            detected_threshold !== this.#parameters.detected_threshold ||
+            mito_threshold !== this.#parameters.mito_threshold
+        ) {
             utils.freeCache(this.#cache.filters);
 
             if (this.valid()) {
                 let block = this.#inputs.fetchBlock();
-                this.#cache.filters = scran.suggestRnaQcFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
+
+                if (filter_strategy === "automatic") {
+                    this.#cache.filters = scran.suggestRnaQcFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
+                } else if (filter_strategy === "manual") {
+                    let block_levels = this.#inputs.fetchBlockLevels();
+                    this.#cache.filters = scran.emptySuggestRnaQcFiltersResults(1, block_levels === null ? 1 : block_levels.length);
+                    this.#cache.filters.thresholdsSums({ copy: false }).fill(sum_threshold);
+                    this.#cache.filters.thresholdsDetected({ copy: false }).fill(detected_threshold);
+                    this.#cache.filters.thresholdsSubsetProportions(0, { copy: false }).fill(mito_threshold);
+                } else {
+                    throw new Error("unknown RNA QC filtering strategy '" + filter_strategy + "'");
+                }
+
                 var discard = utils.allocateCachedArray(this.#cache.metrics.numberOfCells(), "Uint8Array", this.#cache, "discard_buffer");
                 this.#cache.filters.filter(this.#cache.metrics, { block: block, buffer: discard });
                 this.changed = true;
@@ -354,7 +390,11 @@ export class RnaQualityControlState {
                 delete this.#cache.filters;
             }
 
+            this.#parameters.filter_strategy = filter_strategy;
             this.#parameters.nmads = nmads;
+            this.#parameters.sum_threshold = sum_threshold;
+            this.#parameters.detected_threshold = detected_threshold;
+            this.#parameters.mito_threshold = mito_threshold;
         }
 
         return;

@@ -137,3 +137,102 @@ test("different options for choosing IgG tags in ADT QC works as expected", asyn
     expect(state.adt_quality_control.changed).toBe(false);
     expect(state.adt_quality_control.fetchParameters().tag_id_column).toBe("foobar");
 })
+
+test("we can switch to manual QC for RNA and ADTs", async () => {
+    let state = await bakana.createAnalysis();
+    let paramcopy = utils.baseParams();
+    await state.inputs.compute(files, paramcopy.inputs);
+
+    // For RNA.
+    {
+        let rna_param = paramcopy.rna_quality_control;
+        rna_param.filter_strategy = "manual";
+        rna_param.detected_threshold = 1234;
+        await state.rna_quality_control.compute(rna_param);
+
+        let filt = state.rna_quality_control.fetchFilters();
+        let old_sums = filt.thresholdsSums();
+        expect(Array.from(old_sums)).toEqual([100]);
+        let old_detected = filt.thresholdsDetected();
+        expect(Array.from(old_detected)).toEqual([1234]);
+        let old_mito = filt.thresholdsSubsetProportions(0);
+        expect(Array.from(old_mito)).toEqual([0.2]);
+
+        let params = state.rna_quality_control.fetchParameters();
+        expect(params.filter_strategy).toEqual("manual");
+        expect(params.detected_threshold).toEqual(1234);
+
+        // Switching back.
+        rna_param.filter_strategy = "automatic";
+        await state.rna_quality_control.compute(rna_param);
+        expect(state.rna_quality_control.changed).toBe(true);
+
+        params = state.rna_quality_control.fetchParameters();
+        filt = state.rna_quality_control.fetchFilters();
+        expect(params.filter_strategy).toEqual("automatic");
+        expect(filt.thresholdsSums()).not.toEqual(old_sums);
+        expect(filt.thresholdsDetected()).not.toEqual(old_detected);
+        expect(filt.thresholdsSubsetProportions(0)).not.toEqual(old_mito);
+    }
+
+    // For ADT.
+    {
+        let adt_param = paramcopy.adt_quality_control;
+        adt_param.filter_strategy = "manual";
+        adt_param.detected_threshold = 1234;
+        await state.adt_quality_control.compute(adt_param);
+
+        let filt = state.adt_quality_control.fetchFilters();
+        let old_detected = filt.thresholdsDetected();
+        expect(Array.from(old_detected)).toEqual([1234]);
+        let old_igg = filt.thresholdsSubsetTotals(0);
+        expect(Array.from(old_igg)).toEqual([1]);
+
+        let params = state.adt_quality_control.fetchParameters();
+        expect(params.filter_strategy).toEqual("manual");
+        expect(params.detected_threshold).toEqual(1234);
+
+        // Switching back.
+        adt_param.filter_strategy = "automatic";
+        await state.adt_quality_control.compute(adt_param);
+        expect(state.adt_quality_control.changed).toBe(true);
+
+        params = state.adt_quality_control.fetchParameters();
+        filt = state.adt_quality_control.fetchFilters();
+        expect(params.filter_strategy).toEqual("automatic");
+        expect(filt.thresholdsDetected()).not.toEqual(old_detected);
+        expect(filt.thresholdsSubsetTotals(0)).not.toEqual(old_igg);
+    }
+})
+
+test("we can switch to manual QC for CRISPR", async () => {
+    const h5file = "files/datasets/crispr_6.0.0-tenx.h5";
+    let files = { default: new bakana.TenxHdf5Dataset(h5file) };
+
+    let state = await bakana.createAnalysis();
+    let paramcopy = utils.baseParams();
+    await state.inputs.compute(files, paramcopy.inputs);
+
+    let crispr_param = paramcopy.crispr_quality_control;
+    crispr_param.filter_strategy = "manual";
+    crispr_param.max_threshold = 1234;
+    await state.crispr_quality_control.compute(crispr_param);
+
+    let filt = state.crispr_quality_control.fetchFilters();
+    let old_max = filt.thresholdsMaxCount();
+    expect(Array.from(old_max)).toEqual([1234]);
+
+    let params = state.crispr_quality_control.fetchParameters();
+    expect(params.filter_strategy).toEqual("manual");
+    expect(params.max_threshold).toEqual(1234);
+
+    // Switching back.
+    crispr_param.filter_strategy = "automatic";
+    await state.crispr_quality_control.compute(crispr_param);
+    expect(state.crispr_quality_control.changed).toBe(true);
+
+    params = state.crispr_quality_control.fetchParameters();
+    filt = state.crispr_quality_control.fetchFilters();
+    expect(params.filter_strategy).toEqual("automatic");
+    expect(filt.thresholdsMaxCount()).not.toEqual(old_max);
+})
