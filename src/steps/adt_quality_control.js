@@ -233,8 +233,8 @@ export class AdtQualityControlState {
             filter_strategy !== this.#parameters.filter_strategy ||
             nmads !== this.#parameters.nmads || 
             min_detected_drop !== this.#parameters.min_detected_drop ||
-            detected_threshold !== this.#paramters.detected_threshold ||
-            igg_threshold !== this.#paramters.igg_threshold
+            detected_threshold !== this.#parameters.detected_threshold ||
+            igg_threshold !== this.#parameters.igg_threshold
         ) {
             utils.freeCache(this.#cache.filters);
 

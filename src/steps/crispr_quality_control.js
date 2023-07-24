@@ -139,7 +139,7 @@ export class CrisprQualityControlState {
         if (this.changed || 
             filter_strategy !== this.#parameters.filter_strategy ||
             nmads !== this.#parameters.nmads ||
-            max_threshold !== this.#paramters.max_threshold
+            max_threshold !== this.#parameters.max_threshold
         ) {
             utils.freeCache(this.#cache.filters);
 

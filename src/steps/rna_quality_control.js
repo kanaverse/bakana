@@ -362,9 +362,9 @@ export class RnaQualityControlState {
         if (this.changed || 
             filter_strategy !== this.#parameters.filter_strategy ||
             nmads !== this.#parameters.nmads ||
-            sum_threshold !== this.#paramters.sum_threshold ||
-            detected_threshold !== this.#paramters.detected_threshold ||
-            mito_threshold !== this.#paramters.mito_threshold
+            sum_threshold !== this.#parameters.sum_threshold ||
+            detected_threshold !== this.#parameters.detected_threshold ||
+            mito_threshold !== this.#parameters.mito_threshold
         ) {
             utils.freeCache(this.#cache.filters);
 
