@@ -150,7 +150,7 @@ export class CrisprQualityControlState {
                     this.#cache.filters = scran.suggestCrisprQcFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
                 } else if (filter_strategy === "manual") {
                     let block_levels = this.#inputs.fetchBlockLevels();
-                    this.#cache.filters = scran.emptySuggestRnaQcFiltersResults(block_levels === null ? 1 : block_levels.length);
+                    this.#cache.filters = scran.emptySuggestCrisprQcFiltersResults(block_levels === null ? 1 : block_levels.length);
                     this.#cache.filters.thresholdsMaxCount({ copy: false }).fill(max_threshold);
                 } else {
                     throw new Error("unknown CRISPR QC filter strategy '" + filter_strategy + "'");
@@ -163,7 +163,9 @@ export class CrisprQualityControlState {
                 delete this.#cache.filters;
             }
 
+            this.#parameters.filter_strategy = filter_strategy;
             this.#parameters.nmads = nmads;
+            this.#parameters.max_threshold = max_threshold;
         }
 
         return;

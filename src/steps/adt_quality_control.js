@@ -242,10 +242,10 @@ export class AdtQualityControlState {
                 let block = this.#inputs.fetchBlock();
 
                 if (filter_strategy === "automatic") {
-                    this.#cache.filters = scran.suggestRnaQcFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
+                    this.#cache.filters = scran.suggestAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
                 } else if (filter_strategy === "manual") {
                     let block_levels = this.#inputs.fetchBlockLevels();
-                    this.#cache.filters = scran.emptySuggestAdtQcFiltersResults(block_levels === null ? 1 : block_levels.length);
+                    this.#cache.filters = scran.emptySuggestAdtQcFiltersResults(1, block_levels === null ? 1 : block_levels.length);
                     this.#cache.filters.thresholdsDetected({ copy: false }).fill(detected_threshold);
                     this.#cache.filters.thresholdsSubsetTotals(0, { copy: false }).fill(igg_threshold);
                 } else {
