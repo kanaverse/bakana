@@ -81,8 +81,8 @@ This method should return an object containing:
   in rare situations, developers may choose to instead return a `null` value for any modality, and this will not raise an error in a single dataset analysis. 
 - `features`, an object where each key is the name of a modality in `matrix`.
   Each modality-specific value is a `DataFrame` with one row per feature in the corresponding entry of `matrix`.
+  Rows of `features[<modality>]` should be in the same order as the rows of `matrix.get(<modality>)`.
   Columns should be per-feature annotation fields, as described for `summary()`.
-  If the rows of `matrix.get(<modality>)` were reorganized in any way, e.g., subsetting or permutation, the same reorganization should be applied to the rows of `features[<modality>]`.
 - `cells`, a `DataFrame` containing one row per cell.   
   Each column should contain an array of per-cell information, corresponding to the same order of columns in each entry of `matrix`.
 

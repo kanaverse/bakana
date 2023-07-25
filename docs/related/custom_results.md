@@ -64,8 +64,8 @@ This method should return an object containing:
   however, they should be consistent with the output of `summary()`.
 - `features`, an object where each key is the name of a modality in `matrix`.
   Each modality-specific value is a `DataFrame` with one row per feature in the corresponding entry of `matrix`.
+  Rows of `features[<modality>]` should be in the same order as the rows of `matrix.get(<modality>)`.
   Columns should be per-feature annotation fields, as described for `summary()`.
-  If the rows of `matrix.get(<modality>)` were reorganized in any way, e.g., subsetting or permutation, the same reorganization should be applied to the rows of `features[<modality>]`.
 - `cells`, a `DataFrame` containing one row per cell.   
   Each column should contain an array of per-cell information, corresponding to the same order of columns in each entry of `matrix`.
 - `reduced_dimensions`, an object containing the dimensionality reduction results.

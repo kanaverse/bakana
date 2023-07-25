@@ -2,7 +2,7 @@
 
 ## Overview
 
-**bakana** provides the compute backend for the [**kana**](https://github.com/jkanche/kana) application.
+**bakana** provides the compute backend for the [**kana**](https://github.com/kanaverse/kana) application.
 It provides a pipeline for a routine single-cell RNA-seq analysis, starting from the count matrix and finishing with the usual results (markers, clusters, t-SNE and so on).
 Datasets involving multiple samples in one or multiple matrices can also be analyzed with blocking and batch correction.
 The pipeline can be executed both in the browser and on Node.js.
@@ -152,8 +152,7 @@ bakana.freeAnalysis(state);
 bakana.freeAnalysis(reloaded);
 ```
 
-If all analyses are complete, we can terminate the entire session.
-This is necessary on Node.js to allow the runtime to exit properly.
+If all analyses are complete, we can terminate the **bakana** session to release memory/workers.
 
 ```js
 bakana.terminate();
