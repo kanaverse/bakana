@@ -2,6 +2,7 @@ import * as bakana from "../src/index.js";
 import * as utils from "./utils.js";
 import * as bioc from "bioconductor";
 import * as nav from "./navigator.js";
+import * as scran from "scran.js";
 
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
@@ -236,6 +237,7 @@ action_adt("local ArtifactDB result readers work correctly with multiple modalit
 action_simple("Zipped ArtifactDB result summary and loading works correctly", async () => {
     // First, zipping the contents of the target directory.
     let zipped = await nav.zipDirectory(nav.baseDirectory, [ target_simple, target_simple + ".json" ]);
+    scran.writeFile("miscellaneous/bundle.zip", zipped); // for manual inspection.
     let zipfile = new bakana.SimpleFile(zipped, { name: "bundle.zip" });
 
     // Checking for consistency between zipped and native.
