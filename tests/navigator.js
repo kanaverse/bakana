@@ -99,5 +99,11 @@ export function zipDirectory(directory, children) {
         }
     }
 
-    return bakana.zipFiles(prep_files);
+    const enc = new TextEncoder;
+    let ex = {
+        path: "README.md",
+        contents: enc.encode("Hi! Read me please!")
+    };
+
+    return bakana.zipFiles(prep_files, { extras: [ex] });
 }

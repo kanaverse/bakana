@@ -145,10 +145,14 @@ export async function saveGenewiseResults(state, path, { includeMarkerDetection 
  *
  * @param {Array} files - Array of objects describing files in the project directory.
  * See the output of {@linkcode saveSingleCellExperiment} for more details on the expected format.
+ * @param {object} [options={}] - Optional parameters.
+ * @param {Array} [options.extras=[]] - Array of extra files to store inside the ZIP file (e.g., READMEs, notes).
+ * Each entry should be an object with the `path` property, containing the relative path of the file in the project directory;
+ * and `contents`, a Uint8Array containin the file contents.
  *
  * @return {Promise<Uint8Array>} Uint8Array with the contents of the ZIP file containing all `files`.
  */
-export function zipFiles(files) {
+export function zipFiles(files, { extras = [] } = {}) {
     var zip = new JSZip();
 
     for (const x of files) {
@@ -168,6 +172,10 @@ export function zipFiles(files) {
 
         // Add a trailing newline to avoid no-newline warnings. 
         zip.file(x.metadata.path + suffix, JSON.stringify(x.metadata, null, 2) + "\n");
+    }
+
+    for (const x of extras) {
+        zip.file(x.path, x.contents)
     }
 
     return zip.generateAsync({ type: "uint8array" });
