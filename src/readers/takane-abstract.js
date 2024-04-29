@@ -488,7 +488,7 @@ async function load_sce_components(se_path, navigator) {
     }
 
     if (listing.indexOf("column_data") != -1) {
-        let col_path = this.#path + "/column_data";
+        let col_path = se_path + "/column_data";
         main.cells = await load_data_frame(col_path, navigator);
     } else {
         main.cells = new bioc.DataFrame({}, { numberOfRows: obj_info.summarized_experiment.dimensions[1] });
@@ -816,8 +816,6 @@ export class AbstractTakeneResult {
     #path;
     #navigator;
     #raw_components;
-    #raw_other;
-    #raw_
     #options;
 
     /**
@@ -832,7 +830,6 @@ export class AbstractTakeneResult {
         this.#path = path;
         this.#navigator = new TakaneNavigator(getter, lister);
         this.#raw_components = null;
-        this.#raw_other = null;
         this.#options = AbstractTakeneResult.defaults();
     }
 
@@ -884,7 +881,6 @@ export class AbstractTakeneResult {
      */
     clear() {
         this.#raw_components = null;
-        this.#raw_other = null;
         this.#navigator.clear();
     }
 
@@ -986,9 +982,9 @@ export class AbstractTakeneResult {
         let output = { 
             matrix: new scran.MultiMatrix,
             features: {},
-            cells: this.#raw_cells,
+            cells: comp.core.main.cells,
             reduced_dimensions: {},
-            other_metadata: this.#raw_other
+            other_metadata: comp.other,
         };
 
         // Fetch the reduced dimensions first.
@@ -1037,49 +1033,40 @@ export class AbstractTakeneResult {
 
         // Now fetching the assay matrix.
         {
-            const altmap = {};
-            for (const alt of comp.alternative) {
-                altmap[alt.name] = alt;
+            async function add_experiment(name, info) {
+                let curassay = this.#options.primaryAssay;
+                if (typeof curassay == "object") {
+                    if (name in curassay) {
+                        curassay = curassay[name];
+                    } else {
+                        return;
+                    }
+                }
+
+                let curnormalized = this.#options.isPrimaryNormalized;
+                if (typeof curnormalized == "object") {
+                    if (name in curnormalized) {
+                        curnormalized = curnormalized[name];
+                    } else {
+                        curnormalized = true;
+                    }
+                }
+
+                let loaded = await extract_assay(info.path, curassay, this.#navigator, !curnormalized);
+                output.matrix.add(name, loaded);
+                if (!curnormalized) {
+                    let normed = scran.logNormCounts(loaded, { allowZeros: true });
+                    output.matrix.add(name, normed);
+                }
+
+                output.features[name] = info.features;
             }
 
             try {
-                for (const [k, v] of Object.entries(this.#raw_features)) {
-                    let curassay = this.#options.primaryAssay;
-                    if (typeof curassay == "object") {
-                        if (k in curassay) {
-                            curassay = curassay[k];
-                        } else {
-                            continue;
-                        }
-                    }
-
-                    let curnormalized = this.#options.isPrimaryNormalized;
-                    if (typeof curnormalized == "object") {
-                        if (k in curnormalized) {
-                            curnormalized = curnormalized[k];
-                        } else {
-                            curnormalized = true;
-                        }
-                    }
-
-                    let info;
-                    if (k === comp.core.main.name) {
-                        info = comp.core.main;
-                    } else if (k in altmap) {
-                        info = altmap[k];
-                    }
-
-                    let loaded = await extract_assay(info.path, curassay, this.#navigator, !curnormalized);
-                    output.matrix.add(k, loaded);
-
-                    if (!curnormalized) {
-                        let normed = scran.logNormCounts(loaded, { allowZeros: true });
-                        output.matrix.add(k, normed);
-                    }
-
-                    output.features[k] = info.features;
+                add_experiment(comp.core.main.name, comp.core.main);
+                for (const [k, v] of Object.entries(comp.core.alternative)) {
+                    add_experiment(k, v);
                 }
-
             } catch (e) {
                 scran.free(output.matrix);
                 throw e;
