@@ -210,22 +210,6 @@ async function extract_array(arr_path, navigator, forceInteger) {
             stuff.flush();
         }
 
-    } else if (arrtype == "delayed_array") {
-        const contents = await navigator.get(arr_path + "/array.h5");
-        let stuff = scran.realizeFile(contents);
-        try {
-            let fhandle = new scran.H5File(stuff.path);
-            let ghandle = fhandle.open("delayed_array");
-
-            // TODO: switch to chihaya.js at some point, maybe.
-            output = await extract_logcounts(ghandle, navigator);
-            if (output == null) {
-                throw new Error("currently only supporting bakana-generated log-counts for delayed arrays");
-            }
-        } finally {
-            stuff.flush();
-        }
-
     } else {
         throw new Error("assay type '" + arrtype + "' is currently not supported");
     }
@@ -454,8 +438,8 @@ function extract_hdf5_list(handle) {
  *** S(C)E loader ***
  ********************/
 
-async function extract_all_features(se_path, navigator) {
-    let extract_features = (obj_info, listing, se_path) => {
+async function load_sce_components(se_path, navigator) {
+    const extract_features = (obj_info, listing, se_path) => {
         if (!("summarized_experiment" in obj_info)) {
             throw new Error("expected a 'summarized_experiment' object");
         }
@@ -467,74 +451,71 @@ async function extract_all_features(se_path, navigator) {
         }
     };
 
+    const extract_assay_names = async (listing, path) => {
+        if (listing.indexOf("assays") == -1) {
+            return [];
+        }
+
+        // Only reporting the names of assays with supported types.
+        const assnames = await navigator.get_json_file(path + "/assays/names.json");
+        const collected = [];
+        for (const [i, a] of assnames) {
+            const assmeta = await navigator.get_object_file(path + "/assays/" + String(i));
+            const asstype = assmeta.type;
+            if (asstype != "dense_array" && asstype != "compressed_sparse_matrix" && asstype != "delayed_array") {
+                collected.push(a);
+            }
+        }
+        return collected;
+    };
+
     const obj_info = await navigator.get_object_file(se_path);
     const listing  = await navigator.list_files(se_path);
+    const main = {
+        "name": "",
+        "path": se_path,
+        "features": await extract_features(obj_info, listing, se_path),
+        "assays": await extract_assay_names(listing, se_path),
+        "cells": null,
+    };
 
-    const output = {};
-    let is_sce = ("single_cell_experiment" in obj_info);
+    const is_sce = ("single_cell_experiment" in obj_info);
+    if (is_sce) {
+        const sce_meta = obj_info.single_cell_experiment;
+        if ("main_experiment_name" in sce_meta) {
+            main.name = sce_meta.main_experiment_name;
+        }
+    }
 
+    if (listing.indexOf("column_data") != -1) {
+        let col_path = this.#path + "/column_data";
+        main.cells = await load_data_frame(col_path, navigator);
+    } else {
+        main.cells = new bioc.DataFrame({}, { numberOfRows: obj_info.summarized_experiment.dimensions[1] });
+    }
+
+    let atlernatives = [];
     if (is_sce && listing.indexOf("alternative_experiments") != -1) {
-        let altnames = await navigator.get_json_file(se_path + "/alternative_experiments/names.json");
-        for (const [i, alt] of altnames.entries()) {
+        alternatives = await navigator.get_json_file(se_path + "/alternative_experiments/names.json");
+
+        for (const [i, alt] of alternatives.entries()) {
             let alt_path = se_path + "/alternative_experiments/" + String(i);
             try {
                 const alt_obj_info = await navigator.get_object_file(alt_path);
                 const alt_listing = await navigator.list_files(alt_path);
-                output[alt] = await extract_features(alt_obj_info, alt_listing, alt_path);
+                altnames[i] = {
+                    "name": alt,
+                    "path": alt_path,
+                    "features": await extract_features(alt_obj_info, alt_listing, alt_path),
+                    "assays": await extract_assay_names(alt_listing, alt_path)
+                };
             } catch (e) {
                 console.warn("failed to extract features for alternative experiment at '" + alt_path + "'; " + e.message);
             }
         }
     }
 
-    // Doing this last so that it overrides any alternative experiments with the same
-    // name, just in case there is a spec violation of "no overlapping names".
-    let main_exp_name = "";
-    if (is_sce) {
-        const sce_meta = obj_info.single_cell_experiment;
-        if ("main_experiment_name" in sce_meta) {
-            main_exp_name = sce_meta.main_experiment_name;
-        }
-    }
-    output[main_exp_name] = await extract_features(obj_info, listing, se_path);
-
-    return output;
-}
-
-async function extract_all_assay_names(path, navigator) {
-    let extract_assay_names = (listing, path) => {
-        if (listing.indexOf("assays") != -1) {
-            return navigator.get_json_file(path + "/assays/names.json");
-        } else {
-            return [];
-        }
-    };
-
-    const obj_info = await navigator.get_object_file(path);
-    const listing  = await navigator.list_files(path);
-
-    let output = {};
-    let main_exp_name = "";
-    let is_sce = ("single_cell_experiment" in obj_info);
-    if (is_sce && "main_experiment_name" in info.single_cell_experiment) {
-        main_exp_name = info.single_cell_experiment.main_experiment_name;
-    }
-    output[main_experiment_name] = await extract_assay_names(listing, path);
-
-    if (is_sce && listing.indexOf("alternative_experiments") != -1) {
-        let altnames = await navigator.get_json_file(path + "/alternative_experiments/names.json");
-        for (const [i, alt] of altnames.entries()) {
-            let alt_path = path + "/alternative_experiments/" + String(i);
-            try {
-                const alt_listing = await navigator.list_files(alt_path);
-                assays[alt.name] = await extract_assay_names(alt_listing, alt_path);
-            } catch (e) {
-                console.warn("failed to extract features for alternative experiment at '" + altpath + "'; " + e.message);
-            }
-        }
-    }
-
-    return assays;
+    return { main: main, alternative: alternatives };
 }
 
 async function extract_assay(path, assay, navigator, forceInteger) {
@@ -555,30 +536,6 @@ async function extract_assay(path, assay, navigator, forceInteger) {
     return extract_array(path + "/assays/" + String(assay), navigator, forceInteger);
 }
 
-async function map_experiment_names(path, navigator) {
-    let mainname = "";
-    let altmap = {};
-    let alts = [];
-
-    let full_meta = await navigator.get_object_file(path);
-    if ("single_cell_experiment" in full_meta) {
-        const sce_meta = full_meta.single_cell_experiment;
-        if ("main_experiment_name" in sce_meta) {
-            mainname = sce_meta.main_experiment_name;
-        }
-
-        let listing = await navigator.list_files(path);
-        if (listing.indexOf("alternative_experiments") != -1) {
-            alts = await navigator.get_json_file(path + "/alternative_experiments/names.json");
-            for (const [i, alt] of altnames.entries()) {
-                altmap[alt] = i;
-            }
-        }
-    }
-
-    return { mainname, alts, altmap };
-}
-
 /************************
  ******* Dataset ********
  ************************/
@@ -592,8 +549,7 @@ async function map_experiment_names(path, navigator) {
 export class AbstractTakaneDataset {
     #path;
     #navigator;
-    #raw_features;
-    #raw_cells;
+    #raw_components;
     #options;
 
     /**
@@ -607,8 +563,7 @@ export class AbstractTakaneDataset {
     constructor(path, getter, lister) {
         this.#path = path;
         this.#navigator = new TakaneNavigator(getter, lister);
-        this.#raw_features = null;
-        this.#raw_cells = null;
+        this.#raw_components = null;
         this.#options = AbstractArtifactdbDataset.defaults();
         return;
     }
@@ -679,27 +634,14 @@ export class AbstractTakaneDataset {
      */
     clear() {
         this.#navigator.clear();
-        this.#raw_features = null;
-        this.#raw_cells = null;
+        this.#raw_components = null;
     }
 
-    async #features() {
-        if (this.#raw_features == null) {
-            this.#raw_features = await extract_all_features(this.#path, this.#navigator);
+    async #load_components() {
+        if (this.#raw_components == null) {
+            this.#raw_components = await load_sce_components(this.#path, this.#navigator);
         }
-    }
-
-    async #cells() {
-        if (this.#raw_cells == null) {
-            let listing = await this.#navigator.list_files(this.#path);
-            if (listing.indexOf("column_data") != -1) {
-                let col_path = this.#path + "/column_data";
-                this.#raw_cells = await load_data_frame(col_path, this.#navigator);
-            } else {
-                let meta = await this.#navigator.get_object_file(this.#path);
-                this.#raw_cells = new bioc.DataFrame({}, { numberOfRows: meta.summarized_experiment.dimensions[1] });
-            }
-        }
+        return this.#raw_components;
     }
 
     /**
@@ -718,13 +660,21 @@ export class AbstractTakaneDataset {
      * @async
      */
     async summary({ cache = false } = {}) {
-        await this.#features();
-        await this.#cells();
+        const comp = await this.#load_components();
 
-        let output = {
-            modality_features: this.#raw_features,
-            cells: this.#raw_cells,
-            modality_assay_names: await extract_all_assay_names(this.#path, this.#navigator)
+        const features = {};
+        const assays = {};
+        features[comp.main.name] = comp.main.features;
+        assays[comp.main.name] = comp.main.assays;
+        for (const [a, v] of Object.entries(comp.alternative)) {
+            features[a] = v.features;
+            assays[a] = v.assays;
+        }
+
+        const output = {
+            modality_features: features,
+            cells: comp.cells,
+            modality_assay_names: assays,
         };
 
         if (!cache) {
@@ -752,7 +702,7 @@ export class AbstractTakaneDataset {
      * @async
      */
     async previewPrimaryIds({ cache = false } = {}) {
-        await this.#features();
+        const comp = await this.#load_components();
 
         let fmapping = {
             RNA: this.#options.rnaExperiment, 
@@ -760,7 +710,12 @@ export class AbstractTakaneDataset {
             CRISPR: this.#options.crisprExperiment 
         };
 
-        let preview = futils.extractRemappedPrimaryIds(this.#raw_features, fmapping, this.#primary_mapping());
+        const features = {};
+        features[comp.main.name] = comp.main.features;
+        for (const [a, v] of Object.entries(comp.alternative)) {
+            features[a] = v.features;
+        }
+        const preview = futils.extractRemappedPrimaryIds(features, fmapping, this.#primary_mapping());
 
         if (!cache) {
             this.clear();
@@ -788,13 +743,12 @@ export class AbstractTakaneDataset {
      * @async
      */
     async load({ cache = false } = {}) {
-        await this.#features();
-        await this.#cells();
+        const comp = await this.#load_components();
 
         let output = { 
             matrix: new scran.MultiMatrix,
             features: {},
-            cells: this.#raw_cells
+            cells: comp.main.cells,
         };
 
         let mapping = { 
@@ -803,7 +757,10 @@ export class AbstractTakaneDataset {
             CRISPR: { exp: this.#options.crisprExperiment, assay: this.#options.crisprCountAssay }
         };
 
-        const { mainname, alts, altmap } = await map_experiment_names(this.#path, this.#navigator);
+        const altmap = {};
+        for (const alt of comp.alternative) {
+            altmap[alt.name] = alt;
+        }
 
         try {
             for (const [k, v] of Object.entries(mapping)) {
@@ -811,29 +768,26 @@ export class AbstractTakaneDataset {
                     continue;
                 }
 
-                let path;
-                let name;
+                let info;
                 if (typeof v.exp == "string") {
-                    name = v.exp;
-                    if (name === mainname) {
-                        path = this.#path;
+                    if (v.exp === comp.main.name) {
+                        info = comp.main;
+                    } else if (v.exp in altmap) {
+                        info = altmap[name];
                     } else {
-                        if (!(name in altmap)) {
-                            continue;
-                        }
-                        path = "/alternative_experiments/" + String(altmap[v.exp]);
-                    }
-                } else {
-                    if (v.exp >= alts.length) {
                         continue;
                     }
-                    path = this.#path + "/alternative_experiments/" + String(v.exp);
-                    name = alts[v.exp];
+                } else {
+                    if (v.exp < comp.alternative.length) {
+                        info = comp.alternative[v.exp];
+                    } else {
+                        continue;
+                    }
                 }
 
-                let loaded = await extract_assay(path, v.assay, this.#navigator, true);
+                let loaded = await extract_assay(info.path, v.assay, this.#navigator, true);
                 output.matrix.add(k, loaded);
-                output.features[k] = this.#raw_features[name]; 
+                output.features[k] = info.features;
             }
 
             output.primary_ids = futils.extractPrimaryIds(output.features, this.#primary_mapping());
@@ -861,9 +815,9 @@ export class AbstractTakaneDataset {
 export class AbstractTakeneResult {
     #path;
     #navigator;
-    #raw_features;
-    #raw_cells;
+    #raw_components;
     #raw_other;
+    #raw_
     #options;
 
     /**
@@ -877,8 +831,7 @@ export class AbstractTakeneResult {
     constructor(path, getter, lister) {
         this.#path = path;
         this.#navigator = new TakaneNavigator(getter, lister);
-        this.#raw_features = null;
-        this.#raw_cells = null;
+        this.#raw_components = null;
         this.#raw_other = null;
         this.#options = AbstractTakeneResult.defaults();
     }
@@ -930,55 +883,41 @@ export class AbstractTakeneResult {
      * This may be called at any time but only has an effect if `cache = true` in {@linkcode AbstractTakeneResult#load load} or {@linkcode AbstractTakeneResult#summary summary}.
      */
     clear() {
-        this.#raw_features = null;
-        this.#raw_cells = null;
+        this.#raw_components = null;
         this.#raw_other = null;
         this.#navigator.clear();
     }
 
-    async #features() {
-        if (this.#raw_features === null) {
-            this.#raw_features = await extract_all_features(this.#path, this.#navigator);
-        }
-    }
+    async #load_components() {
+        if (this.#raw_components === null) {
+            this.#raw_components = { "core": await load_sce_components(this.#path, this.#navigator) };
 
-    async #cells() {
-        if (this.#raw_cells === null) {
-            let listing = await this.#navigator.list_files(this.#path);
-            if (listing.indexOf("column_data") != -1) {
-                let col_path = this.#path + "/column_data";
-                this.#raw_cells = await load_data_frame(col_path, this.#navigator);
-            } else {
-                let meta = await this.#navigator.get_object_file(this.#path);
-                this.#raw_cells = new bioc.DataFrame({}, { numberOfRows: meta.summarized_experiment.dimensions[1] });
-            }
-        }
-    }
-
-    async #other() {
-        if (this.#raw_other === null) {
+            // Loading the other metadata.
             let listing = await this.#navigator.list_files(this.#path);
             if (listing.indexOf("other_data") != -1) {
                 let other_path = this.#path + "/other_data";
-                this.#raw_other = await extract_list(other_path, this.#navigator);
+                this.#raw_components.other = await extract_list(other_path, this.#navigator);
             } else {
-                this.#raw_other = {};
+                this.#raw_components.other = {};
             }
-        }
-    }
 
-    async get_reddim_names() {
-        const full_meta = await this.#navigator.get_object_file(this.#path);
-        if !(("single_cell_experiment" in full_meta)) {
-            return [];
+            // Only supporting dense_arrays in the reduced dimensions for now.
+            const full_meta = await this.#navigator.get_object_file(this.#path);
+            let rd_names = [];
+            if ("single_cell_experiment" in full_meta) {
+                const all_rd_names = await this.#navigator.get_json_file(this.#path + "/reduced_dimensions/names.json");
+                for (const [i, r] of all_rd_names.entries()) {
+                    const red_path = this.#path + "/reduced_dimensions/" + String(i);
+                    let red_meta = await this.#navigator.get_object_file(red_path);
+                    if (red_meta["type"] == "dense_array") {
+                        rd_names.push({ "name": r, "path": red_path });
+                    }
+                }
+            }
+            this.#raw_components.reduced_dimensions = rd_names;
         }
 
-        const listing = await this.#navigator.list_files(this.#path);
-        if (listing.indexOf("reduced_dimensions") == -1) {
-            return [];
-        }
-
-        return this.#navigator.get_json_file(this.#path + "/reduced_dimensions/names.json");
+        return this.#raw_components;
     }
 
     /**
@@ -999,27 +938,24 @@ export class AbstractTakeneResult {
      * @async 
      */
     async summary({ cache = false } = {}) {
-        await this.#features();
-        await this.#cells();
-        await this.#other();
+        const comp = await this.#load_components();
+
+        const features = {};
+        const assays = {};
+        features[comp.core.main.name] = comp.core.main.features;
+        assays[comp.core.main.name] = comp.core.main.assays;
+        for (const [a, v] of Object.entries(comp.core.alternative)) {
+            features[a] = v.features;
+            assays[a] = v.assays;
+        }
 
         let output = {
-            modality_features: this.#raw_features,
-            cells: this.#raw_cells,
-            modality_assay_names: await extract_all_assay_names(this.#path, this.#navigator),
-            reduced_dimension_names: [],
-            other_metadata: this.#raw_other
+            modality_features: features,
+            cells: comp.core.main.cells,
+            modality_assay_names: assays,
+            reduced_dimension_names: comp.reduced_dimensions.map(x => x.name),
+            other_metadata: comp.other,
         };
-
-        // Only supporting dense_arrays in the reduced dimensions for now.
-        const reddims = await this.#get_reddim_names();
-        for (const [i, r] of reddims.entries()) {
-            const red_path = this.#path + "/reduced_dimensions/" + String(i);
-            let red_meta = await this.#navigator.get_object_file(red_path);
-            if (red_meta["type"] == "dense_array") {
-                output.reduced_dimension_names.push(r);
-            }
-        }
 
         if (!cache) {
             this.clear();
@@ -1045,11 +981,7 @@ export class AbstractTakeneResult {
      * @async
      */
     async load({ cache = false } = {}) {
-        await this.#features();
-        await this.#cells();
-        await this.#other();
-
-        let full_meta = await this.#navigator.metadata(this.#path);
+        const comp = await this.#load_components();
 
         let output = { 
             matrix: new scran.MultiMatrix,
@@ -1062,20 +994,22 @@ export class AbstractTakeneResult {
         // Fetch the reduced dimensions first.
         {
             let reddims = this.#options.reducedDimensionNames;
+            if (reddims == null) {
+                reddims = comp.reduced_dimensions.entries(x => x.name);
+            }
 
-            if (reddims == null || reddims.length > 0) {
-                let full_reddims = await this.#get_reddim_names();
-                if (reddims == null) {
-                    reddims = full_reddims;
-                }
-
+            if (reddims.length > 0) {
                 let redmap = {};
-                for (const [i, red] of full_reddims.entries()) {
-                    redmap[red] = i;
+                for (const [i, red] of comp.reduced_dimensions.entries()) {
+                    redmap[red.name] = red.path;
                 }
 
                 for (const k of reddims) {
-                    const red_path = this.#path + "/reduced_dimensions/" + String(redmap[k]);
+                    if (!(k in redmap)) {
+                        continue;
+                    }
+                    const red_path = redmap[k];
+
                     let red_meta = await this.#navigator.get_object_file(red_path);
                     if (red_meta["type"] != "dense_array") {
                         console.warn("reduced dimensions of type '" + red_meta["type"] + "' are not yet supported");
@@ -1103,7 +1037,10 @@ export class AbstractTakeneResult {
 
         // Now fetching the assay matrix.
         {
-            const { mainname, altmap } = await map_experiment_names(this.#path, this.#navigator);
+            const altmap = {};
+            for (const alt of comp.alternative) {
+                altmap[alt.name] = alt;
+            }
 
             try {
                 for (const [k, v] of Object.entries(this.#raw_features)) {
@@ -1125,14 +1062,14 @@ export class AbstractTakeneResult {
                         }
                     }
 
-                    let path;
-                    if (k === mainname) {
-                        path = this.#path;
-                    } else {
-                        path = this.#path + "/alternative_experiments/" + String(altmap[k]);
+                    let info;
+                    if (k === comp.core.main.name) {
+                        info = comp.core.main;
+                    } else if (k in altmap) {
+                        info = altmap[k];
                     }
 
-                    let loaded = await extract_assay(path, curassay, this.#navigator, !curnormalized);
+                    let loaded = await extract_assay(info.path, curassay, this.#navigator, !curnormalized);
                     output.matrix.add(k, loaded);
 
                     if (!curnormalized) {
@@ -1140,7 +1077,7 @@ export class AbstractTakeneResult {
                         output.matrix.add(k, normed);
                     }
 
-                    output.features[k] = this.#raw_features[k];
+                    output.features[k] = info.features;
                 }
 
             } catch (e) {
