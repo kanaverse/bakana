@@ -120,7 +120,7 @@ export class RnaQualityControlState {
 
     static configureFeatureParameters(use_reference_mito, guesses) {
         let best_key = null;
-        let best = { type: "symbol", species: "human", confidence: 0 };
+        let best = { type: "symbol", species: "9606", confidence: 0 };
 
         if ("row_names" in guesses) {
             let val = guesses.row_names;
