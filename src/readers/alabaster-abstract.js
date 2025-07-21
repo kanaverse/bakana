@@ -9,11 +9,14 @@ import * as jsp from "jaspagate";
  * Any class that satisfies the AlabasterProjectNavigator contract, so called as it is intended to "navigate" an alabaster-formatted object directory.
  * This should provide the following methods:
  * 
- * - `file(p)`, a (possibly async) method that accepts a string `p` containing a relative path inside an object directory and returns the contents of the file at that path.
- *   The return value should typically be a Uint8Array; on Node.js, methods may alternatively return a string containing a path to the file on the local file system.
- *
- * Optionally, the AlabasterProjectNavigator class may implement a `clear()` method to remove any cached content.
- * This will be called by {@linkcode AbstractAlabasterDataset#clear AbstractAlabasterDataset.clear} and  {@linkcode AbstractAlabasterResult#clear AbstractAlabasterResult.clear}.
+ * - `get(path, asBuffer)`, a (possibly async) method that accepts a string `path` containing a relative path to a file inside an object directory. 
+ *   This should return a string containing a path to the file on the local filesystem, or a Uint8Array containing the contents of the file if no local filesystem exists.
+ *   If `asBuffer = true`, a Uint8Array must be returned.
+ * - `exists(path)`, a (possibly async) method that accepts a string `path` containing a relative path to a file inside an object directory. 
+ *   This should return a boolean indicating whether `path` exists in the object directory.
+ * - `clean(localPath)`, a (possibly async) method that accepts a string containing a local path returned by `get()`.
+ *   It should remove any temporary file that was created by `get()` at `localPath`.
+ *   This will not be called if `get()` returns a Uint8Array.
  *
  * @typedef AlabasterProjectNavigator
  */
@@ -112,8 +115,8 @@ class AlabasterFsInterface extends jsp.GlobalFsInterface {
         return this.#navigator.exists(path);
     }
 
-    clean(path) {
-        this.#navigator.clean(path); 
+    clean(localPath) {
+        this.#navigator.clean(localPath); 
     }
 }
 
@@ -152,14 +155,14 @@ class MockMatrix {
         return this.#ncol;
     }
 
-    realize(globals, forceInteger) {
-        let metadata = jsp.readObjectFile(this.#path + "/OBJECT", globals);
+    async realize(globals, forceInteger, forceSparse) {
+        let metadata = await jsp.readObjectFile(this.#path + "/OBJECT", globals);
         if (metadata.type == "delayed_array") {
             let contents = await globals.fs.get(path + "/array.h5");
             try {
                 let handle = await globals.h5.open(contents);
                 try {
-                    let output = extract_logcounts(handle, path, globals);
+                    let output = extract_logcounts(handle, path, globals, forceInteger, forceSparse);
                     if (output == null) {
                         throw new Error("currently only supporting bakana-generated log-counts for delayed arrays");
                     }
@@ -171,36 +174,52 @@ class MockMatrix {
                 await globals.fs.clean(contents);
             }
         } else {
-            return extract_matrix(path, metadata, globals, forceInteger);
+            return extract_matrix(path, metadata, globals, forceInteger, forceSparse);
         }
     }
 }
 
-async extract_matrix(path, metadata, globals, forceInteger) {
+async function extract_matrix(path, metadata, globals, { forceInteger = true, forceSparse = true } = {}) {
     if (metadata.type == "compressed_sparse_matrix") {
-        let contents = globals.fs.get(path + "/matrix.h5");
+        let contents = await globals.fs.get(path + "/matrix.h5");
         try {
             let realized = scran.realizeFile(contents);
             try {
-                return scran.initializeSparseMatrixFromHdf5(realized.path, name, { forceInteger });
+                let fhandle = new scran.H5File(realized.path);
+                const name = "compressed_sparse_matrix";
+
+                let dhandle = fhandle.open(name);
+                const shape = dhandle.open("shape").values; 
+                const layout = dhandle.readAttribute("layout").values[0];
+
+                return scran.initializeSparseMatrixFromHdf5Group(realized.path, name, shape[0], shape[1], (layout == "CSR"), { forceInteger });
             } finally {
                 realized.flush();
             }
         } finally {
-            globals.fs.clean(contents);
+            await globals.fs.clean(contents);
         }
 
     } else if (metadata.type == "dense_array") {
-        let contents = globals.fs.get(path + "/array.h5");
+        let contents = await globals.fs.get(path + "/array.h5");
         try {
             let realized = scran.realizeFile(contents);
             try {
-                return scran.initializeDenseMatrixFromHdf5(realized.path, name, { forceInteger });
+                let fhandle = new scran.H5File(realized.path);
+                const name = "dense_array";
+                let dhandle = fhandle.open(name);
+                let transposed = false;
+                if ("transposed" in dhandle.attributes) {
+                    let trans_info = dhandle.readAttribute("transposed");
+                    transposed = (trans_info.values[0] != 0);
+                }
+
+                return scran.initializeMatrixFromHdf5Dataset(realized.path, name + "/data", { transposed, forceInteger, forceSparse });
             } finally {
                 realized.flush();
             }
         } finally {
-            globals.fs.clean(contents);
+            await globals.fs.clean(contents);
         }
 
     } else {
@@ -212,7 +231,7 @@ async extract_matrix(path, metadata, globals, forceInteger) {
 
 // This specifically loads the log-counts created by the dumper.
 // At some point we may provide more general support for delayed operations, but this would require appropriate support in scran.js itself.
-async function extract_logcounts(handle, path, navigator) {
+async function extract_logcounts(handle, path, globals, forceInteger, forceSparse) {
     if (handle.readAttribute("delayed_type").values[0] !== "operation") {
         return null;
     }
@@ -267,10 +286,13 @@ async function extract_logcounts(handle, path, navigator) {
     }
     let index = ahandle.open("index").values[0];
 
+    let seed_path = path + "/seeds/" + String(index);
+    let metadata = await jsp.readObjectFile(this.#path + "/OBJECT", globals);
+
     let mat;
     let output;
     try {
-        mat = await extract_matrix(path + "/seeds/" + String(index), navigator, false); // don't force it to be integer, but we don't mind if it is.
+        mat = await extract_matrix(seed_path, seed_metadata, globals, forceInteger, forceSparse); 
         output = scran.logNormCounts(mat, { sizeFactors: sf, center: false });
     } finally {
         scran.free(mat);
@@ -301,7 +323,6 @@ function extract_from_experiments(se, fun) {
             output[alt] = fun(se.alternativeExperiment(alt));
         }
     }
-
     return output;
 }
 
@@ -326,7 +347,7 @@ function extract_all_assay_names(se) {
 export class AbstractArtifactdbDataset {
     #path;
     #navigator;
-    #se;
+    #raw_se;
     #options;
 
     /**
@@ -405,18 +426,22 @@ export class AbstractArtifactdbDataset {
      * This may be called at any time but only has an effect if `cache = true` in {@linkcode AbstractArtifactdbDataset#load load} or {@linkcode AbstractArtifactdbDataset#summary summary}.
      */
     clear() {
-        this.#se = null;
+        this.#raw_se = null;
+    }
+
+    #create_globals() { 
+        return {
+            fs: new AlabasterFsInterface(this.#navigator),
+            h5: new AlabasterH5Interface
+        };
     }
 
     async #populate() {
-        if (this.#se === null) {
-            this.#se = await jsp.readObject(
-                "",
+        if (this.#raw_se === null) {
+            this.#raw_se = await jsp.readObject(
+                ".",
                 null, 
-                {
-                    fs: new AlabasterFsInterface(this.#navigator),
-                    h5: new AlabasterH5Interface
-                },
+                this.#create_globals(),
                 {
                     DataFrame_readNested: false,
                     SummarizedExperiment_readAssay: readMockAssay,
@@ -445,9 +470,9 @@ export class AbstractArtifactdbDataset {
         await this.#populate();
 
         let output = {
-            modality_features: extract_all_features(this.#se),
-            cells: this.#se.columnData(),
-            modality_assay_names: extract_all_assay_names(this.#se)
+            modality_features: extract_all_features(this.#raw_se),
+            cells: this.#raw_se.columnData(),
+            modality_assay_names: extract_all_assay_names(this.#raw_se)
         };
 
         if (!cache) {
@@ -483,7 +508,7 @@ export class AbstractArtifactdbDataset {
             CRISPR: this.#options.crisprExperiment 
         };
 
-        let raw_features = extract_all_features(this.#se);
+        let raw_features = extract_all_features(this.#raw_se);
         let preview = futils.extractRemappedPrimaryIds(raw_features, fmapping, this.#primary_mapping());
 
         if (!cache) {
@@ -512,13 +537,12 @@ export class AbstractArtifactdbDataset {
      * @async
      */
     async load({ cache = false } = {}) {
-        await this.#features();
-        await this.#cells();
+        await this.#populate();
 
         let output = { 
             matrix: new scran.MultiMatrix,
             features: {},
-            cells: this.#raw_cells
+            cells: this.#raw_se.columnData()
         };
 
         let mapping = { 
@@ -527,14 +551,10 @@ export class AbstractArtifactdbDataset {
             CRISPR: { exp: this.#options.crisprExperiment, assay: this.#options.crisprCountAssay }
         };
 
-        let full_meta = await this.#navigator.metadata(this.#path);
-        let altmap = {};
-        let alts = [];
-        if ("single_cell_experiment" in full_meta) {
-            alts = full_meta.single_cell_experiment.alternative_experiments;
-            for (const alt of alts) {
-                altmap[alt.name] = alt.resource.path;
-            }
+        let experiments_by_name = extract_from_experiments(this.#raw_se, x => x);
+        let num_alts = 0;
+        if (this.#raw_se instanceof bioc.SingleCellExperiment) {
+            num_alts = this.#raw_se.alternativeExperimentNames().length;
         }
 
         try {
@@ -543,28 +563,22 @@ export class AbstractArtifactdbDataset {
                     continue;
                 }
 
-                let meta = null;
-                let name = v.exp;
+                let chosen_se;
                 if (typeof v.exp == "string") {
-                    if (v.exp === "") {
-                        meta = full_meta;
-                    } else {
-                        if (!(v.exp in altmap)) {
-                            continue;
-                        }
-                        meta = await this.#navigator.metadata(altmap[v.exp]);
-                    }
-                } else {
-                    if (v.exp >= alts.length) {
+                    if (!(v.exp in experiments_by_name)) {
                         continue;
                     }
-                    name = alts[v.exp].name;
-                    meta = await this.#navigator.metadata(alts[v.exp].resource.path);
+                    chosen_se = mapping_by_str[v.exp];
+                } else {
+                    if (v.exp >= num_alts) {
+                        continue;
+                    }
+                    chosen_se = this.#raw_se.alternativeExperiment(v.exp);
                 }
 
-                let loaded = await extract_assay(meta, v.assay, this.#navigator, true);
+                let loaded = await chosen_se.assay(v.assay).realize(this.#create_globals(), /* forceInteger = */ true, /* forceSparse = */ true);
                 output.matrix.add(k, loaded);
-                output.features[k] = this.#raw_features[name]; 
+                output.features[k] = chosen_se.rowData();
             }
 
             output.primary_ids = futils.extractPrimaryIds(output.features, this.#primary_mapping());
@@ -592,11 +606,7 @@ export class AbstractArtifactdbDataset {
 export class AbstractArtifactdbResult {
     #path;
     #navigator;
-
-    #raw_features;
-    #raw_cells;
-    #raw_other;
-
+    #raw_se;
     #options;
 
     /**
@@ -605,11 +615,9 @@ export class AbstractArtifactdbResult {
      */
     constructor(path, navigator) {
         this.#path = path;
-        this.#navigator = new MetadataCacheWrapper(navigator);
+        this.#navigator = navigator;
         this.#options = AbstractArtifactdbResult.defaults();
-
-        // Don't call clear() here, see comments above in the Dataset constructor.
-        this.#reset_local_caches();
+        this.#raw_se = null;
     }
 
     /**
@@ -654,60 +662,33 @@ export class AbstractArtifactdbResult {
         }
     }
 
-    #reset_local_caches() {
-        this.#raw_features = null;
-        this.#raw_cells = null;
-        this.#raw_other = null;
-    }
-
     /**
      * Destroy caches if present, releasing the associated memory.
      * This may be called at any time but only has an effect if `cache = true` in {@linkcode AbstractArtifactdbResult#load load} or {@linkcode AbstractArtifactdbResult#summary summary}.
      */
     clear() {
-        this.#reset_local_caches();
-        this.#navigator.clear();
+        this.#raw_se = null;
     }
 
-    async #features() {
-        if (this.#raw_features !== null) {
-            return;
-        }
-        this.#raw_features = await extract_all_features(this.#path, this.#navigator);
-        return;
+    #create_globals() { 
+        return {
+            fs: new AlabasterFsInterface(this.#navigator),
+            h5: new AlabasterH5Interface
+        };
     }
 
-    async #cells() {
-        if (this.#raw_cells !== null) {
-            return;
-        }
-        let full_meta = await this.#navigator.metadata(this.#path);
-        let col_path = full_meta.summarized_experiment.column_data.resource.path;
-        this.#raw_cells = await load_data_frame(col_path, this.#navigator);
-        return;
-    }
-
-    async #other() {
-        if (this.#raw_other !== null) {
-            return;
-        }
-
-        let full_meta = await this.#navigator.metadata(this.#path);
-        if ("other_data" in full_meta.summarized_experiment) {
-            let other_path = full_meta.summarized_experiment.other_data.resource.path;
-            this.#raw_other = await extract_other_data(other_path, this.#navigator);
-        } else {
-            this.#raw_other = {};
-        }
-        return;
-    }
-
-    async #get_all_reddim_names(rd_meta, store) {
-        for (const red of rd_meta) {
-            let redmeta = await this.#navigator.metadata(red.resource.path);
-            if (redmeta["$schema"].startsWith("hdf5_dense_array/") && redmeta.array.dimensions.length == 2) {
-                store.push(red.name);
-            }
+    async #populate() {
+        if (this.#raw_se === null) {
+            this.#raw_se = await jsp.readObject(
+                ".",
+                null, 
+                this.#create_globals(),
+                {
+                    DataFrame_readNested: false,
+                    SummarizedExperiment_readAssay: readMockAssay,
+                    SummarizedExperiment_readAssay: readMockReducedDimension
+                }
+            );
         }
     }
 
@@ -724,27 +705,21 @@ export class AbstractArtifactdbResult {
      * - `modality_assay_names`: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.
      *    Unnamed assays are represented as `null` names.
      * - `reduced_dimension_names`: an Array of strings containing names of dimensionality reduction results.
-     * - `other_metadata`: an object containing other metadata.
      *
      * @async 
      */
     async summary({ cache = false } = {}) {
-        await this.#features();
-        await this.#cells();
-        await this.#other();
+        await this.#populate();
 
         let output = {
-            modality_features: this.#raw_features,
-            cells: this.#raw_cells,
-            modality_assay_names: await extract_all_assay_names(this.#path, this.#navigator),
-            reduced_dimension_names: [],
-            other_metadata: this.#raw_other
+            modality_features: extract_all_features(this.#raw_se),
+            cells: this.#raw_se.columnData(),
+            modality_assay_names: extract_all_assay_names(this.#raw_se),
+            reduced_dimension_names: []
         };
 
-        let full_meta = await this.#navigator.metadata(this.#path);
-        if ("single_cell_experiment" in full_meta) {
-            let reddim_meta = full_meta.single_cell_experiment.reduced_dimensions;
-            await this.#get_all_reddim_names(reddim_meta, output.reduced_dimension_names);
+        if (this.#raw_se instanceof bioc.SingleCellExperiment) {
+            output.reduced_dimension_names = this.#raw_se.reducedDimensionNames();
         }
 
         if (!cache) {
@@ -766,115 +741,71 @@ export class AbstractArtifactdbResult {
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
      * - `reduced_dimensions`: an object containing the dimensionality reduction results.
      *   Each value is an array of arrays, where each inner array contains the coordinates for one dimension.
-     * - `other_metadata`: an object containing other metadata.
      *
      * @async
      */
     async load({ cache = false } = {}) {
-        await this.#features();
-        await this.#cells();
-        await this.#other();
-
-        let full_meta = await this.#navigator.metadata(this.#path);
+        await this.#populate();
 
         let output = { 
             matrix: new scran.MultiMatrix,
             features: {},
             cells: this.#raw_cells,
-            reduced_dimensions: {},
-            other_metadata: this.#raw_other
+            reduced_dimensions: {}
         };
 
-        // Fetch the reduced dimensions first.
-        {
-            let reddims = this.#options.reducedDimensionNames;
-            let reddim_meta = full_meta.single_cell_experiment.reduced_dimensions;
-
-            if (reddims == null) {
-                reddims = [];
-                await this.#get_all_reddim_names(reddim_meta, reddims);
-            }
-
-            if (reddims.length > 0) {
-                let redmap = {};
-                for (const red of reddim_meta) {
-                    redmap[red.name] = red.resource.path;
-                }
-
-                for (const k of reddims) {
-                    let redmeta = await this.#navigator.metadata(redmap[k]); // this should be only HDF5 dense matrices.
-                    let dims = redmeta.array.dimensions;
-                    let redcontents = await this.#navigator.file(redmeta.path); 
-
-                    let realized = scran.realizeFile(redcontents);
-                    let acquired = [];
-                    try {
-                        let fhandle = new scran.H5File(realized.path);
-                        let dhandle = fhandle.open(redmeta.hdf5_dense_array.dataset, { load: true });
-                        let contents = dhandle.values;
-                        for (var d = 0; d < dims[1]; d++) {
-                            acquired.push(contents.slice(d * dims[0], (d + 1) * dims[0]));
-                        }
-                    } finally {
-                        realized.flush();
+        if (this.#raw_se instanceof bioc.SingleCellExperiment) {
+            for (const k of this.#raw_se.reducedDimensionNames()) {
+                let current = await this.#raw_se.reducedDimension(k).realize(this.#create_globals(), /* forceInteger = */ false, /* forceSparse = */ false);
+                try {
+                    let collected = [];
+                    let ncol = current.numberOfColumns();
+                    for (var c = 0; c < ncol; c++) {
+                        collected.push(current.column(c));
                     }
-
-                    output.reduced_dimensions[k] = acquired;
+                    output.reduced_dimensions[k] = collected;
+                } finally {
+                    scran.free(current);
                 }
             }
         }
 
         // Now fetching the assay matrix.
-        {
-            let altmap = {};
-            if ("single_cell_experiment" in full_meta) {
-                for (const alt of full_meta.single_cell_experiment.alternative_experiments) {
-                    altmap[alt.name] = alt.resource.path;
-                }
-            }
-
-            try {
-                for (const [k, v] of Object.entries(this.#raw_features)) {
-                    let curassay = this.#options.primaryAssay;
-                    if (typeof curassay == "object") {
-                        if (k in curassay) {
-                            curassay = curassay[k];
-                        } else {
-                            continue;
-                        }
-                    }
-
-                    let curnormalized = this.#options.isPrimaryNormalized;
-                    if (typeof curnormalized == "object") {
-                        if (k in curnormalized) {
-                            curnormalized = curnormalized[k];
-                        } else {
-                            curnormalized = true;
-                        }
-                    }
-
-                    let meta;
-                    if (k === "") {
-                        meta = full_meta;
+        const experiments_by_name = extract_from_experiments(this.#raw_se, x => x);
+        try {
+            for (const [name, chosen_se] of Object.entries(experiments_by_name)) {
+                let curassay = this.#options.primaryAssay;
+                if (typeof curassay == "object") {
+                    if (name in curassay) {
+                        curassay = curassay[name];
                     } else {
-                        meta = await this.#navigator.metadata(altmap[k]);
+                        continue;
                     }
-
-                    let loaded = await extract_assay(meta, curassay, this.#navigator, !curnormalized);
-                    output.matrix.add(k, loaded);
-
-                    if (!curnormalized) {
-                        let normed = scran.logNormCounts(loaded, { allowZeros: true });
-                        output.matrix.add(k, normed);
-                    }
-
-                    output.features[k] = this.#raw_features[k];
                 }
 
-            } catch (e) {
-                scran.free(output.matrix);
-                throw e;
+                let curnormalized = this.#options.isPrimaryNormalized;
+                if (typeof curnormalized == "object") {
+                    if (name in curnormalized) {
+                        curnormalized = curnormalized[name];
+                    } else {
+                        curnormalized = true;
+                    }
+                }
+
+                let loaded = await chosen_se.assay(curassay).realize(this.#create_globals(), /* forceInteger= */ !curnormalized, /* forceSparse = */ true);
+                output.matrix.add(name, loaded);
+
+                if (!curnormalized) {
+                    let normed = scran.logNormCounts(loaded, { allowZeros: true });
+                    output.matrix.add(name, normed);
+                }
+
+                output.features[name] = chosen_se.rowData();
             }
+
+        } catch (e) {
+            scran.free(output.matrix);
+            throw e;
         }
 
         if (!cache) {
