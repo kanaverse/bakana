@@ -18,185 +18,50 @@ import * as jsp from "jaspagate";
  * @typedef AlabasterProjectNavigator
  */
 
-// This specifically loads the log-counts created by the dumper.
-async function extract_logcounts(handle, navigator) {
-    if (handle.readAttribute("delayed_type").values[0] !== "operation") {
-        return null;
-    }
-    if (handle.readAttribute("delayed_operation").values[0] !== "unary arithmetic") {
-        return null;
-    }
-    if (Math.abs(handle.open("value", { load: true }).values[0] - Math.log(2)) > 0.00000001) {
-        return null;
-    }
-    if (handle.open("method", { load: true }).values[0] !== "/") {
-        return null;
-    }
-    if (handle.open("side", { load: true }).values[0] !== "right") {
-        return null;
-    }
+/****************************
+ *** Jaspagate interfaces ***
+ ****************************/
 
-    let ghandle2 = handle.open("seed");
-    if (ghandle2.readAttribute("delayed_type").values[0] !== "operation") {
-        return null;
-    }
-    if (ghandle2.readAttribute("delayed_operation").values[0] !== "unary math") {
-        return null;
-    }
-    if (ghandle2.open("method", { load: true }).values[0] !== "log1p") {
-        return null;
-    }
+class AlabasterH5Group extends jsp.H5Group {
+    #handle;
+    #flush;
 
-    let ghandle3 = ghandle2.open("seed");
-    if (ghandle3.readAttribute("delayed_type").values[0] !== "operation") {
-        return null;
-    }
-    if (ghandle3.readAttribute("delayed_operation").values[0] !== "unary arithmetic") {
-        return null;
-    }
-    if (ghandle3.open("method", { load: true }).values[0] !== "/") {
-        return null;
-    }
-    if (ghandle3.open("side", { load: true }).values[0] !== "right") {
-        return null;
-    }
-    if (ghandle3.open("along", { load: true }).values[0] !== 1) {
-        return null;
-    }
-    let sf = ghandle3.open("value", { load: true }).values;
-
-    let ahandle = ghandle3.open("seed");
-    if (ahandle.readAttribute("delayed_type").values[0] !== "array") {
-        return null;
-    }
-    if (ahandle.readAttribute("delayed_array").values[0] !== "custom alabaster local array") {
-        return null;
-    }
-    let path = ahandle.open("path", { load: true }).values[0];
-
-    let mat;
-    let output;
-    try {
-        mat = await extract_assay_raw(path, navigator, false); // don't force it to be integer, but we don't mind if it is.
-        output = scran.logNormCounts(mat, { sizeFactors: sf, center: false });
-    } finally {
-        scran.free(mat);
-    }
-
-    return output;
-}
-
-async function extract_assay(meta, assay, navigator, forceInteger) {
-    if (typeof assay == "string") {
-        var counter = 0;
-        for (const ass of meta.summarized_experiment.assays) {
-            if (ass.name == assay) {
-                assay = counter;
-                break;
-            }
-            counter++;
-        }
-        if (counter == meta.summarized_experiment.assays.length) {
-            throw new Error("assay '" + assay + "' not found");
-        }
-    } else {
-        if (assay >= meta.summarized_experiment.assays.length) {
-            throw new Error("assay " + String(assay) + " out of range");
-        }
-    }
-
-    let asspath = meta.summarized_experiment.assays[assay].resource.path;
-    return extract_assay_raw(asspath, navigator, forceInteger);
-}
-
-async function extract_assay_raw(asspath, navigator, forceInteger) {
-    let assmeta = await navigator.metadata(asspath);
-    let contents = await navigator.file(assmeta.path);
-    let output;
-
-    let schema = assmeta["$schema"];
-    let is_dense = schema.startsWith("hdf5_dense_array/");
-    let is_sparse = schema.startsWith("hdf5_sparse_matrix/");
-
-    if (is_dense || is_sparse) {
-        let name = (is_sparse ?  assmeta.hdf5_sparse_matrix.group : assmeta.hdf5_dense_array.dataset);
-        let stuff = scran.realizeFile(contents);
-        try {
-            output = scran.initializeSparseMatrixFromHdf5(stuff.path, name, { forceInteger });
-        } finally {
-            stuff.flush();
-        }
-
-    } else if (assmeta["$schema"].startsWith("hdf5_delayed_array/")) {
-        let stuff = scran.realizeFile(contents);
-        try {
-            let fhandle = new scran.H5File(stuff.path);
-            let ghandle = fhandle.open(assmeta.hdf5_delayed_array.group);
-
-            // TODO: replace with calls to chihaya.js.
-            output = await extract_logcounts(ghandle, navigator);
-            if (output == null) {
-                throw new Error("currently only supporting bakana-generated log-counts for delayed arrays");
-            }
-        } finally {
-            stuff.flush();
-        }
-
-    } else {
-        throw new Error("array schema '" + assmeta["$schema"] + "' is currently not supported");
-    }
-
-    return output;
-}
-
-/*************************************
- ******* Jaspalite interfaces ********
- *************************************/
-
-class ScranH5Group extends jsp.H5Group {
-    constructor(handle) {
-        super();
+    constructor(handle, flush) {
         this.#handle = handle;
+        this.#flush = flush;
     }
 
     attributes() {
         return this.#handle.attributes;
     }
 
-    readAttribute(name) {
-        return this.#handle.readAttribute(name);
+    readAttribute(attr) {
+        let ares = this.#handle.readAttribute(attr);
+        return { values: ares.values, shape: ares.shape };
     }
 
-    writeAttribute(attr, type, shape, data, options = {}) {
-        this.#handle.writeAttribute(attr, type, shape, data, options);
+    children() {
+        return Array.from(Object.keys(this.#handle.children));
     }
 
     open(name) {
-        let child = this.#handle.open(name);
-        if (child instanceof scran.Group) {
-            return new ScranH5Group(child);
-        } else if (child instanceof scran.Dataset) {
-            return new ScranH5DataSet(child);
+        let out = this.#handle.open(name);
+        if (out instanceof scran.H5Group) {
+            return new AlabasterH5Group(out);
         } else {
-            throw new Error("unknown object type");
+            return new AlabasterH5DataSet(out);
         }
     }
 
-    createGroup(name) {
-        return new ScranH5Group(this.#handle.createGroup(name));
-    }
+    close() {}
 
-    createDataSet(name, type, shape, options = {}) {
-        let handle = this.#handle.createDataSet(name, type, shape, options);
-        if (!("returnHandle" in options) || options.returnHandle) {
-            return new ScranH5DataSet(handle);
-        }
+    _flush() {
+        this.#flush();
     }
 }
 
-class ScranH5DataSet extends jsp.H5DataSet {
+class AlabasterH5DataSet extends jsp.H5DataSet {
     constructor(handle) {
-        super();
         this.#handle = handle;
     }
 
@@ -204,16 +69,20 @@ class ScranH5DataSet extends jsp.H5DataSet {
         return this.#handle.attributes;
     }
 
-    readAttribute(name) {
-        return this.#handle.readAttribute(name);
-    }
-
-    writeAttribute(attr, type, shape, data, options = {}) {
-        this.#handle.writeAttribute(attr, type, shape, data, options);
+    readAttribute(attr) {
+        let ares = this.#handle.readAttribute(attr);
+        return { values: ares.values, shape: ares.shape };
     }
 
     type() {
-        return this.#handle.type;
+        let type = this.#handle.type;
+        if (type instanceof scran.H5StringType) {
+            return "String";
+        } else if (type instanceof scran.H5CompoundType) {
+            return type.members;
+        } else {
+            return type;
+        }
     }
 
     shape() {
@@ -224,47 +93,225 @@ class ScranH5DataSet extends jsp.H5DataSet {
         return this.#handle.values;
     }
 
-    write(data) {
-        this.#handle.write(data);
+    close() {}
+}
+
+class AlabasterFsInterface extends jsp.GlobalFsInterface {
+    #navigator;
+
+    constructor(navigator) {
+        this.#navigator = navigator;
     }
 
-    close() {
-        this.#handle;
+    get(path, options = {}) {
+        const { asBuffer = false } = options;
+        return this.#navigator.file(path, asBuffer);
+    }
+
+    exists(path) {
+        return this.#navigator.exists(path);
+    }
+
+    clean(path) {
+        this.#navigator.clean(path); 
     }
 }
 
-// As we'll be using the metadata often, we cache it at this level. This
-// removes the burden of caching on the implementation of the navigator. 
-class MetadataCacheWrapper {
-    #navigator;
-    #metadata_cache;
-
-    constructor(nav) {
-        this.#navigator = nav;
-        this.#metadata_cache = {};
+class AlabasterH5Interface extends jsp.GlobalH5Interface {
+    open(x, options) {
+        let realized = scran.realizeFile(x);
+        let output = new AlabasterH5Group(new scran.H5File(realized.path), realized.flush);
+        return output;
     }
 
-    clear() {
-        this.#metadata_cache = {};
-        if ("clear" in this.#navigator) {
-            this.#navigator.clear();
-        }
+    close(handle) {
+        handle._flush();
+    }
+}
+
+/*********************
+ *** Assay readers ***
+ *********************/
+
+class MockMatrix {
+    #nrow;
+    #ncol;
+    #path;
+
+    constructor(nrow, ncol, path) {
+        this.#nrow = nrow;
+        this.#ncol = ncol;
+        this.#path = path;
     }
 
-    async metadata(path) {
-        if (path in this.#metadata_cache) {
-            return this.#metadata_cache[path];
+    numberOfRows() {
+        return this.#nrow;
+    }
+
+    numberOfColumns() {
+        return this.#ncol;
+    }
+
+    realize(globals, forceInteger) {
+        let metadata = jsp.readObjectFile(this.#path + "/OBJECT", globals);
+        if (metadata.type == "delayed_array") {
+            let contents = await globals.fs.get(path + "/array.h5");
+            try {
+                let handle = await globals.h5.open(contents);
+                try {
+                    let output = extract_logcounts(handle, path, globals);
+                    if (output == null) {
+                        throw new Error("currently only supporting bakana-generated log-counts for delayed arrays");
+                    }
+                    return output;
+                } finally {
+                    await realized.close();
+                }
+            } finally {
+                await globals.fs.clean(contents);
+            }
         } else {
-            let content = await this.#navigator.metadata(path);
-            this.#metadata_cache[path] = content;
-            return content;
+            return extract_matrix(path, metadata, globals, forceInteger);
+        }
+    }
+}
+
+async extract_matrix(path, metadata, globals, forceInteger) {
+    if (metadata.type == "compressed_sparse_matrix") {
+        let contents = globals.fs.get(path + "/matrix.h5");
+        try {
+            let realized = scran.realizeFile(contents);
+            try {
+                return scran.initializeSparseMatrixFromHdf5(realized.path, name, { forceInteger });
+            } finally {
+                realized.flush();
+            }
+        } finally {
+            globals.fs.clean(contents);
+        }
+
+    } else if (metadata.type == "dense_array") {
+        let contents = globals.fs.get(path + "/array.h5");
+        try {
+            let realized = scran.realizeFile(contents);
+            try {
+                return scran.initializeDenseMatrixFromHdf5(realized.path, name, { forceInteger });
+            } finally {
+                realized.flush();
+            }
+        } finally {
+            globals.fs.clean(contents);
+        }
+
+    } else {
+        throw new Error("unknown matrix type '" + metadata.type + "'");
+    }
+    
+    return null;
+}
+
+// This specifically loads the log-counts created by the dumper.
+// At some point we may provide more general support for delayed operations, but this would require appropriate support in scran.js itself.
+async function extract_logcounts(handle, path, navigator) {
+    if (handle.readAttribute("delayed_type").values[0] !== "operation") {
+        return null;
+    }
+    if (handle.readAttribute("delayed_operation").values[0] !== "unary arithmetic") {
+        return null;
+    }
+    if (Math.abs(handle.open("value").values[0] - Math.log(2)) > 0.00000001) {
+        return null;
+    }
+    if (handle.open("method").values[0] !== "/") {
+        return null;
+    }
+    if (handle.open("side").values[0] !== "right") {
+        return null;
+    }
+
+    let ghandle2 = handle.open("seed");
+    if (ghandle2.readAttribute("delayed_type").values[0] !== "operation") {
+        return null;
+    }
+    if (ghandle2.readAttribute("delayed_operation").values[0] !== "unary math") {
+        return null;
+    }
+    if (ghandle2.open("method").values[0] !== "log1p") {
+        return null;
+    }
+
+    let ghandle3 = ghandle2.open("seed");
+    if (ghandle3.readAttribute("delayed_type").values[0] !== "operation") {
+        return null;
+    }
+    if (ghandle3.readAttribute("delayed_operation").values[0] !== "unary arithmetic") {
+        return null;
+    }
+    if (ghandle3.open("method").values[0] !== "/") {
+        return null;
+    }
+    if (ghandle3.open("side").values[0] !== "right") {
+        return null;
+    }
+    if (ghandle3.open("along").values[0] !== 1) {
+        return null;
+    }
+    let sf = ghandle3.open("value").values;
+
+    let ahandle = ghandle3.open("seed");
+    if (ahandle.readAttribute("delayed_type").values[0] !== "array") {
+        return null;
+    }
+    if (ahandle.readAttribute("delayed_array").values[0] !== "custom takane seed array") {
+        return null;
+    }
+    let index = ahandle.open("index").values[0];
+
+    let mat;
+    let output;
+    try {
+        mat = await extract_matrix(path + "/seeds/" + String(index), navigator, false); // don't force it to be integer, but we don't mind if it is.
+        output = scran.logNormCounts(mat, { sizeFactors: sf, center: false });
+    } finally {
+        scran.free(mat);
+    }
+
+    return output;
+}
+
+function readMockAssay(nrow, ncol, path, metadata, globals, options) {
+    return new MockMatrix(nrow, ncol, path);
+}
+
+/*************************
+ *** Utility functions ***
+ *************************/
+
+function extract_from_experiments(se, fun) {
+    let main_experiment_name = "";
+    let is_sce = se instanceof bioc.SingleCellExperiment;
+    if (is_sce && se.mainExperimentName() !== null) {
+        main_experiment_name = se.mainExperimentName();
+    }
+
+    let output = {};
+    output[main_experiment_name] = fun(se);
+    if (is_sce) {
+        for (const alt of se.alternativeExperimentNames()) {
+            output[alt] = fun(se.alternativeExperiment(alt));
         }
     }
 
-    file(path) {
-        return this.#navigator.file(path);
-    }
-};
+    return output;
+}
+
+function extract_all_features(se) {
+    return extract_from_experiments(se, x => x.rowData());
+}
+
+function extract_all_assay_names(se) {
+    return extract_from_experiments(se, x => x.assayNames());
+}
 
 /************************
  ******* Dataset ********
@@ -279,10 +326,7 @@ class MetadataCacheWrapper {
 export class AbstractArtifactdbDataset {
     #path;
     #navigator;
-
-    #raw_features;
-    #raw_cells;
-
+    #se;
     #options;
 
     /**
@@ -291,16 +335,9 @@ export class AbstractArtifactdbDataset {
      */
     constructor(path, navigator) {
         this.#path = path;
-        this.#navigator = new MetadataCacheWrapper(navigator);
+        this.#navigator = navigator;
         this.#options = AbstractArtifactdbDataset.defaults();
-
-        // Don't call this.clear() here. We don't want to clear the navigator's
-        // cache at this point, as the navigator might contain some cached
-        // values when passed to the constructor. We should respect any caches
-        // until we're specifically told to discard it with clear() or cache =
-        // false in load() or summary().
-        this.#reset_local_caches();
-        return;
+        this.#raw_se = null;
     }
 
     /**
@@ -363,36 +400,30 @@ export class AbstractArtifactdbDataset {
         }
     }
 
-    #reset_local_caches() {
-        this.#raw_features = null;
-        this.#raw_cells = null;
-    }
-
     /**
      * Destroy caches if present, releasing the associated memory.
      * This may be called at any time but only has an effect if `cache = true` in {@linkcode AbstractArtifactdbDataset#load load} or {@linkcode AbstractArtifactdbDataset#summary summary}.
      */
     clear() {
-        this.#reset_local_caches();
-        this.#navigator.clear();
+        this.#se = null;
     }
 
-    async #features() {
-        if (this.#raw_features !== null) {
-            return;
+    async #populate() {
+        if (this.#se === null) {
+            this.#se = await jsp.readObject(
+                "",
+                null, 
+                {
+                    fs: new AlabasterFsInterface(this.#navigator),
+                    h5: new AlabasterH5Interface
+                },
+                {
+                    DataFrame_readNested: false,
+                    SummarizedExperiment_readAssay: readMockAssay,
+                    SingleCellExperiment_readReducedDimension: false
+                }
+            );
         }
-        this.#raw_features = await extract_all_features(this.#path, this.#navigator);
-        return;
-    }
-
-    async #cells() {
-        if (this.#raw_cells !== null) {
-            return;
-        }
-        let full_meta = await this.#navigator.metadata(this.#path);
-        let col_path = full_meta.summarized_experiment.column_data.resource.path;
-        this.#raw_cells = await load_data_frame(col_path, this.#navigator);
-        return;
     }
 
     /**
@@ -411,13 +442,12 @@ export class AbstractArtifactdbDataset {
      * @async
      */
     async summary({ cache = false } = {}) {
-        await this.#features();
-        await this.#cells();
+        await this.#populate();
 
         let output = {
-            modality_features: this.#raw_features,
-            cells: this.#raw_cells,
-            modality_assay_names: await extract_all_assay_names(this.#path, this.#navigator)
+            modality_features: extract_all_features(this.#se),
+            cells: this.#se.columnData(),
+            modality_assay_names: extract_all_assay_names(this.#se)
         };
 
         if (!cache) {
@@ -445,7 +475,7 @@ export class AbstractArtifactdbDataset {
      * @async
      */
     async previewPrimaryIds({ cache = false } = {}) {
-        await this.#features();
+        await this.#populate();
 
         let fmapping = {
             RNA: this.#options.rnaExperiment, 
@@ -453,7 +483,8 @@ export class AbstractArtifactdbDataset {
             CRISPR: this.#options.crisprExperiment 
         };
 
-        let preview = futils.extractRemappedPrimaryIds(this.#raw_features, fmapping, this.#primary_mapping());
+        let raw_features = extract_all_features(this.#se);
+        let preview = futils.extractRemappedPrimaryIds(raw_features, fmapping, this.#primary_mapping());
 
         if (!cache) {
             this.clear();
@@ -549,8 +580,6 @@ export class AbstractArtifactdbDataset {
         return output;
     }
 }
-
-export const AlabasterSummarizedExperimentDatasetBase = AbstractArtifactdbDataset;
 
 /***********************
  ******* Result ********
@@ -854,5 +883,3 @@ export class AbstractArtifactdbResult {
         return output;
     }
 }
-
-export const AlabasterSummarizedExperimentResultBase = AbstractArtifactdbResult;
