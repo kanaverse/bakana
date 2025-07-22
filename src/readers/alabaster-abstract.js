@@ -30,6 +30,7 @@ class AlabasterH5Group extends jsp.H5Group {
     #flush;
 
     constructor(handle, flush) {
+        super();
         this.#handle = handle;
         this.#flush = flush;
     }
@@ -64,7 +65,10 @@ class AlabasterH5Group extends jsp.H5Group {
 }
 
 class AlabasterH5DataSet extends jsp.H5DataSet {
+    #handle;
+
     constructor(handle) {
+        super();
         this.#handle = handle;
     }
 
@@ -103,12 +107,13 @@ class AlabasterFsInterface extends jsp.GlobalFsInterface {
     #navigator;
 
     constructor(navigator) {
+        super();
         this.#navigator = navigator;
     }
 
     get(path, options = {}) {
         const { asBuffer = false } = options;
-        return this.#navigator.file(path, asBuffer);
+        return this.#navigator.get(path, asBuffer);
     }
 
     exists(path) {
@@ -120,7 +125,7 @@ class AlabasterFsInterface extends jsp.GlobalFsInterface {
     }
 }
 
-class AlabasterH5Interface extends jsp.GlobalH5Interface {
+class AlabasterH5Interface {
     open(x, options) {
         let realized = scran.realizeFile(x);
         let output = new AlabasterH5Group(new scran.H5File(realized.path), realized.flush);
@@ -147,16 +152,16 @@ class MockMatrix {
         this.#path = path;
     }
 
-    numberOfRows() {
+    _bioconductor_NUMBER_OF_ROWS() {
         return this.#nrow;
     }
 
-    numberOfColumns() {
+    _bioconductor_NUMBER_OF_COLUMNS() {
         return this.#ncol;
     }
 
     async realize(globals, forceInteger, forceSparse) {
-        let metadata = await jsp.readObjectFile(this.#path + "/OBJECT", globals);
+        let metadata = await jsp.readObjectFile(this.#path, globals);
         if (metadata.type == "delayed_array") {
             let contents = await globals.fs.get(path + "/array.h5");
             try {
@@ -174,7 +179,7 @@ class MockMatrix {
                 await globals.fs.clean(contents);
             }
         } else {
-            return extract_matrix(path, metadata, globals, forceInteger, forceSparse);
+            return extract_matrix(this.#path, metadata, globals, forceInteger, forceSparse);
         }
     }
 }
@@ -287,7 +292,7 @@ async function extract_logcounts(handle, path, globals, forceInteger, forceSpars
     let index = ahandle.open("index").values[0];
 
     let seed_path = path + "/seeds/" + String(index);
-    let metadata = await jsp.readObjectFile(this.#path + "/OBJECT", globals);
+    let seed_metadata = await jsp.readObjectFile(seed_path + "/OBJECT", globals);
 
     let mat;
     let output;
@@ -340,29 +345,26 @@ function extract_all_assay_names(se) {
 
 /**
  * Dataset stored as a SummarizedExperiment in the **alabaster** format.
- * This is intended as a virtual base class; applications should define subclasses that are tied to a specific {@linkplain ArtifactdbProjectNavigator} class.
+ * This is intended as a virtual base class; applications should define subclasses that are tied to a specific {@linkplain AlabasterProjectNavigator} class.
  * Subclasses should define `abbreviate()` and `serialize()` methods, as well as the static `format()` and `unserialize()` methods - 
  * see the [Dataset contract](https://github.com/LTLA/bakana/blob/master/docs/related/custom_readers.md) for more details.
  */
-export class AbstractArtifactdbDataset {
-    #path;
+export class AbstractAlabasterDataset {
     #navigator;
     #raw_se;
     #options;
 
     /**
-     * @param {string} path - Path to the SummarizedExperiment in the ArtifactDB project directory.
-     * @param {ArtifactdbProjectNavigator} navigator - A navigator object that describes how to obtain the various assets from the project directory containing `path`.
+     * @param {AlabasterProjectNavigator} navigator - A navigator object that describes how to obtain files from the alabaster-formatted object directory.
      */
-    constructor(path, navigator) {
-        this.#path = path;
+    constructor(navigator) {
         this.#navigator = navigator;
-        this.#options = AbstractArtifactdbDataset.defaults();
+        this.#options = AbstractAlabasterDataset.defaults();
         this.#raw_se = null;
     }
 
     /**
-     * @return {object} Default options, see {@linkcode AbstractArtifactdbDataset#setOptions setOptions} for more details.
+     * @return {object} Default options, see {@linkcode AbstractAlabasterDataset#setOptions setOptions} for more details.
      */
     static defaults() {
         return {
@@ -386,7 +388,7 @@ export class AbstractArtifactdbDataset {
     }
 
     /**
-     * @param {object} options - Optional parameters that affect {@linkcode AbstractArtifactdbDataset#load load} (but not {@linkcode AbstractArtifactdbDataset#summary summary}).
+     * @param {object} options - Optional parameters that affect {@linkcode AbstractAlabasterDataset#load load} (but not {@linkcode AbstractAlabasterDataset#summary summary}).
      * @param {string|number} [options.rnaCountAssay] - Name or index of the assay containing the RNA count matrix.
      * @param {string|number} [options.adtCountAssay] - Name or index of the assay containing the ADT count matrix.
      * @param {string|number} [options.crisprCountAssay] - Name or index of the assay containing the CRISPR count matrix.
@@ -423,7 +425,7 @@ export class AbstractArtifactdbDataset {
 
     /**
      * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode AbstractArtifactdbDataset#load load} or {@linkcode AbstractArtifactdbDataset#summary summary}.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode AbstractAlabasterDataset#load load} or {@linkcode AbstractAlabasterDataset#summary summary}.
      */
     clear() {
         this.#raw_se = null;
@@ -454,7 +456,7 @@ export class AbstractArtifactdbDataset {
     /**
      * @param {object} [options={}] - Optional parameters.
      * @param {boolean} [options.cache=false] - Whether to cache the intermediate results for re-use in subsequent calls to any methods with a `cache` option.
-     * If `true`, users should consider calling {@linkcode AbstractArtifactdbDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     * If `true`, users should consider calling {@linkcode AbstractAlabasterDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      * 
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
@@ -492,10 +494,10 @@ export class AbstractArtifactdbDataset {
     /**
      * @param {object} [options={}] - Optional parameters.
      * @param {boolean} [options.cache=false] - Whether to cache the intermediate results for re-use in subsequent calls to any methods with a `cache` option.
-     * If `true`, users should consider calling {@linkcode AbstractArtifactdbDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     * If `true`, users should consider calling {@linkcode AbstractAlabasterDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} An object where each key is a modality name and each value is an array (usually of strings) containing the primary feature identifiers for each row in that modality.
-     * The contents are the same as the `primary_ids` returned by {@linkcode AbstractArtifactdbDataset#load load} but the order of values may be different.
+     * The contents are the same as the `primary_ids` returned by {@linkcode AbstractAlabasterDataset#load load} but the order of values may be different.
      *
      * @async
      */
@@ -520,7 +522,7 @@ export class AbstractArtifactdbDataset {
     /**
      * @param {object} [options={}] - Optional parameters.
      * @param {boolean} [options.cache=false] - Whether to cache the intermediate results for re-use in subsequent calls to any methods with a `cache` option.
-     * If `true`, users should consider calling {@linkcode AbstractArtifactdbDataset#clear clear} to release the memory once this dataset instance is no longer needed.
+     * If `true`, users should consider calling {@linkcode AbstractAlabasterDataset#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
@@ -532,7 +534,7 @@ export class AbstractArtifactdbDataset {
      *
      * Modality names are guaranteed to be one of `"RNA"`, `"ADT"` or `"CRISPR"`.
      * We assume that the instance already contains an appropriate mapping from the observed feature types to each expected modality,
-     * either from the {@linkcode AbstractArtifactdbDataset#defaults defaults} or with {@linkcode AbstractArtifactdbDataset#setOptions setOptions}.
+     * either from the {@linkcode AbstractAlabasterDataset#defaults defaults} or with {@linkcode AbstractAlabasterDataset#setOptions setOptions}.
      *
      * @async
      */
@@ -568,7 +570,7 @@ export class AbstractArtifactdbDataset {
                     if (!(v.exp in experiments_by_name)) {
                         continue;
                     }
-                    chosen_se = mapping_by_str[v.exp];
+                    chosen_se = experiments_by_name[v.exp];
                 } else {
                     if (v.exp >= num_alts) {
                         continue;
@@ -601,27 +603,24 @@ export class AbstractArtifactdbDataset {
 
 /**
  * Pre-computed analysis results stored as a SummarizedExperiment object (or one of its subclasses) in the **ArtifactDB** format.
- * This is intended as a virtual base class; applications should define subclasses that are tied to a specific {@linkplain ArtifactdbProjectNavigator} class.
+ * This is intended as a virtual base class; applications should define subclasses that are tied to a specific {@linkplain AlabasterProjectNavigator} class.
  */
-export class AbstractArtifactdbResult {
-    #path;
+export class AbstractAlabasterResult {
     #navigator;
     #raw_se;
     #options;
 
     /**
-     * @param {string} path - Path to the SummarizedExperiment in the ArtifactDB project directory.
-     * @param {ArtifactdbProjectNavigator} navigator - A navigator object that describes how to obtain the various assets from the project directory containing `path`.
+     * @param {AlabasterNavigator} navigator - A navigator object that describes how to obtain files from an alabaster-formatted object directory.
      */
-    constructor(path, navigator) {
-        this.#path = path;
+    constructor(navigator) {
         this.#navigator = navigator;
-        this.#options = AbstractArtifactdbResult.defaults();
+        this.#options = AbstractAlabasterResult.defaults();
         this.#raw_se = null;
     }
 
     /**
-     * @return {object} Default options, see {@linkcode AbstractArtifactdbResults#setOptions setOptions} for more details.
+     * @return {object} Default options, see {@linkcode AbstractAlabasterResults#setOptions setOptions} for more details.
      */
     static defaults() {
         return { 
@@ -639,7 +638,7 @@ export class AbstractArtifactdbResult {
     }
 
     /**
-     * @param {object} options - Optional parameters that affect {@linkcode AbstractArtifactdbResult#load load} (but not {@linkcode AbstractArtifactdbResult#summary summary}.
+     * @param {object} options - Optional parameters that affect {@linkcode AbstractAlabasterResult#load load} (but not {@linkcode AbstractAlabasterResult#summary summary}.
      * @param {object|string|number} [options.primaryAssay] - Assay containing the relevant data for each modality.
      *
      * - If a string, this is used as the name of the assay across all modalities.
@@ -664,7 +663,7 @@ export class AbstractArtifactdbResult {
 
     /**
      * Destroy caches if present, releasing the associated memory.
-     * This may be called at any time but only has an effect if `cache = true` in {@linkcode AbstractArtifactdbResult#load load} or {@linkcode AbstractArtifactdbResult#summary summary}.
+     * This may be called at any time but only has an effect if `cache = true` in {@linkcode AbstractAlabasterResult#load load} or {@linkcode AbstractAlabasterResult#summary summary}.
      */
     clear() {
         this.#raw_se = null;
@@ -694,8 +693,8 @@ export class AbstractArtifactdbResult {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode AbstractArtifactdbResult#load load}.
-     * If `true`, users should consider calling {@linkcode AbstractArtifactdbResult#clear clear} to release the memory once this dataset instance is no longer needed.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode AbstractAlabasterResult#load load}.
+     * If `true`, users should consider calling {@linkcode AbstractAlabasterResult#clear clear} to release the memory once this dataset instance is no longer needed.
      * 
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
@@ -730,8 +729,8 @@ export class AbstractArtifactdbResult {
 
     /**
      * @param {object} [options={}] - Optional parameters.
-     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode AbstractArtifactdbResult#summary summary}.
-     * If `true`, users should consider calling {@linkcode AbstractArtifactdbResult#clear clear} to release the memory once this dataset instance is no longer needed.
+     * @param {boolean} [options.cache=false] - Whether to cache the results for re-use in subsequent calls to this method or {@linkcode AbstractAlabasterResult#summary summary}.
+     * If `true`, users should consider calling {@linkcode AbstractAlabasterResult#clear clear} to release the memory once this dataset instance is no longer needed.
      *
      * @return {object} Object containing the per-feature and per-cell annotations.
      * This has the following properties:
@@ -750,7 +749,7 @@ export class AbstractArtifactdbResult {
         let output = { 
             matrix: new scran.MultiMatrix,
             features: {},
-            cells: this.#raw_cells,
+            cells: this.#raw_se.columnData(),
             reduced_dimensions: {}
         };
 

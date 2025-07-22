@@ -4,6 +4,7 @@ export * from "./mtx.js"
 export * from "./se.js";
 export * from "./ArtifactDB-abstract.js";
 export * from "./ArtifactDB-zipped.js";
+export * from "./alabaster-abstract.js";
 export * from "./utils/extract.js";
 export * from "./abstract/file.js";
 
