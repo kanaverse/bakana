@@ -197,9 +197,7 @@ async function extract_matrix(path, metadata, globals, { forceInteger = true, fo
                 const shape = dhandle.open("shape").values; 
                 const layout = dhandle.readAttribute("layout").values[0];
 
-                console.log("WHEE");
                 let out = scran.initializeSparseMatrixFromHdf5Group(realized.path, name, shape[0], shape[1], (layout == "CSR"), { forceInteger });
-                console.log(out.isSparse());
                 return out;
             } finally {
                 realized.flush();
@@ -311,6 +309,10 @@ async function extract_logcounts(handle, path, globals, forceInteger, forceSpars
 
 function readMockAssay(nrow, ncol, path, metadata, globals, options) {
     return new MockMatrix(nrow, ncol, path);
+}
+
+function readMockReducedDimension(ncol, path, metadata, globals, options) {
+    return new MockMatrix(ncol, 2, path);
 }
 
 /*************************
@@ -688,7 +690,7 @@ export class AbstractAlabasterResult {
                 {
                     DataFrame_readNested: false,
                     SummarizedExperiment_readAssay: readMockAssay,
-                    SummarizedExperiment_readAssay: readMockReducedDimension
+                    SingleCellExperiment_readReducedDimension: readMockReducedDimension
                 }
             );
         }
@@ -757,7 +759,11 @@ export class AbstractAlabasterResult {
         };
 
         if (this.#raw_se instanceof bioc.SingleCellExperiment) {
-            for (const k of this.#raw_se.reducedDimensionNames()) {
+            let chosen_rd = this.#options.reducedDimensionNames;
+            if (chosen_rd === null) {
+                chosen_rd = this.#raw_se.reducedDimensionNames();
+            }
+            for (const k of chosen_rd) {
                 let current = await this.#raw_se.reducedDimension(k).realize(this.#create_globals(), /* forceInteger = */ false, /* forceSparse = */ false);
                 try {
                     let collected = [];

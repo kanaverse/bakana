@@ -86,6 +86,7 @@ test("AlabasterAbstractDataset for simple datasets", async () => {
     expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
     expect(summ.modality_features[""].numberOfRows()).toBeGreaterThan(0);
     expect(summ.cells instanceof bioc.DataFrame).toBe(true);
+    expect(summ.cells.numberOfRows()).toBeGreaterThan(0);
 
     let preview = await stripped_ds.previewPrimaryIds({ cache: true });
     expect(Object.keys(preview)).toEqual(["RNA"]);
@@ -142,7 +143,7 @@ test("AlabasterAbstractDataset for complex datasets", async () => {
     full_ds.clear();
 })
 
-test("AlabasterAbstractDataset for complex matrices", async () => {
+test("AlabasterAbstractDataset for dense matrices", async () => {
     let dense_ds = new LocalAlabasterDataset("files/alabaster/zeisel-brain-dense");
     dense_ds.setOptions({ rnaExperiment: "endogenous", adtExperiment: null, crisprExperiment: null });
 
@@ -151,50 +152,53 @@ test("AlabasterAbstractDataset for complex matrices", async () => {
     const mat = loaded.matrix.get("RNA");
     const feat = loaded.features["RNA"];
     expect(mat.numberOfRows()).toEqual(feat.numberOfRows());
-    expect(mat.isSparse()).toBe(false);
+    expect(mat.isSparse()).toBe(true); // we force it to be sparse, because that's how it is.
     expect(loaded.primary_ids["RNA"]).toEqual(feat.rowNames());
 })
 
-//TEst("alabaster summary and loading works with multiple modalities", async () => {
-//    let files = { super: new LocalAlabasterDataset(target_adt, nav.baseDirectory) };
-//
-//    let summ = await files.super.summary();
-//    expect(Object.keys(summ.modality_features).sort()).toEqual(["", "ADT"]);
-//    expect(summ.modality_assay_names).toEqual({ "": ["counts", "logcounts"], "ADT": [ "counts", "logcounts" ] });
-//
-//    // Trying with a name for the experiment.
-//    files.super.setOptions({ adtExperiment: "ADT" });
-//    {
-//        let everything = await files.super.load();
-//
-//        let nRna = everything.features["RNA"].numberOfRows();
-//        expect(nRna).toBeGreaterThan(0);
-//        expect(everything.matrix.get("RNA").numberOfRows()).toEqual(nRna);
-//
-//        let nAdt = everything.features["ADT"].numberOfRows();
-//        expect(nAdt).toBeGreaterThan(0);
-//        expect(nAdt).toBeLessThan(nRna);
-//        expect(everything.matrix.get("ADT").numberOfRows()).toEqual(nAdt);
-//
-//        expect(everything.matrix.numberOfColumns()).toEqual(everything.cells.numberOfRows());
-//        everything.matrix.free();
-//    }
-//
-//    // Trying with a numeric index for the ADT experiment.
-//    files.super.setOptions({ adtExperiment: 0 });
-//    {
-//        let everything = await files.super.load();
-//
-//        let nRna = everything.features["RNA"].numberOfRows();
-//        expect(nRna).toBeGreaterThan(0);
-//        expect(everything.matrix.get("RNA").numberOfRows()).toEqual(nRna);
-//
-//        let nAdt = everything.features["ADT"].numberOfRows();
-//        expect(nAdt).toBeGreaterThan(0);
-//        expect(nAdt).toBeLessThan(nRna);
-//        expect(everything.matrix.get("ADT").numberOfRows()).toEqual(nAdt);
-//
-//        expect(everything.matrix.numberOfColumns()).toEqual(everything.cells.numberOfRows());
-//        everything.matrix.free();
-//    }
-//})
+/***********************************************/
+
+class LocalAlabasterResult extends bakana.AbstractAlabasterResult {
+    #dir;
+    constructor(dir, options={}) {
+        super(new LocalDirectoryNavigator(dir), options);
+        this.#dir = dir;
+    }
+}
+
+test("AlabasterAbstractResult behaves correctly ", async () => {
+    let res = new LocalAlabasterResult("files/alabaster/zeisel-brain-with-results");
+
+    let summ = await res.summary({ cache: true });
+    expect(Object.keys(summ.modality_features)).toEqual(["endogenous", "ERCC", "repeat"]);
+    for (const mod of Object.values(summ.modality_features)) {
+        expect(mod instanceof bioc.DataFrame).toBe(true);
+        expect(mod.numberOfRows()).toBeGreaterThan(0);
+    }
+
+    expect(summ.cells instanceof bioc.DataFrame).toBe(true);
+    expect(summ.cells.numberOfRows()).toBeGreaterThan(0);
+    expect(summ.reduced_dimension_names).toEqual(["PCA", "TSNE", "UMAP"]);
+
+    expect(summ.modality_assay_names["endogenous"]).toEqual(["counts", "logcounts"]);
+    expect(summ.modality_assay_names["ERCC"]).toEqual(["counts"]);
+    expect(summ.modality_assay_names["repeat"]).toEqual(["counts"]);
+
+    // Checking that we can load the log counts.
+    res.setOptions({
+        primaryAssay: { endogenous: "logcounts", "ERCC": 0 },
+        reducedDimensionNames: [ "TSNE", "UMAP" ]
+    });
+
+    let loaded = await res.load({ cache: true });
+    expect(loaded.matrix.available()).toEqual(["endogenous", "ERCC"]);
+    expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
+    expect(loaded.matrix.get("endogenous").numberOfRows()).toEqual(loaded.features["endogenous"].numberOfRows());
+    expect(loaded.matrix.get("ERCC").numberOfRows()).toEqual(loaded.features["ERCC"].numberOfRows());
+
+    expect(Object.keys(loaded.reduced_dimensions)).toEqual(["TSNE", "UMAP"]);
+    expect(loaded.reduced_dimensions["TSNE"].length).toEqual(2);
+    expect(loaded.reduced_dimensions["TSNE"][0].length).toEqual(loaded.matrix.numberOfColumns());
+    expect(loaded.reduced_dimensions["UMAP"].length).toEqual(2);
+    expect(loaded.reduced_dimensions["UMAP"][1].length).toEqual(loaded.matrix.numberOfColumns());
+})
