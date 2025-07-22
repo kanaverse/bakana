@@ -1,4 +1,8 @@
-on: [push]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
 
 name: Run tests
 
@@ -6,39 +10,39 @@ jobs:
   test-js:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Node
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
-        node-version: 16
+        node-version: 22
 
     - name: Restore the node modules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: '**/node_modules'
         key: modules-${{ hashFiles('**/package.json') }}
 
     - name: Restore the dataset files 
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: '**/files/datasets'
         key: datasets-${{ hashFiles('**/files/download-datasets.sh') }}
 
     - name: Restore the feature set files 
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: '**/files/feature-sets'
         key: references-${{ hashFiles('**/files/download-feature-sets.sh') }}
 
     - name: Restore the mitochondrial list files 
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: '**/files/mito-lists'
         key: mito-lists-${{ hashFiles('**/files/download-mito-lists.sh') }}
 
     - name: Restore the reference files 
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: '**/files/references'
         key: references-${{ hashFiles('**/files/download-references.sh') }}

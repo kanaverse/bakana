@@ -6,7 +6,7 @@
   "main": "main/index.js",
   "browser": "browser/index.js",
   "scripts": {
-    "test": "node --experimental-vm-modules --experimental-wasm-threads node_modules/jest/bin/jest.js --testTimeout=1000000 --runInBand --detectOpenHandles --forceExit",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testTimeout=1000000 --runInBand --detectOpenHandles --forceExit",
     "jsdoc": "npx jsdoc -r src README.md -d docs/built -c docs/jsdoc.config.json"
   },
   "repository": "github:kanaverse/bakana",
