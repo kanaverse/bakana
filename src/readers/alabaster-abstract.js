@@ -197,7 +197,10 @@ async function extract_matrix(path, metadata, globals, { forceInteger = true, fo
                 const shape = dhandle.open("shape").values; 
                 const layout = dhandle.readAttribute("layout").values[0];
 
-                return scran.initializeSparseMatrixFromHdf5Group(realized.path, name, shape[0], shape[1], (layout == "CSR"), { forceInteger });
+                console.log("WHEE");
+                let out = scran.initializeSparseMatrixFromHdf5Group(realized.path, name, shape[0], shape[1], (layout == "CSR"), { forceInteger });
+                console.log(out.isSparse());
+                return out;
             } finally {
                 realized.flush();
             }
@@ -214,7 +217,7 @@ async function extract_matrix(path, metadata, globals, { forceInteger = true, fo
                 const name = "dense_array";
                 let dhandle = fhandle.open(name);
                 let transposed = false;
-                if ("transposed" in dhandle.attributes) {
+                if (dhandle.attributes.indexOf("transposed") >= 0) {
                     let trans_info = dhandle.readAttribute("transposed");
                     transposed = (trans_info.values[0] != 0);
                 }

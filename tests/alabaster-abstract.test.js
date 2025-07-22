@@ -82,21 +82,77 @@ test("AlabasterAbstractDataset for simple datasets", async () => {
     let stripped_ds = new LocalAlabasterDataset("files/alabaster/zeisel-brain-stripped");
 
     let summ = await stripped_ds.summary({ cache: true });
+    expect(Object.keys(summ.modality_features)).toEqual([""]);
     expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
     expect(summ.modality_features[""].numberOfRows()).toBeGreaterThan(0);
     expect(summ.cells instanceof bioc.DataFrame).toBe(true);
 
     let preview = await stripped_ds.previewPrimaryIds({ cache: true });
-    expect("RNA" in preview).toBe(true);
+    expect(Object.keys(preview)).toEqual(["RNA"]);
     expect(preview.RNA.length).toBeGreaterThan(0);
 
     let loaded = await stripped_ds.load({ cache: true });
     expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
     expect(loaded.matrix.available()).toEqual(["RNA"]);
-    expect(loaded.matrix.get("RNA").numberOfRows()).toEqual(loaded.features["RNA"].numberOfRows());
-    expect(loaded.primary_ids["RNA"]).toEqual(loaded.features["RNA"].rowNames());
+    const mat = loaded.matrix.get("RNA");
+    const feat = loaded.features["RNA"];
+    expect(mat.numberOfRows()).toEqual(feat.numberOfRows());
+    expect(mat.isSparse()).toBe(true);
+    expect(loaded.primary_ids["RNA"]).toEqual(feat.rowNames());
 
     stripped_ds.clear();
+})
+
+test("AlabasterAbstractDataset for complex datasets", async () => {
+    let full_ds = new LocalAlabasterDataset("files/alabaster/zeisel-brain");
+
+    let summ = await full_ds.summary({ cache: true });
+    expect(Object.keys(summ.modality_features)).toEqual(["endogenous", "ERCC", "repeat"]);
+    for (const mod of Object.values(summ.modality_features)) {
+        expect(mod instanceof bioc.DataFrame).toBe(true);
+        expect(mod.numberOfRows()).toBeGreaterThan(0);
+    }
+    expect(summ.cells instanceof bioc.DataFrame).toBe(true);
+
+    full_ds.setOptions({
+        rnaExperiment: "endogenous",
+        adtExperiment: "ERCC",
+        crisprExperiment: "repeat",
+        rnaCountAssay: "counts",
+        adtCountAssay: "counts",
+        crisprCountAssay: "counts"
+    });
+    let preview = await full_ds.previewPrimaryIds({ cache: true });
+    expect(Object.keys(preview)).toEqual(["RNA", "ADT", "CRISPR"]);
+    for (const mod of Object.values(preview)) {
+        expect(mod.length).toBeGreaterThan(0);
+    }
+
+    let loaded = await full_ds.load({ cache: true });
+    expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
+    expect(loaded.matrix.available()).toEqual(["RNA", "ADT", "CRISPR"]);
+    for (const mod of loaded.matrix.available()) {
+        const mat = loaded.matrix.get(mod);
+        const feat = loaded.features[mod];
+        expect(mat.numberOfRows()).toEqual(feat.numberOfRows());
+        expect(mat.isSparse()).toEqual(true);
+        expect(loaded.primary_ids[mod]).toEqual(feat.rowNames());
+    }
+
+    full_ds.clear();
+})
+
+test("AlabasterAbstractDataset for complex matrices", async () => {
+    let dense_ds = new LocalAlabasterDataset("files/alabaster/zeisel-brain-dense");
+    dense_ds.setOptions({ rnaExperiment: "endogenous", adtExperiment: null, crisprExperiment: null });
+
+    let loaded = await dense_ds.load({ cache: true });
+    expect(loaded.matrix.available()).toEqual(["RNA"]);
+    const mat = loaded.matrix.get("RNA");
+    const feat = loaded.features["RNA"];
+    expect(mat.numberOfRows()).toEqual(feat.numberOfRows());
+    expect(mat.isSparse()).toBe(false);
+    expect(loaded.primary_ids["RNA"]).toEqual(feat.rowNames());
 })
 
 //TEst("alabaster summary and loading works with multiple modalities", async () => {
