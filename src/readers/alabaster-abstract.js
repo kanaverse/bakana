@@ -235,73 +235,123 @@ async function extract_matrix(path, metadata, globals, { forceInteger = true, fo
     return null;
 }
 
-// This specifically loads the log-counts created by the dumper.
-// At some point we may provide more general support for delayed operations, but this would require appropriate support in scran.js itself.
-async function extract_logcounts(handle, path, globals, forceInteger, forceSparse) {
-    if (handle.readAttribute("delayed_type").values[0] !== "operation") {
-        return null;
-    }
-    if (handle.readAttribute("delayed_operation").values[0] !== "unary arithmetic") {
-        return null;
-    }
-    if (Math.abs(handle.open("value").values[0] - Math.log(2)) > 0.00000001) {
-        return null;
-    }
-    if (handle.open("method").values[0] !== "/") {
-        return null;
-    }
-    if (handle.open("side").values[0] !== "right") {
-        return null;
-    }
+async function extract_delayed(handle, path, globals, forceInteger, forceSparse) {
+    const dtype = handle.readAttribute("delayed_type").values[0];
+    if (dtype === "operation") {
+        let optype = handle.readAttribute("delayed_operation").values[0];
 
-    let ghandle2 = handle.open("seed");
-    if (ghandle2.readAttribute("delayed_type").values[0] !== "operation") {
-        return null;
-    }
-    if (ghandle2.readAttribute("delayed_operation").values[0] !== "unary math") {
-        return null;
-    }
-    if (ghandle2.open("method").values[0] !== "log1p") {
-        return null;
-    }
+        if (optype === "unary arithmetic") {
+            const seed = await extract_delayed(handle.open("seed"), path, globals, forceInteger, forceSparse)
 
-    let ghandle3 = ghandle2.open("seed");
-    if (ghandle3.readAttribute("delayed_type").values[0] !== "operation") {
-        return null;
-    }
-    if (ghandle3.readAttribute("delayed_operation").values[0] !== "unary arithmetic") {
-        return null;
-    }
-    if (ghandle3.open("method").values[0] !== "/") {
-        return null;
-    }
-    if (ghandle3.open("side").values[0] !== "right") {
-        return null;
-    }
-    if (ghandle3.open("along").values[0] !== 1) {
-        return null;
-    }
-    let sf = ghandle3.open("value").values;
+            const dhandle = handle.open("value");
+            const arg = dhandle.values;
+            if (dhandle.shape.length == 0) {
+                arg = arg[0];
+            }
 
-    let ahandle = ghandle3.open("seed");
-    if (ahandle.readAttribute("delayed_type").values[0] !== "array") {
-        return null;
-    }
-    if (ahandle.readAttribute("delayed_array").values[0] !== "custom takane seed array") {
-        return null;
-    }
-    let index = ahandle.open("index").values[0];
+            return scran.delayedArithmetic(
+                seed,
+                handle.open("method").values[0],
+                arg,
+                {
+                    right: handle.open("side").values[0] !== "right",
+                    inPlace: true
+                }
+            );
 
-    let seed_path = path + "/seeds/" + String(index);
-    let seed_metadata = await jsp.readObjectFile(seed_path + "/OBJECT", globals);
+        } else if (optype === "unary math") {
+            const seed = await extract_delayed(handle.open("seed"), path, globals, forceInteger, forceSparse)
+            const meth = handle.open("method").values[0];
+            let base = null;
+            if (meth == "log") {
+                if ("base" in handle.children) {
+                    base = handle.open("base").values[0];
+                }
+            }
+            return scran.delayedMath(
+                seed,
+                meth,
+                {
+                    logBase: base,
+                    inPlace: true
+                }
+            );
 
-    let mat;
-    let output;
-    try {
-        mat = await extract_matrix(seed_path, seed_metadata, globals, forceInteger, forceSparse); 
-        output = scran.logNormCounts(mat, { sizeFactors: sf, center: false });
-    } finally {
-        scran.free(mat);
+        } else if (optype == "transpose") {
+            const seed = await extract_delayed(handle.open("seed"), path, globals, forceInteger, forceSparse)
+            const perm = handle.open("permutation").values;
+            if (perm[0] == 1 && perm[1] == 0) {
+                return scran.transpose(seed, { inPlace: true });
+            } else if (perm[0] == 0 && perm[1] == 1) {
+                return seed;
+            } else {
+                throw new Error("invalid permutation for transposition operation at '" + path + "'");
+            }
+
+        } else if (optype == "subset") {
+            let mat = await extract_delayed(handle.open("seed"), path, globals, forceInteger, forceSparse)
+            const ihandle = handle.open("index");
+            if ("0" in ihandle.children) {
+                mat = scran.subsetRows(mat, ihandle.open("0").values, { inPlace: true });
+            }
+            if ("1" in ihandle.children) {
+                mat = scran.subsetColumns(mat, ihandle.open("1").values, { inPlace: true });
+            }
+            return mat;
+
+        } else if (optype == "combine") {
+            const shandle = handle.open("seeds");
+            let seeds = [];
+            try {
+                const nchildren = Object.keys(shandle.childen).length;
+                for (var c = 0; c < nchildren; c++) {
+                    seeds.push(await extract_delayed(shandle.open(String(c)), path, globals forceInteger, forceSparse));
+                }
+                if (handle.open("along").values[0] == 0) {
+                    return scran.rbind(seeds);
+                } else {
+                    return scran.cbind(seeds);
+                }
+            } finally {
+                for (const s of seeds) {
+                    scran.free(s);
+                }
+            }
+
+        } else {
+            throw new Error("unsupported delayed operation '" + optype + "'");
+        }
+
+    } else if (dtype === "array") {
+        let atype = ahandle.readAttribute("delayed_array").values[0];
+
+        if (atype === "custom takane seed array") {
+            let index = ahandle.open("index").values[0];
+            let seed_path = jsp.joinPath(path, "seeds", String(index));
+            let seed_metadata = await jsp.readObjectFile(seed_path, globals);
+            let mat;
+            let output;
+            try {
+                return await extract_matrix(seed_path, seed_metadata, globals, forceInteger, forceSparse); 
+            } finally {
+                scran.free(mat);
+            }
+
+        } else if (atype == "dense array") {
+            let is_native = handle.open("native").values[0] != 0;
+            return scran.initializeMatrixFromHdf5Dataset(jsp.joinPath(path, "array.h5"), handle.name + "/data", { transposed: !is_native, forceInteger, forceSparse });
+
+        } else if (atype == "sparse matrix") {
+            const shape = handle.open("shape").values; 
+            const is_csr = handle.open("by_column").values[0] == 0;
+            return scran.initializeSparseMatrixFromHdf5Group(realized.path, handle.name, shape[0], shape[1], is_csr, { forceInteger });
+
+        } else {
+            throw new Error("unsupported delayed array '" + atype + "'");
+        }
+
+    } else {
+        throw new Error("unsupported delayed type '" + dtype + "'");
     }
 
     return output;
