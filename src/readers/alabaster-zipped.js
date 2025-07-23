@@ -19,10 +19,10 @@ class ZippedProjectNavigator {
             this.#ziphandle = await JSZip.loadAsync(this.#zipfile.buffer());
         }
         // We always return a buffer.
-        return await this.#ziphandle.file(jsp.joinPath(this.#prefix, path)).async("uint8array");
+        return this.#ziphandle.file(jsp.joinPath(this.#prefix, path)).async("uint8array");
     }
 
-    async exists(path) {
+    exists(path) {
         return this.#ziphandle.file(jsp.joinPath(this.#prefix, path)) !== null; 
     }
 
@@ -89,10 +89,12 @@ export async function searchZippedAlabaster(handle) {
  */
 export class ZippedAlabasterDataset extends adb.AbstractAlabasterDataset {
     #zipfile;
-    #name;
+    #prefix;
 
     /**
-     * @param {string} name - Name of the SummarizedExperiment object inside the project directory.
+     * @param {string} prefix - Name of the SummarizedExperiment object inside the ZIP file.
+     * This should be `.` if the `OBJECT` file is stored at the root of the ZIP file,
+     * otherwise it should be the relative path to the object directory containing the `OBJECT` file.
      * @param {SimpleFile|string|File} zipfile - Contents of the ZIP file containing the project directory.
      * On browsers, this may be a File object.
      * On Node.js, this may also be a string containing a file path.
@@ -128,7 +130,7 @@ export class ZippedAlabasterDataset extends adb.AbstractAlabasterDataset {
     #dump_summary(fun) {
         let files = [ { type: "zip", file: fun(this.#zipfile) } ]; 
         let opt = this.options();
-        opt.datasetName = this.#prefix; // storing the name as a special option... can't be bothered to store it as a separate file.
+        opt.datasetPrefix = this.#prefix; // storing the name as a special option... can't be bothered to store it as a separate file.
         return { files: files, options: opt };
     }
 
@@ -165,8 +167,8 @@ export class ZippedAlabasterDataset extends adb.AbstractAlabasterDataset {
             throw new Error("expected exactly one file of type 'zip' for Zipped alabaster unserialization");
         }
 
-        let prefix = options.datasetName;
-        delete options.datasetName;
+        let prefix = options.datasetPrefix;
+        delete options.datasetPrefix;
 
         let output = new ZippedAlabasterDataset(prefix, files[0].file);
         output.setOptions(output);
@@ -207,7 +209,7 @@ export class ZippedAlabasterResult extends adb.AbstractAlabasterResult {
             }
         }
 
-        let nav = new ZippedProjectNavigator(zipfile, ziphandle);
+        let nav = new ZippedProjectNavigator(zipfile, ziphandle, prefix);
         super(nav);
     }
 }

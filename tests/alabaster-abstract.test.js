@@ -3,7 +3,6 @@ import * as scran from "scran.js";
 import * as utils from "./utils.js";
 import * as bioc from "bioconductor";
 import * as fs from "fs";
-import jszip from "jszip";
 
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
