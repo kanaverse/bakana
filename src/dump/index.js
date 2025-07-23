@@ -63,12 +63,6 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
     });
 
     await adump.attachMd5sums(files);
-
-    // Either dumping everything to file or returning all the buffers.
-    if (!forceBuffer && directory !== null) {
-        await adump.realizeDirectory(files, directory, name);
-    }
-
     return files;
 }
 

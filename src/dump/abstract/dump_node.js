@@ -3,28 +3,6 @@ import * as path from "path";
 import * as crypto from "crypto";
 import { md5 } from 'hash-wasm';
 
-export async function attachMd5sums(files) {
-    for (const x of files) {
-        if (!("contents" in x)) {
-            continue;
-        }
-
-        if (x.contents instanceof Uint8Array) {
-            let hash = crypto.createHash('md5');
-            hash.update(x.contents);
-            x.metadata.md5sum = hash.digest("hex");
-        } else {
-            x.metadata.md5sum = await (new Promise((resolve, reject) => {
-                let hash = crypto.createHash('md5');
-                const rs = fs.createReadStream(x.contents)
-                rs.on('error', reject)
-                rs.on('data', chunk => hash.update(chunk))
-                rs.on('end', () => resolve(hash.digest('hex')))
-            }));
-        }
-    }
-}
-
 export async function realizeDirectory(files, directory, path_) {
     let base_path = path.join(directory, path_)
     if (fs.existsSync(base_path)) {

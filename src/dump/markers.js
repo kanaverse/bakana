@@ -3,10 +3,11 @@ import * as df from "./DataFrame.js";
 
 const translate_effects = { "lfc": "lfc", "delta_detected": "deltaDetected", "auc": "auc", "cohen": "cohen" };
 
-export function dumpMarkerDetectionResults(state, modality_names, prefix, all_files, forceBuffer) {
+export function formatMarkerDetectionResults(state, modality_names) {
     const translate_summary = { "min": 0, "mean": 1, "min_rank": 4 };
     const do_auc = state.marker_detection.fetchParameters().compute_auc;
     let all_rowdata = state.inputs.fetchFeatureAnnotations();
+    let all_output = {};
 
     for (const [m, rn] of Object.entries(modality_names)) {
         let res = state.marker_detection.fetchResults()[m];
@@ -17,7 +18,7 @@ export function dumpMarkerDetectionResults(state, modality_names, prefix, all_fi
             let mdf = new bioc.DataFrame({}, { numberOfRows: nfeatures, rowNames: rn });
 
             for (const x of [ "means", "detected" ]) {
-                mdf.$setColumn(x, res[x](group, { copy: "view" }));
+                mdf.setColumn(x, res[x](group, { copy: "view" }), { inPlace: true });
             }
 
             for (const [eff, trans_eff] of Object.entries(translate_effects)) {
@@ -25,23 +26,23 @@ export function dumpMarkerDetectionResults(state, modality_names, prefix, all_fi
                     continue;
                 }
                 for (const [summ, trans_summ] of Object.entries(translate_summary)) {
-                    mdf.$setColumn(eff + "-" + summ, res[trans_eff](group, { summary: trans_summ }));
+                    mdf.setColumn(eff + "-" + summ, res[trans_eff](group, { summary: trans_summ }), { inPlace: true });
                 }
             }
 
             let new_name = group + 1; // incrementing to avoid cluster names starting from 0.
-            let collected = df.writeHdf5DataFrame(mdf, prefix + "marker_detection/" + m + "/" + String(new_name), { forceBuffer });
-            all_files.push(collected.self);
+            all_output[m + "/" + String(new_name)] = mdf;
         }
     }
 
-    return;
+    return all_output;
 }
 
-export function dumpCustomSelectionResults(state, modality_names, prefix, all_files, forceBuffer) {
+export function dumpCustomSelectionResults(state, modality_names) {
     const do_auc = state.custom_selections.fetchParameters().compute_auc;
     let all_sel = state.custom_selections.fetchSelections();
     let all_rowdata = state.inputs.fetchFeatureAnnotations();
+    let all_output = {};
 
     for (const [m, rn] of Object.entries(modality_names)) {
         let nfeatures = all_rowdata[m].numberOfRows();
@@ -51,25 +52,24 @@ export function dumpCustomSelectionResults(state, modality_names, prefix, all_fi
             let mdf = new bioc.DataFrame({}, { numberOfRows: nfeatures, rowNames: rn });
 
             for (const x of [ "means", "detected" ]) {
-                mdf.$setColumn(x, res[x](1, { copy: "view" }));
+                mdf.setColumn(x, res[x](1, { copy: "view" }), { inPlace: true });
             }
 
             for (const [eff, trans_eff] of Object.entries(translate_effects)) {
                 if (eff == "auc" && !do_auc) {
                     continue;
                 }
-                mdf.$setColumn(eff, res[trans_eff](1, { copy: "view" }));
+                mdf.setColumn(eff, res[trans_eff](1, { copy: "view" }), { inPlace: true });
             }
 
-            let collected = df.writeHdf5DataFrame(mdf, prefix + "custom_selections/" + m + "/" + sel, { forceBuffer });
-            all_files.push(collected.self);
+            all_output[m + "/" + self] = mdf;
         }
     }
 
-    return;
+    return all_output;
 }
 
-export function dumpFeatureSelectionResults(state, rna_names, prefix, all_files, forceBuffer) {
+export function formatFeatureSelectionResults(state, rna_names) {
     let res = state.feature_selection.fetchResults();
     let fdf = new bioc.DataFrame(
         {
@@ -84,7 +84,5 @@ export function dumpFeatureSelectionResults(state, rna_names, prefix, all_files,
         }
     );
 
-    let collected = df.writeHdf5DataFrame(fdf, prefix + "feature_selection", { forceBuffer });
-    all_files.push(collected.self);
-    return;
+    return fdf;
 }
