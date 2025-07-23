@@ -163,17 +163,18 @@ class MockMatrix {
     async realize(globals, forceInteger, forceSparse) {
         let metadata = await jsp.readObjectFile(this.#path, globals);
         if (metadata.type == "delayed_array") {
-            let contents = await globals.fs.get(path + "/array.h5");
+            let contents = await globals.fs.get(jsp.joinPath(this.#path, "array.h5"));
             try {
-                let handle = await globals.h5.open(contents);
+                let realized = scran.realizeFile(contents);
                 try {
-                    let output = extract_logcounts(handle, path, globals, forceInteger, forceSparse);
+                    let handle = new scran.H5File(realized.path);
+                    let output = await extract_delayed(handle.open("delayed_array"), this.#path, globals, forceInteger, forceSparse);
                     if (output == null) {
                         throw new Error("currently only supporting bakana-generated log-counts for delayed arrays");
                     }
                     return output;
                 } finally {
-                    await realized.close();
+                    realized.flush();
                 }
             } finally {
                 await globals.fs.clean(contents);
@@ -186,7 +187,7 @@ class MockMatrix {
 
 async function extract_matrix(path, metadata, globals, { forceInteger = true, forceSparse = true } = {}) {
     if (metadata.type == "compressed_sparse_matrix") {
-        let contents = await globals.fs.get(path + "/matrix.h5");
+        let contents = await globals.fs.get(jsp.joinPath(path, "matrix.h5"));
         try {
             let realized = scran.realizeFile(contents);
             try {
@@ -207,7 +208,7 @@ async function extract_matrix(path, metadata, globals, { forceInteger = true, fo
         }
 
     } else if (metadata.type == "dense_array") {
-        let contents = await globals.fs.get(path + "/array.h5");
+        let contents = await globals.fs.get(jsp.joinPath(path, "array.h5"));
         try {
             let realized = scran.realizeFile(contents);
             try {
@@ -231,8 +232,6 @@ async function extract_matrix(path, metadata, globals, { forceInteger = true, fo
     } else {
         throw new Error("unknown matrix type '" + metadata.type + "'");
     }
-    
-    return null;
 }
 
 async function extract_delayed(handle, path, globals, forceInteger, forceSparse) {
@@ -244,7 +243,7 @@ async function extract_delayed(handle, path, globals, forceInteger, forceSparse)
             const seed = await extract_delayed(handle.open("seed"), path, globals, forceInteger, forceSparse)
 
             const dhandle = handle.open("value");
-            const arg = dhandle.values;
+            let arg = dhandle.values;
             if (dhandle.shape.length == 0) {
                 arg = arg[0];
             }
@@ -305,7 +304,7 @@ async function extract_delayed(handle, path, globals, forceInteger, forceSparse)
             try {
                 const nchildren = Object.keys(shandle.childen).length;
                 for (var c = 0; c < nchildren; c++) {
-                    seeds.push(await extract_delayed(shandle.open(String(c)), path, globals forceInteger, forceSparse));
+                    seeds.push(await extract_delayed(shandle.open(String(c)), path, globals, forceInteger, forceSparse));
                 }
                 if (handle.open("along").values[0] == 0) {
                     return scran.rbind(seeds);
@@ -323,10 +322,10 @@ async function extract_delayed(handle, path, globals, forceInteger, forceSparse)
         }
 
     } else if (dtype === "array") {
-        let atype = ahandle.readAttribute("delayed_array").values[0];
+        let atype = handle.readAttribute("delayed_array").values[0];
 
         if (atype === "custom takane seed array") {
-            let index = ahandle.open("index").values[0];
+            let index = handle.open("index").values[0];
             let seed_path = jsp.joinPath(path, "seeds", String(index));
             let seed_metadata = await jsp.readObjectFile(seed_path, globals);
             let mat;
@@ -339,12 +338,12 @@ async function extract_delayed(handle, path, globals, forceInteger, forceSparse)
 
         } else if (atype == "dense array") {
             let is_native = handle.open("native").values[0] != 0;
-            return scran.initializeMatrixFromHdf5Dataset(jsp.joinPath(path, "array.h5"), handle.name + "/data", { transposed: !is_native, forceInteger, forceSparse });
+            return scran.initializeMatrixFromHdf5Dataset(handle.file, handle.name + "/data", { transposed: !is_native, forceInteger, forceSparse });
 
         } else if (atype == "sparse matrix") {
             const shape = handle.open("shape").values; 
             const is_csr = handle.open("by_column").values[0] == 0;
-            return scran.initializeSparseMatrixFromHdf5Group(realized.path, handle.name, shape[0], shape[1], is_csr, { forceInteger });
+            return scran.initializeSparseMatrixFromHdf5Group(handle.file, handle.name, shape[0], shape[1], is_csr, { forceInteger });
 
         } else {
             throw new Error("unsupported delayed array '" + atype + "'");

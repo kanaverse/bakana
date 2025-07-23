@@ -30,8 +30,8 @@
     "jszip": "^3.10.1",
     "pako": "^2.0.4",
     "papaparse": "^5.3.2",
-    "scran.js": "^4.0.0",
-    "jaspagate": "^0.1.0"
+    "scran.js": "^4.0.1",
+    "jaspagate": "^0.1.2"
   },
   "devDependencies": {
     "docdash": "^2.0.1",
