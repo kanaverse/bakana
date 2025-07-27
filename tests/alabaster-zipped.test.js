@@ -3,6 +3,7 @@ import * as scran from "scran.js";
 import * as utils from "./utils.js";
 import * as bioc from "bioconductor";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import JSZip from "jszip";
 
@@ -32,6 +33,54 @@ function compressDirectory(dir, prefixes) {
     compressDirectoryInternal(dir, handle);
     return zip.generateAsync({ type: "uint8array", compression: "DEFLATE" })
 }
+
+test("searchZippedAlabaster works correctly", async () => {
+    const prefix = path.join(os.tmpdir(), "tmp");
+
+    // Top-level OBJECT.
+    {
+        let dir = fs.mkdtempSync(prefix);
+        fs.writeFileSync(path.join(dir, "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [10, 20] }}));
+        fs.mkdirSync(path.join(dir, "foo"));
+        fs.writeFileSync(path.join(dir, "foo", "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [20, 40] }}));
+        fs.mkdirSync(path.join(dir, "bar"));
+        fs.writeFileSync(path.join(dir, "bar", "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [30, 60] }}));
+        let payload = await compressDirectory(dir, []);
+        let handle = await JSZip.loadAsync(payload);
+        let found = await bakana.searchZippedAlabaster(handle);
+        expect(found.size).toEqual(1);
+        expect(found.get(".")).toEqual([10,20]);
+    }
+
+    // No top-level OBJECT.
+    {
+        let dir = fs.mkdtempSync(prefix);
+        fs.mkdirSync(path.join(dir, "foo"));
+        fs.writeFileSync(path.join(dir, "foo", "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [20, 40] }}));
+        fs.mkdirSync(path.join(dir, "bar"));
+        fs.writeFileSync(path.join(dir, "bar", "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [30, 60] }}));
+        let payload = await compressDirectory(dir, []);
+        let handle = await JSZip.loadAsync(payload);
+        let found = await bakana.searchZippedAlabaster(handle);
+        expect(found.size).toEqual(2);
+        expect(found.get("foo")).toEqual([20,40]);
+        expect(found.get("bar")).toEqual([30,60]);
+    }
+
+    // Nested OBJECT.
+    {
+        let dir = fs.mkdtempSync(prefix);
+        fs.mkdirSync(path.join(dir, "foo"));
+        fs.writeFileSync(path.join(dir, "foo", "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [20, 40] }}));
+        fs.mkdirSync(path.join(dir, "foo", "bar"));
+        fs.writeFileSync(path.join(dir, "foo", "bar", "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [30, 60] }}));
+        let payload = await compressDirectory(dir, []);
+        let handle = await JSZip.loadAsync(payload);
+        let found = await bakana.searchZippedAlabaster(handle);
+        expect(found.size).toEqual(1);
+        expect(found.get("foo")).toEqual([20,40]);
+    }
+})
 
 test("ZippedAlabasterDataset works correctly", async () => {
     for (const mode of [ { prefix: [], path: "." }, { prefix: [ "foo", "bar" ], path: "foo/bar" } ]) {

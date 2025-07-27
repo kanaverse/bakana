@@ -53,7 +53,7 @@ export async function searchZippedAlabaster(handle) {
     while (counter < candidates.length) {
         let prefix = candidates[counter];
         counter++;
-        let contents = await handle.file(prefix).async("string");
+        let contents = await handle.file(prefix + "OBJECT").async("string");
 
         let meta = {};
         try {
@@ -63,9 +63,9 @@ export async function searchZippedAlabaster(handle) {
         }
 
         if ("summarized_experiment" in meta) {
-            nonchildren.set(prefix, meta.summarized_experiment.dimensions);            
-            while (counter < candidates) {
-                if (candidates[counter].startsWith(prefix)) {
+            nonchildren.set(prefix == "" ? "." : prefix.slice(0, prefix.length - 1), meta.summarized_experiment.dimensions);
+            while (counter < candidates.length) {
+                if (!candidates[counter].startsWith(prefix)) {
                     break;
                 }
                 counter++;

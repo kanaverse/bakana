@@ -278,7 +278,7 @@ export async function formatSingleCellExperiment(state, path, { reportOneIndex =
             assays.logcounts = new MockNormalizedMatrix(mat, sf);
         }
 
-        let step = null;
+        step = null;
         switch (m) {
             case "RNA":
                 step = state.rna_pca;
