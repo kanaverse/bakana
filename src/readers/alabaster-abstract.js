@@ -368,7 +368,7 @@ function readMockReducedDimension(ncol, path, metadata, globals, options) {
  *** Utility functions ***
  *************************/
 
-function extract_from_experiments(se, fun) {
+function apply_over_experiments(se, fun) {
     let main_experiment_name = "";
     let is_sce = se instanceof bioc.SingleCellExperiment;
     if (is_sce && se.mainExperimentName() !== null) {
@@ -386,11 +386,21 @@ function extract_from_experiments(se, fun) {
 }
 
 function extract_all_features(se) {
-    return extract_from_experiments(se, x => x.rowData());
+    return apply_over_experiments(se, x => x.rowData());
 }
 
 function extract_all_assay_names(se) {
-    return extract_from_experiments(se, x => x.assayNames());
+    return apply_over_experiments(se, x => x.assayNames());
+}
+
+function simplify_List_columns(df) { // avoid the hassle of dealing with List compatibility problems in the rest of bakana.
+    for (const k of df.columnNames()) {
+        let col = df.column(k);
+        if (col instanceof bioc.List) {
+            df.set(k, col.toArray(), { inPlace: true });
+        }
+    }
+    return null;
 }
 
 /************************
@@ -500,10 +510,14 @@ export class AbstractAlabasterDataset {
                 this.#create_globals(),
                 {
                     DataFrame_readNested: false,
+                    DataFrame_readMetadata: false,
                     SummarizedExperiment_readAssay: readMockAssay,
+                    SummarizedExperiment_readMetadata: false,
                     SingleCellExperiment_readReducedDimension: false
                 }
             );
+            simplify_List_columns(this.#raw_se.columnData());
+            apply_over_experiments(this.#raw_se, y => simplify_List_columns(y.rowData()));
         }
     }
 
@@ -607,7 +621,7 @@ export class AbstractAlabasterDataset {
             CRISPR: { exp: this.#options.crisprExperiment, assay: this.#options.crisprCountAssay }
         };
 
-        let experiments_by_name = extract_from_experiments(this.#raw_se, x => x);
+        let experiments_by_name = apply_over_experiments(this.#raw_se, x => x);
         let num_alts = 0;
         if (this.#raw_se instanceof bioc.SingleCellExperiment) {
             num_alts = this.#raw_se.alternativeExperimentNames().length;
@@ -738,10 +752,14 @@ export class AbstractAlabasterResult {
                 this.#create_globals(),
                 {
                     DataFrame_readNested: false,
+                    DataFrame_readMetadata: false,
                     SummarizedExperiment_readAssay: readMockAssay,
+                    SummarizedExperiment_readMetadata: false,
                     SingleCellExperiment_readReducedDimension: readMockReducedDimension
                 }
             );
+            simplify_List_columns(this.#raw_se.columnData());
+            apply_over_experiments(this.#raw_se, y => simplify_List_columns(y.rowData()));
         }
     }
 
@@ -828,7 +846,7 @@ export class AbstractAlabasterResult {
         }
 
         // Now fetching the assay matrix.
-        const experiments_by_name = extract_from_experiments(this.#raw_se, x => x);
+        const experiments_by_name = apply_over_experiments(this.#raw_se, x => x);
         try {
             for (const [name, chosen_se] of Object.entries(experiments_by_name)) {
                 let curassay = this.#options.primaryAssay;

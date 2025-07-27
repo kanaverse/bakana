@@ -46,22 +46,6 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
     let { metadata, files } = await sce.dumpSingleCellExperiment(state, name, { forceBuffer, reportOneIndex, storeModalityColumnData });
     files.push({ metadata });
 
-    // Added a redirection document.
-    files.push({
-        "metadata": {
-            "$schema": "redirection/v1.json",
-            "path": name,
-            "redirection": {
-                "targets": [
-                    {
-                        "type": "local",
-                        "location": metadata.path
-                    }
-                ]
-            }
-        }
-    });
-
     await adump.attachMd5sums(files);
     return files;
 }
@@ -123,8 +107,6 @@ export async function saveGenewiseResults(state, path, { includeMarkerDetection 
     if (state.feature_selection.valid() && includeFeatureSelection) {
         markers.dumpFeatureSelectionResults(state, modalities.RNA, path, files, forceBuffer);
     }
-
-    await adump.attachMd5sums(files);
 
     // Either dumping everything to file or returning all the buffers.
     if (!forceBuffer && directory !== null) {
