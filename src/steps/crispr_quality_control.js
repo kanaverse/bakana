@@ -49,7 +49,7 @@ export class CrisprQualityControlState {
         utils.freeCache(this.#cache.metrics);
         utils.freeCache(this.#cache.filters);
         utils.freeCache(this.#cache.metrics_buffer);
-        utils.freeCache(this.#cache.discard_buffer);
+        utils.freeCache(this.#cache.keep_buffer);
     }
 
     /***************************
@@ -77,12 +77,12 @@ export class CrisprQualityControlState {
     }
 
     /**
-     * @return {Uint8WasmArray} Buffer containing the discard vector of length equal to the number of cells,
-     * where each element is truthy if the corresponding cell is to be discarded.
+     * @return {Uint8WasmArray} Buffer containing a vector of length equal to the number of cells,
+     * where each element is truthy if the corresponding cell is to be retained after filtering.
      * This is available after running {@linkcode CrisprQualityControlState#compute compute}.
      */
-    fetchDiscards() {
-        return this.#cache.discard_buffer;
+    fetchKeep() {
+        return this.#cache.keep_buffer;
     }
 
     /**
@@ -156,8 +156,8 @@ export class CrisprQualityControlState {
                     throw new Error("unknown CRISPR QC filter strategy '" + filter_strategy + "'");
                 }
 
-                var discard = utils.allocateCachedArray(this.#cache.metrics.numberOfCells(), "Uint8Array", this.#cache, "discard_buffer");
-                this.#cache.filters.filter(this.#cache.metrics, { block: block, buffer: discard });
+                var keep = utils.allocateCachedArray(this.#cache.metrics.numberOfCells(), "Uint8Array", this.#cache, "keep_buffer");
+                this.#cache.filters.filter(this.#cache.metrics, { block: block, buffer: keep });
                 this.changed = true;
             } else {
                 delete this.#cache.filters;

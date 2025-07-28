@@ -1,23 +1,20 @@
-import * as utils from "./general.js";
-
-export function subsetSums(qc, filter, mat, cache, name) {
-    let output = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", cache, name);
-    let discards = filter.fetchDiscards();
+export function subsetSums(qc, filter, mat) {
+    let output = new Float64Array(mat.numberOfColumns());
+    let keep = filter.fetchKeep();
 
     // unsafe, so no more Wasm allocations past this point. 
-    let sums = qc.fetchMetrics().sums({ copy: false }); 
+    let sums = qc.fetchMetrics().sum({ copy: false }); 
 
-    if (discards == null) {
+    if (keep === null) {
         output.set(sums);
     } else {
-        let oarr = output.array();
         var j = 0;
-        discards.forEach((x, i) => {
-            if (!x) {
+        keep.forEach((x, i) => {
+            if (x) {
                 if (j == output.length) {
                     throw new Error("normalization and filtering are not in sync");
                 }
-                oarr[j] = sums[i];
+                output[j] = sums[i];
                 j++;
             }
         });

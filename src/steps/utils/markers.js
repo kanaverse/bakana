@@ -33,11 +33,11 @@ export function fillGroupStats(object, i, vals) {
     object.detected(i, { copy: false }).set(vals.detected);
 
     for (const [s, v] of Object.entries(vals.cohen)) {
-        object.cohen(i, { summary: summaries2int[s], copy: false }).set(v);
+        object.cohensD(i, { summary: summaries2int[s], copy: false }).set(v);
     }
 
     for (const [s, v] of Object.entries(vals.lfc)) {
-        object.lfc(i, { summary: summaries2int[s], copy: false }).set(v);
+        object.deltaMean(i, { summary: summaries2int[s], copy: false }).set(v);
     }
 
     for (const [s, v] of Object.entries(vals.delta_detected)) {
@@ -89,11 +89,11 @@ export function formatMarkerResults(results, group, rankEffect) {
         }
 
         if (rankEffect.match(/^cohen-/)) {
-            ranking = results.cohen(group, { summary: index, copy: false });
+            ranking = results.cohensD(group, { summary: index, copy: false });
         } else if (rankEffect.match(/^auc-/)) {
             ranking = results.auc(group, { summary: index, copy: false });
         } else if (rankEffect.match(/^lfc-/)) {
-            ranking = results.lfc(group, { summary: index, copy: false });
+            ranking = results.deltaMean(group, { summary: index, copy: false });
         } else if (rankEffect.match(/^delta-d-/)) {
             ranking = results.deltaDetected(group, { summary: index, copy: false });
         } else {
@@ -123,7 +123,7 @@ export function formatMarkerResults(results, group, rankEffect) {
   
     var stat_detected = reorder(results.detected(group, { copy: false }));
     var stat_mean = reorder(results.means(group, { copy: false }));
-    var stat_lfc = reorder(results.lfc(group, { summary: 1, copy: false }));
+    var stat_lfc = reorder(results.deltaMean(group, { summary: 1, copy: false }));
     var stat_delta_d = reorder(results.deltaDetected(group, { summary: 1, copy: false }));
 
     return {
@@ -184,7 +184,7 @@ export function computeVersusResults(matrices, clusters, block, keep, cache, lfc
         let sub;
         try {
             sub = scran.subsetColumns(modmat, keep);
-            cache[modality] = scran.scoreMarkers(sub, clusters, { block: new_block, lfcThreshold: lfc_threshold, computeAuc: compute_auc });
+            cache[modality] = scran.scoreMarkers(sub, clusters, { block: new_block, threshold: lfc_threshold, computeAuc: compute_auc });
         } finally {
             scran.free(sub);
         }

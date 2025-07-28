@@ -6,7 +6,7 @@ export const step_name = "snn_graph_cluster";
 
 /**
  * This step does SNN graph clustering based on the neighbor search index built by {@linkplain NeighborIndexState}.
- * This wraps [`clusterSnnGraph`](https://kanaverse.github.io/scran.js/global.html#clusterSnnGraph) 
+ * This wraps [`clusterGraph`](https://kanaverse.github.io/scran.js/global.html#clusterGraph) 
  * and related functions from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
@@ -82,7 +82,7 @@ export class SnnGraphClusterState {
         if (!("graph" in this.#cache)) {
             this.#compute_graph(this.#parameters.scheme);
         }
-        this.#cache.clusters = scran.clusterSnnGraph(this.#cache.graph, {
+        this.#cache.clusters = scran.clusterGraph(this.#cache.graph, {
             method: algorithm,
             multiLevelResolution: multilevel_resolution,
             leidenResolution: leiden_resolution,

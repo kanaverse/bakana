@@ -52,7 +52,9 @@ test("runAnalysis works correctly (10X)", async () => {
     await utils.triggerAnimation(state);
 
     // Check saving of results.
+    utils.purgeDirectory("miscellaneous/from-tests/10X");
     await bakana.saveSingleCellExperiment(state, "10X", { directory: "miscellaneous/from-tests" });
+    utils.purgeDirectory("miscellaneous/from-tests/10X_genes");
     await bakana.saveGenewiseResults(state, "10X_genes", { directory: "miscellaneous/from-tests" });
 
     // Check reloading of the parameters/datasets.

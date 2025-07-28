@@ -359,7 +359,7 @@ function assign_labels(x, group, cache) {
         let aggrmat = scran.ScranMatrix.createDenseMatrix(
             mat.numberOfRows(), 
             aggr.numberOfGroups(), 
-            aggr.sums(null, { copy: "view" }),
+            aggr.allSums({ copy: "view" }),
             { columnMajor: true, copy: false }
         );
         to_collect.push(aggrmat);

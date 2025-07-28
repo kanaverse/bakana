@@ -1,4 +1,5 @@
 import * as wa from "wasmarrays.js";
+import * as bioc from "bioconductor";
 
 // Monkey-patching these methods so that we can use these WasmArrays as columns in a bioc.DataFrame.
 wa.Uint8WasmArray.prototype._bioconductor_LENGTH = function() { return this.length; };
@@ -6,18 +7,18 @@ wa.Int32WasmArray.prototype._bioconductor_LENGTH = function() { return this.leng
 wa.Float64WasmArray.prototype._bioconductor_LENGTH = function() { return this.length; };
 
 export function formatColumnData(state, all_modalities, main_modality, all_other_metadata, store_per_modality) {
-    let disc = state.cell_filtering.fetchDiscards();
+    let keep_raw = state.cell_filtering.fetchKeep();
     let keep = [];
-    if (disc !== null) {
-        disc.forEach((x, i) => {
-            if (!x) { keep.push(i); }
+    if (keep_raw !== null) {
+        keep_raw.forEach((x, i) => {
+            if (x) { keep.push(i); }
         });
     }
 
     let all_coldata = {};
     {
         let full = state.inputs.fetchCellAnnotations();
-        all_coldata[main_modality] = (disc === null ? full : bioc.SLICE(full, keep));
+        all_coldata[main_modality] = (keep_raw === null ? full : bioc.SLICE(full, keep));
 
         let nrows = all_coldata[main_modality].numberOfRows();
         for (const k of all_modalities) {
@@ -33,18 +34,18 @@ export function formatColumnData(state, all_modalities, main_modality, all_other
         let target = (store_per_modality ? "RNA" : main_modality);
 
         let rdf = all_coldata[target];
-        rdf = rdf.setColumn(prefix + "::sums", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().sums({ copy: false })));
+        rdf = rdf.setColumn(prefix + "::sums", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().sum({ copy: false })));
         rdf = rdf.setColumn(prefix + "::detected", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().detected({ copy: false })));
-        rdf = rdf.setColumn(prefix + "::proportions", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().subsetProportions(0, { copy: false })));
+        rdf = rdf.setColumn(prefix + "::proportions", state.cell_filtering.applyFilter(state.rna_quality_control.fetchMetrics().subsetProportion(0, { copy: false })));
         all_coldata[target] = rdf;
 
         all_other_metadata[target].set(
             prefix,
             { 
                 "filters": {
-                    "sums": state.rna_quality_control.fetchFilters().thresholdsSums(),
-                    "detected": state.rna_quality_control.fetchFilters().thresholdsDetected(),
-                    "proportions": state.rna_quality_control.fetchFilters().thresholdsSubsetProportions(0)
+                    "sums": state.rna_quality_control.fetchFilters().sum(),
+                    "detected": state.rna_quality_control.fetchFilters().detected(),
+                    "proportions": state.rna_quality_control.fetchFilters().subsetProportion(0)
                 }
             },
             { inPlace: true }
@@ -56,17 +57,17 @@ export function formatColumnData(state, all_modalities, main_modality, all_other
         let target = (store_per_modality ? "ADT" : main_modality);
 
         let adf = all_coldata[target];
-        adf = adf.setColumn(prefix + "::sums", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().sums({ copy: false })));
+        adf = adf.setColumn(prefix + "::sums", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().sum({ copy: false })));
         adf = adf.setColumn(prefix + "::detected", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().detected({ copy: false })));
-        adf = adf.setColumn(prefix + "::igg_totals", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().subsetTotals(0, { copy: false })));
+        adf = adf.setColumn(prefix + "::igg_totals", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().subsetTotal(0, { copy: false })));
         all_coldata[target] = adf;
 
         all_other_metadata[target].set(
             prefix,
             {
                 "filters": {
-                    "detected": state.adt_quality_control.fetchFilters().thresholdsDetected(),
-                    "igg_totals": state.adt_quality_control.fetchFilters().thresholdsSubsetTotals(0)
+                    "detected": state.adt_quality_control.fetchFilters().detected(),
+                    "igg_totals": state.adt_quality_control.fetchFilters().subsetTotal(0)
                 }
             },
             { inPlace: true }
@@ -78,9 +79,9 @@ export function formatColumnData(state, all_modalities, main_modality, all_other
         let target = (store_per_modality ? "CRISPR" : main_modality);
 
         let cdf = all_coldata[target];
-        cdf = cdf.setColumn(prefix + "::sums", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().sums({ copy: false })));
+        cdf = cdf.setColumn(prefix + "::sums", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().sum({ copy: false })));
         cdf = cdf.setColumn(prefix + "::detected", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().detected({ copy: false })));
-        cdf = cdf.setColumn(prefix + "::max_proportion", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxProportions({ copy: false })));
+        cdf = cdf.setColumn(prefix + "::max_proportion", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxProportion({ copy: false })));
         cdf = cdf.setColumn(prefix + "::max_index", state.cell_filtering.applyFilter(state.crispr_quality_control.fetchMetrics().maxIndex({ copy: false })));
         all_coldata[target] = cdf;
 
@@ -88,14 +89,14 @@ export function formatColumnData(state, all_modalities, main_modality, all_other
             prefix,
             {
                 "filters": {
-                    "max_count": state.crispr_quality_control.fetchFilters().thresholdsMaxCount()
+                    "max_count": state.crispr_quality_control.fetchFilters().maxCount()
                 }
             },
             { inPlace: true }
         );
     }
 
-    if (disc !== null) {
+    if (keep_raw !== null) {
         all_coldata[main_modality] = all_coldata[main_modality].setColumn("kana::quality_control::retained_indices", keep);
     }
 

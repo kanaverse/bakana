@@ -53,7 +53,7 @@ export class RnaQualityControlState {
         utils.freeCache(this.#cache.metrics);
         utils.freeCache(this.#cache.filters);
         utils.freeCache(this.#cache.metrics_buffer);
-        utils.freeCache(this.#cache.discard_buffer);
+        utils.freeCache(this.#cache.keep_buffer);
     }
 
     /***************************
@@ -75,22 +75,25 @@ export class RnaQualityControlState {
     }
 
     /**
-     * @return {Uint8WasmArray} Buffer containing the discard vector of length equal to the number of cells,
-     * where each element is truthy if the corresponding cell is to be discarded.
+     * @return {Uint8WasmArray} Buffer containing a vector of length equal to the number of cells,
+     * where each element is truthy if the corresponding cell is to be retained after filtering.
+     * This is available after running {@linkcode RnaQualityControlState#compute compute}.
      */
-    fetchDiscards() {
-        return this.#cache.discard_buffer;
+    fetchKeep() {
+        return this.#cache.keep_buffer;
     }
 
     /**
      * @return {external:SuggestRnaQcFiltersResults} Result of filtering on the RNA-derived QC metrics.
+     * This is available after running {@linkcode RnaQualityControlState#compute compute}.
      */
     fetchFilters() {
         return this.#cache.filters;
     }
 
     /**
-     * @return {external:PerCellRnaQcMetricsResults} RNA-derived QC metrics.
+     * @return {external:PerCellRnaQcMetricsResults} RNA-derived QC metrics,
+     * available after running {@linkcode RnaQualityControlState#compute compute}.
      */
     fetchMetrics() {
         return this.#cache.metrics;
@@ -374,8 +377,8 @@ export class RnaQualityControlState {
                     throw new Error("unknown RNA QC filtering strategy '" + filter_strategy + "'");
                 }
 
-                var discard = utils.allocateCachedArray(this.#cache.metrics.numberOfCells(), "Uint8Array", this.#cache, "discard_buffer");
-                this.#cache.filters.filter(this.#cache.metrics, { block: block, buffer: discard });
+                var keep = utils.allocateCachedArray(this.#cache.metrics.numberOfCells(), "Uint8Array", this.#cache, "keep_buffer");
+                this.#cache.filters.filter(this.#cache.metrics, { block: block, buffer: keep });
                 this.changed = true;
             } else {
                 delete this.#cache.filters;

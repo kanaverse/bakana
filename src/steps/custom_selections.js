@@ -51,7 +51,7 @@ class SelectionManager {
         let res = {};
         for (const k of to_use) {
             let mat = matfun(k);
-            res[k] = scran.scoreMarkers(mat, buffer, { block: block, lfcThreshold: lfc_threshold, computeAuc: compute_auc }); 
+            res[k] = scran.scoreMarkers(mat, buffer, { block: block, threshold: lfc_threshold, computeAuc: compute_auc }); 
         }
               
         // Removing previous results, if there were any.

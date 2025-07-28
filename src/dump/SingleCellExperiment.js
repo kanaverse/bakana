@@ -5,14 +5,14 @@ import { MockReducedDimensionMatrix } from "./reducedDimensions.js";
 
 export async function formatSingleCellExperiment(state, { reportOneIndex = false, storeModalityColumnData = false } = {}) {
     let all_rowdata = state.inputs.fetchFeatureAnnotations();
-    let modalities = Object.keys(row_info);
+    let modalities = Object.keys(all_rowdata);
     let main = "RNA";
-    if (!(main in row_info)) {
+    if (!(main in all_rowdata)) {
         main = modalities[0];
     }
 
     let all_metadata = {};
-    for (const mod of modalities) {
+    for (const m of modalities) {
         all_metadata[m] = new bioc.List;
     }
 

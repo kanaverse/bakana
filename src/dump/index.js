@@ -28,7 +28,7 @@ import * as internal from "./abstract/dump.js";
  * Otherwise, if `directory = null` or a local filesystem does not exist, an object is returned where each key is a local path to a component file and each value is a Uint8Array with the file contents.
  */
 export async function saveSingleCellExperiment(state, name, { reportOneIndex = false, storeModalityColumnData = false, directory = null } = {}) {
-    let my_sce = await sce.formatSingleCellExperiment(state, { forceBuffer, reportOneIndex, storeModalityColumnData });
+    let my_sce = await sce.formatSingleCellExperiment(state, { reportOneIndex, storeModalityColumnData });
 
     if (!(internal.fsexists())) {
         directory = null;
@@ -69,7 +69,6 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
  * @param {boolean} [options.includeMarkerDetection=true] - Whether to save the marker detection results.
  * @param {boolean} [options.includeCustomSelections=true] - Whether to save the custom selection results.
  * @param {boolean} [options.includeFeatureSelection=true] - Whether to save the feature selection results.
- * @param {boolean} [options.forceBuffer=true] - Whether to force all files to be loaded into memory as Uint8Array buffers.
  * @param {?string} [options.directory=null] - Directory in which to save the data frames. 
  * If `null` or if no local file system exists, files are stored in memory as Uint8Arrays.
  *
@@ -91,7 +90,7 @@ export async function saveGenewiseResults(state, path, { includeMarkerDetection 
         directory = null;
     }
     let files = {};
-    let globals = new AlabasterGlobalsInterface(directory, forceBuffer, files);
+    let globals = new AlabasterGlobalsInterface(directory, files);
 
     if (includeMarkerDetection) {
         let dir = "marker_detection";

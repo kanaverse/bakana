@@ -165,7 +165,7 @@ export class MarkerDetectionState {
                 var block = this.#filter.fetchFilteredBlock();
                 
                 utils.freeCache(this.#cache.raw[k]);
-                this.#cache.raw[k] = scran.scoreMarkers(mat, clusters, { block: block, lfcThreshold: lfc_threshold, computeAuc: compute_auc });
+                this.#cache.raw[k] = scran.scoreMarkers(mat, clusters, { block: block, threshold: lfc_threshold, computeAuc: compute_auc });
 
                 this.changed = true;
             }
@@ -207,9 +207,9 @@ export class MarkerDetectionState {
      * - `results`: object containing the marker statistics for the comparison between two clusters.
      *    Each key is a modality name and each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object.
      * - `left`: index of the group corresponding to the `left` cluster in each ScoreMarkersResults object,
-     *    e.g., Cohen's d for the RNA markers of the `left` cluster are defined as `output.results.RNA.cohen(output.left)`.
+     *    e.g., Cohen's d for the RNA markers of the `left` cluster are defined as `output.results.RNA.cohensD(output.left)`.
      * - `right`: index of the group corresponding to the `right` cluster in each ScoreMarkersResults object.
-     *    e.g., Cohen's d for the RNA markers of the `left` cluster are defined as `output.results.RNA.cohen(output.right)`.
+     *    e.g., Cohen's d for the RNA markers of the `left` cluster are defined as `output.results.RNA.cohensD(output.right)`.
      */
     computeVersus(left, right) {
         var clusters = this.#choice.fetchClusters();
@@ -417,7 +417,7 @@ export class MarkerDetectionStandalone {
         for (const k of this.#matrices.available()) {
             var mat = this.#matrices.get(k);
             utils.freeCache(this.#cache.raw[k]);
-            this.#cache.raw[k] = scran.scoreMarkers(mat, this.#groups, { block: this.#block, lfcThreshold: lfc_threshold, computeAuc: compute_auc });
+            this.#cache.raw[k] = scran.scoreMarkers(mat, this.#groups, { block: this.#block, threshold: lfc_threshold, computeAuc: compute_auc });
         }
         return;
     }
@@ -434,9 +434,9 @@ export class MarkerDetectionStandalone {
      * - `results`: object containing the marker statistics for the comparison between two groups.
      *    Each key is a modality name and each value is a {@linkplain external:ScoreMarkersResults ScoreMarkersResults} object.
      * - `left`: index of the group corresponding to the `left` group in each ScoreMarkersResults object,
-     *    e.g., Cohen's d for the RNA markers of the `left` group are defined as `output.results.RNA.cohen(output.left)`.
+     *    e.g., Cohen's d for the RNA markers of the `left` group are defined as `output.results.RNA.cohensD(output.left)`.
      * - `right`: index of the group corresponding to the `right` group in each ScoreMarkersResults object.
-     *    e.g., Cohen's d for the RNA markers of the `left` group are defined as `output.results.RNA.cohen(output.right)`.
+     *    e.g., Cohen's d for the RNA markers of the `left` group are defined as `output.results.RNA.cohensD(output.right)`.
      */
     computeVersus(left, right) {
         if (!("versus" in this.#cache)) {
