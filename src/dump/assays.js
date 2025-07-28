@@ -86,7 +86,7 @@ export async function saveSparseMatrix(x, path, globals, options) {
     }
 }
 
-export async function dumpNormalizedMatrix(x, path, globals, options) {
+export async function saveNormalizedMatrix(x, path, globals, options) {
     let fhandle = await globals.h5create(jsp.joinPath(path, "array.h5"));
     let handle_stack = [fhandle];
     let success = false;

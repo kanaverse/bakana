@@ -1,9 +1,6 @@
 import * as scran from "scran";
 import * as jsp from "jaspagate";
-
-/****************************
- *** Jaspagate interfaces ***
- ****************************/
+import * as internal from "./abstract/dump.js";
 
 function toStringType(data, options) {
     let length = null;
@@ -79,69 +76,66 @@ class AlabasterH5DataSet extends jsp.H5DataSet {
 
 class AlabasterGlobalsInterface extends jsp.GlobalsInterface {
     #directory;
-    #ziphandle;
+    #files;
 
-    constructor(directory, ziphandle) {
+    constructor(directory, files) {
         super();
-        this.#directory = internal.initialize(directory);
-        this.#ziphandle = ziphandle;
+        this.#directory = directory;
+        this.#files = files;
     }
 
     get(path, options = {}) {
-        if (this.#ziphandle !== null) {
-            return this.#ziphandle.file(path).async("uint8array");
-        } else {
+        if (this.#directory !== null) {
             const { asBuffer = true } = options;
             return internal.read(this.#directory, path, asBuffer);
+        } else {
+            return this.#files[path];
         }
     }
 
     clean(localPath) {}
 
     async write(path, contents) {
-        if (this.#ziphandle !== null) {
-            handle.file(f, contents);
-        } else {
+        if (this.#directory !== null) {
             await internal.write(this.#directory, path, contents);
+        } else {
+            this.#files[path] = contents;
         }
     }
 
     mkdir(path) {
-        if (this.#ziphandle !== null) {
-            handle.folder(path);
-        } else {
+        if (this.#directory !== null) {
             await internal.mkdir(this.#directory, path);
         }
     }
 
     copy(from, to) {
-        if (this.#ziphandle !== null) {
-            // More reliable to just clone the payload, as Linux symlinks won't survive on Windows.
-            this.write(to, await this.get(from, { asBuffer: true }));
-        } else {
+        if (this.#directory !== null) {
             await internal.copy(this.#directory, from, to);
+        } else {
+            this.#files[to] = this.#files[from];
         }
     }
 
     h5create(path) {
-        if (this.#ziphandle !== null || typeof this.#directory != "string") {
+        if (this.#directory !== null) {
+            let actual_path = jsp.joinPath(this.#directory, path);
+            let latest = scran.createNewHdf5File(actual_path);
+            let output = new AlabasterH5Group(latest);
+            output._path = actual_path;
+            return output;
+        } else {
             let tmppath = scran.chooseTemporaryPath();
             let latest = scran.createNewHdf5File(tmppath);
             let output = new AlabasterH5Group(latest);
             output._path = tmppath;
             output._intended = path;
             return output;
-        } else {
-            let actual_path = internal.join(this.#directory, path);
-            let latest = scran.createNewHdf5File(actual_path);
-            let output = new AlabasterH5Group(latest);
-            output._path = actual_path;
-            return output;
         }
     }
 
     h5finish(handle, failed) {
-        if (this.#ziphandle !== null || typeof this.#directory != "string") {
+        if (this.#directory === null) {
             if (!failed) {
                 this.write(handle._intended, scran.readFile(handle._path));
             }

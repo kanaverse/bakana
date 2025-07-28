@@ -3,7 +3,7 @@ import * as df from "./DataFrame.js";
 import { MockSparseMatrix, MockNormalizedMatrix } from "./assays.js";
 import { MockReducedDimensionMatrix } from "./reducedDimensions.js";
 
-export async function formatSingleCellExperiment(state, path, { reportOneIndex = false, storeModalityColumnData = false } = {}) {
+export async function formatSingleCellExperiment(state, { reportOneIndex = false, storeModalityColumnData = false } = {}) {
     let all_rowdata = state.inputs.fetchFeatureAnnotations();
     let modalities = Object.keys(row_info);
     let main = "RNA";

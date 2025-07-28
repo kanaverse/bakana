@@ -1,12 +1,12 @@
 import * as fs from "fs";
 import * as path from "path";
 
-export function initialize(host) {
-    return host;
+export function fsexists() {
+    return true;
 }
 
-export function read(host, path, asBuffer) {
-    let loc = path.join(host, path);
+export function read(dir, path, asBuffer) {
+    let loc = path.join(dir, path);
     if (asBuffer) {
         return new Uint8Array(fs.readFileSync(loc));
     } else {
@@ -14,18 +14,14 @@ export function read(host, path, asBuffer) {
     }
 }
 
-export function write(host, path, x) {
-    fs.writeFileSync(path.join(host, path), x);
+export function write(dir, path, x) {
+    fs.writeFileSync(path.join(dir, path), x);
 }
 
-export function mkdir(host, path) {
-    fs.mkdirSync(path.join(host, path), { recursive: true });
+export function mkdir(dir, path) {
+    fs.mkdirSync(path.join(dir, path), { recursive: true });
 }
 
-export function copy(host, from, to) {
-    fs.copyFileSync(path.join(host, from), path.join(host, to));
-}
-
-export function join(host, path) {
-    return path.join(host, path);
+export function copy(dir, from, to) {
+    fs.copyFileSync(path.join(dir, from), path.join(dir, to));
 }

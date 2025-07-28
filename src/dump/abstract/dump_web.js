@@ -1,19 +1,21 @@
-export function initialize(host) {
-    return {};
+// Stub file to ensure that something is loaded.
+
+export function fsexists() {
+    return false;
 }
 
-export function read(host, path, asBuffer) {
-    return host[path];
+export function read(dir, path, asBuffer) {
+    throw new Error("read() is not supported in a web context");
 }
 
-export function write(host, path, x) {
-    host[path] = x;
+export function write(dir, path, x) {
+    throw new Error("write() is not supported in a web context");
 }
 
-export function mkdir(host, path) {
-    host[path] = null;
+export function mkdir(dir, path) {
+    throw new Error("mkdir() is not supported in a web context");
 }
 
-export function copy(host, from, to) {
-    host[to] = host[from];
+export function copy(dir, from, to) {
+    throw new Error("copy() is not supported in a web context");
 }
