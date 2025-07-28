@@ -47,79 +47,99 @@ export class MockNormalizedMatrix {
 }
 
 export async function saveSparseMatrix(x, path, globals, options) {
-    let handle = await globals.h5create(jsp.joinPath(path, "matrix.h5"))
-    let success = false;
+    let has_ext_store = "external_Matrix_store" in options;
+    if (has_ext_store) {
+        for (const [y, ypath] of options.external_Matrix_store) {
+            if (y === x.matrix) {
+                for (const f of ["OBJECT", "matrix.h5"]) {
+                    await globals.copy(jsp.joinPath(ypath, f), jsp.joinPath(path, f));
+                }
+                return;
+            }
+        }
+    }
 
+    let fhandle = await globals.h5create(jsp.joinPath(path, "matrix.h5"))
+    let handle_stack = [fhandle];
+    let success = false;
     try {
-        scran.writeSparseMatrixToHdf5(mat, handle._path, "compressed_sparse_matrix", { format: "tenx_matrix", saveShape: false });
-        let ghandle = handle.open("compressed_sparse_matrix");
-        ghandle.writeDataSet("shape", "Uint32", [2], [mat.numberOfRows(), mat.numberOfColumns()]);
+        scran.writeSparseMatrixToHdf5(x.matrix, fhandle._path, "compressed_sparse_matrix", { format: "tenx_matrix", saveShape: false, overwrite: false });
+        let ghandle = fhandle.open("compressed_sparse_matrix");
+        handle_stack.push(ghandle);
+        ghandle.writeDataSet("shape", "Uint32", [2], [x.matrix.numberOfRows(), x.matrix.numberOfColumns()]);
         ghandle.writeDataSet("layout", "String", [], ["CSC"]);
         sucess = true;
     } finally {
+        for (const handle of handle_stack.reverse()) {
+            handle.close();
+        }
         await globals.h5finish(handle, !success);
+    }
+
+    await globals.write(jsp.joinPath(path, "OBJECT"), JSON.stringify({
+        type: "compressed_sparse_matrix",
+        compressed_sparse_matrix: { version: "1.0" }
+    }));
+
+    if ("external_Matrix_store" in options) {
+        options.external_Matrix_store.push([x, path]);
     }
 }
 
-export function dumpNormalizedMatrix(mat, sf, path, countPath, forceBuffer) {
-    let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
-    let contents = temppath;
-
+export async function dumpNormalizedMatrix(x, path, globals, options) {
+    let fhandle = await globals.h5create(jsp.joinPath(path, "array.h5"));
+    let handle_stack = [fhandle];
+    let success = false;
     try {
-        let fhandle = scran.createNewHdf5File(temppath);
-
         // Saving the division by log(2).
         let dhandle = fhandle.createGroup("logcounts");
-        dhandle.writeAttribute("delayed_type", "String", null, "operation");
-        dhandle.writeAttribute("delayed_operation", "String", null, "unary arithmetic");
-        dhandle.writeDataSet("value", "Float64", null, Math.log(2));
-        dhandle.writeDataSet("method", "String", null, "/");
-        dhandle.writeDataSet("side", "String", null, "right");
+        handle_stack.push(dhandle);
+        dhandle.writeAttribute("delayed_type", "String", [], "operation");
+        dhandle.writeAttribute("delayed_operation", "String", [], "unary arithmetic");
+        dhandle.writeDataSet("value", "Float64", [], { data: [Math.log(2)] });
+        dhandle.writeDataSet("method", "String", [], { data: ["/"] });
+        dhandle.writeDataSet("side", "String", [], { data: ["right"] });
 
         // Saving the log-transformation.
         let l1phandle = dhandle.createGroup("seed");
-        l1phandle.writeAttribute("delayed_type", "String", null, "operation");
-        l1phandle.writeAttribute("delayed_operation", "String", null, "unary math");
-        l1phandle.writeDataSet("method", "String", null, "log1p");
+        handle_stack.push(l1handle);
+        l1phandle.writeAttribute("delayed_type", "String", [], { data: ["operation"] });
+        l1phandle.writeAttribute("delayed_operation", "String", [], { data: ["unary math"] });
+        l1phandle.writeDataSet("method", "String", [], { data: ["log1p"] });
 
         // Saving the division by the size factors.
         let sfhandle = l1phandle.createGroup("seed");
-        sfhandle.writeAttribute("delayed_type", "String", null, "operation");
-        sfhandle.writeAttribute("delayed_operation", "String", null, "unary arithmetic");
-        sfhandle.writeDataSet("value", "Float64", null, sf);
-        sfhandle.writeDataSet("method", "String", null, "/");
-        sfhandle.writeDataSet("side", "String", null, "right");
-        sfhandle.writeDataSet("along", "Int32", null, 1);
+        handle_stack.push(sfhandle);
+        sfhandle.writeAttribute("delayed_type", "String", [], { data: ["operation"] });
+        sfhandle.writeAttribute("delayed_operation", "String", [], { data: ["unary arithmetic"] });
+        sfhandle.writeDataSet("value", "Float64", [x.sf.length], { data: x.sf });
+        sfhandle.writeDataSet("method", "String", [], { data: ["/"] });
+        sfhandle.writeDataSet("side", "String", [], { data: ["right"] });
+        sfhandle.writeDataSet("along", "Int32", [], { data: [1] });
 
         // Saving the original seed as a custom array.
         let xhandle = sfhandle.createGroup("seed");
-        xhandle.writeAttribute("delayed_type", "String", null, "array");
-        xhandle.writeAttribute("delayed_array", "String", null, "custom alabaster local array");
-        xhandle.writeDataSet("dimensions", "Int32", null, [mat.numberOfRows(), mat.numberOfColumns()]);
-        xhandle.writeDataSet("type", "String", null, "FLOAT");
-        xhandle.writeDataSet("path", "String", null, countPath);
+        handle_stack.push(xhandle);
+        xhandle.writeAttribute("delayed_type", "String", [], { data: ["array"] });
+        xhandle.writeAttribute("delayed_array", "String", [], { data: ["custom takane seed array"] });
+        xhandle.writeDataSet("dimensions", "Int32", [2], { data: [mat.numberOfRows(), mat.numberOfColumns()] });
+        xhandle.writeDataSet("type", "String", [], { data: ["FLOAT"] });
+        xhandle.writeDataSet("index", "Uint8", [], { data: [0] });
 
-        if (forceBuffer) {
-            contents = scran.readFile(temppath);
-            scran.removeFile(temppath);
+        let seed_dir = jsp.joinPath(path, "seeds");
+        await globals.mkdir(seed_dir);
+        await saveSparseMatrix(x.matrix, jsp.joinPath(seed_dir, "0"), globals, options);
+        success = true;
+
+    } finally {
+        for (const handle of handle_stack.reverse()) {
+            handle.close();
         }
-    } catch (e) {
-        scran.removeFile(temppath);
-        throw e;
+        await globals.h5finish(handle, !success);
     }
 
-    return {
-        metadata: {
-            "$schema": "hdf5_delayed_array/v1.json",
-            "path": path + "/array.h5",
-            "array": {
-                "dimensions": [mat.numberOfRows(), mat.numberOfColumns()],
-                "type": "number"
-            },
-            "hdf5_delayed_array": {
-                "group": "logcounts"
-            }
-        },
-        contents: contents
-    };
+    await globals.write(jsp.joinPath(path, "OBJECT"), JSON.stringify({
+        type: "delayed_array",
+        delayed_array: { version: "1.0" }
+    }));
 }
