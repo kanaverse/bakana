@@ -124,8 +124,8 @@ class AlabasterGlobalsInterface extends jsp.GlobalsInterface {
         this.#navigator.clean(localPath); 
     }
 
-    h5open(path) {
-        let realized = scran.realizeFile(this.get(path));
+    async h5open(path) {
+        let realized = scran.realizeFile(await this.get(path));
         try {
             return new AlabasterH5Group(new scran.H5File(realized.path), realized.flush);
         } catch (e) {

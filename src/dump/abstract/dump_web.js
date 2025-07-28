@@ -1,20 +1,19 @@
-import { md5 } from 'hash-wasm';
-import * as scran from "scran.js";
-
-export async function attachMd5sums(files) {
-    for (const x of files) {
-        if (!("contents" in x)) {
-            continue;
-        }
-        x.metadata.md5sum = await md5(x.contents);
-    }
+export function initialize(host) {
+    return {};
 }
 
-export function realizeDirectory(files, directory) {
-    throw new Error("cannot realize files into a directory in a web context");
-    return;
+export function read(host, path, asBuffer) {
+    return host[path];
 }
 
-export function loadFilePath(p) {
-    return scran.readFile(p);
+export function write(host, path, x) {
+    host[path] = x;
+}
+
+export function mkdir(host, path) {
+    host[path] = null;
+}
+
+export function copy(host, from, to) {
+    host[to] = host[from];
 }

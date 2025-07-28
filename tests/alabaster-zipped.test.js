@@ -24,11 +24,11 @@ function compressDirectoryInternal(dir, handle) {
     }
 }
 
-function compressDirectory(dir, prefixes) {
+function compressDirectory(dir, prefix = ".") {
     let zip = new JSZip;
     let handle = zip;
-    for (const p of prefixes) {
-        handle = handle.folder(p);
+    if (prefix !== ".") {
+        handle = handle.folder(prefix);
     }
     compressDirectoryInternal(dir, handle);
     return zip.generateAsync({ type: "uint8array", compression: "DEFLATE" })
@@ -45,7 +45,7 @@ test("searchZippedAlabaster works correctly", async () => {
         fs.writeFileSync(path.join(dir, "foo", "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [20, 40] }}));
         fs.mkdirSync(path.join(dir, "bar"));
         fs.writeFileSync(path.join(dir, "bar", "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [30, 60] }}));
-        let payload = await compressDirectory(dir, []);
+        let payload = await compressDirectory(dir);
         let handle = await JSZip.loadAsync(payload);
         let found = await bakana.searchZippedAlabaster(handle);
         expect(found.size).toEqual(1);
@@ -59,7 +59,7 @@ test("searchZippedAlabaster works correctly", async () => {
         fs.writeFileSync(path.join(dir, "foo", "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [20, 40] }}));
         fs.mkdirSync(path.join(dir, "bar"));
         fs.writeFileSync(path.join(dir, "bar", "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [30, 60] }}));
-        let payload = await compressDirectory(dir, []);
+        let payload = await compressDirectory(dir);
         let handle = await JSZip.loadAsync(payload);
         let found = await bakana.searchZippedAlabaster(handle);
         expect(found.size).toEqual(2);
@@ -74,7 +74,7 @@ test("searchZippedAlabaster works correctly", async () => {
         fs.writeFileSync(path.join(dir, "foo", "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [20, 40] }}));
         fs.mkdirSync(path.join(dir, "foo", "bar"));
         fs.writeFileSync(path.join(dir, "foo", "bar", "OBJECT"), JSON.stringify({ type: "summarized_experiment", summarized_experiment: { version: "1.0", dimensions: [30, 60] }}));
-        let payload = await compressDirectory(dir, []);
+        let payload = await compressDirectory(dir);
         let handle = await JSZip.loadAsync(payload);
         let found = await bakana.searchZippedAlabaster(handle);
         expect(found.size).toEqual(1);
@@ -83,9 +83,9 @@ test("searchZippedAlabaster works correctly", async () => {
 })
 
 test("ZippedAlabasterDataset works correctly", async () => {
-    for (const mode of [ { prefix: [], path: "." }, { prefix: [ "foo", "bar" ], path: "foo/bar" } ]) {
-        let contents = await compressDirectory("files/datasets/alabaster/zeisel-brain-stripped", mode.prefix);
-        let stripped_ds = new bakana.ZippedAlabasterDataset(mode.path, new bakana.SimpleFile(contents, { name: "my.zip" }));
+    for (const loc of [ ".", "foo/bar" ]) {
+        let contents = await compressDirectory("files/datasets/alabaster/zeisel-brain-stripped", loc);
+        let stripped_ds = new bakana.ZippedAlabasterDataset(loc, new bakana.SimpleFile(contents, { name: "my.zip" }));
 
         let summ = await stripped_ds.summary({ cache: true });
         expect(Object.keys(summ.modality_features)).toEqual([""]);
@@ -115,9 +115,9 @@ test("ZippedAlabasterDataset works correctly", async () => {
 })
 
 test("ZippedAlabasterResult works correctly", async () => {
-    for (const mode of [ { prefix: [], path: "." }, { prefix: [ "foo", "bar" ], path: "foo/bar" } ]) {
-        let contents = await compressDirectory("files/datasets/alabaster/zeisel-brain-sparse-results-delayed", mode.prefix);
-        let res = new bakana.ZippedAlabasterResult(mode.path, new bakana.SimpleFile(contents, { name: "my.zip" }));
+    for (const loc of [ ".", "foo/bar" ]) {
+        let contents = await compressDirectory("files/datasets/alabaster/zeisel-brain-sparse-results-delayed", loc);
+        let res = new bakana.ZippedAlabasterResult(loc, new bakana.SimpleFile(contents, { name: "my.zip" }));
 
         let summ = await res.summary({ cache: true });
         expect(Object.keys(summ.modality_features)).toEqual(["rna"]);
