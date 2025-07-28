@@ -103,7 +103,7 @@ class AlabasterH5DataSet extends jsp.H5DataSet {
     close() {}
 }
 
-class AlabasterFsInterface extends jsp.GlobalFsInterface {
+class AlabasterGlobalsInterface extends jsp.GlobalsInterface {
     #navigator;
 
     constructor(navigator) {
@@ -123,16 +123,18 @@ class AlabasterFsInterface extends jsp.GlobalFsInterface {
     clean(localPath) {
         this.#navigator.clean(localPath); 
     }
-}
 
-class AlabasterH5Interface {
-    open(x, options) {
-        let realized = scran.realizeFile(x);
-        let output = new AlabasterH5Group(new scran.H5File(realized.path), realized.flush);
-        return output;
+    h5open(path) {
+        let realized = scran.realizeFile(this.get(path));
+        try {
+            return new AlabasterH5Group(new scran.H5File(realized.path), realized.flush);
+        } catch (e) {
+            realized.flush();
+            throw e;
+        }
     }
 
-    close(handle) {
+    h5close(handle) {
         handle._flush();
     }
 }
@@ -163,7 +165,7 @@ class MockMatrix {
     async realize(globals, forceInteger, forceSparse) {
         let metadata = await jsp.readObjectFile(this.#path, globals);
         if (metadata.type == "delayed_array") {
-            let contents = await globals.fs.get(jsp.joinPath(this.#path, "array.h5"));
+            let contents = await globals.get(jsp.joinPath(this.#path, "array.h5"));
             try {
                 let realized = scran.realizeFile(contents);
                 try {
@@ -177,7 +179,7 @@ class MockMatrix {
                     realized.flush();
                 }
             } finally {
-                await globals.fs.clean(contents);
+                await globals.clean(contents);
             }
         } else {
             return extract_matrix(this.#path, metadata, globals, forceInteger, forceSparse);
@@ -187,7 +189,7 @@ class MockMatrix {
 
 async function extract_matrix(path, metadata, globals, { forceInteger = true, forceSparse = true } = {}) {
     if (metadata.type == "compressed_sparse_matrix") {
-        let contents = await globals.fs.get(jsp.joinPath(path, "matrix.h5"));
+        let contents = await globals.get(jsp.joinPath(path, "matrix.h5"));
         try {
             let realized = scran.realizeFile(contents);
             try {
@@ -204,11 +206,11 @@ async function extract_matrix(path, metadata, globals, { forceInteger = true, fo
                 realized.flush();
             }
         } finally {
-            await globals.fs.clean(contents);
+            await globals.clean(contents);
         }
 
     } else if (metadata.type == "dense_array") {
-        let contents = await globals.fs.get(jsp.joinPath(path, "array.h5"));
+        let contents = await globals.get(jsp.joinPath(path, "array.h5"));
         try {
             let realized = scran.realizeFile(contents);
             try {
@@ -226,7 +228,7 @@ async function extract_matrix(path, metadata, globals, { forceInteger = true, fo
                 realized.flush();
             }
         } finally {
-            await globals.fs.clean(contents);
+            await globals.clean(contents);
         }
 
     } else {
@@ -397,7 +399,7 @@ function simplify_List_columns(df) { // avoid the hassle of dealing with List co
     for (const k of df.columnNames()) {
         let col = df.column(k);
         if (col instanceof bioc.List) {
-            df.set(k, col.toArray(), { inPlace: true });
+            df.setColumn(k, col.toArray(), { inPlace: true });
         }
     }
     return null;
@@ -496,10 +498,7 @@ export class AbstractAlabasterDataset {
     }
 
     #create_globals() { 
-        return {
-            fs: new AlabasterFsInterface(this.#navigator),
-            h5: new AlabasterH5Interface
-        };
+        return new AlabasterGlobalsInterface(this.#navigator);
     }
 
     async #populate() {
@@ -738,10 +737,7 @@ export class AbstractAlabasterResult {
     }
 
     #create_globals() { 
-        return {
-            fs: new AlabasterFsInterface(this.#navigator),
-            h5: new AlabasterH5Interface
-        };
+        return new AlabasterGlobalsInterface(this.#navigator);
     }
 
     async #populate() {

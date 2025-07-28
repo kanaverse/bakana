@@ -1,35 +1,64 @@
 import * as scran from "scran.js";
 
-export function dumpCountMatrix(mat, path, forceBuffer) {
-    let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
-    let contents = temppath;
+export class MockSparseMatrix {
+    #matrix;
 
-    try {
-        scran.writeSparseMatrixToHdf5(mat, temppath, "matrix", { format: "tenx_matrix" });
-        if (forceBuffer) {
-            contents = scran.readFile(temppath);
-            scran.removeFile(temppath);
-        }
-    } catch (e) {
-        scran.removeFile(temppath);
-        throw e;
+    constructor(matrix) {
+        this.#matrix = matrix;
     }
 
-    return {
-        metadata: {
-            "$schema": "hdf5_sparse_matrix/v1.json",
-            "path": path + "/matrix.h5",
-            "array": {
-                "dimensions": [mat.numberOfRows(), mat.numberOfColumns()],
-                "type": "integer"
-            },
-            "hdf5_sparse_matrix": {
-                "group": "matrix",
-                "format": "tenx_matrix"
-            }
-        },
-        contents: contents
-    };
+    _bioconductor_NUMBER_OF_ROWS() {
+        return this.#matrix.numberOfRows();
+    }
+
+    _bioconductor_NUMBER_OF_COLUMNS() {
+        return this.#matrix.numberOfColumns();
+    }
+
+    get matrix() {
+        return this.#matrix;
+    }
+}
+
+export class MockNormalizedMatrix {
+    #matrix;
+    #sf;
+
+    constructor(matrix, sf) {
+        this.#matrix = matrix;
+        this.#sf = sf;
+    }
+
+    _bioconductor_NUMBER_OF_ROWS() {
+        return this.#matrix.numberOfRows();
+    }
+
+    _bioconductor_NUMBER_OF_COLUMNS() {
+        return this.#matrix.numberOfColumns();
+    }
+
+    get matrix() {
+        return this.#matrix;
+    }
+
+    get sf() {
+        return this.#sf;
+    }
+}
+
+export async function saveSparseMatrix(x, path, globals, options) {
+    let handle = await globals.h5create(jsp.joinPath(path, "matrix.h5"))
+    let success = false;
+
+    try {
+        scran.writeSparseMatrixToHdf5(mat, handle._path, "compressed_sparse_matrix", { format: "tenx_matrix", saveShape: false });
+        let ghandle = handle.open("compressed_sparse_matrix");
+        ghandle.writeDataSet("shape", "Uint32", [2], [mat.numberOfRows(), mat.numberOfColumns()]);
+        ghandle.writeDataSet("layout", "String", [], ["CSC"]);
+        sucess = true;
+    } finally {
+        await globals.h5finish(handle, !success);
+    }
 }
 
 export function dumpNormalizedMatrix(mat, sf, path, countPath, forceBuffer) {

@@ -38,7 +38,7 @@ export function formatMarkerDetectionResults(state, modality_names) {
     return all_output;
 }
 
-export function dumpCustomSelectionResults(state, modality_names) {
+export function formatCustomSelectionResults(state, modality_names) {
     const do_auc = state.custom_selections.fetchParameters().compute_auc;
     let all_sel = state.custom_selections.fetchSelections();
     let all_rowdata = state.inputs.fetchFeatureAnnotations();
