@@ -67,7 +67,7 @@ export async function saveSparseMatrix(x, path, globals, options) {
         let ghandle = fhandle.open("compressed_sparse_matrix");
         handle_stack.push(ghandle);
         ghandle.writeDataSet("shape", "Uint32", [2], [x.matrix.numberOfRows(), x.matrix.numberOfColumns()]);
-        ghandle.writeDataSet("layout", "String", [], ["CSC"]);
+        ghandle.writeAttribute("layout", "String", [], ["CSC"]);
         sucess = true;
     } finally {
         for (const handle of handle_stack.reverse()) {

@@ -1,33 +1,7 @@
 import * as bioc from "bioconductor";
 import * as df from "./DataFrame.js";
 import { MockSparseMatrix, MockNormalizedMatrix } from "./assays.js";
-
-class MockReducedDimensionMatrix {
-    #values;
-    #nr;
-    #nc;
-
-    constructor(nr, nc, values) {
-        this.#nr = nr;
-        this.#nc = nc;
-        this.#values = values;
-    }
-
-    _bioconductor_NUMBER_OF_ROWS() {
-        return this.#nr;
-    }
-
-    _bioconductor_NUMBER_OF_COLUMNS() {
-        return this.#nc;
-    }
-
-    get values() {
-        return this.#values;
-    }
-}
-
-/************************************************
- ************************************************/
+import { MockReducedDimensionMatrix } from "./reducedDimensions.js";
 
 export async function formatSingleCellExperiment(state, path, { reportOneIndex = false, storeModalityColumnData = false } = {}) {
     let all_rowdata = state.inputs.fetchFeatureAnnotations();
