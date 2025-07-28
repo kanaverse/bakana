@@ -26,6 +26,7 @@ export class MockReducedDimensionMatrix {
 }
 
 export async function saveReducedDimensionMatrix(x, path, globals, options) {
+    await globals.mkdir(path);
     let handle = await globals.h5create(jsp.joinPath(path, "matrix.h5"));
     let handle_stack = [fhandle]
     let success = false;

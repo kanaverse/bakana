@@ -1,4 +1,4 @@
-import * as scran from "scran";
+import * as scran from "scran.js";
 import * as jsp from "jaspagate";
 import * as internal from "./abstract/dump.js";
 
@@ -11,12 +11,12 @@ function toStringType(data, options) {
         if (data == null) {
             throw new Error("'maxStringLength' must be supplied if 'data' is null"); 
         }
-        length = scran.findMaxStringLength(data);
+        length = scran.findMaxStringLength(data, null);
     }
     return new scran.H5StringType("UTF-8", length);
 }
 
-class AlabasterH5Group extends jsp.H5Group {
+export class AlabasterH5Group extends jsp.H5Group {
     #handle;
 
     constructor(handle) {
@@ -24,18 +24,31 @@ class AlabasterH5Group extends jsp.H5Group {
         this.#handle = handle;
     }
 
-    writeAttribute(name, type, shape, data, options) {
+    writeAttribute(name, type, shape, data, options = {}) {
         if (type == "String") {
             type = toStringType(data, options);
         }
         this.#handle.writeAttribute(name, type, shape, data);
     }
 
-    createGroup(name) {
-        return new AlabasterH5Group(this.#handle.createGroup(name);
+    open(name) {
+        let out = this.#handle.open(name);
+        if (out instanceof scran.H5Group) {
+            return new AlabasterH5Group(out);
+        } else {
+            return new AlabasterH5DataSet(out);
+        }
     }
 
-    createDataSet(name, type, shape, options) {
+    children() {
+        return this.#handle.children;
+    }
+
+    createGroup(name) {
+        return new AlabasterH5Group(this.#handle.createGroup(name));
+    }
+
+    createDataSet(name, type, shape, options = {}) {
         if ("data" in options) {
             if (type == "String") {
                 type = toStringType(options.data, options);
@@ -52,7 +65,7 @@ class AlabasterH5Group extends jsp.H5Group {
     close() {}
 }
 
-class AlabasterH5DataSet extends jsp.H5DataSet {
+export class AlabasterH5DataSet extends jsp.H5DataSet {
     #handle;
 
     constructor(handle) {
@@ -60,7 +73,7 @@ class AlabasterH5DataSet extends jsp.H5DataSet {
         this.#handle = handle;
     }
 
-    writeAttribute(name, type, shape, data, options) {
+    writeAttribute(name, type, shape, data, options = {}) {
         if (type == "String") {
             type = toStringType(data, options);
         }
@@ -74,7 +87,7 @@ class AlabasterH5DataSet extends jsp.H5DataSet {
     close() {}
 }
 
-class AlabasterGlobalsInterface extends jsp.GlobalsInterface {
+export class AlabasterGlobalsInterface extends jsp.GlobalsInterface {
     #directory;
     #files;
 
@@ -103,13 +116,13 @@ class AlabasterGlobalsInterface extends jsp.GlobalsInterface {
         }
     }
 
-    mkdir(path) {
+    async mkdir(path) {
         if (this.#directory !== null) {
             await internal.mkdir(this.#directory, path);
         }
     }
 
-    copy(from, to) {
+    async copy(from, to) {
         if (this.#directory !== null) {
             await internal.copy(this.#directory, from, to);
         } else {

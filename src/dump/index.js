@@ -3,6 +3,8 @@ import * as markers from "./markers.js";
 import * as ass from "./assays.js";
 import * as rd from "./reducedDimensions.js";
 import * as internal from "./abstract/dump.js";
+import { AlabasterGlobalsInterface } from "./interfaces.js";
+import * as jsp from "jaspagate";
 
 /**
  * Save the analysis results into a SingleCellExperiment using the [**takane**](https://github.com/ArtifactDB/takane) format.
