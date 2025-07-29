@@ -1,10 +1,10 @@
 import * as bioc from "bioconductor";
 import * as df from "./DataFrame.js";
 
-const translate_effects = { "lfc": "lfc", "delta_detected": "deltaDetected", "auc": "auc", "cohen": "cohen" };
+const translate_effects = { "lfc": "deltaMean", "delta_detected": "deltaDetected", "auc": "auc", "cohen": "cohensD" };
 
 export function formatMarkerDetectionResults(state, modality_names) {
-    const translate_summary = { "min": 0, "mean": 1, "min_rank": 4 };
+    const translate_summary = { "min": "minimum", "mean": "mean", "min_rank": "min-rank" };
     const do_auc = state.marker_detection.fetchParameters().compute_auc;
     let all_rowdata = state.inputs.fetchFeatureAnnotations();
     let all_output = {};
@@ -17,7 +17,7 @@ export function formatMarkerDetectionResults(state, modality_names) {
         for (var group = 0; group < ngroups; group++) {
             let mdf = new bioc.DataFrame({}, { numberOfRows: nfeatures, rowNames: rn });
 
-            for (const x of [ "means", "detected" ]) {
+            for (const x of [ "mean", "detected" ]) {
                 mdf.setColumn(x, res[x](group, { copy: "view" }), { inPlace: true });
             }
 
@@ -51,7 +51,7 @@ export function formatCustomSelectionResults(state, modality_names) {
             let res = state.custom_selections.fetchResults(sel)[m];
             let mdf = new bioc.DataFrame({}, { numberOfRows: nfeatures, rowNames: rn });
 
-            for (const x of [ "means", "detected" ]) {
+            for (const x of [ "mean", "detected" ]) {
                 mdf.setColumn(x, res[x](1, { copy: "view" }), { inPlace: true });
             }
 

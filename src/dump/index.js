@@ -5,6 +5,39 @@ import * as rd from "./reducedDimensions.js";
 import * as internal from "./abstract/dump.js";
 import { AlabasterGlobalsInterface } from "./interfaces.js";
 import * as jsp from "jaspagate";
+import * as wa from "wasmarrays.js";
+
+function saveOtherDataFrameColumns(y, handle, name) {
+    if (y instanceof wa.Float64WasmArray) {
+        let chandle = handle.createDataSet(name, "Float64", [ y.length ], { data: y });
+        try {
+            chandle.writeAttribute("type", "String", [], ["number"]);
+        } finally {
+            chandle.close();
+        }
+        return true;
+
+    } else if (y instanceof wa.Int32WasmArray) {
+        let chandle = handle.createDataSet(name, "Int32", [ y.length ], { data: y });
+        try {
+            chandle.writeAttribute("type", "String", [], ["integer"]);
+        } finally {
+            chandle.close();
+        }
+        return true;
+
+    } else if (y instanceof wa.Uint8WasmArray) {
+        let chandle = handle.createDataSet(name, "Uint8", [ y.length ], { data: y });
+        try {
+            chandle.writeAttribute("type", "String", [], ["boolean"]);
+        } finally {
+            chandle.close();
+        }
+        return true;
+    }
+
+    return false;
+}
 
 /**
  * Save the analysis results into a SingleCellExperiment using the [**takane**](https://github.com/ArtifactDB/takane) format.
@@ -42,7 +75,7 @@ export async function saveSingleCellExperiment(state, name, { reportOneIndex = f
     jsp.saveObjectRegistry.push([ ass.MockNormalizedMatrix, ass.saveNormalizedMatrix ]); 
     jsp.saveObjectRegistry.push([ rd.MockReducedDimensionMatrix, rd.saveReducedDimensionMatrix]); 
     try {
-        await jsp.saveObject(my_sce, name, globals);
+        await jsp.saveObject(my_sce, name, globals, { DataFrame_saveOther: saveOtherDataFrameColumns });
     } finally {
         jsp.saveObjectRegistry.pop();
         jsp.saveObjectRegistry.pop();
@@ -101,7 +134,7 @@ export async function saveGenewiseResults(state, path, { includeMarkerDetection 
         }
         let all = markers.formatMarkerDetectionResults(state, modalities);
         for (const [k, v] of Object.entries(all)) {
-            await jsp.saveObject(v, jsp.joinPath(dir, k), globals);
+            await jsp.saveObject(v, jsp.joinPath(dir, k), globals, { DataFrame_saveOther: saveOtherDataFrameColumns });
         }
     }
 
@@ -112,13 +145,13 @@ export async function saveGenewiseResults(state, path, { includeMarkerDetection 
         }
         let all = markers.formatCustomSelectionResults(state, modalities);
         for (const [k, v] of Object.entries(all)) {
-            await jsp.saveObject(v, jsp.joinPath(dir, k), globals);
+            await jsp.saveObject(v, jsp.joinPath(dir, k), globals, { DataFrame_saveOther: saveOtherDataFrameColumns });
         }
     }
 
     if (state.feature_selection.valid() && includeFeatureSelection) {
-        let df = markers.dumpFeatureSelectionResults(state, modalities.RNA);
-        await jsp.saveObject(df, jsp.joinPath(path, "feature_selection"), globals);
+        let df = markers.formatFeatureSelectionResults(state, modalities.RNA);
+        await jsp.saveObject(df, jsp.joinPath(path, "feature_selection"), globals, { DataFrame_saveOther: saveOtherDataFrameColumns });
     }
 
     if (directory === null) {
