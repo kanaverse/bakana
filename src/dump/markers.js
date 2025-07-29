@@ -62,7 +62,7 @@ export function formatCustomSelectionResults(state, modality_names) {
                 mdf.setColumn(eff, res[trans_eff](1, { copy: "view" }), { inPlace: true });
             }
 
-            all_output[m + "/" + self] = mdf;
+            all_output[m + "/" + sel] = mdf;
         }
     }
 

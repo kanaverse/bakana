@@ -73,7 +73,7 @@ export class InputsState {
     }
 
     /**
-     * @return {?Int32Array} Array of length equal to the number of cells in the dataset,
+     * @return {?Int32WasmArray} Array of length equal to the number of cells in the dataset,
      * identifying the block to which each cell is assigned.
      * Alternatively `null`, if no blocking is performed.
      */
@@ -643,7 +643,7 @@ function block_and_cache(block_factor, cache) {
             if (anno_batch.length != cache.raw_matrix.numberOfColumns()) {
                 throw new Error("length of blocking factor '" + block_factor + "' should be equal to the number of cells"); 
             }
-            let converted = scran.factorize(anno_batch, { action: "none", placeholder: invalid_block_id });
+            let converted = scran.convertToFactor(anno_batch, { action: "none", placeholder: invalid_block_id });
             blocks = converted.ids;
             block_levels = converted.levels;
         } catch (e) {
@@ -700,9 +700,9 @@ function subset_and_cache(subset, cache) {
             new_annotations = bioc.SLICE(cache.raw_annotations, keep);
 
             if (cache.raw_block_ids !== null) {
-                new_block_ids = scran.subsetBlock(cache.raw_block_ids, keep);
-                let dropped = scran.dropUnusedBlock(new_block_ids);
-                new_block_levels = dropped.map(x => cache.raw_block_levels[x]);
+                let subsetted = scran.subsetFactor({ ids: cache.raw_block_ids, levels: cache.raw_block_levels }, keep);
+                new_block_ids = subsetted.ids;
+                new_block_levels = subsetted.levels;
             } else {
                 new_block_ids = null;
                 new_block_levels = null;

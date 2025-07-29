@@ -409,12 +409,12 @@ export async function checkStateResultsBlocked(state) {
     // Check that multiple QC thresholds exist.
     if (state.rna_quality_control.valid()) {
         let res = state.rna_quality_control.fetchFilters();
-        let props = res.subsetProportions(0);
+        let props = res.subsetProportion(0);
         expect(props.length).toEqual(nlevels);
     }
     if (state.adt_quality_control.valid()) {
         let res = state.adt_quality_control.fetchFilters();
-        let props = res.subsetTotal(0);
+        let props = res.subsetSum(0);
         expect(props.length).toEqual(nlevels);
     }
     if (state.crispr_quality_control.valid()) {
@@ -448,11 +448,11 @@ export function checkStateResultsAdt(state, { exclusive = false } = {}) {
         expect(amet instanceof scran.PerCellAdtQcMetricsResults).toBe(true);
 
         let positive_total = 0;
-        amet.subsetTotal(0, { copy: false }).forEach(x => { positive_total += (x > 0); });
+        amet.subsetSum(0, { copy: false }).forEach(x => { positive_total += (x > 0); });
         expect(positive_total).toBeGreaterThan(0);
 
         // Check that the feature ID guessers find the IgGs.
-        let igvec = amet.subsetTotal(0);
+        let igvec = amet.subsetSum(0);
         let sum = igvec.reduce((a, b) => a+b);
         expect(sum).toBeGreaterThan(0);
 
@@ -461,7 +461,7 @@ export function checkStateResultsAdt(state, { exclusive = false } = {}) {
         let afilt = state.adt_quality_control.fetchFilters();
         expect(afilt instanceof scran.SuggestAdtQcFiltersResults).toBe(true);
         expect(afilt.detected()[0]).toBeGreaterThan(0);
-        expect(afilt.subsetTotal(0)[0]).toBeGreaterThan(0);
+        expect(afilt.subsetSum(0)[0]).toBeGreaterThan(0);
     }
 
     let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
@@ -630,8 +630,8 @@ export function checkStateResultsRnaPlusAdt(state) {
         let adt_only = 0;
         state.adt_quality_control.fetchKeep().forEach(x => { adt_only += (x > 0); });
 
-        expect(nfiltered).toBeGreaterThan(rna_only);
-        expect(nfiltered).toBeGreaterThan(adt_only);
+        expect(nfiltered).toBeLessThan(rna_only);
+        expect(nfiltered).toBeLessThan(adt_only);
     }
 
     // Combined embeddings.
@@ -744,12 +744,12 @@ export async function compareStates(left, right, { checkRna = true, checkAdt = f
         let rmetrics = right.adt_quality_control.fetchMetrics();
         expect(lmetrics.sum()).toEqual(rmetrics.sum());
         expect(lmetrics.detected()).toEqual(rmetrics.detected());
-        expect(lmetrics.subsetTotal(0)).toEqual(rmetrics.subsetTotal(0));
+        expect(lmetrics.subsetSum(0)).toEqual(rmetrics.subsetSum(0));
 
         let lfilters = left.adt_quality_control.fetchFilters();
         let rfilters = right.adt_quality_control.fetchFilters();
         expect(lfilters.detected()).toEqual(rfilters.detected());
-        expect(lfilters.subsetTotal(0)).toEqual(rfilters.subsetTotal(0));
+        expect(lfilters.subsetSum(0)).toEqual(rfilters.subsetSum(0));
 
         let ldiscards = left.adt_quality_control.fetchKeep().array();
         let rdiscards = right.adt_quality_control.fetchKeep().array();

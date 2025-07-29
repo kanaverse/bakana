@@ -59,7 +59,7 @@ export function formatColumnData(state, all_modalities, main_modality, all_other
         let adf = all_coldata[target];
         adf = adf.setColumn(prefix + "::sums", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().sum({ copy: false })));
         adf = adf.setColumn(prefix + "::detected", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().detected({ copy: false })));
-        adf = adf.setColumn(prefix + "::igg_totals", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().subsetTotal(0, { copy: false })));
+        adf = adf.setColumn(prefix + "::igg_totals", state.cell_filtering.applyFilter(state.adt_quality_control.fetchMetrics().subsetSum(0, { copy: false })));
         all_coldata[target] = adf;
 
         all_other_metadata[target].set(
@@ -67,7 +67,7 @@ export function formatColumnData(state, all_modalities, main_modality, all_other
             {
                 "filters": {
                     "detected": state.adt_quality_control.fetchFilters().detected(),
-                    "igg_totals": state.adt_quality_control.fetchFilters().subsetTotal(0)
+                    "igg_totals": state.adt_quality_control.fetchFilters().subsetSum(0)
                 }
             },
             { inPlace: true }

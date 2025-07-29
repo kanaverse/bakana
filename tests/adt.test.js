@@ -84,8 +84,11 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     expect(custom.versus.results.ADT.numberOfGroups()).toEqual(custom.versus.results.RNA.numberOfGroups());
 
     // Check saving of results.
+    utils.purgeDirectory("miscellaneous/from-tests/adt");
     await bakana.saveSingleCellExperiment(state, "adt", { directory: "miscellaneous/from-tests" });
+    utils.purgeDirectory("miscellaneous/from-tests/adt_split");
     await bakana.saveSingleCellExperiment(state, "adt_split", { directory: "miscellaneous/from-tests", storeModalityColumnData: true });
+    utils.purgeDirectory("miscellaneous/from-tests/adt_genes");
     await bakana.saveGenewiseResults(state, "adt_genes", { directory: "miscellaneous/from-tests" });
 
     // Release me!

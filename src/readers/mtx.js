@@ -152,7 +152,7 @@ export class TenxMatrixMarketDataset {
             return;
         }
         var is_gz = this.#matrix_file.name().endsWith(".gz");
-        let headers = scran.extractMatrixMarketDimensions(this.#matrix_file.content(), { "compressed": is_gz });
+        let headers = scran.extractMatrixMarketDimensions(this.#matrix_file.content(), { "compression": (is_gz ? "gzip" : "none") });
         this.#dimensions = [headers.rows, headers.columns];
     }
 
@@ -341,7 +341,7 @@ export class TenxMatrixMarketDataset {
         await this.#cells();
 
         var is_gz = this.#matrix_file.name().endsWith(".gz");
-        let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compressed": is_gz });
+        let loaded = scran.initializeSparseMatrixFromMatrixMarket(this.#matrix_file.content(), { "compression": (is_gz ? "gzip" : "none") });
 
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", this.#feature_type_mapping(), "RNA"); 
         output.cells = this.#raw_cells;

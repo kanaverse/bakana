@@ -1,4 +1,5 @@
 import * as scran from "scran.js"; 
+import * as wa from "wasmarrays.js";
 import * as utils from "./utils/general.js";
 import * as rna_qc_module from "./rna_quality_control.js";
 import * as adt_qc_module from "./adt_quality_control.js";
@@ -145,7 +146,7 @@ export class CellFilteringState {
                 // matrix, it'll be needed once we have the blocks anyway.
                 let filtered_ncols = this.fetchFilteredMatrix().numberOfColumns();
                 let bcache = utils.allocateCachedArray(filtered_ncols, "Int32Array", this.#cache, "block_buffer");
-                scran.filterBlock(block, this.#cache.keep_buffer, { buffer: bcache });
+                wa.subsetWasmArray(block, this.#cache.keep_buffer, { buffer: bcache, filter: false });
             } else {
                 this.#cache.block_buffer = block.view();
             }
@@ -195,12 +196,12 @@ export class CellFilteringState {
 
                 if (to_use.length > 1) {
                     // Lack of a keep signal any modality causes the cell to be removed. 
-                    let disc_buffer = utils.allocateCachedArray(first.length, "Uint8Array", this.#cache, "keep_buffer");
-                    disc_buffer.fill(1);
+                    let keep_buffer = utils.allocateCachedArray(first.length, "Uint8Array", this.#cache, "keep_buffer");
+                    keep_buffer.fill(1);
 
-                    let keep_arr = disc_buffer.array();
+                    let keep_arr = keep_buffer.array();
                     for (const u of to_use) {
-                        u.fetchKeep().forEach((y, i) => { disc_arr[i] = disc_arr[i] && y; });
+                        u.fetchKeep().forEach((y, i) => { keep_arr[i] = keep_arr[i] && y; });
                     }
                 } else {
                     // If there's only one valid modality, we just create a view on it

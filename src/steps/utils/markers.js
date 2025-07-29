@@ -1,4 +1,5 @@
 import * as scran from "scran.js";
+import * as wa from "wasmarrays.js";
 
 export const summaries2int = { "min": 0, "mean": 1, "min_rank": 4 };
 
@@ -175,8 +176,8 @@ export function freeVersusResults(cache) {
 export function computeVersusResults(matrices, clusters, block, keep, cache, lfc_threshold, compute_auc) {
     let new_block = null;
     if (block !== null) {
-        new_block = scran.subsetBlock(block, keep);
-        scran.dropUnusedBlock(new_block);
+        new_block = wa.subsetWasmArray(block, keep);
+        scran.dropUnusedLevels(new_block);
     }
 
     for (const modality of matrices.available()) {

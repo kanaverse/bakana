@@ -86,7 +86,7 @@ export class AdtNormalizationState {
     #raw_compute() {
         var mat = this.#filter.fetchFilteredMatrix().get("ADT");
         var raw_sf = this.#cache.raw_sf_buffer;
-        if (raw_.length != mat.numberOfColumns()) {
+        if (raw_sf.length != mat.numberOfColumns()) {
             throw new Error("length of size factor vector should equal number of columns after QC");
         }
 
@@ -120,7 +120,7 @@ export class AdtNormalizationState {
             if (this.valid()) {
                 var mat = this.#filter.fetchFilteredMatrix().get("ADT");
                 if (remove_bias) {
-                    this.#cache.raw_sf_buffer = scran.computeClrm1Factors(mat, { buffer: sf_buffer }); 
+                    this.#cache.raw_sf_buffer = scran.computeClrm1Factors(mat);
                 } else {
                     this.#cache.raw_sf_buffer = nutils.subsetSums(this.#qc, this.#filter, mat);
                 }

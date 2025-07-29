@@ -184,7 +184,7 @@ export function subsetInvalidFactors(arrays) {
     let invalid = new Uint8Array(N);
     invalid.fill(0);
     for (const x of arrays) {
-        let transformed = scran.factorize(x, { action: "none", placeholder: -1 });
+        let transformed = scran.convertToFactor(x, { action: "none", placeholder: -1 });
         output.arrays.push(transformed);
         transformed.ids.forEach((y, i) => {
             if (y == -1) {
@@ -213,13 +213,10 @@ export function subsetInvalidFactors(arrays) {
 
     for (var i = 0; i < output.arrays.length; i++) {
         let x = output.arrays[i];
-        let new_ids = scran.subsetBlock(x.ids, retain);
-        let remapping = scran.dropUnusedBlock(new_ids);
-        let new_levels = remapping.map(i => x.levels[i]);
-
+        let new_x = scran.subsetFactor(x, retain);
         scran.free(x.ids);
-        x.ids = new_ids;
-        x.levels = new_levels;
+        x.ids = new_x.ids;
+        x.levels = new_x.levels;
     }
 
     return output;
