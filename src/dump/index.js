@@ -64,6 +64,7 @@ function saveOtherDataFrameColumns(y, handle, name) {
  */
 export async function saveSingleCellExperiment(state, name, { reportOneIndex = false, storeModalityColumnData = false, directory = null } = {}) {
     let my_sce = await sce.formatSingleCellExperiment(state, { reportOneIndex, storeModalityColumnData });
+    console.log(my_sce.metadata());
 
     if (!(internal.fsexists())) {
         directory = null;
@@ -130,9 +131,10 @@ export async function saveGenewiseResults(state, path, { includeMarkerDetection 
     if (includeMarkerDetection) {
         let dir = "marker_detection";
         if (path !== null) {
-            dir = jsp.joinPath(dir, path);
+            dir = jsp.joinPath(path, dir);
         }
         let all = markers.formatMarkerDetectionResults(state, modalities);
+        console.log(all);
         for (const [k, v] of Object.entries(all)) {
             await jsp.saveObject(v, jsp.joinPath(dir, k), globals, { DataFrame_saveOther: saveOtherDataFrameColumns });
         }
@@ -141,7 +143,7 @@ export async function saveGenewiseResults(state, path, { includeMarkerDetection 
     if (includeCustomSelections) {
         let dir = "custom_selections";
         if (path !== null) {
-            dir = jsp.joinPath(dir, path);
+            dir = jsp.joinPath(path, dir);
         }
         let all = markers.formatCustomSelectionResults(state, modalities);
         for (const [k, v] of Object.entries(all)) {

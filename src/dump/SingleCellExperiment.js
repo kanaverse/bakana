@@ -24,6 +24,9 @@ export async function formatSingleCellExperiment(state, { reportOneIndex = false
         storeModalityColumnData
     );
 
+    console.log(all_metadata.RNA.names());
+    console.log(all_metadata.RNA.toArray());
+
     // Setting up the SEs.
     let all_se = {}
     for (const m of modalities) {
@@ -70,7 +73,7 @@ export async function formatSingleCellExperiment(state, { reportOneIndex = false
             let pcs = step.fetchPCs();
             reddim.pca = new MockReducedDimensionMatrix(pcs.numberOfCells(), pcs.numberOfPCs(), pcs.principalComponents({ copy: "view" }));
             let tv = pcs.totalVariance();
-            metadata.pca = { variance_explained: pcs.varianceExplained({ copy: "view" }).map(x => x / tv) };
+            metadata.set("pca", { variance_explained: pcs.varianceExplained({ copy: "view" }).map(x => x / tv) }, { inPlace: true });
         }
 
         all_se[m] = new bioc.SingleCellExperiment(

@@ -7,6 +7,17 @@ test_that("simple runs can reload correctly", {
     X <- readObject(file.path("from-tests", "10X"))
     expect_identical(as.character(sort(unique(X$clusters))), names(rowData(X)$marker_detection))
 
+    res.dir <- file.path("from-tests", "10X_genes")
+    validateObject(file.path(res.dir, "feature_selection"))
+    marker.dir <- file.path(res.dir, "marker_detection")
+    for (mod in list.files(marker.dir)) {
+        moddir <- file.path(marker.dir, mod)
+        for (clust in list.files(moddir)) {
+            validateObject(file.path(moddir, clust))
+        }
+    }
+    validateObject(file.path("from-tests", "10X"))
+
     info <- acquireMetadata("from-tests", "MatrixMarket")
     X <- readObject(info, "from-tests")
 
@@ -41,18 +52,4 @@ test_that("CRISPR guides are correctly saved", {
     info <- acquireMetadata("from-tests", "crispr")
     X <- readObject(info, "from-tests")
     expect_true(nrow(altExp(X, "CRISPR")) < nrow(X))
-})
-
-test_that("all metadata files and MD5sums are valid", {
-    all.json <- list.files("from-tests", pattern="\\.json$", recursive=TRUE)
-    for (x in all.json) {
-        xpath <- file.path("from-tests", x)
-        info <- jsonlite::fromJSON(xpath)
-        target <- system.file("schemas", info[["$schema"]], package="alabaster.schemas")
-
-        expect_error(jsonvalidate::json_validate(xpath, target, engine="ajv", error=TRUE), NA, label=paste0("failed on '", x, "'"))
-        if ("md5sum" %in% names(info)) {
-            expect_identical(info$md5sum, digest::digest(file=file.path("from-tests", info$path)))
-        }
-    }
 })
