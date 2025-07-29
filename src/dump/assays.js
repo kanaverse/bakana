@@ -70,8 +70,9 @@ export async function saveSparseMatrix(x, path, globals, options) {
         kids["compressed_sparse_matrix"] = "Group"; // need to trick it a little to get open() to work.
         let ghandle = fhandle.open("compressed_sparse_matrix");
         handle_stack.push(ghandle);
-        ghandle.createDataSet("shape", "Uint32", [2], { data: [x.matrix.numberOfRows(), x.matrix.numberOfColumns()] });
+        ghandle.createDataSet("shape", "Uint32", [2], { data: [x.matrix.numberOfRows(), x.matrix.numberOfColumns()] }).close();
         ghandle.writeAttribute("layout", "String", [], ["CSC"]);
+        ghandle.writeAttribute("type", "String", [], ["integer"]); // assume that we're always dealing with count matrices.
         success = true;
     } finally {
         for (const handle of handle_stack.reverse()) {
@@ -97,39 +98,44 @@ export async function saveNormalizedMatrix(x, path, globals, options) {
     let success = false;
     try {
         // Saving the division by log(2).
-        let dhandle = fhandle.createGroup("logcounts");
+        let dhandle = fhandle.createGroup("delayed_array");
         handle_stack.push(dhandle);
         dhandle.writeAttribute("delayed_type", "String", [], ["operation"]);
         dhandle.writeAttribute("delayed_operation", "String", [], ["unary arithmetic"]);
-        dhandle.createDataSet("value", "Float64", [], { data: [Math.log(2)] });
-        dhandle.createDataSet("method", "String", [], { data: ["/"] });
-        dhandle.createDataSet("side", "String", [], { data: ["right"] });
+        dhandle.writeAttribute("delayed_version", "String", [], ["1.1"]);
+        let vhandle = dhandle.createDataSet("value", "Float64", [], { data: [Math.log(2)] });
+        vhandle.writeAttribute("type", "String", [], ["FLOAT"]);
+        handle_stack.push(vhandle);
+        dhandle.createDataSet("method", "String", [], { data: ["/"] }).close();
+        dhandle.createDataSet("side", "String", [], { data: ["right"] }).close();
 
         // Saving the log-transformation.
         let l1phandle = dhandle.createGroup("seed");
         handle_stack.push(l1phandle);
         l1phandle.writeAttribute("delayed_type", "String", [], ["operation"]);
         l1phandle.writeAttribute("delayed_operation", "String", [], ["unary math"]);
-        l1phandle.createDataSet("method", "String", [], { data: ["log1p"] });
+        l1phandle.createDataSet("method", "String", [], { data: ["log1p"] }).close();
 
         // Saving the division by the size factors.
         let sfhandle = l1phandle.createGroup("seed");
         handle_stack.push(sfhandle);
         sfhandle.writeAttribute("delayed_type", "String", [], ["operation"]);
         sfhandle.writeAttribute("delayed_operation", "String", [], ["unary arithmetic"]);
-        sfhandle.createDataSet("value", "Float64", [x.sf.length], { data: x.sf });
-        sfhandle.createDataSet("method", "String", [], { data: ["/"] });
-        sfhandle.createDataSet("side", "String", [], { data: ["right"] });
-        sfhandle.createDataSet("along", "Int32", [], { data: [1] });
+        vhandle = sfhandle.createDataSet("value", "Float64", [x.sf.length], { data: x.sf });
+        vhandle.writeAttribute("type", "String", [], ["FLOAT"]);
+        handle_stack.push(vhandle);
+        sfhandle.createDataSet("method", "String", [], { data: ["/"] }).close();
+        sfhandle.createDataSet("side", "String", [], { data: ["right"] }).close();
+        sfhandle.createDataSet("along", "Uint8", [], { data: [1] }).close();
 
         // Saving the original seed as a custom array.
         let xhandle = sfhandle.createGroup("seed");
         handle_stack.push(xhandle);
         xhandle.writeAttribute("delayed_type", "String", [], ["array"]);
         xhandle.writeAttribute("delayed_array", "String", [], ["custom takane seed array"]);
-        xhandle.createDataSet("dimensions", "Int32", [2], { data: [x.matrix.numberOfRows(), x.matrix.numberOfColumns()] });
-        xhandle.createDataSet("type", "String", [], { data: ["FLOAT"] });
-        xhandle.createDataSet("index", "Uint8", [], { data: [0] });
+        xhandle.createDataSet("dimensions", "Uint64", [2], { data: [x.matrix.numberOfRows(), x.matrix.numberOfColumns()] }).close();
+        xhandle.createDataSet("type", "String", [], { data: ["INTEGER"] }).close();
+        xhandle.createDataSet("index", "Uint8", [], { data: [0] }).close();
 
         let seed_dir = jsp.joinPath(path, "seeds");
         await globals.mkdir(seed_dir);

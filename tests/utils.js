@@ -955,7 +955,7 @@ export function checkClusterVersusMode(state) {
     lfcs2.forEach((x, i) => {
         lfcs2[i] *= -1;
     });
-    // expect(lfcs).toEqual(lfcs2); // TODO: fix this.
+    expect(lfcs).toEqual(lfcs2);
 
     return vres;
 }
