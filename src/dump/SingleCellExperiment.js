@@ -24,9 +24,6 @@ export async function formatSingleCellExperiment(state, { reportOneIndex = false
         storeModalityColumnData
     );
 
-    console.log(all_metadata.RNA.names());
-    console.log(all_metadata.RNA.toArray());
-
     // Setting up the SEs.
     let all_se = {}
     for (const m of modalities) {
