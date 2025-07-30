@@ -189,6 +189,19 @@ test("AlabasterAbstractResult behaves with simple results", async () => {
     }
 })
 
+test("AlabasterAbstractResult performs normalization", async () => {
+    let res = new LocalAlabasterResult("files/datasets/alabaster/zeisel-brain-sparse-results");
+    res.setOptions({
+        primaryAssay: "filtered",
+        isPrimaryNormalized: false
+    });
+
+    let loaded = await res.load({ cache: true });
+    expect(loaded.matrix.available()).toEqual(["rna"]);
+    expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
+    expect(loaded.matrix.get("rna").numberOfRows()).toEqual(loaded.features["rna"].numberOfRows());
+})
+
 test("AlabasterAbstractResult behaves with multimodal results", async () => {
     for (const extra of [ "", "-delayed", "-delayed-external" ]) {
         let res = new LocalAlabasterResult("files/datasets/alabaster/zeisel-brain-dense-multimodal-results" + extra);

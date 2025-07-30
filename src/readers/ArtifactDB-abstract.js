@@ -277,7 +277,7 @@ async function extract_logcounts(handle, navigator) {
     let output;
     try {
         mat = await extract_assay_raw(path, navigator, false); // don't force it to be integer, but we don't mind if it is.
-        output = scran.logNormCounts(mat, { sizeFactors: sf, center: false });
+        output = scran.normalizeCounts(mat, { sizeFactors: sf, center: false });
     } finally {
         scran.free(mat);
     }
@@ -1021,7 +1021,7 @@ export class AbstractArtifactdbResult {
                     output.matrix.add(k, loaded);
 
                     if (!curnormalized) {
-                        let normed = scran.logNormCounts(loaded, { allowZeros: true });
+                        let normed = scran.normalizeCounts(loaded, { allowZeros: true });
                         output.matrix.add(k, normed);
                     }
 

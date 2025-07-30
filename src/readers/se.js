@@ -1169,7 +1169,7 @@ export class SummarizedExperimentResult {
                 output.matrix.add(k, loaded);
 
                 if (!curnormalized) {
-                    let normed = scran.logNormCounts(loaded, { allowZeros: true });
+                    let normed = scran.normalizeCounts(loaded, { allowZeros: true });
                     output.matrix.add(k, normed);
                 }
 

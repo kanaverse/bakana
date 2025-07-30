@@ -151,7 +151,7 @@ export class CrisprQualityControlState {
                 } else if (filter_strategy === "manual") {
                     let block_levels = this.#inputs.fetchBlockLevels();
                     this.#cache.filters = scran.emptySuggestCrisprQcFiltersResults(block_levels === null ? 1 : block_levels.length);
-                    this.#cache.filters.thresholdsMaxCount({ copy: false }).fill(max_threshold);
+                    this.#cache.filters.maxValue({ copy: false }).fill(max_threshold);
                 } else {
                     throw new Error("unknown CRISPR QC filter strategy '" + filter_strategy + "'");
                 }

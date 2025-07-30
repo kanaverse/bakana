@@ -370,9 +370,9 @@ export class RnaQualityControlState {
                 } else if (filter_strategy === "manual") {
                     let block_levels = this.#inputs.fetchBlockLevels();
                     this.#cache.filters = scran.emptySuggestRnaQcFiltersResults(1, block_levels === null ? 1 : block_levels.length);
-                    this.#cache.filters.thresholdsSums({ copy: false }).fill(sum_threshold);
-                    this.#cache.filters.thresholdsDetected({ copy: false }).fill(detected_threshold);
-                    this.#cache.filters.thresholdsSubsetProportions(0, { copy: false }).fill(mito_threshold);
+                    this.#cache.filters.sum({ copy: false }).fill(sum_threshold);
+                    this.#cache.filters.detected({ copy: false }).fill(detected_threshold);
+                    this.#cache.filters.subsetProportion(0, { copy: false }).fill(mito_threshold);
                 } else {
                     throw new Error("unknown RNA QC filtering strategy '" + filter_strategy + "'");
                 }

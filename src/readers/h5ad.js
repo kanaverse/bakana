@@ -654,7 +654,7 @@ export class H5adResult {
         if (!this.#options.isPrimaryNormalized) {
             for (const mod of output.matrix.available()) {
                 let mat = output.matrix.get(mod);
-                output.matrix.add(mod, scran.logNormCounts(mat, { allowZeros: true }));
+                output.matrix.add(mod, scran.normalizeCounts(mat, { allowZeros: true }));
             }
         }
 

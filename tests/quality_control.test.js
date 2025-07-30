@@ -20,14 +20,15 @@ test("analysis works when we skip the QC steps", async () => {
     paramcopy.cell_filtering.use_adt = false;
 
     await bakana.runAnalysis(state, files, paramcopy);
-    expect(state.rna_quality_control.fetchDiscards().length).toBeGreaterThan(0);
-    expect(state.adt_quality_control.fetchDiscards().length).toBeGreaterThan(0);
+    expect(state.rna_quality_control.fetchKeep().length).toBeGreaterThan(0);
+    expect(state.adt_quality_control.fetchKeep().length).toBeGreaterThan(0);
 
-    expect(state.cell_filtering.fetchDiscards()).toBeNull();
+    expect(state.cell_filtering.fetchKeep()).toBeNull();
     let ncells = state.inputs.fetchCountMatrix().numberOfColumns();
     expect(state.cell_filtering.fetchFilteredMatrix().numberOfColumns()).toBe(ncells);
 
     // Check saving of results.
+    utils.purgeDirectory("miscellaneous/from-tests/no-qc");
     await bakana.saveSingleCellExperiment(state, "no-qc", { directory: "miscellaneous/from-tests" });
 
     // Just applying the RNA filtering.
@@ -41,8 +42,8 @@ test("analysis works when we skip the QC steps", async () => {
         expect(state.cell_filtering.changed).toBe(true);
 
         let ncells = state.inputs.fetchCountMatrix().numberOfColumns();
-        expect(state.cell_filtering.fetchDiscards().owner).toBe(state.rna_quality_control.fetchDiscards()); // i.e. a view
-        expect(state.cell_filtering.fetchDiscards().length).toBe(ncells);
+        expect(state.cell_filtering.fetchKeep().owner).toBe(state.rna_quality_control.fetchKeep()); // i.e. a view
+        expect(state.cell_filtering.fetchKeep().length).toBe(ncells);
         expect(state.cell_filtering.fetchFilteredMatrix().numberOfColumns()).toBeLessThan(ncells);
     }
 
@@ -54,7 +55,7 @@ test("different options for choosing mitochondrial genes in RNA QC works as expe
     let paramcopy = utils.baseParams();
     await state.inputs.compute(files, paramcopy.inputs);
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
-    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0); // ID guessing works.
+    expect(state.rna_quality_control.fetchMetrics().subsetProportion(0).reduce((a, b) => a + b)).toBeGreaterThan(0); // ID guessing works.
 
     await state.inputs.compute(files, paramcopy.inputs); // running it again to set changed = false.
 
@@ -63,36 +64,36 @@ test("different options for choosing mitochondrial genes in RNA QC works as expe
     paramcopy.rna_quality_control.species = [ "9606" ];
     paramcopy.rna_quality_control.gene_id_type = "SYMBOL";
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
-    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toEqual(0);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportion(0).reduce((a, b) => a + b)).toEqual(0);
 
     paramcopy.rna_quality_control.gene_id_type = "ENSEMBL";
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
-    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportion(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
 
     // Using the prefix.
     paramcopy.rna_quality_control.use_reference_mito = false;
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
-    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toEqual(0);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportion(0).reduce((a, b) => a + b)).toEqual(0);
 
     paramcopy.rna_quality_control.gene_id_column = "name";
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
-    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportion(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
 
     paramcopy.rna_quality_control.mito_prefix = null;
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
-    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBe(0);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportion(0).reduce((a, b) => a + b)).toBe(0);
     paramcopy.rna_quality_control.mito_prefix = "mt-";  // restoring.
 
     // When ID guessing is enabled, changes to the other parameters have no effect.
     paramcopy.rna_quality_control.guess_ids = true;
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
-    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportion(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
     expect(state.rna_quality_control.changed).toBe(true);
     expect(state.rna_quality_control.fetchParameters().gene_id_column).toBe("name");
 
     paramcopy.rna_quality_control.gene_id_column = "foobar"; // introducing a change.
     await state.rna_quality_control.compute(paramcopy.rna_quality_control);
-    expect(state.rna_quality_control.fetchMetrics().subsetProportions(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
+    expect(state.rna_quality_control.fetchMetrics().subsetProportion(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
     expect(state.rna_quality_control.changed).toBe(false);
     expect(state.rna_quality_control.fetchParameters().gene_id_column).toBe("foobar");
 
@@ -104,7 +105,7 @@ test("different options for choosing IgG tags in ADT QC works as expected", asyn
     let paramcopy = utils.baseParams();
     await state.inputs.compute(files, paramcopy.inputs);
     await state.adt_quality_control.compute(paramcopy.adt_quality_control);
-    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toBeGreaterThan(0); // ID guessing works.
+    expect(state.adt_quality_control.fetchMetrics().subsetSum(0).reduce((a, b) => a + b)).toBeGreaterThan(0); // ID guessing works.
 
     await state.inputs.compute(files, paramcopy.inputs); // running it again to set changed = false.
 
@@ -113,27 +114,27 @@ test("different options for choosing IgG tags in ADT QC works as expected", asyn
     paramcopy.adt_quality_control.tag_id_column = "id";
     paramcopy.adt_quality_control.igg_prefix = "igg1_"; // underscore is deliberate, otherwise we'd just match all the IDs.
     await state.adt_quality_control.compute(paramcopy.adt_quality_control);
-    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toEqual(0); 
+    expect(state.adt_quality_control.fetchMetrics().subsetSum(0).reduce((a, b) => a + b)).toEqual(0); 
 
     paramcopy.adt_quality_control.tag_id_column = "name";
     await state.adt_quality_control.compute(paramcopy.adt_quality_control);
-    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toBeGreaterThan(0); 
+    expect(state.adt_quality_control.fetchMetrics().subsetSum(0).reduce((a, b) => a + b)).toBeGreaterThan(0); 
 
     paramcopy.adt_quality_control.igg_prefix = null;
     await state.adt_quality_control.compute(paramcopy.adt_quality_control);
-    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toEqual(0); 
+    expect(state.adt_quality_control.fetchMetrics().subsetSum(0).reduce((a, b) => a + b)).toEqual(0); 
     paramcopy.adt_quality_control.igg_prefix = "igg";
 
     // When ID guessing is enabled, changes to the other parameters have no effect.
     paramcopy.adt_quality_control.guess_ids = true;
     await state.adt_quality_control.compute(paramcopy.adt_quality_control);
-    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toBeGreaterThan(0); 
+    expect(state.adt_quality_control.fetchMetrics().subsetSum(0).reduce((a, b) => a + b)).toBeGreaterThan(0); 
     expect(state.adt_quality_control.changed).toBe(true);
     expect(state.adt_quality_control.fetchParameters().tag_id_column).toBe("name");
 
     paramcopy.adt_quality_control.tag_id_column = "foobar"; // introducing a change.
     await state.adt_quality_control.compute(paramcopy.adt_quality_control);
-    expect(state.adt_quality_control.fetchMetrics().subsetTotals(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
+    expect(state.adt_quality_control.fetchMetrics().subsetSum(0).reduce((a, b) => a + b)).toBeGreaterThan(0);
     expect(state.adt_quality_control.changed).toBe(false);
     expect(state.adt_quality_control.fetchParameters().tag_id_column).toBe("foobar");
 })
@@ -151,11 +152,11 @@ test("we can switch to manual QC for RNA and ADTs", async () => {
         await state.rna_quality_control.compute(rna_param);
 
         let filt = state.rna_quality_control.fetchFilters();
-        let old_sums = filt.thresholdsSums();
+        let old_sums = filt.sum();
         expect(Array.from(old_sums)).toEqual([100]);
-        let old_detected = filt.thresholdsDetected();
+        let old_detected = filt.detected();
         expect(Array.from(old_detected)).toEqual([1234]);
-        let old_mito = filt.thresholdsSubsetProportions(0);
+        let old_mito = filt.subsetProportion(0);
         expect(Array.from(old_mito)).toEqual([0.2]);
 
         let params = state.rna_quality_control.fetchParameters();
@@ -170,9 +171,9 @@ test("we can switch to manual QC for RNA and ADTs", async () => {
         params = state.rna_quality_control.fetchParameters();
         filt = state.rna_quality_control.fetchFilters();
         expect(params.filter_strategy).toEqual("automatic");
-        expect(filt.thresholdsSums()).not.toEqual(old_sums);
-        expect(filt.thresholdsDetected()).not.toEqual(old_detected);
-        expect(filt.thresholdsSubsetProportions(0)).not.toEqual(old_mito);
+        expect(filt.sum()).not.toEqual(old_sums);
+        expect(filt.detected()).not.toEqual(old_detected);
+        expect(filt.subsetProportion(0)).not.toEqual(old_mito);
     }
 
     // For ADT.
@@ -183,9 +184,9 @@ test("we can switch to manual QC for RNA and ADTs", async () => {
         await state.adt_quality_control.compute(adt_param);
 
         let filt = state.adt_quality_control.fetchFilters();
-        let old_detected = filt.thresholdsDetected();
+        let old_detected = filt.detected();
         expect(Array.from(old_detected)).toEqual([1234]);
-        let old_igg = filt.thresholdsSubsetTotals(0);
+        let old_igg = filt.subsetSum(0);
         expect(Array.from(old_igg)).toEqual([1]);
 
         let params = state.adt_quality_control.fetchParameters();
@@ -200,8 +201,8 @@ test("we can switch to manual QC for RNA and ADTs", async () => {
         params = state.adt_quality_control.fetchParameters();
         filt = state.adt_quality_control.fetchFilters();
         expect(params.filter_strategy).toEqual("automatic");
-        expect(filt.thresholdsDetected()).not.toEqual(old_detected);
-        expect(filt.thresholdsSubsetTotals(0)).not.toEqual(old_igg);
+        expect(filt.detected()).not.toEqual(old_detected);
+        expect(filt.subsetSum(0)).not.toEqual(old_igg);
     }
 })
 
@@ -219,7 +220,7 @@ test("we can switch to manual QC for CRISPR", async () => {
     await state.crispr_quality_control.compute(crispr_param);
 
     let filt = state.crispr_quality_control.fetchFilters();
-    let old_max = filt.thresholdsMaxCount();
+    let old_max = filt.maxValue();
     expect(Array.from(old_max)).toEqual([1234]);
 
     let params = state.crispr_quality_control.fetchParameters();
@@ -234,5 +235,5 @@ test("we can switch to manual QC for CRISPR", async () => {
     params = state.crispr_quality_control.fetchParameters();
     filt = state.crispr_quality_control.fetchFilters();
     expect(params.filter_strategy).toEqual("automatic");
-    expect(filt.thresholdsMaxCount()).not.toEqual(old_max);
+    expect(filt.maxValue()).not.toEqual(old_max);
 })

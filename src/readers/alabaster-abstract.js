@@ -867,7 +867,7 @@ export class AbstractAlabasterResult {
                 output.matrix.add(name, loaded);
 
                 if (!curnormalized) {
-                    let normed = scran.logNormCounts(loaded, { allowZeros: true });
+                    let normed = scran.normalizeCounts(loaded, { allowZeros: true });
                     output.matrix.add(name, normed);
                 }
 

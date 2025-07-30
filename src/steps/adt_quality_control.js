@@ -246,8 +246,8 @@ export class AdtQualityControlState {
                 } else if (filter_strategy === "manual") {
                     let block_levels = this.#inputs.fetchBlockLevels();
                     this.#cache.filters = scran.emptySuggestAdtQcFiltersResults(1, block_levels === null ? 1 : block_levels.length);
-                    this.#cache.filters.thresholdsDetected({ copy: false }).fill(detected_threshold);
-                    this.#cache.filters.thresholdsSubsetTotals(0, { copy: false }).fill(igg_threshold);
+                    this.#cache.filters.detected({ copy: false }).fill(detected_threshold);
+                    this.#cache.filters.subsetSum(0, { copy: false }).fill(igg_threshold);
                 } else {
                     throw new Error("unknown ADT QC filtering strategy '" + filter_strategy + "'");
                 }
