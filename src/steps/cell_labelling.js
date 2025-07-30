@@ -355,11 +355,14 @@ function assign_labels(x, group, cache) {
         let aggr = scran.aggregateAcrossCells(mat, dump.arrays[0].ids, { average: true });
         to_collect.push(aggr);
 
-        let aggrmat = scran.ScranMatrix.createDenseMatrix(
+        let all_sums = aggr.allSums({ asTypedArray: false });
+        to_collect.push(all_sums);
+
+        let aggrmat = scran.initializeDenseMatrixFromDenseArray(
             mat.numberOfRows(), 
             aggr.numberOfGroups(), 
-            aggr.allSums({ copy: "view" }),
-            { columnMajor: true, copy: false }
+            all_sums,
+            { columnMajor: true }
         );
         to_collect.push(aggrmat);
 

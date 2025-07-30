@@ -15,7 +15,7 @@ test("Standalone marker detection works correctly", async () => {
     let loaded = files.default.load({ cache: true });
     let normed = new scran.MultiMatrix;
     for (const m of loaded.matrix.available()) {
-        normed.add(m, scran.logNormCounts(loaded.matrix.get(m)));
+        normed.add(m, scran.normalizeCounts(loaded.matrix.get(m)));
     }
 
     let groups = new Int32Array(loaded.matrix.numberOfColumns());
@@ -47,8 +47,8 @@ test("Standalone marker detection works correctly", async () => {
         markers2.computeAll();
         let res2 = markers2.fetchResults();
 
-        let rounded = res["RNA"].cohen(0).map(x => Math.round(x * 100));
-        let rounded2 = res2["RNA"].cohen(0).map(x => Math.round(x * 100));
+        let rounded = res["RNA"].cohensD(0).map(x => Math.round(x * 100));
+        let rounded2 = res2["RNA"].cohensD(0).map(x => Math.round(x * 100));
         expect(rounded2).toEqual(rounded); // avoid discrepancies due to numerical precision.
         expect(() => res2["RNA"].auc(0)).toThrow("no AUCs");
 
@@ -70,7 +70,7 @@ test("Standalone marker detection works correctly", async () => {
 
         markers2.computeAll();
         let res2 = markers2.fetchResults();
-        expect(res2["RNA"].cohen(0)).not.toEqual(res["RNA"].cohen(0));
+        expect(res2["RNA"].cohensD(0)).not.toEqual(res["RNA"].cohensD(0));
 
         markers2.free();
     }
@@ -109,7 +109,7 @@ test("Standalone custom selections work correctly", async () => {
     let loaded = files.default.load({ cache: true });
     let normed = new scran.MultiMatrix;
     for (const m of [ "foo", "bar" ]) { // mimicking multiple modalities.
-        normed.add(m, scran.logNormCounts(loaded.matrix.get("RNA")));
+        normed.add(m, scran.normalizeCounts(loaded.matrix.get("RNA")));
     }
 
     let custom = new bakana.CustomSelectionsStandalone(normed);
@@ -136,8 +136,8 @@ test("Standalone custom selections work correctly", async () => {
         custom2.addSelection("WHEEE", [ 1,2,3,4,5,6,7,8,9,10 ]);
         let res2 = custom2.fetchResults("WHEEE");
 
-        let rounded = res["foo"].cohen(0).map(x => Math.round(x * 100));
-        let rounded2 = res2["foo"].cohen(0).map(x => Math.round(x * 100));
+        let rounded = res["foo"].cohensD(0).map(x => Math.round(x * 100));
+        let rounded2 = res2["foo"].cohensD(0).map(x => Math.round(x * 100));
         expect(rounded2).toEqual(rounded); // avoid discrepancies due to numerical precision.
         expect(() => res2["foo"].auc(0)).toThrow("no AUCs");
 
@@ -158,7 +158,7 @@ test("Standalone custom selections work correctly", async () => {
         custom2.addSelection("WHEEE", [ 1,2,3,4,5,6,7,8,9,10 ]);
 
         let res2 = custom2.fetchResults("WHEEE");
-        expect(res2["foo"].cohen(0)).not.toEqual(res["foo"].cohen(0));
+        expect(res2["foo"].cohensD(0)).not.toEqual(res["foo"].cohensD(0));
 
         custom2.free();
     }
@@ -189,7 +189,7 @@ test("Standalone custom selections work correctly", async () => {
 
 test("Standalone feature set enrichment works correctly", async () => {
     let loaded = files.default.load({ cache: true });
-    let normed = scran.logNormCounts(loaded.matrix.get("RNA"));
+    let normed = scran.normalizeCounts(loaded.matrix.get("RNA"));
 
     let groups = new Int32Array(loaded.matrix.numberOfColumns());
     let half = groups.length / 2
