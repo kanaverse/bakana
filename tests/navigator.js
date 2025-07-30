@@ -3,7 +3,7 @@ import * as utils from "./utils.js";
 import * as bakana from "../src/index.js";
 import JSZip from "jszip";
 
-export const baseDirectory = "miscellaneous/from-tests";
+export const baseDirectory = "files/datasets/ArtifactDB";
 
 export function pathExists(chosen) {
     let path = baseDirectory + "/" + chosen;
