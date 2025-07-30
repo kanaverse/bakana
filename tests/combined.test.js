@@ -67,7 +67,9 @@ test("multi-matrix analyses work correctly", async () => {
     expect(custom.versus.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
 
     // Check saving of results.
+    utils.purgeDirectory("miscellaneous/from-tests/combined");
     await bakana.saveSingleCellExperiment(state, "combined", { directory: "miscellaneous/from-tests" });
+    utils.purgeDirectory("miscellaneous/from-tests/combined_genes");
     await bakana.saveGenewiseResults(state, "combined_genes", { directory: "miscellaneous/from-tests" });
 
     // Check reloading of the parameters/datasets.

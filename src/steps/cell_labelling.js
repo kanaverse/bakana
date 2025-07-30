@@ -81,7 +81,7 @@ async function load_reference(name, gene_id_type) {
     let loaded;
     let stored;
     try {
-        loaded = scran.loadLabelledReferenceFromBuffers(
+        loaded = scran.loadLabelCellsReferenceFromBuffers(
             contents[3].buffer(), // rank matrix
             contents[2].buffer(), // markers
             contents[0].buffer()  // label per sample
@@ -133,7 +133,7 @@ function internal_build_reference(name, gene_ids, gene_id_type) {
         }
         let chosen_ids = current.genes[gene_id_type];
 
-        built = scran.buildLabelledReference(gene_ids, loaded, chosen_ids); 
+        built = scran.trainLabelCellsReference(gene_ids, loaded, chosen_ids); 
         output = {
             "loaded": current,
             "built": {
@@ -211,7 +211,7 @@ async function build_reference(cache, references, guess_ids, species, gene_id_co
             let built = arr.map(x => x.built.raw);
 
             utils.freeCache(cache.integrated);
-            cache.integrated = scran.integrateLabelledReferences(gene_ids, loaded, feats, built);
+            cache.integrated = scran.integrateLabelCellsReferences(gene_ids, loaded, feats, built);
         } else {
             utils.freeCache(cache.integrated);
             delete cache.integrated;
@@ -261,7 +261,7 @@ function transform_results(names, results, assigned) {
 
     for (var r = 0; r < nclusters; r++) {
         let all_scores = {};
-        let cscores = results.scoresForCell(r);
+        let cscores = results.scoreForCell(r);
         for (var l = 0; l < ntargets; l++) {
             all_scores[names[l]] = cscores[l];
         }
@@ -288,7 +288,7 @@ function assign_labels_internal(x, cache) {
             // Creating a column-major array of mean vectors for each cluster.
             temp_cluster_means = scran.createFloat64WasmArray(ngroups * ngenes);
             for (var g = 0; g < ngroups; g++) {
-                let means = x.means(g, { copy: false }); // Warning: direct view in wasm space - be careful.
+                let means = x.mean(g, { copy: false }); // Warning: direct view in wasm space - be careful.
                 if (means.length !== ngenes) {
                     throw new Error("unexpected number of genes in marker results");
                 }
@@ -296,8 +296,7 @@ function assign_labels_internal(x, cache) {
                 cluster_array.set(means, g * ngenes);
             }
 
-            temp_matrix = scran.ScranMatrix.createDenseMatrix(ngenes, ngroups, temp_cluster_means, { columnMajor: true, copy: false });
-            matrix = temp_matrix;
+            matrix = scran.initializeDenseMatrixFromDenseArray(ngenes, ngroups, temp_cluster_means, { columnMajor: true });
         }
     } else {
         if (cache.gene_ids !== null && x.numberOfRows() !== cache.gene_ids.length) {
@@ -312,7 +311,7 @@ function assign_labels_internal(x, cache) {
     for (const [key, ref] of Object.entries(valid)) {
         let current = scran.labelCells(matrix, ref.built.raw);
         raw[key] = current;
-        results.per_reference[key] = transform_results(ref.loaded.labels, current, current.predictedLabels({ copy: false }));
+        results.per_reference[key] = transform_results(ref.loaded.labels, current, current.predicted({ copy: false }));
     }
 
     if ("integrated" in cache) {
@@ -321,8 +320,8 @@ function assign_labels_internal(x, cache) {
             single_results.push(raw[key]);
         }
 
-        let current = scran.integrateCellLabels(matrix, single_results, cache.integrated);
-        results.integrated = transform_results(cache.used_refs, current, current.predictedReferences({ copy: false }));
+        let current = scran.integrateLabelCells(matrix, single_results, cache.integrated);
+        results.integrated = transform_results(cache.used_refs, current, current.predicted({ copy: false }));
         current.free();
     }
 
@@ -435,7 +434,7 @@ export class CellLabellingState {
     fetchNumberOfSharedFeatures() {
         let output = {};
         for (const key of this.#cache.used_refs) {
-            output[key] = this.#cache.prepared[key].built.raw.sharedFeatures();
+            output[key] = this.#cache.prepared[key].built.raw.numberOfFeatures();
         }
         return output;
     }

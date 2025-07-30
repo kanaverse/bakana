@@ -220,42 +220,54 @@ class FeatureSetManager {
     }
 
     computeEnrichment(group, effect_size, summary, markers, top_markers) {
+        // Renaming things for back-compatibility.
         if (effect_size == "delta_detected") {
+            effect_size = "deltaDetected";
+        } else if (effect_size == "cohen") {
+            effect_size = "cohensD";
+        } else if (effect_size == "lfc") {
             effect_size = "deltaDetected";
         }
 
-        // Avoid picking down-regulated genes in the marker set.
-        let min_threshold = effect_size == "auc" ? 0.5 : 0;
-
-        // Larger is better except for 'min_rank'.
-        let use_largest = effect_size !== "min_rank"; 
-        let sumidx = mutils.summaries2int[summary];
-
-        let stats = markers[effect_size](group, { summary: sumidx, copy: false });
-        let curstats = bioc.SLICE(stats, this.#cache.universe);
-        let threshold = scran.computeTopThreshold(curstats, top_markers, { largest: use_largest });
+        let use_largest = true;
+        if (summary == "min_rank") {
+            use_largest = false;
+            summary = "min-rank";
+        }
 
         let in_set = [];
-        let add = i => {
-            let gene = this.#cache.universe[i];
-            in_set.push(this.#cache.mapping_to_sets[gene]);
-        };
 
-        if (use_largest) {
-            if (threshold < min_threshold) {
-                threshold = min_threshold;
+        if (top_markers > 0) {
+            let stats = markers[effect_size](group, { summary: summary, copy: false });
+            let curstats = bioc.SLICE(stats, this.#cache.universe);
+
+            let add = i => {
+                let gene = this.#cache.universe[i];
+                in_set.push(this.#cache.mapping_to_sets[gene]);
+            };
+
+            if (use_largest) { // Larger is better except for 'min_rank'.
+                let threshold = (effect_size == "auc" ? 0.5 : 0); // Avoid picking down-regulated genes in the marker set.
+                if (top_markers < curstats.length) {
+                    let alt_threshold = curstats.toSorted()[curstats.length - top_markers];
+                    threshold = Math.max(threshold, alt_threshold);
+                }
+                curstats.forEach((x, i) => {
+                    if (x >= threshold) {
+                        add(i);
+                    }
+                });
+            } else {
+                let threshold = Number.POSITIVE_INFINITY; // i.e., the largest rank.
+                if (top_markers < curstats.length) {
+                    threshold = curstats.toSorted()[top_markers - 1];
+                }
+                curstats.forEach((x, i) => {
+                    if (x <= threshold) {
+                        add(i);
+                    }
+                });
             }
-            curstats.forEach((x, i) => {
-                if (x >= threshold) {
-                    add(i);
-                }
-            });
-        } else {
-            curstats.forEach((x, i) => {
-                if (x <= threshold) {
-                    add(i);
-                }
-            });
         }
 
         let overlaps = gesel.countSetOverlaps(in_set);
@@ -295,7 +307,7 @@ class FeatureSetManager {
         let farr = features.array();
         indices.forEach(x => { farr[x] = 1; }); 
 
-        return scran.scoreFeatureSet(normalized, features, { block: block });
+        return scran.scoreGsdecon(normalized, features, { block: block });
     }
 }
 
@@ -362,7 +374,7 @@ function fetch_parameters(parameters) {
  * This step tests for enrichment of particular feature sets in the set of top marker genes,
  * based on marker rankings from {@linkplain MarkerDetectionState}.
  * It wraps the [`testFeatureSetEnrichment`](https://kanaverse.github.io/scran.js/global.html#testFeatureSetEnrichment) 
- * and [`scoreFeatureSet`](https://kanaverse.github.io/scran.js/global.html#scoreFeatureSet) functions
+ * and [`scoreGsdecon`](https://kanaverse.github.io/scran.js/global.html#scoreGsdecon) functions
  * from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
  * This class uses the [**gesel**](https://npmjs.org/package/gesel) package to download the default gene set databases for the relevant organisms.

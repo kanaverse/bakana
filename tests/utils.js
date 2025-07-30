@@ -419,7 +419,7 @@ export async function checkStateResultsBlocked(state) {
     }
     if (state.crispr_quality_control.valid()) {
         let res = state.crispr_quality_control.fetchFilters();
-        let props = res.thresholdsMaxCount();
+        let props = res.maxValue();
         expect(props.length).toEqual(nlevels);
     }
 
@@ -548,7 +548,7 @@ export function checkStateResultsCrispr(state, { exclusive = false, use_embeddin
 
         let cfilt = state.crispr_quality_control.fetchFilters();
         expect(cfilt instanceof scran.SuggestCrisprQcFiltersResults).toBe(true);
-        expect(cfilt.thresholdsMaxCount()[0]).toBeGreaterThan(0);
+        expect(cfilt.maxValue()[0]).toBeGreaterThan(0);
     }
 
     let nfiltered = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
@@ -657,8 +657,8 @@ export function checkStateResultsRnaPlusCrispr(state, { use_embeddings = true } 
         let crispr_only = 0;
         state.crispr_quality_control.fetchKeep().forEach(x => { crispr_only += (x > 0); });
 
-        expect(nfiltered).toBeGreaterThan(rna_only);
-        expect(nfiltered).toBeGreaterThan(crispr_only);
+        expect(nfiltered).toBeLessThan(rna_only);
+        expect(nfiltered).toBeLessThan(crispr_only);
     }
 
     // Combined embeddings.
@@ -765,7 +765,7 @@ export async function compareStates(left, right, { checkRna = true, checkAdt = f
 
         let lfilters = left.crispr_quality_control.fetchFilters();
         let rfilters = right.crispr_quality_control.fetchFilters();
-        expect(lfilters.maxCount()).toEqual(rfilters.maxCount());
+        expect(lfilters.maxValue()).toEqual(rfilters.maxValue());
 
         let ldiscards = left.crispr_quality_control.fetchKeep().array();
         let rdiscards = right.crispr_quality_control.fetchKeep().array();
@@ -931,7 +931,7 @@ export async function compareStates(left, right, { checkRna = true, checkAdt = f
             for (var g = 0; g < ng; g++) {
                 expect(lres[a].cohensD(g)).toEqual(rres[a].cohensD(g));
                 expect(lres[a].auc(g)).toEqual(rres[a].auc(g));
-                expect(lres[a].means(g)).toEqual(rres[a].means(g));
+                expect(lres[a].mean(g)).toEqual(rres[a].mean(g));
                 expect(lres[a].detected(g)).toEqual(rres[a].detected(g));
             }
         }

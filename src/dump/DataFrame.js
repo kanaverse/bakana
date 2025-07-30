@@ -89,7 +89,7 @@ export function formatColumnData(state, all_modalities, main_modality, all_other
             prefix,
             {
                 "filters": {
-                    "max_count": state.crispr_quality_control.fetchFilters().maxCount()
+                    "max_count": state.crispr_quality_control.fetchFilters().maxValue()
                 }
             },
             { inPlace: true }

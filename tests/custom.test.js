@@ -39,8 +39,8 @@ test("addition, fetching and removal of custom selections works correctly", asyn
         let vres2 = state.custom_selections.computeVersus("evens", "odds");
         expect(vres2.results.RNA instanceof scran.ScoreMarkersResults).toBe(true);
 
-        let lfcs = vres.results.RNA.lfc(vres.left);
-        let lfcs2 = vres2.results.RNA.lfc(vres2.left);
+        let lfcs = vres.results.RNA.deltaMean(vres.left);
+        let lfcs2 = vres2.results.RNA.deltaMean(vres2.left);
         lfcs2.forEach((x, i) => {
             lfcs2[i] *= -1;
         });
@@ -50,7 +50,7 @@ test("addition, fetching and removal of custom selections works correctly", asyn
 
     // Changing the parameters triggers recomputation of all results.
     {
-        let old_odd = state.custom_selections.fetchResults("odds").RNA.cohen(1);
+        let old_odd = state.custom_selections.fetchResults("odds").RNA.cohensD(1);
         let old_even = state.custom_selections.fetchResults("evens").RNA.auc(1);
     
         let params2 = utils.baseParams();
@@ -60,7 +60,7 @@ test("addition, fetching and removal of custom selections works correctly", asyn
         expect(state.custom_selections.changed).toBe(true);
         expect(state.custom_selections.fetchParameters().lfc_threshold).toBe(1);
 
-        let latest_odd = state.custom_selections.fetchResults("odds").RNA.cohen(1);
+        let latest_odd = state.custom_selections.fetchResults("odds").RNA.cohensD(1);
         let latest_even = state.custom_selections.fetchResults("evens").RNA.auc(1);
         for (var i = 0; i < old_odd.length; i++) {
             expect(old_odd[i]).toBeGreaterThan(latest_odd[i]);
@@ -68,7 +68,7 @@ test("addition, fetching and removal of custom selections works correctly", asyn
         }
 
         state.custom_selections.compute({ lfc_threshold: 0, compute_auc: true });
-        expect(state.custom_selections.fetchResults("odds").RNA.cohen(1)).toEqual(old_odd);
+        expect(state.custom_selections.fetchResults("odds").RNA.cohensD(1)).toEqual(old_odd);
         expect(state.custom_selections.fetchResults("evens").RNA.auc(1)).toEqual(old_even);
     }
 
@@ -100,7 +100,7 @@ test("addition, fetching and removal of custom selections works correctly", asyn
 
         let reloaded = await bakana.unserializeConfiguration(serialized, x => saved[Number(x) - 1]);
         await utils.compareStates(reloaded, state);
-        expect(reloaded.custom_selections.fetchResults("evens").RNA.cohen()).toEqual(state.custom_selections.fetchResults("evens").RNA.cohen());
+        expect(reloaded.custom_selections.fetchResults("evens").RNA.cohensD()).toEqual(state.custom_selections.fetchResults("evens").RNA.cohensD());
 
         await bakana.freeAnalysis(reloaded);
     }

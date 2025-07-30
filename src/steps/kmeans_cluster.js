@@ -82,7 +82,7 @@ export class KmeansClusterState {
                 this.#cache.raw = scran.clusterKmeans(pcs, k, { 
                     numberOfDims: this.#correct.fetchNumberOfDimensions(),
                     numberOfCells: this.#correct.fetchNumberOfCells(),
-                    initMethod: "pca-part" 
+                    initMethod: "var-part" 
                 });
             } else {
                 delete this.#cache.raw; // ensure this step gets re-run later when run_me = true. 
