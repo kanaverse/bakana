@@ -143,9 +143,9 @@ export function formatColumnData(state, all_modalities, main_modality, all_other
         let customs = state.custom_selections.fetchSelections({ copy: false });
         let nrows = all_coldata[main_modality].numberOfRows();
         for (const [v, k] of Object.entries(customs)) {
-            let as_bool = new Uint8Array(nrows);
-            as_bool.fill(0);
-            k.forEach(index => { as_bool[index] = 1; });
+            let as_bool = new Array(nrows);
+            as_bool.fill(false);
+            k.forEach(index => { as_bool[index] = true; });
             all_coldata[main_modality] = all_coldata[main_modality].setColumn("kana::custom_selections::" + v, as_bool);
         }
     }
