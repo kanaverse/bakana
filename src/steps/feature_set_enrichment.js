@@ -16,39 +16,6 @@ export const step_name = "feature_set_enrichment";
  ******** Internals for collections *********
  ********************************************/
 
-export function chooseTopMarkers(stats, top_markers, effect_size, summary) {
-    let output = [];
-    if (top_markers == 0) {
-        return output;
-    }
-
-    if (summary !== "min-rank") { // Larger is better except for 'min_rank'.
-        let threshold = (effect_size == "auc" ? 0.5 : 0); // Avoid picking down-regulated genes in the marker set.
-        if (top_markers < stats.length) {
-            let alt_threshold = stats.toSorted()[stats.length - top_markers];
-            threshold = Math.max(threshold, alt_threshold);
-        }
-        stats.forEach((x, i) => {
-            if (x >= threshold) {
-                output.push(i);
-            }
-        });
-
-    } else {
-        let threshold = Number.POSITIVE_INFINITY; // i.e., the largest rank.
-        if (top_markers < stats.length) {
-            threshold = stats.toSorted()[top_markers - 1];
-        }
-        stats.forEach((x, i) => {
-            if (x <= threshold) {
-                output.push(i);
-            }
-        });
-    }
-
-    return output;
-}
-
 class FeatureSetManager {
     #cache;
 
@@ -263,17 +230,22 @@ class FeatureSetManager {
         }
 
         let use_largest = true;
+        let min_threshold = null;
         if (summary == "min_rank") {
             use_largest = false;
             summary = "min-rank";
+        } else {
+            min_threshold = (effect_size == "auc" ? 0.5 : 0);
         }
 
         let stats = markers[effect_size](group, { summary: summary, copy: false });
-        let in_set = chooseTopMarkers(
+        let in_set = scran.chooseTopMarkers(
             bioc.SLICE(stats, this.#cache.universe),
             top_markers,
-            effect_size,
-            summary
+            {
+                useLargest: use_largest,
+                threshold: min_threshold
+            }
         );
         in_set.forEach((x, i) => {
             let gene = this.#cache.universe[x];
