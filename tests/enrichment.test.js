@@ -1,7 +1,8 @@
 import * as bakana from "../src/index.js";
 import * as butils from "../src/steps/utils/general.js";
-import * as scran from "scran.js";
+import { chooseTopMarkers } from "../src/steps/feature_set_enrichment.js";
 import * as utils from "./utils.js";
+import * as scran from "scran.js";
 import * as bioc from "bioconductor";
 
 beforeAll(utils.initializeAll);
@@ -13,6 +14,21 @@ let hs_files = {
         "files/datasets/pbmc3k-features.tsv.gz",
         "files/datasets/pbmc3k-barcodes.tsv.gz")
 };
+
+test("chooseTopMarkers works correctly", async () => {
+    expect(chooseTopMarkers([2, -2, -1, 0, 1], 0, "auc", "mean")).toEqual([]);
+
+    expect(chooseTopMarkers([2, -2, -1, 0, 1], 1, "auc", "mean")).toEqual([0]);
+    expect(chooseTopMarkers([2, -2, -1, 0, 1], 2, "auc", "mean")).toEqual([0, 4]);
+    expect(chooseTopMarkers([2, -2, -1, 0, 1], 3, "auc", "mean")).toEqual([0, 4]); // minimum limit is 0.5.
+
+    expect(chooseTopMarkers([2, -2, -1, 0, 1], 1, "cohen", "mean")).toEqual([0]);
+    expect(chooseTopMarkers([2, -2, -1, 0, 1], 2, "cohen", "mean")).toEqual([0, 4]);
+    expect(chooseTopMarkers([2, -2, -1, 0, 1], 3, "cohen", "mean")).toEqual([0, 3, 4]); // minimum limit is 0.
+
+    expect(chooseTopMarkers([2,3,1,2,5], 1, "cohen", "min-rank")).toEqual([2]);
+    expect(chooseTopMarkers([2,3,1,2,5], 2, "cohen", "min-rank")).toEqual([0,2,3]);
+})
 
 test("feature set enrichment works correctly for humans", async () => {
     let params = utils.baseParams();

@@ -16,6 +16,39 @@ export const step_name = "feature_set_enrichment";
  ******** Internals for collections *********
  ********************************************/
 
+export function chooseTopMarkers(stats, top_markers, effect_size, summary) {
+    let output = [];
+    if (top_markers == 0) {
+        return output;
+    }
+
+    if (summary !== "min-rank") { // Larger is better except for 'min_rank'.
+        let threshold = (effect_size == "auc" ? 0.5 : 0); // Avoid picking down-regulated genes in the marker set.
+        if (top_markers < stats.length) {
+            let alt_threshold = stats.toSorted()[stats.length - top_markers];
+            threshold = Math.max(threshold, alt_threshold);
+        }
+        stats.forEach((x, i) => {
+            if (x >= threshold) {
+                output.push(i);
+            }
+        });
+
+    } else {
+        let threshold = Number.POSITIVE_INFINITY; // i.e., the largest rank.
+        if (top_markers < stats.length) {
+            threshold = stats.toSorted()[top_markers - 1];
+        }
+        stats.forEach((x, i) => {
+            if (x <= threshold) {
+                output.push(i);
+            }
+        });
+    }
+
+    return output;
+}
+
 class FeatureSetManager {
     #cache;
 
@@ -235,40 +268,17 @@ class FeatureSetManager {
             summary = "min-rank";
         }
 
-        let in_set = [];
-
-        if (top_markers > 0) {
-            let stats = markers[effect_size](group, { summary: summary, copy: false });
-            let curstats = bioc.SLICE(stats, this.#cache.universe);
-
-            let add = i => {
-                let gene = this.#cache.universe[i];
-                in_set.push(this.#cache.mapping_to_sets[gene]);
-            };
-
-            if (use_largest) { // Larger is better except for 'min_rank'.
-                let threshold = (effect_size == "auc" ? 0.5 : 0); // Avoid picking down-regulated genes in the marker set.
-                if (top_markers < curstats.length) {
-                    let alt_threshold = curstats.toSorted()[curstats.length - top_markers];
-                    threshold = Math.max(threshold, alt_threshold);
-                }
-                curstats.forEach((x, i) => {
-                    if (x >= threshold) {
-                        add(i);
-                    }
-                });
-            } else {
-                let threshold = Number.POSITIVE_INFINITY; // i.e., the largest rank.
-                if (top_markers < curstats.length) {
-                    threshold = curstats.toSorted()[top_markers - 1];
-                }
-                curstats.forEach((x, i) => {
-                    if (x <= threshold) {
-                        add(i);
-                    }
-                });
-            }
-        }
+        let stats = markers[effect_size](group, { summary: summary, copy: false });
+        let in_set = FeatureSetManager.chooseTopMarkers(
+            bioc.SLICE(stats, this.#cache.universe),
+            top_markers,
+            effect_size,
+            summary
+        );
+        in_set.forEach((x, i) => {
+            let gene = this.#cache.universe[x];
+            in_set[i] = this.#cache.mapping_to_sets[gene];
+        });
 
         let overlaps = gesel.countSetOverlaps(in_set);
         let set_ids = new Int32Array(overlaps.length);
