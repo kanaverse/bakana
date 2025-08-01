@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>UmapState - Documentation</title>
+    <title>AbstractAlabasterResult - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -37,7 +37,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">UmapState</h1>
+    <h1 class="page-title">AbstractAlabasterResult</h1>
     
 
     
@@ -51,51 +51,27 @@
     
         <h2>
         
-            UmapState
+            AbstractAlabasterResult
         
         </h2>
         
-            <div class="class-description usertext"><p>This creates a UMAP embedding based on the neighbor index constructed at <a href="NeighborIndexState.html">NeighborIndexState</a>.
-This wraps <a href="https://kanaverse.github.io/scran.js/global.html#runUMAP"><code>runUMAP</code></a>
-and related functions from <a href="https://github.com/kanaverse/scran.js"><strong>scran.js</strong></a>.</p>
-<p>Methods not documented here are not part of the stable API and should not be used by applications.</p></div>
+            <div class="class-description usertext"><p>Pre-computed analysis results stored as a SummarizedExperiment object (or one of its subclasses) in the <strong>ArtifactDB</strong> format.
+This is intended as a virtual base class; applications should define subclasses that are tied to a specific <a href="global.html#AlabasterProjectNavigator">AlabasterProjectNavigator</a> class.</p></div>
         
     
 </header>
 
 <article>
     
-
-    
-
-    
-
-    
-        <h3 class="subsection-title">Classes</h3>
-
-        <dl>
-            <dt><a href="UmapState.html">UmapState</a></dt>
-            <dd></dd>
-        </dl>
-    
-    
-    
-
-     
-
-    
-
-    
-
-    
-        <h3 class="subsection-title">Methods</h3>
-
+        <div class="container-overview">
         
             
 
     
+    <h2>Constructor</h2>
+    
 
-    <h4 class="name" id="animate"><span class="type-signature"></span>animate<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="AbstractAlabasterResult"><span class="type-signature"></span>new AbstractAlabasterResult<span class="signature">(navigator)</span><span class="type-signature"></span></h4>
 
     
 
@@ -104,110 +80,11 @@ and related functions from <a href="https://github.com/kanaverse/scran.js"><stro
 
 <dl class="details">
     
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li><p>Repeat the animation iterations.
-It is assumed that <a href="global.html#setVisualizationAnimate"><code>setVisualizationAnimate</code></a> has been set appropriately to process each iteration.</p></li></ul></dd>
-    
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_umap.js.html">steps/umap.js</a>, <a href="steps_umap.js.html#line174">line 174</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>A promise that resolves on successful completion of all iterations.</p>
-</div>
-
-
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="compute"><span class="type-signature"></span>compute<span class="signature">(parameters)</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li><p>This method should not be called directly by users, but is instead invoked by <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p></li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_umap.js.html">steps/umap.js</a>, <a href="steps_umap.js.html#line137">line 137</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line675">line 675</a>
     </li></ul></dd>
     
 
@@ -279,13 +156,13 @@ It is assumed that <a href="global.html#setVisualizationAnimate"><code>setVisual
 
         <tr>
             
-                <td class="name"><code>parameters</code></td>
+                <td class="name"><code>navigator</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">object</span>
+<span class="param-type">AlabasterNavigator</span>
 
 
 
@@ -296,129 +173,7 @@ It is assumed that <a href="global.html#setVisualizationAnimate"><code>setVisual
 
             
 
-            <td class="description last"><p>Parameter object, equivalent to the <code>umap</code> property of the <code>parameters</code> of <a href="global.html#runAnalysis"><code>runAnalysis</code></a>.</p>
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>num_neighbors</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>Number of neighbors to use to construct the simplicial sets.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>num_epochs</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>Number of epochs to run the algorithm.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>min_dist</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>Number specifying the minimum distance between points.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>animate</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>Whether to process animation iterations, see <a href="global.html#setVisualizationAnimate"><code>setVisualizationAnimate</code></a> for details.</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
+            <td class="description last"><p>A navigator object that describes how to obtain files from an alabaster-formatted object directory.</p></td>
         </tr>
 
     
@@ -440,26 +195,43 @@ It is assumed that <a href="global.html#setVisualizationAnimate"><code>setVisual
 
 
 
-<h5 class="h5-returns">Returns:</h5>
+
+
 
         
-<div class="param-desc">
-    <p>UMAP coordinates are computed in parallel on a separate worker thread.
-A promise that resolves when the calculations are complete.</p>
-</div>
-
-
+        </div>
+    
 
     
 
+    
 
+    
+        <h3 class="subsection-title">Classes</h3>
+
+        <dl>
+            <dt><a href="AbstractAlabasterResult.html">AbstractAlabasterResult</a></dt>
+            <dd></dd>
+        </dl>
+    
+    
+    
+
+     
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
 
         
             
 
     
 
-    <h4 class="name" id="fetchParameters"><span class="type-signature"></span>fetchParameters<span class="signature">()</span><span class="type-signature"> &rarr; {object}</span></h4>
+    <h4 class="name" id="clear"><span class="type-signature"></span>clear<span class="signature">()</span><span class="type-signature"></span></h4>
 
     
 
@@ -468,11 +240,15 @@ A promise that resolves when the calculations are complete.</p>
 
 <dl class="details">
     
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Destroy caches if present, releasing the associated memory.
+This may be called at any time but only has an effect if <code>cache = true</code> in <a href="AbstractAlabasterResult.html#load"><code>load</code></a> or <a href="AbstractAlabasterResult.html#summary"><code>summary</code></a>.</p></li></ul></dd>
+    
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_umap.js.html">steps/umap.js</a>, <a href="steps_umap.js.html#line95">line 95</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line735">line 735</a>
     </li></ul></dd>
     
 
@@ -533,29 +309,6 @@ A promise that resolves when the calculations are complete.</p>
 
 
 
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>Object containing the parameters.</p>
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">object</span>
-
-
-
-    </dd>
-</dl>
-
-    
 
 
 
@@ -564,7 +317,7 @@ A promise that resolves when the calculations are complete.</p>
 
     
 
-    <h4 class="name" id="fetchResults"><span class="type-signature type-signature-async">(async) </span>fetchResults<span class="signature">(options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {object}</span></h4>
+    <h4 class="name" id="load"><span class="type-signature type-signature-async">(async) </span>load<span class="signature">(options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {object}</span></h4>
 
     
 
@@ -577,7 +330,7 @@ A promise that resolves when the calculations are complete.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="steps_umap.js.html">steps/umap.js</a>, <a href="steps_umap.js.html#line70">line 70</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line814">line 814</a>
     </li></ul></dd>
     
 
@@ -716,7 +469,7 @@ A promise that resolves when the calculations are complete.</p>
 
         <tr>
             
-                <td class="name"><code>copy</code></td>
+                <td class="name"><code>cache</code></td>
             
 
             <td class="type">
@@ -744,13 +497,13 @@ A promise that resolves when the calculations are complete.</p>
             
                 <td class="default">
                 
-                    <code>true</code>
+                    <code>false</code>
                 
                 </td>
             
 
-            <td class="description last"><p>Whether to create a copy of the coordinates,
-if the caller might mutate them.</p></td>
+            <td class="description last"><p>Whether to cache the results for re-use in subsequent calls to this method or <a href="AbstractAlabasterResult.html#summary"><code>summary</code></a>.
+If <code>true</code>, users should consider calling <a href="AbstractAlabasterResult.html#clear"><code>clear</code></a> to release the memory once this dataset instance is no longer needed.</p></td>
         </tr>
 
     
@@ -783,12 +536,765 @@ if the caller might mutate them.</p></td>
 
         
 <div class="param-desc">
-    <p>Object containing:</p>
+    <p>Object containing the per-feature and per-cell annotations.
+This has the following properties:</p>
 <ul>
-<li><code>x</code>: a Float64Array containing the x-coordinate for each cell.</li>
-<li><code>y</code>: a Float64Array containing the y-coordinate for each cell.</li>
-<li><code>iterations</code>: the number of iterations processed.</li>
+<li><code>features</code>: an object where each key is a modality name and each value is a <a href="external-DataFrame.html">DataFrame</a> of per-feature annotations for that modality.</li>
+<li><code>cells</code>: a <a href="external-DataFrame.html">DataFrame</a> containing per-cell annotations.</li>
+<li><code>matrix</code>: a <a href="external-MultiMatrix.html">MultiMatrix</a> containing one <a href="external-ScranMatrix.html">ScranMatrix</a> per modality.</li>
+<li><code>reduced_dimensions</code>: an object containing the dimensionality reduction results.
+Each value is an array of arrays, where each inner array contains the coordinates for one dimension.</li>
 </ul>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="options"><span class="type-signature"></span>options<span class="signature">()</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line703">line 703</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Object containing all options used for loading.</p>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="setOptions"><span class="type-signature"></span>setOptions<span class="signature">(options)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line724">line 724</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Optional parameters that affect <a href="AbstractAlabasterResult.html#load"><code>load</code></a> (but not <a href="AbstractAlabasterResult.html#summary"><code>summary</code></a>.</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>primaryAssay</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+|
+
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Assay containing the relevant data for each modality.</p>
+<ul>
+<li>If a string, this is used as the name of the assay across all modalities.</li>
+<li>If a number, this is used as the index of the assay across all modalities.</li>
+<li>If any object, the key should be the name of a modality and the value may be either a string or number specifying the assay to use for that modality.
+Modalities absent from this object will not be loaded.</li>
+</ul></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>isPrimaryNormalized</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+|
+
+<span class="param-type">boolean</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Whether or not the assay for a particular modality has already been normalized.</p>
+<ul>
+<li>If a boolean, this is used to indicate normalization status of assays across all modalities.
+If <code>false</code>, that modality's assay is assumed to contain count data and is subjected to library size normalization.</li>
+<li>If any object, the key should be the name of a modality and the value should be a boolean indicating whether that modality's assay has been normalized.
+Modalities absent from this object are assumed to have been normalized.</li>
+</ul></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>reducedDimensionNames</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+                    &lt;nullable><br>
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Array of names of the reduced dimensions to load.
+If <code>null</code>, all reduced dimensions found in the file are loaded.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="summary"><span class="type-signature type-signature-async">(async) </span>summary<span class="signature">(options<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line778">line 778</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+        <th>Default</th>
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>{}</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Optional parameters.</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+        <th>Default</th>
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>cache</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    <code>false</code>
+                
+                </td>
+            
+
+            <td class="description last"><p>Whether to cache the results for re-use in subsequent calls to this method or <a href="AbstractAlabasterResult.html#load"><code>load</code></a>.
+If <code>true</code>, users should consider calling <a href="AbstractAlabasterResult.html#clear"><code>clear</code></a> to release the memory once this dataset instance is no longer needed.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Object containing the per-feature and per-cell annotations.
+This has the following properties:</p>
+<ul>
+<li><code>modality_features</code>: an object where each key is a modality name and each value is a <a href="external-DataFrame.html">DataFrame</a> of per-feature annotations for that modality.</li>
+<li><code>cells</code>: a <a href="external-DataFrame.html">DataFrame</a> of per-cell annotations.</li>
+<li><code>modality_assay_names</code>: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.
+Unnamed assays are represented as <code>null</code> names.</li>
+<li><code>reduced_dimension_names</code>: an Array of strings containing names of dimensionality reduction results.</li>
+</ul>
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id=".defaults"><span class="type-signature type-signature-static">(static) </span>defaults<span class="signature">()</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line692">line 692</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Default options, see <code>setOptions</code> for more details.</p>
 </div>
 
 
@@ -830,7 +1336,7 @@ if the caller might mutate them.</p></td>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Fri Aug 01 2025 21:08:44 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Fri Aug 01 2025 21:08:43 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
