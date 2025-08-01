@@ -269,7 +269,7 @@ class FeatureSetManager {
         }
 
         let stats = markers[effect_size](group, { summary: summary, copy: false });
-        let in_set = FeatureSetManager.chooseTopMarkers(
+        let in_set = chooseTopMarkers(
             bioc.SLICE(stats, this.#cache.universe),
             top_markers,
             effect_size,
