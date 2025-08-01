@@ -1,112 +1,51 @@
-import * as scran from "scran.js";
+import * as jsp from "jaspagate";
+import * as bioc from "bioconductor";
 
-export function dumpPcaResultsToHdf5(pcs, path, forceBuffer) {
-    let ncells = pcs.numberOfCells();
-    let npcs = pcs.numberOfPCs();
+export class MockReducedDimensionMatrix {
+    #values;
+    #nr;
+    #nc;
 
-    let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
-    let content = temppath;
-
-    let fhandle = scran.createNewHdf5File(temppath);
-    let buffer;
-
-    try {
-        buffer = scran.createFloat64WasmArray(ncells * npcs);
-
-        // Transposing so that cells are the fastest-changing dimension.
-        let comp = pcs.principalComponents({ copy: false });
-        let arr = buffer.array();
-        for (var c = 0; c < ncells; c++) {
-            for (var p = 0; p < npcs; p++) {
-                arr[c + p * ncells] = comp[p + c * npcs];
-            }
-        }
-
-        fhandle.writeDataSet(
-            "data", 
-            "Float64", 
-            [npcs, ncells],
-            buffer
-        ); 
-
-        if (forceBuffer) {
-            content = scran.readFile(temppath);
-            scran.removeFile(temppath);
-        }
-    } catch (e) {
-        scran.removeFile(temppath);
-        throw e;
-    } finally {
-        scran.free(buffer);
+    constructor(nr, nc, values) {
+        this.#nr = nr;
+        this.#nc = nc;
+        this.#values = values;
     }
 
-    return { 
-        metadata: {
-            "$schema": "hdf5_dense_array/v1.json",
-            "path": path + "/matrix.h5",
-            "array": {
-                "dimensions": [ncells, npcs]
-            },
-            "hdf5_dense_array": {
-                "dataset": "data",
-            }
-        },
-        contents: content
-    };
-}
-
-export function dumpOtherReducedDimensionsToHdf5(dimensions, path, forceBuffer) {
-    let ncells = dimensions[0].length;
-    let ndims = dimensions.length;
-
-    let temppath = scran.chooseTemporaryPath({ extension: ".h5" });
-    let content = temppath;
-
-    let fhandle = scran.createNewHdf5File(temppath);
-    let buffer;
-
-    try {
-        buffer = scran.createFloat64WasmArray(ncells * ndims);
-
-        for (var d = 0; d < ndims; d++) {
-            if (dimensions[d].length !== ncells) {
-                throw new Error("all dimensions must have the same length");
-            }
-            buffer.set(dimensions[d], ncells * d);            
-        }
-
-        fhandle.writeDataSet(
-            "data", 
-            "Float64", 
-            [ndims, ncells],
-            buffer
-        ); 
-
-        if (forceBuffer) {
-            content = scran.readFile(temppath);
-            scran.removeFile(temppath);
-        }
-    } catch (e) {
-        scran.removeFile(temppath);
-        throw e;
-    } finally {
-        scran.free(buffer);
+    _bioconductor_NUMBER_OF_ROWS() {
+        return this.#nr;
     }
 
-    return { 
-        metadata: {
-            "$schema": "hdf5_dense_array/v1.json",
-            "path": path + "/matrix.h5",
-            "array": {
-                "dimensions": [ncells, ndims]
-            },
-            "hdf5_dense_array": {
-                "dataset": "data",
-            }
-        },
-        contents: content
-    };
+    _bioconductor_NUMBER_OF_COLUMNS() {
+        return this.#nc;
+    }
+
+    get values() {
+        return this.#values;
+    }
 }
 
+export async function saveReducedDimensionMatrix(x, path, globals, options) {
+    await globals.mkdir(path);
+    let fhandle = await globals.h5create(jsp.joinPath(path, "array.h5"));
+    let handle_stack = [fhandle]
+    let success = false;
+    try {
+        let dhandle = fhandle.createGroup("dense_array");
+        handle_stack.push(dhandle);
+        dhandle.createDataSet("data", "Float64", [bioc.NUMBER_OF_COLUMNS(x), bioc.NUMBER_OF_ROWS(x)], { data: x.values }); // [ncol, nrow] as HDF5 uses row-major storage.
+        dhandle.writeAttribute("type", "String", [], ["number"]);
+        dhandle.writeAttribute("transposed", "Int8", [], [1]);
+        success = true;
+    } finally {
+        for (const handle of handle_stack.reverse()) {
+            handle.close();
+        }
+        await globals.h5finish(fhandle, !success);
+    }
 
-
+    await globals.write(jsp.joinPath(path, "OBJECT"), JSON.stringify({
+        type: "dense_array",
+        dense_array: { version: "1.0" }
+    }));
+}

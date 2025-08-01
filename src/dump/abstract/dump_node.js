@@ -1,65 +1,27 @@
 import * as fs from "fs";
-import * as path from "path";
-import * as crypto from "crypto";
-import { md5 } from 'hash-wasm';
+import * as pp from "path";
 
-export async function attachMd5sums(files) {
-    for (const x of files) {
-        if (!("contents" in x)) {
-            continue;
-        }
+export function fsexists() {
+    return true;
+}
 
-        if (x.contents instanceof Uint8Array) {
-            let hash = crypto.createHash('md5');
-            hash.update(x.contents);
-            x.metadata.md5sum = hash.digest("hex");
-        } else {
-            x.metadata.md5sum = await (new Promise((resolve, reject) => {
-                let hash = crypto.createHash('md5');
-                const rs = fs.createReadStream(x.contents)
-                rs.on('error', reject)
-                rs.on('data', chunk => hash.update(chunk))
-                rs.on('end', () => resolve(hash.digest('hex')))
-            }));
-        }
+export function read(dir, path, asBuffer) {
+    let loc = pp.join(dir, path);
+    if (asBuffer) {
+        return new Uint8Array(fs.readFileSync(loc));
+    } else {
+        return loc;
     }
 }
 
-export async function realizeDirectory(files, directory, path_) {
-    let base_path = path.join(directory, path_)
-    if (fs.existsSync(base_path)) {
-        fs.rmSync(base_path, { recursive: true, force: true });
-    }
-
-    for (const x of files) {
-        let full_path = path.join(directory, x.metadata.path);
-        let dir_path = path.dirname(full_path);
-        fs.mkdirSync(dir_path, { recursive: true });
-
-        let suffix;
-        if ("contents" in x) {
-            suffix = ".json";
-
-            if (x.contents instanceof Uint8Array) {
-                fs.writeFileSync(full_path, x.contents);
-            } else {
-                fs.renameSync(x.contents, full_path);
-            }
-            x.contents = full_path;
-
-        } else if (x.metadata["$schema"].startsWith("redirection/")) {
-            suffix = ".json";
-        } else {
-            suffix = "";
-        }
-
-        // Add a trailing newline to avoid no-newline warnings. 
-        fs.writeFileSync(full_path + suffix, JSON.stringify(x.metadata, null, 2) + "\n");
-    }
-
-    return;
+export function write(dir, path, x) {
+    fs.writeFileSync(pp.join(dir, path), x);
 }
 
-export function loadFilePath(p) {
-    return fs.readFileSync(p);
+export function mkdir(dir, path) {
+    fs.mkdirSync(pp.join(dir, path), { recursive: true });
+}
+
+export function copy(dir, from, to) {
+    fs.copyFileSync(pp.join(dir, from), pp.join(dir, to));
 }

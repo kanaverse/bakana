@@ -1,16 +1,54 @@
 import * as sce from "./SingleCellExperiment.js";
 import * as markers from "./markers.js";
-import * as adump from "./abstract/dump.js";
-import JSZip from "jszip";
+import * as ass from "./assays.js";
+import * as rd from "./reducedDimensions.js";
+import * as internal from "./abstract/dump.js";
+import { AlabasterGlobalsInterface } from "./interfaces.js";
+import * as jsp from "jaspagate";
+import * as wa from "wasmarrays.js";
+
+function saveOtherDataFrameColumns(y, handle, name) {
+    if (y instanceof wa.Float64WasmArray) {
+        let chandle = handle.createDataSet(name, "Float64", [ y.length ], { data: y });
+        try {
+            chandle.writeAttribute("type", "String", [], ["number"]);
+        } finally {
+            chandle.close();
+        }
+        return true;
+
+    } else if (y instanceof wa.Int32WasmArray) {
+        let chandle = handle.createDataSet(name, "Int32", [ y.length ], { data: y });
+        try {
+            chandle.writeAttribute("type", "String", [], ["integer"]);
+        } finally {
+            chandle.close();
+        }
+        return true;
+
+    } else if (y instanceof wa.Uint8WasmArray) {
+        let chandle = handle.createDataSet(name, "Uint8", [ y.length ], { data: y });
+        try {
+            chandle.writeAttribute("type", "String", [], ["boolean"]);
+        } finally {
+            chandle.close();
+        }
+        return true;
+    }
+
+    return false;
+}
 
 /**
- * Save the analysis results into an [**ArtifactDB** representation](https://github.com/ArtifactDB/BiocObjectSchemas) of a SingleCellExperiment.
+ * Save the analysis results into a SingleCellExperiment using the [**takane**](https://github.com/ArtifactDB/takane) format.
  * This uses a language-agnostic format mostly based on HDF5 and JSON, which can be read into a variety of frameworks like R and Python.
  * The aim is to facilitate downstream analysis procedures that are not supported by **bakana** itself; 
  * for example, a bench scientist can do a first pass with **kana** before passing the results to a computational collaborator for deeper inspection.
  *
  * @param {object} state - Existing analysis state containing results, after one or more runs of {@linkcode runAnalysis}.
- * @param {string} name - Name of the SingleCellExperiment to be saved.
+ * @param {string} name - Name of the SingleCellExperiment.
+ * This may also contain forward slashes, in which case it is treated as a local path.
+ * If a local filesystem is present and `directory` is supplied, `name` defines the subdirectory within `directory` in which the SingleCellExperiment is to be saved.
  * @param {object} [options={}] - Optional parameters.
  * @param {boolean} [options.reportOneIndex=false] - Whether to report 1-based indices, for use in 1-based languages like R.
  * Currently, this only refers to the column indices of the custom selections reported in the SingleCellExperiment's metadata.
@@ -18,83 +56,61 @@ import JSZip from "jszip";
  * This can yield a cleaner SingleCellExperiment as statistics are assigned to the relevant modalities.
  * That said, the default is still `false` as many applications (including **bakana** itself, via the {@linkcode AbstractArtifactdbDataset} and friends) will not parse the column data of alternative Experiments. 
  * In such cases, all modality-specific metrics are stored in the main experiment's column data with a modality-specific name, e.g., `kana::ADT::quality_control::sums`.
- * @param {boolean} [options.forceBuffer=true] - Whether to force all files to be loaded into memory as Uint8Array buffers.
- * @param {?string} [options.directory=null] - Project directory in which to save the file components of the SingleCellExperiment.
- * Only used for Node.js; if supplied, it overrides any setting of `forceBuffer`.
+ * @param {?string} [options.directory=null] - Directory in which to save the components of the SingleCellExperiment.
+ * If `null` or if no local file system exists, files are stored in memory as Uint8Arrays.
  *
- * @return {Array} Array of objects where each object corresponds to a file in the SingleCellExperiment's representation.
- * Each inner object contains `metadata`, another object containing the metadata for the corresponding file.
- *
- * For files that are not purely metadata, the inner object will also contain  `contents`, the contents of the file.
- * The type of `contents` depends on the context and optional parameters.
- *
- * - If `forceBuffer = true`, `contents` is a Uint8Array of the file contents.
- *   This is probably the most advisable setting for browser environments.
- * - If `forceBuffer = false`, `contents` may be either a Uint8Array or a string to a temporary file path. 
- *   In a browser context, the temporary path is located on the **scran.js** virtual file system,
- *   see [here](https://kanaverse.github.io/scran.js/global.html#readFile) to extract its contents and to clean up afterwards.
- * - If the function is called from Node.js and `directory` is supplied, `contents` is a string to a file path inside `directory`.
- *   This overrides any expectations from the setting of `forceBuffer` and is the most efficient approach for Node.js.
- * 
- * The SingleCellExperiment itself will be accessible from a top-level object at the path defined by `name`.
+ * @return {?Object} If `directory` is supplied and a local filesystem exists, the components are saved to disk and `null` is returned.
+ * Otherwise, if `directory = null` or a local filesystem does not exist, an object is returned where each key is a local path to a component file and each value is a Uint8Array with the file contents.
  */
-export async function saveSingleCellExperiment(state, name, { reportOneIndex = false, storeModalityColumnData = false, forceBuffer = true, directory = null } = {}) {
-    if (directory !== null) {
-        forceBuffer = false;
-    } 
+export async function saveSingleCellExperiment(state, name, { reportOneIndex = false, storeModalityColumnData = false, directory = null } = {}) {
+    let my_sce = await sce.formatSingleCellExperiment(state, { reportOneIndex, storeModalityColumnData });
 
-    let { metadata, files } = await sce.dumpSingleCellExperiment(state, name, { forceBuffer, reportOneIndex, storeModalityColumnData });
-    files.push({ metadata });
+    if (!(internal.fsexists())) {
+        directory = null;
+    }
+    let files = {};
+    let globals = new AlabasterGlobalsInterface(directory, files);
 
-    // Added a redirection document.
-    files.push({
-        "metadata": {
-            "$schema": "redirection/v1.json",
-            "path": name,
-            "redirection": {
-                "targets": [
-                    {
-                        "type": "local",
-                        "location": metadata.path
-                    }
-                ]
-            }
-        }
-    });
-
-    await adump.attachMd5sums(files);
-
-    // Either dumping everything to file or returning all the buffers.
-    if (!forceBuffer && directory !== null) {
-        await adump.realizeDirectory(files, directory, name);
+    jsp.saveObjectRegistry.push([ ass.MockSparseMatrix, ass.saveSparseMatrix ]);
+    jsp.saveObjectRegistry.push([ ass.MockNormalizedMatrix, ass.saveNormalizedMatrix ]); 
+    jsp.saveObjectRegistry.push([ rd.MockReducedDimensionMatrix, rd.saveReducedDimensionMatrix]); 
+    try {
+        await jsp.saveObject(my_sce, name, globals, { DataFrame_saveOther: saveOtherDataFrameColumns });
+    } finally {
+        jsp.saveObjectRegistry.pop();
+        jsp.saveObjectRegistry.pop();
+        jsp.saveObjectRegistry.pop();
     }
 
-    return files;
+    if (directory === null) {
+        return files;
+    } else {
+        return null;
+    }
 }
 
 /**
- * Save the per-gene analysis results into [**ArtifactDB** data frames](https://github.com/ArtifactDB/BiocObjectSchemas).
+ * Save the per-gene analysis results as data frames in the [**takane**](https://github.com/ArtifactDB/takane) format.
  * This includes the marker tables for the clusters and custom selections, as well as the variance modelling statistics from the feature selection step.
  * Each data frames has the same order of rows as the SingleCellExperiment saved by {@linkcode saveSingleCellExperiment};
  * for easier downstream use, we set the row names of each data frame to row names of the SingleCellExperiment
  * (or if no row names are available, we set each data frame's row names to the first column of the `rowData`).
  *
  * @param {object} state - Existing analysis state containing results, after one or more runs of {@linkcode runAnalysis}.
- * @param {string} path - Path to a subdirectory inside the project directory in which to save all results.
- * If `null`, this is treated as the root of the project directory.
+ * @param {?string} path - Local path in which to save all results.
+ * If a local filesystem is present and `directory` is supplied, `path` defines the subdirectory within `directory` in which the SingleCellExperiment is to be saved.
+ * If `null`, results are directly saved to `directory` itself.
  * @param {object} [options={}] - Optional parameters.
  * @param {boolean} [options.includeMarkerDetection=true] - Whether to save the marker detection results.
  * @param {boolean} [options.includeCustomSelections=true] - Whether to save the custom selection results.
  * @param {boolean} [options.includeFeatureSelection=true] - Whether to save the feature selection results.
- * @param {boolean} [options.forceBuffer=true] - Whether to force all files to be loaded into memory as Uint8Array buffers.
- * @param {?directory} [options.directory=null] - Project directory in which to save the file components of the SingleCellExperiment.
- * Only used for Node.js; if supplied, it overrides any setting of `forceBuffer`.
+ * @param {?string} [options.directory=null] - Directory in which to save the data frames. 
+ * If `null` or if no local file system exists, files are stored in memory as Uint8Arrays.
  *
- * @return {Array} Array of objects where each object corresponds to a data frame of per-gene statistics.
- * These data frames are grouped by analysis step, i.e., `marker_detection`, `custom_selections` and `feature_selection`.
- * See {@linkcode saveSingleCellExperiment} for more details on the contents of each object inside the returned array.
+ * @return {?Object} If `directory` is supplied and a local filesystem exists, the data frame components are saved to disk and `null` is returned.
+ * Otherwise, if `directory = null` or a local filesystem does not exist, an object is returned where each key is a local path to a component file and each value is a Uint8Array with the file contents.
  */
-export async function saveGenewiseResults(state, path, { includeMarkerDetection = true, includeCustomSelections = true, includeFeatureSelection = true, forceBuffer = true, directory = null } = {}) {
+export async function saveGenewiseResults(state, path, { includeMarkerDetection = true, includeCustomSelections = true, includeFeatureSelection = true, directory = null } = {}) {
     let modalities = {};
     let anno = state.inputs.fetchFeatureAnnotations();
     for (const [k, v] of Object.entries(anno)) {
@@ -105,78 +121,42 @@ export async function saveGenewiseResults(state, path, { includeMarkerDetection 
         modalities[k] = rn;
     }
 
-    if (path === null) {
-        path = ""
-    } else if (path.endsWith("/")) {
-        path = path.replace(/\/+$/, "/"); // Making sure we only have one trailing slash.
-    } else {
-        path = path + "/";
+    if (!(internal.fsexists())) {
+        directory = null;
     }
-
-    let files = [];
-    if (directory !== null) {
-        forceBuffer = false;
-    } 
+    let files = {};
+    let globals = new AlabasterGlobalsInterface(directory, files);
 
     if (includeMarkerDetection) {
-        markers.dumpMarkerDetectionResults(state, modalities, path, files, forceBuffer);
+        let dir = "marker_detection";
+        if (path !== null) {
+            dir = jsp.joinPath(path, dir);
+        }
+        let all = markers.formatMarkerDetectionResults(state, modalities);
+        for (const [k, v] of Object.entries(all)) {
+            await jsp.saveObject(v, jsp.joinPath(dir, k), globals, { DataFrame_saveOther: saveOtherDataFrameColumns });
+        }
     }
 
     if (includeCustomSelections) {
-        markers.dumpCustomSelectionResults(state, modalities, path, files, forceBuffer);
+        let dir = "custom_selections";
+        if (path !== null) {
+            dir = jsp.joinPath(path, dir);
+        }
+        let all = markers.formatCustomSelectionResults(state, modalities);
+        for (const [k, v] of Object.entries(all)) {
+            await jsp.saveObject(v, jsp.joinPath(dir, k), globals, { DataFrame_saveOther: saveOtherDataFrameColumns });
+        }
     }
 
     if (state.feature_selection.valid() && includeFeatureSelection) {
-        markers.dumpFeatureSelectionResults(state, modalities.RNA, path, files, forceBuffer);
+        let df = markers.formatFeatureSelectionResults(state, modalities.RNA);
+        await jsp.saveObject(df, jsp.joinPath(path, "feature_selection"), globals, { DataFrame_saveOther: saveOtherDataFrameColumns });
     }
 
-    await adump.attachMd5sums(files);
-
-    // Either dumping everything to file or returning all the buffers.
-    if (!forceBuffer && directory !== null) {
-        await adump.realizeDirectory(files, directory, path);
+    if (directory === null) {
+        return files;
+    } else {
+        return null;
     }
-
-    return files;
-}
-
-/**
- * Zip a set of files, typically corresponding to the contents of an **ArtifactDB** project directory.
- *
- * @param {Array} files - Array of objects describing files in the project directory.
- * See the output of {@linkcode saveSingleCellExperiment} for more details on the expected format.
- * @param {object} [options={}] - Optional parameters.
- * @param {Array} [options.extras=[]] - Array of extra files to store inside the ZIP file (e.g., READMEs, notes).
- * Each entry should be an object with the `path` property, containing the relative path of the file in the project directory;
- * and `contents`, a Uint8Array containin the file contents.
- *
- * @return {Promise<Uint8Array>} Uint8Array with the contents of the ZIP file containing all `files`.
- */
-export function zipFiles(files, { extras = [] } = {}) {
-    var zip = new JSZip();
-
-    for (const x of files) {
-        let suffix;
-        if ("contents" in x) {
-            suffix = ".json";
-            if (x.contents instanceof Uint8Array) {
-                zip.file(x.metadata.path, x.contents);
-            } else {
-                zip.file(x.metadata.path, adump.loadFilePath(x.contents));
-            }
-        } else if (x.metadata["$schema"].startsWith("redirection/")) {
-            suffix = ".json";
-        } else {
-            suffix = "";
-        }
-
-        // Add a trailing newline to avoid no-newline warnings. 
-        zip.file(x.metadata.path + suffix, JSON.stringify(x.metadata, null, 2) + "\n");
-    }
-
-    for (const x of extras) {
-        zip.file(x.path, x.contents)
-    }
-
-    return zip.generateAsync({ type: "uint8array" });
 }

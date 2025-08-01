@@ -66,7 +66,9 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     await utils.triggerAnimation(state);
 
     // Check saving of results.
+    utils.purgeDirectory("miscellaneous/from-tests/MatrixMarket");
     await bakana.saveSingleCellExperiment(state, "MatrixMarket", { directory: "miscellaneous/from-tests" });
+    utils.purgeDirectory("miscellaneous/from-tests/MatrixMarket_genes");
     await bakana.saveGenewiseResults(state, "MatrixMarket_genes", { directory: "miscellaneous/from-tests" });
 
     // Check reloading of the parameters/datasets.
@@ -111,7 +113,7 @@ test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async (
 
     // No annotations, so no mitochondrial proportions.
     expect(state.inputs.fetchFeatureAnnotations()["RNA"].numberOfColumns()).toBe(0);
-    expect(state.rna_quality_control.fetchFilters().thresholdsSubsetProportions(0)[0]).toBe(0);
+    expect(state.rna_quality_control.fetchFilters().subsetProportion(0)[0]).toBe(0);
 
     // Feature set enrichment behaves.
     params.feature_set_enrichment.skip = false;

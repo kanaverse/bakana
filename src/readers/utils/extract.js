@@ -2,6 +2,7 @@ import * as pako from "pako";
 import ppp from "papaparse";
 import * as astream from "./abstract/stream.js";
 import * as afile from "../abstract/file.js";
+import * as scran from "scran.js";
 
 export function extractHdf5Strings(handle, name) {
     if (!(name in handle.children)) {
@@ -13,7 +14,7 @@ export function extractHdf5Strings(handle, name) {
     }
 
     let content = handle.open(name);
-    if (content.type !== "String") {
+    if (!(content.type instanceof scran.H5StringType)) {
         return null;
     }
 

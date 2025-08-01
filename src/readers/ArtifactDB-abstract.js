@@ -175,7 +175,7 @@ async function extract_all_features(path, navigator) {
     let output = {};
     output[main_experiment_name] = await extract_features(full_meta);
 
-    if ("single_cell_experiment" in full_meta) {
+    if ("single_cell_experiment" in full_meta && "alternative_experiments" in full_meta.single_cell_experiment) {
         for (const alt of full_meta.single_cell_experiment.alternative_experiments) {
             try {
                 let alt_meta = await navigator.metadata(alt.resource.path);
@@ -202,7 +202,7 @@ async function extract_all_assay_names(path, navigator) {
     let assays = {};
     assays[main_experiment_name] = extract_assay_names(full_meta);
 
-    if ("single_cell_experiment" in full_meta) {
+    if ("single_cell_experiment" in full_meta && "alternative_experiments" in full_meta.single_cell_experiment) {
         for (const alt of full_meta.single_cell_experiment.alternative_experiments) {
             try {
                 let alt_meta = await navigator.metadata(alt.resource.path);
@@ -277,7 +277,7 @@ async function extract_logcounts(handle, navigator) {
     let output;
     try {
         mat = await extract_assay_raw(path, navigator, false); // don't force it to be integer, but we don't mind if it is.
-        output = scran.logNormCounts(mat, { sizeFactors: sf, center: false });
+        output = scran.normalizeCounts(mat, { sizeFactors: sf, center: false });
     } finally {
         scran.free(mat);
     }
@@ -685,7 +685,7 @@ export class AbstractArtifactdbDataset {
         let full_meta = await this.#navigator.metadata(this.#path);
         let altmap = {};
         let alts = [];
-        if ("single_cell_experiment" in full_meta) {
+        if ("single_cell_experiment" in full_meta && "alternative_experiments" in full_meta.single_cell_experiment) {
             alts = full_meta.single_cell_experiment.alternative_experiments;
             for (const alt of alts) {
                 altmap[alt.name] = alt.resource.path;
@@ -984,7 +984,7 @@ export class AbstractArtifactdbResult {
         // Now fetching the assay matrix.
         {
             let altmap = {};
-            if ("single_cell_experiment" in full_meta) {
+            if ("single_cell_experiment" in full_meta && "alternative_experiments" in full_meta.single_cell_experiment) {
                 for (const alt of full_meta.single_cell_experiment.alternative_experiments) {
                     altmap[alt.name] = alt.resource.path;
                 }
@@ -1021,7 +1021,7 @@ export class AbstractArtifactdbResult {
                     output.matrix.add(k, loaded);
 
                     if (!curnormalized) {
-                        let normed = scran.logNormCounts(loaded, { allowZeros: true });
+                        let normed = scran.normalizeCounts(loaded, { allowZeros: true });
                         output.matrix.add(k, normed);
                     }
 

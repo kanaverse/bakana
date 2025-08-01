@@ -61,7 +61,9 @@ test("runAnalysis works correctly (H5AD)", async () => {
     }
 
     // Check saving of results.
+    utils.purgeDirectory("miscellaneous/from-tests/H5AD");
     await bakana.saveSingleCellExperiment(state, "H5AD", { directory: "miscellaneous/from-tests" });
+    utils.purgeDirectory("miscellaneous/from-tests/H5AD_genes");
     await bakana.saveGenewiseResults(state, "H5AD_genes", { directory: "miscellaneous/from-tests" });
 
     // Check reloading of the parameters/datasets.

@@ -1,20 +1,21 @@
-import { md5 } from 'hash-wasm';
-import * as scran from "scran.js";
+// Stub file to ensure that something is loaded.
 
-export async function attachMd5sums(files) {
-    for (const x of files) {
-        if (!("contents" in x)) {
-            continue;
-        }
-        x.metadata.md5sum = await md5(x.contents);
-    }
+export function fsexists() {
+    return false;
 }
 
-export function realizeDirectory(files, directory) {
-    throw new Error("cannot realize files into a directory in a web context");
-    return;
+export function read(dir, path, asBuffer) {
+    throw new Error("read() is not supported in a web context");
 }
 
-export function loadFilePath(p) {
-    return scran.readFile(p);
+export function write(dir, path, x) {
+    throw new Error("write() is not supported in a web context");
+}
+
+export function mkdir(dir, path) {
+    throw new Error("mkdir() is not supported in a web context");
+}
+
+export function copy(dir, from, to) {
+    throw new Error("copy() is not supported in a web context");
 }

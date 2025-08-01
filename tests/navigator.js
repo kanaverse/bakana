@@ -3,7 +3,7 @@ import * as utils from "./utils.js";
 import * as bakana from "../src/index.js";
 import JSZip from "jszip";
 
-export const baseDirectory = "miscellaneous/from-tests";
+export const baseDirectory = "files/datasets/ArtifactDB";
 
 export function pathExists(chosen) {
     let path = baseDirectory + "/" + chosen;
@@ -99,11 +99,25 @@ export function zipDirectory(directory, children) {
         }
     }
 
-    const enc = new TextEncoder;
-    let ex = {
-        path: "README.md",
-        contents: enc.encode("Hi! Read me please!")
-    };
+    var zip = new JSZip();
+    for (const x of prep_files) {
+        let suffix;
+        if ("contents" in x) {
+            suffix = ".json";
+            if (x.contents instanceof Uint8Array) {
+                zip.file(x.metadata.path, x.contents);
+            } else {
+                zip.file(x.metadata.path, fs.readFileSync(x.contents));
+            }
+        } else if (x.metadata["$schema"].startsWith("redirection/")) {
+            suffix = ".json";
+        } else {
+            suffix = "";
+        }
 
-    return bakana.zipFiles(prep_files, { extras: [ex] });
+        // Add a trailing newline to avoid no-newline warnings. 
+        zip.file(x.metadata.path + suffix, JSON.stringify(x.metadata, null, 2) + "\n");
+    }
+
+    return zip.generateAsync({ type: "uint8array" });
 }

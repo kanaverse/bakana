@@ -8,7 +8,7 @@ export const step_name = "crispr_normalization";
 
 /**
  * This step performs normalization and log-transformation on the QC-filtered CRISPR count matrix from the {@linkplain CellFilteringState}.
- * It wraps the [`logNormCounts`](https://kanaverse.github.io/scran.js/global.html#logNormCounts) functions
+ * It wraps the [`normalizeCounts`](https://kanaverse.github.io/scran.js/global.html#normalizeCounts) functions
  * from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
@@ -38,8 +38,7 @@ export class CrisprNormalizationState {
 
     free() {
         utils.freeCache(this.#cache.matrix);
-        utils.freeCache(this.#cache.total_buffer);
-        utils.freeCache(this.#cache.centered_buffer);
+        utils.freeCache(this.#cache.sf_buffer);
     }
 
     /***************************
@@ -65,15 +64,10 @@ export class CrisprNormalizationState {
     /**
      * @return {Float64WasmArray} Array of length equal to the number of cells, 
      * containing the CRISPR-derived size factor for each cell.
-     * This is available after running {@linkcode RnaNormalizationState#compute compute}.
+     * This is available after running {@linkcode CrisprNormalizationState#compute compute}.
      */
     fetchSizeFactors() {
-        let buff;
-        if (this.#cache.sum_buffer) {
-            buff = utils.allocateCachedArray(this.#cache.sum_buffer.length, "Float64Array", this.#cache, "centered_buffer");
-            scran.centerSizeFactors(this.#cache.sum_buffer, { buffer: buff, block: this.#filter.fetchFilteredBlock() })
-        }
-        return buff;
+        return this.#cache.sf_buffer;
     }
 
     /**
@@ -89,11 +83,14 @@ export class CrisprNormalizationState {
 
     #raw_compute() {
         var mat = this.#filter.fetchFilteredMatrix().get("CRISPR");
-        let buffer = nutils.subsetSums(this.#qc, this.#filter, mat, this.#cache, "sum_buffer");
+        let raw_sf = nutils.subsetSums(this.#qc, this.#filter, mat);
 
-        var block = this.#filter.fetchFilteredBlock();
+        let block = this.#filter.fetchFilteredBlock();
+        let buffer = utils.allocateCachedArray(raw_sf.length, "Float64Array", this.#cache, "sf_buffer");
+        scran.centerSizeFactors(raw_sf, { block: block, buffer: buffer });
+
         utils.freeCache(this.#cache.matrix);
-        this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: block, allowZeros: true });
+        this.#cache.matrix = scran.normalizeCounts(mat, { sizeFactors: buffer, allowZeros: true });
         return;
     }
 

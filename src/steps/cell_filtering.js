@@ -1,4 +1,5 @@
 import * as scran from "scran.js"; 
+import * as wa from "wasmarrays.js";
 import * as utils from "./utils/general.js";
 import * as rna_qc_module from "./rna_quality_control.js";
 import * as adt_qc_module from "./adt_quality_control.js";
@@ -59,7 +60,7 @@ export class CellFilteringState {
 
     free() {
         utils.freeCache(this.#cache.block_buffer);
-        utils.freeCache(this.#cache.discard_buffer);
+        utils.freeCache(this.#cache.keep_buffer);
         utils.freeCache(this.#cache.matrix);
     }
 
@@ -92,14 +93,14 @@ export class CellFilteringState {
     }
 
     /**
-     * @return {?Uint8WasmArray} Combined discard vector, i.e., an array of length equal to the number of cells in the dataset,
-     * indicating whether each cell should be removed.
+     * @return {?Uint8WasmArray} Array of length equal to the number of cells in the dataset,
+     * indicating whether each cell should be kept after filtering.
      * This is available after running {@linkcode CellFilteringState#compute compute}.
      * Alternatively `null`, if no upstream filtering steps were performed.
      */
-    fetchDiscards() {
-        if ("discard_buffer" in this.#cache) {
-            return this.#cache.discard_buffer;
+    fetchKeep() {
+        if ("keep_buffer" in this.#cache) {
+            return this.#cache.keep_buffer;
         } else {
             return null;
         }
@@ -125,8 +126,8 @@ export class CellFilteringState {
             let src = inputs.get(a);
 
             let sub;
-            if ("discard_buffer" in this.#cache) {
-                sub = scran.filterCells(src, this.#cache.discard_buffer);
+            if ("keep_buffer" in this.#cache) {
+                sub = scran.filterCells(src, this.#cache.keep_buffer);
             } else {
                 sub = src.clone();
             }
@@ -140,12 +141,12 @@ export class CellFilteringState {
 
         let block = this.#inputs.fetchBlock();
         if (block !== null) {
-            if ("discard_buffer" in this.#cache) {
+            if ("keep_buffer" in this.#cache) {
                 // Filtering on the block. Might as well force a load of the
                 // matrix, it'll be needed once we have the blocks anyway.
                 let filtered_ncols = this.fetchFilteredMatrix().numberOfColumns();
                 let bcache = utils.allocateCachedArray(filtered_ncols, "Int32Array", this.#cache, "block_buffer");
-                scran.filterBlock(block, this.#cache.discard_buffer, { buffer: bcache });
+                wa.subsetWasmArray(block, this.#cache.keep_buffer, { buffer: bcache, filter: false });
             } else {
                 this.#cache.block_buffer = block.view();
             }
@@ -191,28 +192,28 @@ export class CellFilteringState {
 
         if (this.changed) {
             if (to_use.length > 0) {
-                let first = to_use[0].fetchDiscards();
+                let first = to_use[0].fetchKeep();
 
                 if (to_use.length > 1) {
-                    // A discard signal in any modality causes the cell to be removed. 
-                    let disc_buffer = utils.allocateCachedArray(first.length, "Uint8Array", this.#cache, "discard_buffer");
-                    disc_buffer.fill(0);
+                    // Lack of a keep signal any modality causes the cell to be removed. 
+                    let keep_buffer = utils.allocateCachedArray(first.length, "Uint8Array", this.#cache, "keep_buffer");
+                    keep_buffer.fill(1);
 
-                    let disc_arr = disc_buffer.array();
+                    let keep_arr = keep_buffer.array();
                     for (const u of to_use) {
-                        u.fetchDiscards().forEach((y, i) => { disc_arr[i] |= y; });
+                        u.fetchKeep().forEach((y, i) => { keep_arr[i] = keep_arr[i] && y; });
                     }
                 } else {
                     // If there's only one valid modality, we just create a view on it
                     // to avoid unnecessary duplication.
-                    utils.freeCache(this.#cache.discard_buffer);
-                    this.#cache.discard_buffer = first.view();
+                    utils.freeCache(this.#cache.keep_buffer);
+                    this.#cache.keep_buffer = first.view();
                 }
 
             } else {
                 // Deleting this so that serialization will behave correctly.
-                utils.freeCache(this.#cache.discard_buffer);
-                delete this.#cache.discard_buffer;
+                utils.freeCache(this.#cache.keep_buffer);
+                delete this.#cache.keep_buffer;
             }
 
             this.#raw_compute_matrix();
@@ -237,7 +238,7 @@ export class CellFilteringState {
      * @param {Array|TypedArray} Any array-like object of length equal to the number of cells in the unfiltered dataset.
      * 
      * @return {Array|TypedArray} An array-like object of the same type as `x`,
-     * where all elements corresponding to low-quality cells have been discarded.
+     * where all elements corresponding to high-quality cells have been retained.
      * This will have number of columns equal to that of {@linkcode CellFilteringState#fetchFilteredMatrix fetchFilteredMatrix}.
      */
     applyFilter(x) {
@@ -246,11 +247,11 @@ export class CellFilteringState {
             throw new Error("length of 'x' should be equal to the number of cells in the unfiltered dataset");
         }
 
-        if (!("discard_buffer" in this.#cache)) {
+        if (!("keep_buffer" in this.#cache)) {
             return x.slice(); // making a copy.
         } else {
-            let discard = this.#cache.discard_buffer.array();
-            return x.filter((y, i) => !discard[i]);
+            let keep = this.#cache.keep_buffer.array();
+            return x.filter((y, i) => keep[i]);
         }
     }
 
@@ -273,13 +274,13 @@ export class CellFilteringState {
             }
         }
 
-        if (!('discard_buffer' in this.#cache)) {
+        if (!('keep_buffer' in this.#cache)) {
             return;
         }
 
         let keep = [];
-        this.#cache.discard_buffer.forEach((x, i) => {
-            if (x == 0) {
+        this.#cache.keep_buffer.forEach((x, i) => {
+            if (x !== 0) {
                 keep.push(i);
             }
         });

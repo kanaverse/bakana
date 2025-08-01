@@ -51,11 +51,8 @@ class LocalArtifactdbDataset extends bakana.AbstractArtifactdbDataset {
 
 /***********************************************/
 
-let target_simple = nav.pathExists("H5AD");
-let action_simple = (target_simple == null ? test.skip : test);
-
-action_simple("ArtifactDB summary works correctly", async () => {
-    let files = { default: new LocalArtifactdbDataset(target_simple, nav.baseDirectory) };
+test("ArtifactDB summary works correctly", async () => {
+    let files = { default: new LocalArtifactdbDataset("experiment.json", nav.baseDirectory + "/zeisel-brain-stripped") };
     let summ = await files.default.summary({ cache: true });
 
     expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
@@ -70,8 +67,8 @@ action_simple("ArtifactDB summary works correctly", async () => {
     files.default.clear();
 })
 
-action_simple("runAnalysis works correctly (ArtifactDB)", async () => {
-    let files = { default: new LocalArtifactdbDataset(target_simple, nav.baseDirectory) };
+test("runAnalysis works correctly (ArtifactDB)", async () => {
+    let files = { default: new LocalArtifactdbDataset("experiment.json", nav.baseDirectory + "/zeisel-brain-stripped") };
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();
     await bakana.runAnalysis(state, files, params);
@@ -81,10 +78,10 @@ action_simple("runAnalysis works correctly (ArtifactDB)", async () => {
         let loaded = state.inputs.fetchCountMatrix().get("RNA");
         let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].rowNames();
 
-        let fpath = nav.baseDirectory + "/" + target_simple + "/assay-counts/matrix.h5";
-        let simple = scran.initializeSparseMatrixFromHdf5(fpath, "matrix", { layered: false });
-        let rpath = nav.baseDirectory + "/" + target_simple + "/rowdata/simple.h5";
-        let simple_names = (new scran.H5DataSet(rpath, "data/row_names", { load: true })).values;
+        let fpath = nav.baseDirectory + "/zeisel-brain-stripped/assay-1/matrix.h5";
+        let simple = scran.initializeSparseMatrixFromHdf5(fpath, "sparse", { layered: false });
+        let rpath = nav.baseDirectory + "/zeisel-brain-stripped/rowdata/simple.h5";
+        let simple_names = (new scran.H5DataSet(rpath, "contents/row_names", { load: true })).values;
 
         utils.checkMatrixContents(simple, simple_names, loaded, loaded_names);
         simple.free();
@@ -115,18 +112,15 @@ action_simple("runAnalysis works correctly (ArtifactDB)", async () => {
 
 /***********************************************/
 
-let target_adt = nav.pathExists("adt");
-let action_adt = (target_adt == null ? test.skip : test);
-
-action_adt("ArtifactDB summary and loading works with multiple modalities", async () => {
-    let files = { super: new LocalArtifactdbDataset(target_adt, nav.baseDirectory) };
+test("ArtifactDB summary and loading works with multiple modalities", async () => {
+    let files = { super: new LocalArtifactdbDataset("experiment.json", nav.baseDirectory + "/zeisel-brain-sparse") };
 
     let summ = await files.super.summary();
-    expect(Object.keys(summ.modality_features).sort()).toEqual(["", "ADT"]);
-    expect(summ.modality_assay_names).toEqual({ "": ["counts", "logcounts"], "ADT": [ "counts", "logcounts" ] });
+    expect(Object.keys(summ.modality_features).sort()).toEqual(["", "ERCC","repeat"]);
+    expect(summ.modality_assay_names).toEqual({ "": ["counts"], "ERCC": ["counts"], "repeat": ["counts"] });
 
     // Trying with a name for the experiment.
-    files.super.setOptions({ adtExperiment: "ADT" });
+    files.super.setOptions({ adtExperiment: "ERCC" });
     {
         let everything = await files.super.load();
 
@@ -164,22 +158,22 @@ action_adt("ArtifactDB summary and loading works with multiple modalities", asyn
 
 /***********************************************/
 
-action_simple("Zipped ArtifactDB dataset summary and loading works correctly", async () => {
+test("Zipped ArtifactDB dataset summary and loading works correctly", async () => {
     // First, zipping the contents of the target directory.
-    let zipped = await nav.zipDirectory(nav.baseDirectory, [ target_simple, target_simple + ".json" ]);
+    let zipped = await nav.zipDirectory(nav.baseDirectory + "/zeisel-brain-stripped", [ ".", "experiment.json" ]);
     let zipfile = new bakana.SimpleFile(zipped, { name: "bundle.zip" });
 
-    let files = { zipped: new bakana.ZippedArtifactdbDataset(target_simple, zipfile) };
+    let files = { zipped: new bakana.ZippedArtifactdbDataset("experiment.json", zipfile) };
     expect(files.zipped.constructor.format()).toEqual("ArtifactDB-zipped");
     let abbr = files.zipped.abbreviate();
     expect(abbr.files[0].type).toEqual("zip");
-    expect(abbr.options.datasetName).toEqual(target_simple);
+    expect(abbr.options.datasetName).toEqual("experiment.json");
 
     let summ = await files.zipped.summary();
     expect(summ.modality_features[""].numberOfRows()).toBeGreaterThan(0);
     expect(summ.modality_features[""].rowNames()).not.toBeNull();
     expect(summ.cells.numberOfColumns()).toBeGreaterThan(0);
-    expect(summ.modality_assay_names[""]).toEqual(["counts", "logcounts"]);
+    expect(summ.modality_assay_names[""]).toEqual(["counts"]); 
 
     // Loading everything.
     {
@@ -192,7 +186,7 @@ action_simple("Zipped ArtifactDB dataset summary and loading works correctly", a
     // Running through a serialization cycle.
     {
         let dump = await files.zipped.serialize();
-        expect(dump.options.datasetName).toEqual(target_simple);
+        expect(dump.options.datasetName).toEqual("experiment.json");
         expect(dump.files.length).toEqual(1);
 
         let reloaded = files.zipped.constructor.unserialize(dump.files, dump.options);
@@ -203,7 +197,7 @@ action_simple("Zipped ArtifactDB dataset summary and loading works correctly", a
     // Checking other input modes.
     let handle = await jszip.loadAsync(await zipfile.buffer());
     {
-        let files2 = { zipped: new bakana.ZippedArtifactdbDataset(target_simple, zipfile, { existingHandle: handle }) };
+        let files2 = { zipped: new bakana.ZippedArtifactdbDataset("experiment.json", zipfile, { existingHandle: handle }) };
         let summ2 = await files2.zipped.summary();
         expect(summ2.modality_features[""].rowNames()).toEqual(summ2.modality_features[""].rowNames());
         files2.zipped.clear();
@@ -212,6 +206,6 @@ action_simple("Zipped ArtifactDB dataset summary and loading works correctly", a
     // Inspection works as expected.
     {
         let results = await bakana.searchZippedArtifactdb(handle);
-        expect(results.get(target_simple).length).toEqual(2);
+        expect(results.get("experiment.json").length).toEqual(2);
     }
 })

@@ -132,47 +132,38 @@ test("SummarizedExperiment result readers work correctly with count normalizatio
     payload.matrix.free();
 })
 
+/***********************************************/
+
 class LocalArtifactdbResult extends bakana.AbstractArtifactdbResult {
     constructor(path, dir, options={}) {
         super(path, new nav.LocalProjectDirectoryNavigator(dir), options);
     }
 }
 
-/***********************************************/
-
-let target_simple = nav.pathExists("H5AD");
-let action_simple = (target_simple == null ? test.skip : test);
-
-action_simple("local ArtifactDB result readers work correctly with log-count loading", async () => {
-    let info = new LocalArtifactdbResult(target_simple, nav.baseDirectory);
+test("local ArtifactDB result readers work correctly with log-count loading", async () => {
+    let info = new LocalArtifactdbResult("experiment.json", nav.baseDirectory + "/zeisel-brain-sparse-results");
 
     let details = await info.summary();
     expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
     expect(details.modality_features[""].rowNames().length).toBeGreaterThan(0);
 
     expect(details.cells.numberOfRows()).toBeGreaterThan(0);
-    expect(details.cells.hasColumn("kana::RNA::quality_control::sums")).toBe(true);
-    expect(details.cells.hasColumn("kana::RNA::size_factors")).toBe(true);
-    expect(details.cells.hasColumn("kana::clusters")).toBe(true);
-
     expect(details.modality_assay_names[""].length).toEqual(2);
     expect(details.reduced_dimension_names.length).toEqual(3);
 
-    expect("custom_selections" in details.other_metadata).toBe(true);
-
     // Actually loading the log-counts.
     info.setOptions({
-        primaryAssay: "logcounts",
+        primaryAssay: "normalized",
         isPrimaryNormalized: true,
-        reducedDimensionNames: ["TSNE", "UMAP"]
+        reducedDimensionNames: ["tsne", "umap"]
     });
 
     let payload = await info.load();
     expect(payload.matrix.numberOfColumns()).toEqual(details.cells.numberOfRows());
     expect(payload.matrix.get("").numberOfRows()).toEqual(payload.features[""].numberOfRows());
-    expect(Object.keys(payload.reduced_dimensions)).toEqual(["TSNE", "UMAP"]);
-    expect(payload.reduced_dimensions["TSNE"].length).toEqual(2);
-    expect(payload.reduced_dimensions["TSNE"][0].length).toEqual(details.cells.numberOfRows());
+    expect(Object.keys(payload.reduced_dimensions)).toEqual(["tsne", "umap"]);
+    expect(payload.reduced_dimensions["tsne"].length).toEqual(2);
+    expect(payload.reduced_dimensions["tsne"][0].length).toEqual(details.cells.numberOfRows());
 
     let col0 = payload.matrix.get("").column(0);
     expect(has_noninteger(col0)).toBe(true);
@@ -181,11 +172,11 @@ action_simple("local ArtifactDB result readers work correctly with log-count loa
     payload.matrix.free();
 })
 
-action_simple("local ArtifactDB result readers work correctly with count normalization", async () => {
-    let info = new LocalArtifactdbResult(target_simple, nav.baseDirectory);
+test("local ArtifactDB result readers work correctly with count normalization", async () => {
+    let info = new LocalArtifactdbResult("experiment.json", nav.baseDirectory + "/zeisel-brain-sparse-results");
 
     info.setOptions({
-        primaryAssay: "counts",
+        primaryAssay: "filtered",
         isPrimaryNormalized: false
     });
 
@@ -200,49 +191,38 @@ action_simple("local ArtifactDB result readers work correctly with count normali
     payload.matrix.free();
 })
 
-let target_adt = nav.pathExists("adt");
-let action_adt = (target_adt == null ? test.skip : test);
-
-action_adt("local ArtifactDB result readers work correctly with multiple modalities", async () => {
-    let info = new LocalArtifactdbResult(target_adt, nav.baseDirectory);
+test("local ArtifactDB result readers work correctly with multiple modalities", async () => {
+    let info = new LocalArtifactdbResult("experiment.json", nav.baseDirectory + "/zeisel-brain-dense-multimodal-results");
 
     let details = await info.summary();
     expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
-    expect(details.modality_features["ADT"].numberOfRows()).toBeGreaterThan(0);
-    expect(details.cells.hasColumn("kana::ADT::quality_control::sums")).toBe(true);
+    expect(details.modality_features["adt"].numberOfRows()).toBeGreaterThan(0);
 
     let payload = await info.load();
     let nRna = payload.features[""].numberOfRows();
     expect(nRna).toBeGreaterThan(0);
     expect(payload.matrix.get("").numberOfRows()).toEqual(nRna);
 
-    let nAdt = payload.features["ADT"].numberOfRows();
+    let nAdt = payload.features["adt"].numberOfRows();
     expect(nAdt).toBeGreaterThan(0);
     expect(nAdt).toBeLessThan(nRna);
-    expect(payload.matrix.get("ADT").numberOfRows()).toEqual(nAdt);
+    expect(payload.matrix.get("adt").numberOfRows()).toEqual(nAdt);
 
     expect(payload.matrix.numberOfColumns()).toEqual(payload.cells.numberOfRows());
     payload.matrix.free();
-
-    // What if it's split by modality?
-    {
-        let info = new LocalArtifactdbResult(target_adt + "_split", nav.baseDirectory);
-        let details = await info.summary();
-        expect(details.cells.hasColumn("kana::quality_control::sums")).toBe(true);
-    }
 })
 
 /***********************************************/
 
-action_simple("Zipped ArtifactDB result summary and loading works correctly", async () => {
+test("Zipped ArtifactDB result summary and loading works correctly", async () => {
     // First, zipping the contents of the target directory.
-    let zipped = await nav.zipDirectory(nav.baseDirectory, [ target_simple, target_simple + ".json" ]);
+    let zipped = await nav.zipDirectory(nav.baseDirectory + "/zeisel-brain-sparse-results", [ ".", "experiment.json" ]);
     scran.writeFile("miscellaneous/bundle.zip", zipped); // for manual inspection.
     let zipfile = new bakana.SimpleFile(zipped, { name: "bundle.zip" });
 
     // Checking for consistency between zipped and native.
-    let info = new bakana.ZippedArtifactdbResult(target_simple, zipfile);
-    let ref = new LocalArtifactdbResult(target_simple, nav.baseDirectory);
+    let info = new bakana.ZippedArtifactdbResult("experiment.json", zipfile);
+    let ref = new LocalArtifactdbResult("experiment.json", nav.baseDirectory + "/zeisel-brain-sparse-results");
 
     let details = await info.summary();
     let rdetails = await ref.summary();
@@ -259,17 +239,17 @@ action_simple("Zipped ArtifactDB result summary and loading works correctly", as
 
     // Actually loading the log-counts.
     info.setOptions({
-        primaryAssay: "logcounts",
+        primaryAssay: "normalized",
         isPrimaryNormalized: true,
-        reducedDimensionNames: ["TSNE", "UMAP"]
+        reducedDimensionNames: ["tsne", "umap"]
     });
 
     let payload = await info.load();
     expect(payload.matrix.numberOfColumns()).toEqual(details.cells.numberOfRows());
     expect(payload.matrix.get("").numberOfRows()).toEqual(payload.features[""].numberOfRows());
-    expect(Object.keys(payload.reduced_dimensions)).toEqual(["TSNE", "UMAP"]);
-    expect(payload.reduced_dimensions["TSNE"].length).toEqual(2);
-    expect(payload.reduced_dimensions["TSNE"][0].length).toEqual(details.cells.numberOfRows());
+    expect(Object.keys(payload.reduced_dimensions)).toEqual(["tsne", "umap"]);
+    expect(payload.reduced_dimensions["tsne"].length).toEqual(2);
+    expect(payload.reduced_dimensions["tsne"][0].length).toEqual(details.cells.numberOfRows());
 
     let col0 = payload.matrix.get("").column(0);
     expect(has_noninteger(col0)).toBe(true);

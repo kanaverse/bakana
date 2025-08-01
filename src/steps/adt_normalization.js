@@ -9,7 +9,7 @@ export const step_name = "adt_normalization";
 /**
  * This step performs normalization and log-transformation on the QC-filtered ADT matrix from the {@linkplain CellFilteringState}.
  * It wraps the [`groupedSizeFactors`](https://kanaverse.github.io/scran.js/global.html#groupedSizeFactors) 
- * and [`logNormCounts`](https://kanaverse.github.io/scran.js/global.html#logNormCounts) functions
+ * and [`normalizeCounts`](https://kanaverse.github.io/scran.js/global.html#normalizeCounts) functions
  * from [**scran.js**](https://github.com/kanaverse/scran.js).
  *
  * Methods not documented here are not part of the stable API and should not be used by applications.
@@ -39,9 +39,7 @@ export class AdtNormalizationState {
 
     free() {
         utils.freeCache(this.#cache.matrix);
-        utils.freeCache(this.#cache.total_buffer);
         utils.freeCache(this.#cache.sf_buffer);
-        utils.freeCache(this.#cache.centered_sf_buffer);
     }
 
     /***************************
@@ -70,16 +68,12 @@ export class AdtNormalizationState {
      * This is available after running {@linkcode AdtNormalizationState#compute compute}.
      */
     fetchSizeFactors() {
-        let buff;
-        if (this.#cache.sf_buffer) {
-            buff = utils.allocateCachedArray(this.#cache.sf_buffer.length, "Float64Array", this.#cache, "centered_sf_buffer");
-            scran.centerSizeFactors(this.#cache.sf_buffer, { buffer: buff, block: this.#filter.fetchFilteredBlock() })
-        }
-        return buff;
+        return this.#cache.sf_buffer;
     }
 
     /**
-     * @return {object} Object containing the parameters.
+     * @return {object} Object containing the parameters,
+     * available after running {@linkcode AdtNormalizationState#compute compute}.
      */
     fetchParameters() {
         return { ...this.#parameters }; // avoid pass-by-reference links.
@@ -91,15 +85,17 @@ export class AdtNormalizationState {
 
     #raw_compute() {
         var mat = this.#filter.fetchFilteredMatrix().get("ADT");
-        var block = this.#filter.fetchFilteredBlock();
-
-        var buffer = this.#cache.sf_buffer;
-        if (buffer.length != mat.numberOfColumns()) {
+        var raw_sf = this.#cache.raw_sf_buffer;
+        if (raw_sf.length != mat.numberOfColumns()) {
             throw new Error("length of size factor vector should equal number of columns after QC");
         }
 
+        var block = this.#filter.fetchFilteredBlock();
+        let buffer = utils.allocateCachedArray(raw_sf.length, "Float64Array", this.#cache, "sf_buffer");
+        scran.centerSizeFactors(raw_sf, { block: block, buffer: buffer });
+
         utils.freeCache(this.#cache.matrix);
-        this.#cache.matrix = scran.logNormCounts(mat, { sizeFactors: buffer, block: block, allowZeros: true });
+        this.#cache.matrix = scran.normalizeCounts(mat, { sizeFactors: buffer, allowZeros: true });
         return;
     }
 
@@ -107,18 +103,12 @@ export class AdtNormalizationState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `adt_normalization` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {boolean} parameters.remove_bias - Whether to remove composition bias between cell subpopulations.
-     * This is done by clustering cells and computing median-based size factors between the average pseudo-cells for each cluster.
+     * @param {boolean} parameters.remove_bias - Whether to remove composition bias between cell subpopulations via the CLRm1 method.
      * Users can set this to `false` to speed up the compute.
-     * @param {number} parameters.num_pcs - Number of PCs to use for creating a low-dimensional embedding for clustering.
-     * Only used if `remove_bias = true`.
-     * @param {number} parameters.num_clusters - Number of clusters to create with k-means clustering.
-     * Only used if `remove_bias = true`.
      *
      * @return The object is updated with new results.
      */
     compute(parameters) {
-        const { num_pcs, num_clusters } = parameters;
         let remove_bias = true;
         if ("remove_bias" in parameters) {
             remove_bias = parameters.remove_bias;
@@ -126,43 +116,20 @@ export class AdtNormalizationState {
 
         this.changed = false;
 
-        if (this.#qc.changed || 
-            this.#filter.changed || 
-            remove_bias !== this.#parameters.remove_bias ||
-            (
-                remove_bias &&
-                (
-                    num_pcs !== this.#parameters.num_pcs || 
-                    num_clusters != this.#parameters.num_clusters
-                ) 
-            )
-        ) {
+        if (this.#qc.changed || this.#filter.changed || remove_bias !== this.#parameters.remove_bias) {
             if (this.valid()) {
                 var mat = this.#filter.fetchFilteredMatrix().get("ADT");
-                let total_buffer = nutils.subsetSums(this.#qc, this.#filter, mat, this.#cache, "total_buffer");
-                var block = this.#filter.fetchFilteredBlock();
-                var sf_buffer = utils.allocateCachedArray(mat.numberOfColumns(), "Float64Array", this.#cache, "sf_buffer");
-
                 if (remove_bias) {
-                    scran.quickAdtSizeFactors(mat, { 
-                        totals: total_buffer, 
-                        block: block, 
-                        buffer: sf_buffer, 
-                        numberOfPCs: num_pcs, 
-                        numberOfClusters: num_clusters 
-                    });
+                    this.#cache.raw_sf_buffer = scran.computeClrm1Factors(mat);
                 } else {
-                    scran.centerSizeFactors(total_buffer, { buffer: sf_buffer, block: block });
+                    this.#cache.raw_sf_buffer = nutils.subsetSums(this.#qc, this.#filter, mat);
                 }
 
                 this.changed = true;
             }
-
         } 
 
         this.#parameters.remove_bias = remove_bias;
-        this.#parameters.num_pcs = num_pcs;
-        this.#parameters.num_clusters = num_clusters;
 
         if (this.changed) {
             if (this.valid()) {

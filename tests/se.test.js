@@ -33,7 +33,7 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
         let simple_names = nhandle.values();
 
         let ahandle = rhandle.attribute("assays").attribute("data").attribute("listData").load(0); // again, technically memory leaks here.
-        let simple = scran.initializeSparseMatrixFromRds(ahandle, { layered: false, consume: true });
+        let simple = scran.initializeSparseMatrixFromRds(ahandle, { layered: false });
 
         ahandle.free();
         nhandle.free();

@@ -1,7 +1,7 @@
 import * as bakana from "../src/index.js";
 import * as butils from "../src/steps/utils/general.js";
-import * as scran from "scran.js";
 import * as utils from "./utils.js";
+import * as scran from "scran.js";
 import * as bioc from "bioconductor";
 
 beforeAll(utils.initializeAll);

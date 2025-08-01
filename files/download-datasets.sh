@@ -8,7 +8,7 @@ dir=datasets
 mkdir -p ${dir}
 
 download() {
-    output=${dir}/$2
+    local output=${dir}/$2
     if [ ! -e $output ]
     then
         curl -L ${base}/$1 > $output
@@ -49,3 +49,34 @@ download 10x-crispr-v1.0.0/crispr_6.0.0_sub-barcodes.tsv.gz crispr_6.0.0-barcode
 
 # Download the paul dataset.
 download paul-hsc-v1.0.0/se.rds paul-hsc.rds
+
+download_and_untar() {
+    local input=$1
+    local fname=$(basename $input)
+    local output=$2/$fname
+    local trunc=$(echo $output | sed "s/.tar.gz$//")
+    if [ ! -e ${dir}/${trunc} ]
+    then
+        download $input $output
+        (cd ${dir}/$2 && tar -xvf $fname)
+        rm ${dir}/$output
+    fi
+}
+
+mkdir -p ${dir}/alabaster
+download_and_untar alabaster-v1.0.0/zeisel-brain-dense.tar.gz alabaster
+download_and_untar alabaster-v1.0.0/zeisel-brain-sparse.tar.gz alabaster
+download_and_untar alabaster-v1.0.0/zeisel-brain-stripped.tar.gz alabaster
+download_and_untar alabaster-v1.0.0/zeisel-brain-sparse-results-delayed-external.tar.gz alabaster
+download_and_untar alabaster-v1.0.0/zeisel-brain-sparse-results-delayed.tar.gz alabaster
+download_and_untar alabaster-v1.0.0/zeisel-brain-sparse-results.tar.gz alabaster
+download_and_untar alabaster-v1.0.0/zeisel-brain-dense-multimodal-results-delayed-external.tar.gz alabaster
+download_and_untar alabaster-v1.0.0/zeisel-brain-dense-multimodal-results-delayed.tar.gz alabaster
+download_and_untar alabaster-v1.0.0/zeisel-brain-dense-multimodal-results.tar.gz alabaster
+
+mkdir -p ${dir}/ArtifactDB
+download_and_untar ArtifactDB-v1.0.0/zeisel-brain-dense.tar.gz ArtifactDB
+download_and_untar ArtifactDB-v1.0.0/zeisel-brain-sparse.tar.gz ArtifactDB
+download_and_untar ArtifactDB-v1.0.0/zeisel-brain-stripped.tar.gz ArtifactDB
+download_and_untar ArtifactDB-v1.0.0/zeisel-brain-sparse-results.tar.gz ArtifactDB
+download_and_untar ArtifactDB-v1.0.0/zeisel-brain-dense-multimodal-results.tar.gz ArtifactDB
