@@ -57,8 +57,8 @@ This pattern is typically used to set parameters for subsequent `load()` calls.
 
 This method should return an object containing:
 
-- `matrix`, a [`MultiMatrix`](https://jkanche.github.io/scran.js/MultiMatrix.html) object containing submatrices for at least one modality.
-  Each modality-specific submatrix should be a [`ScranMatrix`](https://jkanche.github.io/scran.js/ScranMatrix.html) containing any number of rows.
+- `matrix`, a [`MultiMatrix`](https://kanaverse.github.io/scran.js/MultiMatrix.html) object containing submatrices for at least one modality.
+  Each modality-specific submatrix should be a [`ScranMatrix`](https://kanaverse.github.io/scran.js/ScranMatrix.html) containing any number of rows.
   All modalities should contain data for the same number of columns.
   Unlike in the `Dataset` interface, there is no requirement that modalities follow particular naming schemes;
   however, they should be consistent with the output of `summary()`.
