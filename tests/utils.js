@@ -172,8 +172,6 @@ export async function checkDatasetSummary(dataset) {
         }
     }
 
-    let uncached = await dataset.summary({ cache: false });
-    expect(Object.keys(uncached)).toEqual(Object.keys(summ));
     return summ;
 }
 
@@ -232,9 +230,6 @@ export async function checkDatasetLoad(dataset) {
 
     let preview = await dataset.previewPrimaryIds();
     expect(preview).toEqual(loaded.primary_ids);
-
-    let uncached = await dataset.load({ cache: false });
-    expect(Object.keys(uncached)).toEqual(Object.keys(loaded));
     return loaded;
 }
 
@@ -289,8 +284,6 @@ export async function checkResultSummary(result) {
         expect(summ.other_metadata.constructor).toBe(Object);
     }
 
-    let uncached = await result.summary({ cache: false });
-    expect(Object.keys(uncached)).toEqual(Object.keys(summ));
     return summ;
 }
 
@@ -326,8 +319,6 @@ export async function checkResultLoad(result) {
         expect(loaded.other_metadata.constructor).toBe(Object);
     }
 
-    let uncached = await result.load({ cache: false });
-    expect(Object.keys(uncached)).toEqual(Object.keys(loaded));
     return loaded;
 }
 

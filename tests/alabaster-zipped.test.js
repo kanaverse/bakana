@@ -87,28 +87,14 @@ test("ZippedAlabasterDataset works correctly", async () => {
         let contents = await compressDirectory("files/datasets/alabaster/zeisel-brain-stripped", loc);
         let stripped_ds = new bakana.ZippedAlabasterDataset(loc, new bakana.SimpleFile(contents, { name: "my.zip" }));
 
-        let summ = await stripped_ds.summary({ cache: true });
+        let summ = await utils.checkDatasetSummary(stripped_ds);
         expect(Object.keys(summ.modality_features)).toEqual([""]);
-        expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
-        expect(summ.modality_features[""].numberOfRows()).toBeGreaterThan(0);
-        expect(summ.cells instanceof bioc.DataFrame).toBe(true);
-        expect(summ.cells.numberOfRows()).toBeGreaterThan(0);
 
         let abbrev = stripped_ds.abbreviate();
         expect(abbrev.files[0].type).toEqual("zip");
 
-        let preview = await stripped_ds.previewPrimaryIds({ cache: true });
-        expect(Object.keys(preview)).toEqual(["RNA"]);
-        expect(preview.RNA.length).toBeGreaterThan(0);
-
-        let loaded = await stripped_ds.load({ cache: true });
-        expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
+        let loaded = await utils.checkDatasetLoad(stripped_ds);
         expect(loaded.matrix.available()).toEqual(["RNA"]);
-        const mat = loaded.matrix.get("RNA");
-        const feat = loaded.features["RNA"];
-        expect(mat.numberOfRows()).toEqual(feat.numberOfRows());
-        expect(mat.isSparse()).toBe(true);
-        expect(loaded.primary_ids["RNA"]).toEqual(feat.rowNames());
 
         stripped_ds.clear();
     }
@@ -119,16 +105,9 @@ test("ZippedAlabasterResult works correctly", async () => {
         let contents = await compressDirectory("files/datasets/alabaster/zeisel-brain-sparse-results-delayed", loc);
         let res = new bakana.ZippedAlabasterResult(loc, new bakana.SimpleFile(contents, { name: "my.zip" }));
 
-        let summ = await res.summary({ cache: true });
+        let summ = await utils.checkResultSummary(res);
         expect(Object.keys(summ.modality_features)).toEqual(["rna"]);
-        const mod = summ.modality_features["rna"];
-        expect(mod instanceof bioc.DataFrame).toBe(true);
-        expect(mod.numberOfRows()).toBeGreaterThan(0);
-
-        expect(summ.cells instanceof bioc.DataFrame).toBe(true);
-        expect(summ.cells.numberOfRows()).toBeGreaterThan(0);
         expect(summ.reduced_dimension_names).toEqual(["pca", "tsne", "umap"]);
-
         expect(summ.modality_assay_names["rna"]).toEqual(["filtered", "normalized"]);
 
         // Checking that we can load the log counts.
@@ -137,15 +116,12 @@ test("ZippedAlabasterResult works correctly", async () => {
             reducedDimensionNames: [ "tsne", "umap" ]
         });
 
-        let loaded = await res.load({ cache: true });
+        let loaded = await utils.checkResultLoad(res);
         expect(loaded.matrix.available()).toEqual(["rna"]);
-        expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
-        expect(loaded.matrix.get("rna").numberOfRows()).toEqual(loaded.features["rna"].numberOfRows());
 
         expect(Object.keys(loaded.reduced_dimensions)).toEqual(["tsne", "umap"]);
         for (const [key, val] of Object.entries(loaded.reduced_dimensions)) {
             expect(val.length).toEqual(2);
-            expect(val[0].length).toEqual(loaded.matrix.numberOfColumns());
         }
     }
 })
