@@ -107,6 +107,16 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
             output.features = bioc.SPLIT(current_features, by_type);
 
         } else {
+            // If only one feature type is enabled in the mapping, we use it; otherwise we use the caller-specified default.
+            let available = [];
+            for (const [key, val] of Object.entries(featureTypeMapping)) {
+                if (val !== null) {
+                    available.push(key);
+                }
+            }
+            if (available.length == 1) {
+                featureTypeDefault = available[0];
+            }
             output.matrix.rename("", featureTypeDefault);
             output.features = create_solo_default_object(current_features, featureTypeDefault);
         }

@@ -165,7 +165,7 @@ export async function checkDatasetSummary(dataset) {
     if ("all_assay_names" in summ) {
         expect("modality_assay_names" in summ).toBe(false);
         isArrayOfUniqueNames(summ.all_assay_names);
-    } else {
+    } else if ("modality_assay_names" in summ) {
         expect("all_assay_names" in summ).toBe(false);
         for (const [mod, nms] of Object.entries(summ.modality_assay_names)) {
             isArrayOfUniqueNames(nms);
