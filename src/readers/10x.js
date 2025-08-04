@@ -14,6 +14,7 @@ export class TenxHdf5Dataset {
 
     #raw_features;
     #raw_cells;
+    #raw_shape;
 
     #options;
 
@@ -172,8 +173,17 @@ export class TenxHdf5Dataset {
         }
 
         this.#instantiate();
-        let details = scran.extractHdf5MatrixDetails(this.#h5_path, "matrix");
-        this.#raw_cells = new bioc.DataFrame({}, { numberOfRows: details.columns });
+
+        let fhandle = new scran.H5File(this.#h5_path);
+        let dhandle = fhandle.open("matrix");
+        let shandle = dhandle.open("shape");
+        let shape = shandle.values;
+        if (shape.length != 2 || !shape.every(x => (typeof x === "number" && x >= 0 && Number.isInteger(x)))) {
+            throw new Error("expected 'shape' to contain 2 non-negative integers");
+        }
+        this.#raw_shape = shandle.values;
+
+        this.#raw_cells = new bioc.DataFrame({}, { numberOfRows: this.#raw_shape[1] });
     }
 
     /**
@@ -259,7 +269,14 @@ export class TenxHdf5Dataset {
         this.#features();
         this.#cells();
 
-        let loaded = scran.initializeSparseMatrixFromHdf5(this.#h5_path, "matrix"); // collection gets handled inside splitScranMatrixAndFeatures.
+        let loaded = scran.initializeSparseMatrixFromHdf5Group(
+            this.#h5_path,
+            "matrix",
+            this.#raw_shape[0],
+            this.#raw_shape[1],
+            /* byRow = */ false,
+            { forceInteger: true, layered: true }
+        ); // collection gets handled inside splitScranMatrixAndFeatures.
 
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, "type", this.#feature_type_mapping(), "RNA");
         output.cells = this.#raw_cells;

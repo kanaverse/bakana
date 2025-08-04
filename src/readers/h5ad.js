@@ -8,10 +8,36 @@ import * as afile from "./abstract/file.js";
  ******* Internals ********
  **************************/
 
+function extract_assay_details(handle) {
+    if (handle instanceof scran.H5DataSet) {
+        return {
+            rows: handle.shape[0],
+            columns: handle.shape[1],
+            sparse: false
+        };
+
+    } else if (handle instanceof scran.H5Group) {
+        let shape_info = handle.readAttribute("shape");
+        let enc_info = handle.readAttribute("encoding-type");
+        // Yes, the flip is deliberate, because of how H5AD puts its features in the columns.
+        return {
+            rows: shape_info.values[1],
+            columns: shape_info.values[0],
+            sparse: true,
+            csc: enc_info.values[0] == "csr_matrix" 
+        }
+
+    } else {
+        throw new Error("unknown type for a H5AD assay matrix");
+    }
+}
+
 function fetch_assay_details(handle, path) {
     let available = [];
+    let types = {};
     if ("X" in handle.children) {
         available.push("X");
+        types["X"] = extract_assay_details(handle.open("X"));
     } 
 
     if ("layers" in handle.children) {
@@ -19,9 +45,10 @@ function fetch_assay_details(handle, path) {
         if (!(lhandle instanceof scran.H5Group)) {
             throw new Error("expected a 'layers' group in a H5AD file");
         }
-
         for (const k of Object.keys(lhandle.children)) {
-            available.push("layers/" + k);
+            const aname = "layers/" + k;
+            available.push(aname);
+            types[aname] = extract_assay_details(lhandle.open(k));
         }
     }
 
@@ -29,11 +56,12 @@ function fetch_assay_details(handle, path) {
         throw new Error("failed to find any assay in the H5AD file");
     }
 
-    let deets = scran.extractHdf5MatrixDetails(path, available[0]);
+    let deets = types[available[0]];
     return {
         names: available,
         rows: deets.rows,
-        columns: deets.columns
+        columns: deets.columns,
+        details: types
     };
 }
 
@@ -108,6 +136,14 @@ function fetch_cells(handle) {
         return load_data_frame(ohandle);
     }
     return null;
+}
+
+function load_matrix(path, name, details, options) {
+    if (details.sparse) {
+        return scran.initializeSparseMatrixFromHdf5Group(path, name, details.rows, details.columns, !(details.csc), options);
+    } else {
+        return scran.initializeSparseMatrixFromHdf5Dataset(path, name, options);
+    }
 }
 
 /************************
@@ -383,8 +419,8 @@ export class H5adDataset {
         if (chosen_assay == null) {
             chosen_assay = this.#assay_details.names[0];
         }
-        let loaded = scran.initializeSparseMatrixFromHdf5(this.#h5_path, chosen_assay); 
 
+        let loaded = load_matrix(this.#h5_path, chosen_assay, this.#assay_details.details[chosen_assay], { forceInteger: true, layered: true }); 
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#options.featureTypeColumnName, this.#feature_type_mapping(), "RNA");
         output.cells = this.#raw_cells;
 
@@ -647,7 +683,7 @@ export class H5adResult {
         if (chosen_assay == null) {
             chosen_assay = this.#assay_details.names[0];
         }
-        let loaded = scran.initializeSparseMatrixFromHdf5(this.#h5_path, chosen_assay, { forceInteger: !this.#options.isPrimaryNormalized });
+        let loaded = load_matrix(this.#h5_path, chosen_assay, this.#assay_details.details[chosen_assay], { forceInteger: !this.#options.isPrimaryNormalized });
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#options.featureTypeColumnName, null, "");
         output.cells = this.#raw_cells;
 
