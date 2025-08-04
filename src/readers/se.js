@@ -254,7 +254,7 @@ function extract_assay_names(handle) {
         output = load_listData_names(lhandle);
         if (output == null) {
             output = new Array(lhandle.length());
-            output.fill(null);
+            output.fill("");
         }
     } catch(e) {
         throw new Error("failed to extract assay data; " + e.message);
@@ -707,7 +707,7 @@ export class SummarizedExperimentDataset {
      * - `modality_features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
      * - `modality_assay_names`: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.
-     *    Unnamed assays are represented as `null` names.
+     *    If a modality's assays are unnamed, an array of empty strings is returned instead.
      */
     summary({ cache = false } = {}) {
         this.#initialize();

@@ -53,7 +53,7 @@ The object may contain any number of the following properties:
   Unlike `load()`, modality names may be arbitrary.
 - `cells`: a `DataFrame` containing per-cell annotations, where each row corresponds to a cell in the dataset.
 - `all_assay_names`: an Array containing the names of all assays.
-- `modality_assay_names`: an object where each key is the name of a modality and each value is an Array.
+- `modality_assay_names`: an object where each key is the name of a modality and each value is an Array of strings.
   Each Array contains the names of the assays for that modality.
 
 Alternatively, this method may return a promise that resolves to such an object.
@@ -76,9 +76,8 @@ This method should return an object containing:
   Unlike `summary()`, modality names should be one of `"RNA"`, `"ADT"` or `"CRISPR"` -
   developers should consider adding some setters to their `Dataset` class to enable users to specify a mapping between the modality names from `summary()` and those returned by this method.
 - `primary_ids`, an object specifying the primary feature identities for each submatrix in `matrix`.
-  Keys should correspond to the modality names in `matrix` and each value should be an array (usually of strings) containing the feature identities of the submatrix's rows.
-  Note that these identifiers are only used to find the intersection of features when combining multiple datasets;
-  in rare situations, developers may choose to instead return a `null` value for any modality, and this will not raise an error in a single dataset analysis. 
+  Keys should correspond to the modality names in `matrix` and each value should be an array of strings (or `null`) containing the feature identities of the submatrix's rows.
+  These identifiers will be used to find the intersection of features when combining multiple datasets.
 - `features`, an object where each key is the name of a modality in `matrix`.
   Each modality-specific value is a `DataFrame` with one row per feature in the corresponding entry of `matrix`.
   Rows of `features[<modality>]` should be in the same order as the rows of `matrix.get(<modality>)`.

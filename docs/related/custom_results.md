@@ -38,7 +38,7 @@ The object may contain any number of the following properties:
   Each row of a `DataFrame` corresponds to one feature of the corresponding modality and contains its annotation fields.
 - `cells`: a `DataFrame` containing per-cell annotations, where each row corresponds to a cell in the dataset.
 - `all_assay_names`: an Array containing the names of all assays.
-- `modality_assay_names`: an object where each key is the name of a modality and each value is an Array.
+- `modality_assay_names`: an object where each key is the name of a modality and each value is an Array of strings.
   Each Array contains the names of the assays for that modality.
 - `reduced_dimension_names`: an Array containing the names of all dimensionality reduction results.
 - `other_metadata`: an object containing additional arbitrary metadata for the `Result`.

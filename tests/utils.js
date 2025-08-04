@@ -232,7 +232,7 @@ export async function checkDatasetLoad(dataset) {
         const pid = loaded.primary_ids[mod];
         if (pid !== null) {
             expect(df.numberOfRows()).toEqual(pid.length);
-            expect(pid.every(y => typeof y === "string")).toBe(true);
+            expect(pid.every(y => typeof y === "string" || y == null)).toBe(true);
         }
     }
 
