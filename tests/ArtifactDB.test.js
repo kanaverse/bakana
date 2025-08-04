@@ -13,8 +13,8 @@ class LocalArtifactdbDataset extends bakana.AbstractArtifactdbDataset {
     #path;
     #dir;
 
-    constructor(path, dir, options={}) {
-        super(path, new nav.LocalProjectDirectoryNavigator(dir), options);
+    constructor(path, dir) {
+        super(path, new nav.LocalProjectDirectoryNavigator(dir));
         this.#path = path;
         this.#dir = dir;
     }
@@ -26,8 +26,10 @@ class LocalArtifactdbDataset extends bakana.AbstractArtifactdbDataset {
     static unserialize(files, options) {
         let dec = new TextDecoder;
         let payload = files[0].file.buffer();
-        let info = JSON.stringify(dec.decode(payload));
-        return new LocalArtifactdbDataset(info.path, info.directory, options);
+        let info = JSON.parse(dec.decode(payload));
+        let output = new LocalArtifactdbDataset(info.path, info.directory);
+        output.setOptions(options);
+        return output;
     }
 
     abbreviate() {
@@ -51,156 +53,85 @@ class LocalArtifactdbDataset extends bakana.AbstractArtifactdbDataset {
 
 /***********************************************/
 
-test("ArtifactDB summary works correctly", async () => {
-    let files = { default: new LocalArtifactdbDataset("experiment.json", nav.baseDirectory + "/zeisel-brain-stripped") };
-    let summ = await files.default.summary({ cache: true });
+test("ArtifactDB readers work correctly", async () => {
+    let ds = new LocalArtifactdbDataset("experiment.json", nav.baseDirectory + "/zeisel-brain-stripped"); 
+    await utils.checkDatasetGeneral(ds);
 
-    expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
-    expect(summ.modality_features[""].numberOfRows()).toBeGreaterThan(0);
-    expect(summ.cells instanceof bioc.DataFrame).toBe(true);
+    let summ = await utils.checkDatasetSummary(ds);
+    expect(Object.keys(summ.modality_features)).toEqual([""]);
 
-    let preview = await files.default.previewPrimaryIds({ cache: true });
-    expect("RNA" in preview).toBe(true);
-    expect(preview.RNA.length).toBeGreaterThan(0);
+    let loaded = await utils.checkDatasetLoad(ds);
+    expect(loaded.matrix.available()).toEqual(["RNA"]);
 
-    // Clear the cache.
-    files.default.clear();
-})
-
-test("runAnalysis works correctly (ArtifactDB)", async () => {
-    let files = { default: new LocalArtifactdbDataset("experiment.json", nav.baseDirectory + "/zeisel-brain-stripped") };
-    let state = await bakana.createAnalysis();
-    let params = utils.baseParams();
-    await bakana.runAnalysis(state, files, params);
+    let copy = await utils.checkDatasetSerialize(ds);
+    utils.sameDatasetSummary(summ, await copy.summary());
+    utils.sameDatasetLoad(loaded, await copy.load());
 
     // Input reorganization is done correctly.
     {
-        let loaded = state.inputs.fetchCountMatrix().get("RNA");
-        let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].rowNames();
-
         let fpath = nav.baseDirectory + "/zeisel-brain-stripped/assay-1/matrix.h5";
         let simple = scran.initializeSparseMatrixFromHdf5(fpath, "sparse", { layered: false });
         let rpath = nav.baseDirectory + "/zeisel-brain-stripped/rowdata/simple.h5";
         let simple_names = (new scran.H5DataSet(rpath, "contents/row_names", { load: true })).values;
-
-        utils.checkMatrixContents(simple, simple_names, loaded, loaded_names);
+        utils.checkMatrixContents(simple, simple_names, loaded.matrix.get("RNA"), loaded.features["RNA"].rowNames());
         simple.free();
     }
 
-    // Basic checks.
-    await utils.checkStateResultsMinimal(state, { mustFilter: false });
-    await utils.checkStateResultsRna(state, { exclusive: true, mustFilter: false });
-    await utils.checkStateResultsUnblocked(state);
-
-    // Check reloading of the parameters/datasets.
-    {
-        let saved = [];
-        let saver = (n, k, f) => {
-            saved.push(f.content());
-            return String(saved.length);
-        };
-
-        let serialized = await bakana.serializeConfiguration(state, saver);
-        bakana.availableReaders["ArtifactDB-local-directory"] = LocalArtifactdbDataset;
-        let reloaded = bakana.unserializeDatasets(serialized.datasets, x => saved[Number(x) - 1]); 
-        expect(reloaded.default instanceof LocalArtifactdbDataset);
-        expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
-    }
-
-    await bakana.freeAnalysis(state);
+    ds.clear();
 })
 
-/***********************************************/
+test("ArtifactDB readers work with multiple modalities", async () => {
+    let ds = new LocalArtifactdbDataset("experiment.json", nav.baseDirectory + "/zeisel-brain-sparse");
+    await utils.checkDatasetGeneral(ds);
 
-test("ArtifactDB summary and loading works with multiple modalities", async () => {
-    let files = { super: new LocalArtifactdbDataset("experiment.json", nav.baseDirectory + "/zeisel-brain-sparse") };
-
-    let summ = await files.super.summary();
-    expect(Object.keys(summ.modality_features).sort()).toEqual(["", "ERCC","repeat"]);
+    let summ = await utils.checkDatasetSummary(ds);
+    expect(Object.keys(summ.modality_features)).toEqual(["", "repeat", "ERCC"]);
     expect(summ.modality_assay_names).toEqual({ "": ["counts"], "ERCC": ["counts"], "repeat": ["counts"] });
 
     // Trying with a name for the experiment.
-    files.super.setOptions({ adtExperiment: "ERCC" });
+    ds.setOptions({ adtExperiment: "ERCC" });
     {
-        let everything = await files.super.load();
-
+        let everything = await utils.checkDatasetLoad(ds);
+        expect(Object.keys(everything.features)).toEqual(["RNA", "ADT"]);
         let nRna = everything.features["RNA"].numberOfRows();
-        expect(nRna).toBeGreaterThan(0);
-        expect(everything.matrix.get("RNA").numberOfRows()).toEqual(nRna);
-
         let nAdt = everything.features["ADT"].numberOfRows();
-        expect(nAdt).toBeGreaterThan(0);
         expect(nAdt).toBeLessThan(nRna);
-        expect(everything.matrix.get("ADT").numberOfRows()).toEqual(nAdt);
-
-        expect(everything.matrix.numberOfColumns()).toEqual(everything.cells.numberOfRows());
-        everything.matrix.free();
     }
 
     // Trying with a numeric index for the ADT experiment.
-    files.super.setOptions({ adtExperiment: 0 });
+    ds.setOptions({ adtExperiment: 0 });
     {
-        let everything = await files.super.load();
-
+        let everything = await utils.checkDatasetLoad(ds);
+        expect(Object.keys(everything.features)).toEqual(["RNA", "ADT"]);
         let nRna = everything.features["RNA"].numberOfRows();
-        expect(nRna).toBeGreaterThan(0);
-        expect(everything.matrix.get("RNA").numberOfRows()).toEqual(nRna);
-
         let nAdt = everything.features["ADT"].numberOfRows();
-        expect(nAdt).toBeGreaterThan(0);
         expect(nAdt).toBeLessThan(nRna);
-        expect(everything.matrix.get("ADT").numberOfRows()).toEqual(nAdt);
-
-        expect(everything.matrix.numberOfColumns()).toEqual(everything.cells.numberOfRows());
-        everything.matrix.free();
     }
 })
 
-/***********************************************/
-
-test("Zipped ArtifactDB dataset summary and loading works correctly", async () => {
-    // First, zipping the contents of the target directory.
+test("Zipped ArtifactDB readers work correctly", async () => {
     let zipped = await nav.zipDirectory(nav.baseDirectory + "/zeisel-brain-stripped", [ ".", "experiment.json" ]);
     let zipfile = new bakana.SimpleFile(zipped, { name: "bundle.zip" });
+    let ds = new bakana.ZippedArtifactdbDataset("experiment.json", zipfile);
 
-    let files = { zipped: new bakana.ZippedArtifactdbDataset("experiment.json", zipfile) };
-    expect(files.zipped.constructor.format()).toEqual("ArtifactDB-zipped");
-    let abbr = files.zipped.abbreviate();
-    expect(abbr.files[0].type).toEqual("zip");
-    expect(abbr.options.datasetName).toEqual("experiment.json");
+    let summ = await utils.checkDatasetSummary(ds);
+    expect(Object.keys(summ.modality_features)).toEqual([""]);
+    expect(summ.modality_assay_names).toEqual({ "": ["counts"] });
 
-    let summ = await files.zipped.summary();
-    expect(summ.modality_features[""].numberOfRows()).toBeGreaterThan(0);
-    expect(summ.modality_features[""].rowNames()).not.toBeNull();
-    expect(summ.cells.numberOfColumns()).toBeGreaterThan(0);
-    expect(summ.modality_assay_names[""]).toEqual(["counts"]); 
+    let everything = await utils.checkDatasetLoad(ds);
+    expect(Object.keys(everything.features)).toEqual(["RNA"]);
 
-    // Loading everything.
-    {
-        let loaded = await files.zipped.load();
-        expect(loaded.matrix.get("RNA").numberOfRows()).toEqual(loaded.features["RNA"].numberOfRows());
-        expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
-        loaded.matrix.free();
-    }
-
-    // Running through a serialization cycle.
-    {
-        let dump = await files.zipped.serialize();
-        expect(dump.options.datasetName).toEqual("experiment.json");
-        expect(dump.files.length).toEqual(1);
-
-        let reloaded = files.zipped.constructor.unserialize(dump.files, dump.options);
-        expect(reloaded instanceof bakana.ZippedArtifactdbDataset).toBe(true);
-        expect(reloaded.abbreviate()).toEqual(abbr);
-    }
+    let copy = await utils.checkDatasetSerialize(ds);
+    utils.sameDatasetSummary(summ, await copy.summary());
+    utils.sameDatasetLoad(everything, await copy.load());
 
     // Checking other input modes.
     let handle = await jszip.loadAsync(await zipfile.buffer());
     {
-        let files2 = { zipped: new bakana.ZippedArtifactdbDataset("experiment.json", zipfile, { existingHandle: handle }) };
-        let summ2 = await files2.zipped.summary();
+        let zipped = new bakana.ZippedArtifactdbDataset("experiment.json", zipfile, { existingHandle: handle });
+        let summ2 = await zipped.summary();
         expect(summ2.modality_features[""].rowNames()).toEqual(summ2.modality_features[""].rowNames());
-        files2.zipped.clear();
+        zipped.clear();
     }
 
     // Inspection works as expected.
@@ -208,4 +139,98 @@ test("Zipped ArtifactDB dataset summary and loading works correctly", async () =
         let results = await bakana.searchZippedArtifactdb(handle);
         expect(results.get("experiment.json").length).toEqual(2);
     }
+})
+
+/***********************************************/
+
+class LocalArtifactdbResult extends bakana.AbstractArtifactdbResult {
+    constructor(path, dir) {
+        super(path, new nav.LocalProjectDirectoryNavigator(dir));
+    }
+}
+
+test("local ArtifactDB result readers work correctly with log-count loading", async () => {
+    let res = new LocalArtifactdbResult("experiment.json", nav.baseDirectory + "/zeisel-brain-sparse-results");
+
+    let details = await utils.checkResultSummary(res);
+    expect(Object.keys(details.modality_features)).toEqual([""]);
+    expect(details.modality_assay_names[""]).toEqual(["filtered", "normalized"]);
+    expect(details.reduced_dimension_names).toEqual(["pca", "tsne", "umap"]);
+
+    // Actually loading the log-counts.
+    res.setOptions({
+        primaryAssay: "normalized",
+        isPrimaryNormalized: true,
+        reducedDimensionNames: ["tsne", "umap"]
+    });
+    {
+        let payload = await utils.checkResultLoad(res);
+        expect(Object.keys(payload.reduced_dimensions)).toEqual(["tsne", "umap"]);
+        expect(payload.reduced_dimensions["tsne"].length).toEqual(2);
+        expect(payload.reduced_dimensions["umap"].length).toEqual(2);
+
+        let col0 = payload.matrix.get("").column(0);
+        expect(utils.hasNonInteger(col0)).toBe(true);
+    }
+
+    // Works correctly with manual normalization.
+    res.setOptions({
+        primaryAssay: "filtered",
+        isPrimaryNormalized: false
+    });
+    {
+        let payload = await utils.checkResultLoad(res);
+        let col0 = payload.matrix.get("").column(0);
+        expect(utils.hasNonInteger(col0)).toBe(true);
+    }
+
+    res.clear();
+})
+
+test("local ArtifactDB result readers work correctly with multiple modalities", async () => {
+    let res = new LocalArtifactdbResult("experiment.json", nav.baseDirectory + "/zeisel-brain-dense-multimodal-results");
+
+    let details = await utils.checkResultSummary(res);
+    expect(Object.keys(details.modality_features)).toEqual(["", "adt"]);
+    expect(details.modality_features[""].numberOfRows()).toBeGreaterThan(0);
+    expect(details.modality_features["adt"].numberOfRows()).toBeGreaterThan(0);
+
+    let payload = await utils.checkResultLoad(res);
+    let nRna = payload.features[""].numberOfRows();
+    let nAdt = payload.features["adt"].numberOfRows();
+    expect(nAdt).toBeLessThan(nRna);
+
+    res.clear();
+})
+
+/***********************************************/
+
+test("Zipped ArtifactDB result summary and loading works correctly", async () => {
+    // First, zipping the contents of the target directory.
+    let zipped = await nav.zipDirectory(nav.baseDirectory + "/zeisel-brain-sparse-results", [ ".", "experiment.json" ]);
+    scran.writeFile("miscellaneous/bundle.zip", zipped); // for manual inspection.
+    let zipfile = new bakana.SimpleFile(zipped, { name: "bundle.zip" });
+    let res = new bakana.ZippedArtifactdbResult("experiment.json", zipfile);
+
+    let details = await utils.checkResultSummary(res);
+    expect(Object.keys(details.modality_features)).toEqual([""]);
+    expect(details.modality_assay_names[""]).toEqual(["filtered", "normalized"]);
+    expect(details.reduced_dimension_names).toEqual(["pca", "tsne", "umap"]);
+
+    // Actually loading the log-counts.
+    res.setOptions({
+        primaryAssay: "normalized",
+        isPrimaryNormalized: true,
+        reducedDimensionNames: ["tsne", "umap"]
+    });
+
+    let payload = await utils.checkResultLoad(res);
+    expect(Object.keys(payload.reduced_dimensions)).toEqual(["tsne", "umap"]);
+    expect(payload.reduced_dimensions["tsne"].length).toEqual(2);
+    expect(payload.reduced_dimensions["umap"].length).toEqual(2);
+
+    let col0 = payload.matrix.get("").column(0);
+    expect(utils.hasNonInteger(col0)).toBe(true);
+
+    res.clear();
 })

@@ -113,11 +113,16 @@ function isDataFrameWithSimpleColumns(x) {
     expect(x instanceof bioc.DataFrame).toBe(true);
     for (const cn of x.columnNames()) {
         let col = x.column(cn);
-        expect(col instanceof Array || (ArrayBuffer.isView(col) && !(col instanceof DataView))).toBe(true);
+        expect(
+            col instanceof Array || 
+            (ArrayBuffer.isView(col) && !(col instanceof DataView)) ||
+            col instanceof bioc.DataFrame // for back-compatibity purposes only in the SE reader... this probably shouldn't be allowed. 
+        ).toBe(true);
     }
 }
 
 function isArrayOfUniqueNames(x) {
+    expect(x.length).toBeGreaterThan(0);
     expect(x instanceof Array).toBe(true);
     for (const y of x) {
         expect(typeof y).toEqual("string") 
@@ -161,6 +166,7 @@ export async function checkDatasetSummary(dataset) {
     }
 
     isDataFrameWithSimpleColumns(summ.cells);
+    expect(summ.cells.numberOfRows()).toBeGreaterThan(0);
 
     if ("all_assay_names" in summ) {
         expect("modality_assay_names" in summ).toBe(false);
@@ -224,8 +230,10 @@ export async function checkDatasetLoad(dataset) {
         expect(df.numberOfRows()).toEqual(loaded.matrix.get(mod).numberOfRows());
         isDataFrameWithSimpleColumns(df);
         const pid = loaded.primary_ids[mod];
-        expect(df.numberOfRows()).toEqual(pid.length);
-        expect(pid.every(y => typeof y === "string")).toBe(true);
+        if (pid !== null) {
+            expect(df.numberOfRows()).toEqual(pid.length);
+            expect(pid.every(y => typeof y === "string")).toBe(true);
+        }
     }
 
     let preview = await dataset.previewPrimaryIds();
@@ -258,14 +266,17 @@ export async function checkResultSummary(result) {
     if ("all_features" in summ) {
         expect("modality_features" in summ).toBe(false);
         isDataFrameWithSimpleColumns(summ.all_features);
+        expect(summ.all_features.numberOfRows()).toBeGreaterThan(0);
     } else {
         expect("modality_features" in summ).toBe(true);
         for (const [mod, df] of Object.entries(summ.modality_features)) {
             isDataFrameWithSimpleColumns(df);
+            expect(df.numberOfRows()).toBeGreaterThan(0);
         }
     }
 
     isDataFrameWithSimpleColumns(summ.cells);
+    expect(summ.cells.numberOfRows()).toBeGreaterThan(0);
 
     if ("all_assay_names" in summ) {
         expect("modality_assay_names" in summ).toBe(false);
@@ -1222,3 +1233,11 @@ export function mockBlocks(input, output, nblocks) {
     return "A0";
 }
 
+export function hasNonInteger(x) {
+    for (const y of x) {
+        if (y !== Math.round(y)) {
+            return true;
+        }
+    }
+    return false;
+}

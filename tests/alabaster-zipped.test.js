@@ -123,5 +123,7 @@ test("ZippedAlabasterResult works correctly", async () => {
         for (const [key, val] of Object.entries(loaded.reduced_dimensions)) {
             expect(val.length).toEqual(2);
         }
+
+        res.clear();
     }
 })

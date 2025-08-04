@@ -7,22 +7,22 @@ import * as bioc from "bioconductor";
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
-test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async () => {
-    let fpath = "files/datasets/zeisel-brain.rds";
-    let files = { 
-        default: new bakana.SummarizedExperimentDataset(fpath)
-    };
+test("RDS dataset readers works for SCEs", async () => {
+    const fpath = "files/datasets/zeisel-brain.rds";
+    let ds = new bakana.SummarizedExperimentDataset(fpath);
+    await utils.checkDatasetGeneral(ds);
 
-    let state = await bakana.createAnalysis();
-    let params = utils.baseParams();
-    let res = await bakana.runAnalysis(state, files, params);
+    let summ = await utils.checkDatasetSummary(ds);
+    expect(Object.keys(summ.modality_features)).toEqual(["", "ERCC", "repeat"]);
 
-    // Input reorganization is done correctly. 
+    let loaded = await utils.checkDatasetLoad(ds);
+    expect(loaded.matrix.available()).toEqual(["RNA"]);
+
+    let copy = await utils.checkDatasetSerialize(ds);
+    utils.sameDatasetSummary(summ, await copy.summary());
+    utils.sameDatasetLoad(loaded, await copy.load());
+
     {
-        let loaded = state.inputs.fetchCountMatrix().get("RNA");
-        let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].rowNames();
-        expect(loaded_names.length).toBeGreaterThan(0);
-
         let rdshandle = scran.readRds(fpath);
         let rhandle = rdshandle.value();
         expect(rhandle.className()).toBe("SingleCellExperiment");
@@ -41,63 +41,23 @@ test("runAnalysis works correctly (RDS containing SingleCellExperiment)", async 
         rhandle.free();
         rdshandle.free();
 
-        utils.checkMatrixContents(simple, simple_names, loaded, loaded_names);
+        utils.checkMatrixContents(simple, simple_names, loaded.matrix.get("RNA"), loaded.primary_ids["RNA"]);
         simple.free();
     }
 
-    // Basic checks.
-    await utils.overlordCheckStandard(state);
-    utils.checkClusterVersusMode(state);
-    await utils.triggerAnimation(state);
-
-    // Annotations, with and without filtering.
-    {
-        let nfull = state.inputs.fetchCountMatrix().numberOfColumns();
-        let nfilt = state.cell_filtering.fetchFilteredMatrix().numberOfColumns();
-
-        let cell_anno = state.inputs.fetchCellAnnotations().column("level1class");
-        expect(cell_anno.length).toBe(nfull);
-        let filtered_cell_anno = state.cell_filtering.applyFilter(cell_anno);
-        expect(filtered_cell_anno.length).toBe(nfilt);
-
-        let sex_anno = state.inputs.fetchCellAnnotations().column("sex");
-        expect(sex_anno.length).toBe(nfull);
-        let filtered_sex_anno = state.cell_filtering.applyFilter(sex_anno);
-        expect(filtered_sex_anno.length).toBe(nfilt);
-    }
-
-    // Check saving of results.
-    await bakana.saveSingleCellExperiment(state, "se", { directory: "miscellaneous/from-tests" });
-    await bakana.saveGenewiseResults(state, "se_results", { directory: "miscellaneous/from-tests" });
-
-    // Check reloading of the parameters/datasets.
-    {
-        let saved = [];
-        let saver = (n, k, f) => {
-            saved.push(f.content());
-            return String(saved.length);
-        };
-
-        let serialized = await bakana.serializeConfiguration(state, saver);
-        let reloaded = bakana.unserializeDatasets(serialized.datasets, x => saved[Number(x) - 1]); 
-        expect(reloaded.default instanceof bakana.SummarizedExperimentDataset);
-        expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
-    }
-
-    // Freeing.
-    await bakana.freeAnalysis(state);
+    ds.clear();
 })
 
-test("RDS loaders work correctly for a base SummarizedExperiment", async () => {
-    let contents = {};
-    let finished = (step, res) => {
-        contents[step] = res;
-    };
+test("RDS dataset readers work for a base SummarizedExperiment", async () => {
+    const fpath = "files/datasets/paul-hsc.rds";
+    let ds = new bakana.SummarizedExperimentDataset(fpath);
+    await utils.checkDatasetGeneral(ds);
 
-    let fpath = "files/datasets/paul-hsc.rds";
-    let files = { 
-        default: new bakana.SummarizedExperimentDataset(fpath)
-    };
+    let summ = await utils.checkDatasetSummary(ds);
+    expect(Object.keys(summ.modality_features)).toEqual([""]);
+
+    let loaded = await utils.checkDatasetLoad(ds);
+    expect(loaded.matrix.available()).toEqual(["RNA"]);
 
     // Check we're dealing with a pure SE.
     {
@@ -108,28 +68,19 @@ test("RDS loaders work correctly for a base SummarizedExperiment", async () => {
         rdshandle.free();
     }
 
-    let fullstate = new inputs.InputsState;
-    await fullstate.compute(files, inputs.InputsState.defaults());
-
-    let loaded = fullstate.fetchCountMatrix();
-    expect(loaded.numberOfColumns()).toBeGreaterThan(0);
-
-    let loaded_names = fullstate.fetchFeatureAnnotations()["RNA"].rowNames();
-    expect(loaded_names.length).toBeGreaterThan(0);
-
-    fullstate.free();
+    ds.clear();
 })
 
-test("RDS loaders work correctly for GRanges SummarizedExperiment", async () => {
-    let contents = {};
-    let finished = (step, res) => {
-        contents[step] = res;
-    };
+test("RDS dataset readers work for GRanges SE", async () => {
+    const fpath = "files/datasets/zeisel-brain-dense.rds";
+    let ds = new bakana.SummarizedExperimentDataset(fpath);
+    await utils.checkDatasetGeneral(ds);
 
-    let fpath = "files/datasets/zeisel-brain-dense.rds";
-    let files = { 
-        default: new bakana.SummarizedExperimentDataset(fpath)
-    };
+    let summ = await utils.checkDatasetSummary(ds);
+    expect(Object.keys(summ.modality_features)).toEqual(["", "ERCC", "repeat"]);
+
+    let loaded = await utils.checkDatasetLoad(ds);
+    expect(loaded.matrix.available()).toEqual(["RNA"]);
 
     // Check we're dealing with a GRanges-containing SCE.
     {
@@ -145,64 +96,81 @@ test("RDS loaders work correctly for GRanges SummarizedExperiment", async () => 
         rdshandle.free();
     }
 
-    let fullstate = new inputs.InputsState;
-    await fullstate.compute(files, inputs.InputsState.defaults());
-
-    let loaded = fullstate.fetchCountMatrix();
-    expect(loaded.numberOfColumns()).toBeGreaterThan(0);
-
-    let loaded_names = fullstate.fetchFeatureAnnotations()["RNA"].rowNames();
-    expect(loaded_names.length).toBeGreaterThan(0);
-
-    fullstate.free();
+    ds.clear();
 })
 
-test("RDS loaders work correctly for a SingleCellExperiment with altExps", async () => {
-    let contents = {};
-    let finished = (step, res) => {
-        contents[step] = res;
-    };
+test("RDS dataset readers work for a SingleCellExperiment with altExps", async () => {
+    const fpath = "files/datasets/immune_3.0.0-tenx.rds";
+    let ds = new bakana.SummarizedExperimentDataset(fpath);
+    await utils.checkDatasetGeneral(ds);
 
-    let fpath = "files/datasets/immune_3.0.0-tenx.rds";
-    let files = { 
-        default: new bakana.SummarizedExperimentDataset(fpath)
-    };
+    let summ = await utils.checkDatasetSummary(ds);
+    expect(Object.keys(summ.modality_features)).toEqual(["", "Antibody Capture"]);
 
-    // Summary works correctly.
-    let summ = files.default.summary();
-    expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
-    expect(summ.modality_features["Antibody Capture"] instanceof bioc.DataFrame).toBe(true);
-    expect(summ.cells instanceof bioc.DataFrame).toBe(true);
-    expect(summ.modality_assay_names[""].length).toBeGreaterThan(0);
-    expect(summ.modality_assay_names["Antibody Capture"].length).toBeGreaterThan(0);
-
-    // Preview works correctly.
-    let preview = files.default.previewPrimaryIds();
-    expect("RNA" in preview).toBe(true);
-    expect("ADT" in preview).toBe(true);
-    expect(preview.RNA.length).toBeGreaterThan(0);
-    expect(preview.ADT.length).toBeGreaterThan(0);
-
-    let fullstate = new inputs.InputsState;
-    await fullstate.compute(files, inputs.InputsState.defaults());
-
-    let loaded = fullstate.fetchCountMatrix();
-    let loaded_rna = loaded.get("RNA");
-    expect(loaded_rna.numberOfColumns()).toBeGreaterThan(0);
-    let loaded_adt = loaded.get("ADT");
-    expect(loaded_adt.numberOfColumns()).toBeGreaterThan(0);
-
-    let feat_anno = fullstate.fetchFeatureAnnotations();
-
-    let loaded_names = feat_anno["RNA"].rowNames();
+    let loaded = await utils.checkDatasetLoad(ds);
+    expect(loaded.matrix.available()).toEqual(["RNA", "ADT"]);
+    let loaded_names = loaded.features["RNA"].rowNames();
     expect(loaded_names.length).toBeGreaterThan(0);
-    expect(loaded_names.length).toEqual(loaded_rna.numberOfRows());
+    expect(loaded_names.length).toEqual(loaded.matrix.get("RNA").numberOfRows());
     expect(loaded_names.some(x => x.match(/^ENSG/))).toBe(true);
 
-    let loaded_names_adt = feat_anno["ADT"].rowNames();
+    let loaded_names_adt = loaded.features["ADT"].rowNames();
     expect(loaded_names_adt.length).toBeGreaterThan(0);
-    expect(loaded_names_adt.length).toEqual(loaded_adt.numberOfRows());
+    expect(loaded_names_adt.length).toEqual(loaded.matrix.get("ADT").numberOfRows());
     expect(loaded_names_adt.some(x => x.match(/^ENSG/))).toBe(false);
 
-    fullstate.free();
+    ds.clear();
 })
+
+test("RDS result readers work", async () => {
+    let res = new bakana.SummarizedExperimentResult("files/datasets/zeisel-brain-with-results.rds");
+
+    let details = await utils.checkResultSummary(res);
+    expect(Object.keys(details.modality_features)).toEqual(["", "ERCC", "repeat"]);
+    expect(details.modality_assay_names[""]).toEqual(["counts", "logcounts"]);
+    expect(details.reduced_dimension_names).toEqual(["PCA", "TSNE", "UMAP"]);
+
+    // Already normalized.
+    {
+        res.setOptions({ 
+            primaryAssay: { "": "logcounts" },
+            isPrimaryNormalized: true,
+            reducedDimensionNames: ["TSNE", "UMAP"]
+        });
+
+        let payload = await utils.checkResultLoad(res);
+        expect(payload.matrix.available()).toEqual([""]);
+        expect(Object.keys(payload.reduced_dimensions)).toEqual(["TSNE", "UMAP"]);
+        expect(payload.reduced_dimensions["TSNE"].length).toEqual(2);
+        expect(payload.reduced_dimensions["UMAP"].length).toEqual(2);
+
+        let col0 = payload.matrix.get("").column(0);
+        expect(utils.hasNonInteger(col0)).toBe(true);
+    }
+
+    // Manual normalization.
+    {
+        res.setOptions({
+            primaryAssay: "counts",
+            isPrimaryNormalized: { "ERCC": false }
+        });
+
+        let payload = await utils.checkResultLoad(res);
+        expect(payload.matrix.available()).toEqual(["", "ERCC", "repeat"]);
+
+        // Checking that naked gene counts are loaded, as a control.
+        {
+            let col0 = payload.matrix.get("").column(0);
+            expect(utils.hasNonInteger(col0)).toBe(false);
+        }
+
+        // Checking that the ERCC count matrix is correctly normalized.
+        {
+            let col0 = payload.matrix.get("ERCC").column(0);
+            expect(utils.hasNonInteger(col0)).toBe(true);
+        }
+    }
+
+    res.clear();
+})
+

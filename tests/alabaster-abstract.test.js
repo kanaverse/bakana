@@ -41,8 +41,8 @@ export class LocalDirectoryNavigator {
 class LocalAlabasterDataset extends bakana.AbstractAlabasterDataset {
     #dir;
 
-    constructor(dir, options={}) {
-        super(new LocalDirectoryNavigator(dir), options);
+    constructor(dir) {
+        super(new LocalDirectoryNavigator(dir));
         this.#dir = dir;
     }
 
@@ -128,8 +128,8 @@ test("AlabasterAbstractDataset for multimodal datasets", async () => {
 
 class LocalAlabasterResult extends bakana.AbstractAlabasterResult {
     #dir;
-    constructor(dir, options={}) {
-        super(new LocalDirectoryNavigator(dir), options);
+    constructor(dir) {
+        super(new LocalDirectoryNavigator(dir));
         this.#dir = dir;
     }
 }
@@ -151,11 +151,15 @@ test("AlabasterAbstractResult behaves with simple results", async () => {
 
         let loaded = await utils.checkResultLoad(res);
         expect(loaded.matrix.available()).toEqual(["rna"]);
+        let col0 = loaded.matrix.get("rna").column(0);
+        expect(utils.hasNonInteger(col0)).toBe(true);
 
         expect(Object.keys(loaded.reduced_dimensions)).toEqual(["tsne", "umap"]);
         for (const [key, val] of Object.entries(loaded.reduced_dimensions)) {
             expect(val.length).toEqual(2);
         }
+
+        res.clear();
     }
 })
 
@@ -168,6 +172,8 @@ test("AlabasterAbstractResult performs normalization", async () => {
 
     let loaded = await utils.checkResultLoad(res);
     expect(loaded.matrix.available()).toEqual(["rna"]);
+
+    res.clear();
 })
 
 test("AlabasterAbstractResult behaves with multimodal results", async () => {
@@ -188,10 +194,16 @@ test("AlabasterAbstractResult behaves with multimodal results", async () => {
 
         let loaded = await utils.checkResultLoad(res);
         expect(loaded.matrix.available()).toEqual(["rna", "adt"]);
+        let col0 = loaded.matrix.get("rna").column(0);
+        expect(utils.hasNonInteger(col0)).toBe(true);
+        let acol0 = loaded.matrix.get("adt").column(0);
+        expect(utils.hasNonInteger(acol0)).toBe(false); // we just took the counts, see above.
 
         expect(Object.keys(loaded.reduced_dimensions)).toEqual(["tsne", "umap"]);
         for (const [key, val] of Object.entries(loaded.reduced_dimensions)) {
             expect(val.length).toEqual(2);
         }
+
+        res.clear();
     }
 })

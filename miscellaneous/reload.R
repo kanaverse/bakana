@@ -25,24 +25,14 @@ check_genes <- function(dir) {
     }
 }
 
-test_that("10X output is correct", {
-    expect_error(validateObject(file.path("from-tests", "10X")), NA)
-    check_genes("10X_genes")
+test_that("basic PBMC output is correct", {
+    expect_error(validateObject(file.path("from-tests", "PBMC")), NA)
+    check_genes("PBMC_genes")
 })
 
-test_that("MatrixMarket output is correct", {
-    expect_error(validateObject(file.path("from-tests", "MatrixMarket")), NA)
-    check_genes("MatrixMarket_genes")
-})
-
-test_that("H5AD output is correct", {
-    expect_error(validateObject(file.path("from-tests", "H5AD")), NA)
-    check_genes("H5AD_genes")
-})
-
-test_that("RDS output is correct", {
-    expect_error(validateObject(file.path("from-tests", "se")), NA)
-    check_genes("se_results")
+test_that("basic zeisel output is correct", {
+    expect_error(validateObject(file.path("from-tests", "zeisel")), NA)
+    check_genes("zeisel_genes")
 })
 
 test_that("block information is correctly saved", {
