@@ -86,7 +86,7 @@ see the <a href="https://github.com/LTLA/bakana/blob/master/docs/related/custom_
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line418">line 418</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line420">line 420</a>
     </li></ul></dd>
     
 
@@ -250,7 +250,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line496">line 496</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line498">line 498</a>
     </li></ul></dd>
     
 
@@ -332,7 +332,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line612">line 612</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line617">line 617</a>
     </li></ul></dd>
     
 
@@ -588,7 +588,7 @@ either from the <code>defaults</code> or with <a href="AbstractAlabasterDataset.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line452">line 452</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line454">line 454</a>
     </li></ul></dd>
     
 
@@ -693,7 +693,7 @@ either from the <code>defaults</code> or with <a href="AbstractAlabasterDataset.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line571">line 571</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line576">line 576</a>
     </li></ul></dd>
     
 
@@ -901,6 +901,8 @@ If <code>true</code>, users should consider calling <a href="AbstractAlabasterDa
 <div class="param-desc">
     <p>An object where each key is a modality name and each value is an array (usually of strings) containing the primary feature identifiers for each row in that modality.
 The contents are the same as the <code>primary_ids</code> returned by <a href="AbstractAlabasterDataset.html#load"><code>load</code></a> but the order of values may be different.</p>
+<p>If the main experiment is unnamed, its modality name is set to an empty string.
+If the main experiment's name is the same as any alternative experiment name, the former will be reported in the returned object.</p>
 </div>
 
 
@@ -940,7 +942,7 @@ The contents are the same as the <code>primary_ids</code> returned by <a href="A
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line486">line 486</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line488">line 488</a>
     </li></ul></dd>
     
 
@@ -1200,9 +1202,10 @@ The contents are the same as the <code>primary_ids</code> returned by <a href="A
 
             
 
-            <td class="description last"><p>Name or index of the alternative experiment containing gene expression data.</p>
-<p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.
-If <code>i</code> is an empty string, the main experiment is assumed to contain the gene expression data.</p></td>
+            <td class="description last"><p>Name of the main/alternative experiment containing gene expression data,
+as reported in the keys of the <code>modality_assay_names</code> of <a href="AbstractAlabasterDataset.html#summary"><code>summary</code></a>).
+Alternatively, the positional index of one of the alternative experiments.
+If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.</p></td>
         </tr>
 
     
@@ -1241,9 +1244,10 @@ If <code>i</code> is an empty string, the main experiment is assumed to contain 
 
             
 
-            <td class="description last"><p>Name or index of the alternative experiment containing ADT data.</p>
-<p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.
-If <code>i</code> is an empty string, the main experiment is assumed to contain the ADT data.</p></td>
+            <td class="description last"><p>Name of the main/alternative experiment containing ADT data,
+as reported in the keys of the <code>modality_assay_names</code> of <a href="AbstractAlabasterDataset.html#summary"><code>summary</code></a>).
+Alternatively, the positional index of one of the alternative experiments.
+If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.</p></td>
         </tr>
 
     
@@ -1282,9 +1286,10 @@ If <code>i</code> is an empty string, the main experiment is assumed to contain 
 
             
 
-            <td class="description last"><p>Name or index of the alternative experiment containing CRISPR guide data.</p>
-<p>If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.
-If <code>i</code> is an empty string, the main experiment is assumed to contain the guide data.</p></td>
+            <td class="description last"><p>Name of the main/alternative experiment containing CRISPR guide data,
+as reported in the keys of the <code>modality_assay_names</code> of <a href="AbstractAlabasterDataset.html#summary"><code>summary</code></a>).
+Alternatively, the positional index of one of the alternative experiments.
+If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.</p></td>
         </tr>
 
     
@@ -1457,7 +1462,7 @@ However, if no row names are present in the SummarizedExperiment, no primary ide
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line538">line 538</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line541">line 541</a>
     </li></ul></dd>
     
 
@@ -1668,9 +1673,10 @@ This has the following properties:</p>
 <ul>
 <li><code>modality_features</code>: an object where each key is a modality name and each value is a <a href="external-DataFrame.html">DataFrame</a> of per-feature annotations for that modality.</li>
 <li><code>cells</code>: a <a href="external-DataFrame.html">DataFrame</a> of per-cell annotations.</li>
-<li><code>modality_assay_names</code>: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.
-Unnamed assays are represented as <code>null</code> names.</li>
+<li><code>modality_assay_names</code>: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.</li>
 </ul>
+<p>If the main experiment is unnamed, its modality name is set to an empty string.
+If the main experiment's name is the same as any alternative experiment name, the former will be reported in the returned objects.</p>
 </div>
 
 
@@ -1710,7 +1716,7 @@ Unnamed assays are represented as <code>null</code> names.</li>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line435">line 435</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line437">line 437</a>
     </li></ul></dd>
     
 
@@ -1817,7 +1823,7 @@ Unnamed assays are represented as <code>null</code> names.</li>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Mon Aug 04 2025 17:55:39 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Mon Aug 04 2025 18:34:15 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
