@@ -611,18 +611,15 @@ export class SummarizedExperimentDataset {
      * @param {string|number} [options.rnaCountAssay] - Name or index of the assay containing the RNA count matrix.
      * @param {string|number} [options.adtCountAssay] - Name or index of the assay containing the ADT count matrix.
      * @param {string|number} [options.crisprCountAssay] - Name or index of the assay containing the CRISPR count matrix.
-     * @param {?(string|number)} [options.rnaExperiment] - Name of the main/alternative experiment containing gene expression data,
+     * @param {?string} [options.rnaExperiment] - Name of the main/alternative experiment containing gene expression data,
      * as reported in the keys of the `modality_assay_names` of {@linkcode AbstractAlabasterDataset#summary summary}).
-     * Alternatively, the positional index of one of the alternative experiments.
-     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.
-     * @param {?(string|number)} [options.adtExperiment] - Name of the main/alternative experiment containing ADT data,
+     * If `i` is `null` or the name does not exist, it is ignored and no RNA data is assumed to be present.
+     * @param {?string} [options.adtExperiment] - Name of the main/alternative experiment containing ADT data,
      * as reported in the keys of the `modality_assay_names` of {@linkcode AbstractAlabasterDataset#summary summary}).
-     * Alternatively, the positional index of one of the alternative experiments.
-     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.
-     * @param {?(string|number)} [options.crisprExperiment] - Name of the main/alternative experiment containing CRISPR guide data,
+     * If `i` is `null` or the name does not exist, it is ignored and no ADTs are assumed to be present.
+     * @param {?string} [options.crisprExperiment] - Name of the main/alternative experiment containing CRISPR guide data,
      * as reported in the keys of the `modality_assay_names` of {@linkcode AbstractAlabasterDataset#summary summary}).
-     * Alternatively, the positional index of one of the alternative experiments.
-     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.
+     * If `i` is `null` or the name does not exist, it is ignored and no CRISPR guides are assumed to be present.
      * @param {?(string|number)} [options.primaryRnaFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
      *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
@@ -856,27 +853,17 @@ export class SummarizedExperimentDataset {
                 }
 
                 let handle;
-                let name = v.exp;
-                if (typeof v.exp == "string") {
-                    if (v.exp === this.#main_exp_name) {
-                        handle = this.#se_handle;
-                    } else {
-                        if (!(v.exp in this.#alt_handles)) {
-                            continue;
-                        }
-                        handle = this.#alt_handles[v.exp];
-                    }
+                if (v.exp === this.#main_exp_name) {
+                    handle = this.#se_handle;
+                } else if (v.exp in this.#alt_handles) {
+                    handle = this.#alt_handles[v.exp];
                 } else {
-                    if (v.exp >= this.#alt_handle_order.length) {
-                        continue;
-                    }
-                    name = this.#alt_handle_order[v.exp];
-                    handle = this.#alt_handles[name];
+                    continue;
                 }
 
                 let loaded = extract_assay(handle, v.assay, true);
                 output.matrix.add(k, loaded);
-                output.features[k] = this.#raw_features[name];
+                output.features[k] = this.#raw_features[v.exp];
             }
 
             output.primary_ids = futils.extractPrimaryIds(output.features, this.#primary_mapping());

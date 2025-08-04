@@ -460,18 +460,15 @@ export class AbstractAlabasterDataset {
      * @param {string|number} [options.rnaCountAssay] - Name or index of the assay containing the RNA count matrix.
      * @param {string|number} [options.adtCountAssay] - Name or index of the assay containing the ADT count matrix.
      * @param {string|number} [options.crisprCountAssay] - Name or index of the assay containing the CRISPR count matrix.
-     * @param {?(string|number)} [options.rnaExperiment] - Name of the main/alternative experiment containing gene expression data,
+     * @param {?string} [options.rnaExperiment] - Name of the main/alternative experiment containing gene expression data,
      * as reported in the keys of the `modality_assay_names` of {@linkcode AbstractAlabasterDataset#summary summary}).
-     * Alternatively, the positional index of one of the alternative experiments.
-     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.
-     * @param {?(string|number)} [options.adtExperiment] - Name of the main/alternative experiment containing ADT data,
+     * If `i` is `null` or the name does not exist, it is ignored and no RNA data is assumed to be present.
+     * @param {?string} [options.adtExperiment] - Name of the main/alternative experiment containing ADT data,
      * as reported in the keys of the `modality_assay_names` of {@linkcode AbstractAlabasterDataset#summary summary}).
-     * Alternatively, the positional index of one of the alternative experiments.
-     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.
-     * @param {?(string|number)} [options.crisprExperiment] - Name of the main/alternative experiment containing CRISPR guide data,
+     * If `i` is `null` or the name does not exist, it is ignored and no ADTs are assumed to be present.
+     * @param {?string} [options.crisprExperiment] - Name of the main/alternative experiment containing CRISPR guide data,
      * as reported in the keys of the `modality_assay_names` of {@linkcode AbstractAlabasterDataset#summary summary}).
-     * Alternatively, the positional index of one of the alternative experiments.
-     * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.
+     * If `i` is `null` or the name does not exist, it is ignored and no CRISPR guides are assumed to be present.
      * @param {?(string|number)} [options.primaryRnaFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
      *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
@@ -630,30 +627,12 @@ export class AbstractAlabasterDataset {
         };
 
         let experiments_by_name = apply_over_experiments(this.#raw_se, x => x);
-        let num_alts = 0;
-        if (this.#raw_se instanceof bioc.SingleCellExperiment) {
-            num_alts = this.#raw_se.alternativeExperimentNames().length;
-        }
-
         try {
             for (const [k, v] of Object.entries(mapping)) {
-                if (v.exp === null) {
+                if (v.exp === null || !(v.exp in experiments_by_name)) {
                     continue;
                 }
-
-                let chosen_se;
-                if (typeof v.exp == "string") {
-                    if (!(v.exp in experiments_by_name)) {
-                        continue;
-                    }
-                    chosen_se = experiments_by_name[v.exp];
-                } else {
-                    if (v.exp >= num_alts) {
-                        continue;
-                    }
-                    chosen_se = this.#raw_se.alternativeExperiment(v.exp);
-                }
-
+                let chosen_se = experiments_by_name[v.exp];
                 let loaded = await chosen_se.assay(v.assay).realize(this.#create_globals(), /* forceInteger = */ true, /* forceSparse = */ true);
                 output.matrix.add(k, loaded);
                 output.features[k] = chosen_se.rowData();
