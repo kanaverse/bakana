@@ -639,7 +639,13 @@ export class AbstractArtifactdbDataset {
             CRISPR: this.#options.crisprExperiment 
         };
 
-        let preview = futils.extractRemappedPrimaryIds(this.#raw_features, fmapping, this.#primary_mapping());
+        let altnames = [];
+        let full_meta = await this.#navigator.metadata(this.#path);
+        if ("single_cell_experiment" in full_meta && "alternative_experiments" in full_meta.single_cell_experiment) {
+            altnames = full_meta.single_cell_experiment.alternative_experiments.map(x => x.name);
+        }
+
+        let preview = futils.extractRemappedPrimaryIds(this.#raw_features, altnames, fmapping, this.#primary_mapping());
 
         if (!cache) {
             this.clear();

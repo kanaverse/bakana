@@ -761,7 +761,7 @@ export class SummarizedExperimentDataset {
             CRISPR: this.#options.crisprExperiment
         };
 
-        let preview = futils.extractRemappedPrimaryIds(this.#raw_features, fmapping, this.#primary_mapping());
+        let preview = futils.extractRemappedPrimaryIds(this.#raw_features, this.#alt_handle_order, fmapping, this.#primary_mapping());
 
         if (!cache) {
             this.clear();

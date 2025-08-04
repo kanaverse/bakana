@@ -187,7 +187,7 @@ class MockMatrix {
     }
 }
 
-async function extract_matrix(path, metadata, globals, { forceInteger = true, forceSparse = true } = {}) {
+async function extract_matrix(path, metadata, globals, forceInteger, forceSparse) {
     if (metadata.type == "compressed_sparse_matrix") {
         let contents = await globals.get(jsp.joinPath(path, "matrix.h5"));
         try {
@@ -578,7 +578,11 @@ export class AbstractAlabasterDataset {
         };
 
         let raw_features = extract_all_features(this.#raw_se);
-        let preview = futils.extractRemappedPrimaryIds(raw_features, fmapping, this.#primary_mapping());
+        let altnames = [];
+        if (this.#raw_se instanceof bioc.SingleCellExperiment) {
+            altnames = this.#raw_se.alternativeExperimentNames();
+        }
+        let preview = futils.extractRemappedPrimaryIds(raw_features, altnames, fmapping, this.#primary_mapping());
 
         if (!cache) {
             this.clear();

@@ -41,8 +41,8 @@ export class LocalDirectoryNavigator {
 class LocalAlabasterDataset extends bakana.AbstractAlabasterDataset {
     #dir;
 
-    constructor(dir, options={}) {
-        super(new LocalDirectoryNavigator(dir), options);
+    constructor(dir) {
+        super(new LocalDirectoryNavigator(dir));
         this.#dir = dir;
     }
 
@@ -53,8 +53,10 @@ class LocalAlabasterDataset extends bakana.AbstractAlabasterDataset {
     static unserialize(files, options) {
         let dec = new TextDecoder;
         let payload = files[0].file.buffer();
-        let info = JSON.stringify(dec.decode(payload));
-        return new LocalAlabasterDataset(info.directory, options);
+        let info = JSON.parse(dec.decode(payload));
+        let output = new LocalAlabasterDataset(info.directory);
+        output.setOptions(options);
+        return output;
     }
 
     abbreviate() {
@@ -79,26 +81,17 @@ class LocalAlabasterDataset extends bakana.AbstractAlabasterDataset {
 
 test("AlabasterAbstractDataset for simple datasets", async () => {
     let stripped_ds = new LocalAlabasterDataset("files/datasets/alabaster/zeisel-brain-stripped");
+    await utils.checkDatasetGeneral(stripped_ds);
 
-    let summ = await stripped_ds.summary({ cache: true });
+    let summ = await utils.checkDatasetSummary(stripped_ds);
     expect(Object.keys(summ.modality_features)).toEqual([""]);
-    expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
-    expect(summ.modality_features[""].numberOfRows()).toBeGreaterThan(0);
-    expect(summ.cells instanceof bioc.DataFrame).toBe(true);
-    expect(summ.cells.numberOfRows()).toBeGreaterThan(0);
 
-    let preview = await stripped_ds.previewPrimaryIds({ cache: true });
-    expect(Object.keys(preview)).toEqual(["RNA"]);
-    expect(preview.RNA.length).toBeGreaterThan(0);
-
-    let loaded = await stripped_ds.load({ cache: true });
-    expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
+    let loaded = await utils.checkDatasetLoad(stripped_ds);
     expect(loaded.matrix.available()).toEqual(["RNA"]);
-    const mat = loaded.matrix.get("RNA");
-    const feat = loaded.features["RNA"];
-    expect(mat.numberOfRows()).toEqual(feat.numberOfRows());
-    expect(mat.isSparse()).toBe(true);
-    expect(loaded.primary_ids["RNA"]).toEqual(feat.rowNames());
+
+    let copy = await utils.checkDatasetSerialize(stripped_ds);
+    utils.sameDatasetSummary(summ, await copy.summary());
+    utils.sameDatasetLoad(loaded, await copy.load());
 
     stripped_ds.clear();
 })
@@ -106,14 +99,10 @@ test("AlabasterAbstractDataset for simple datasets", async () => {
 test("AlabasterAbstractDataset for multimodal datasets", async () => {
     for (const mode of ["sparse", "dense"]) {
         let full_ds = new LocalAlabasterDataset("files/datasets/alabaster/zeisel-brain-" + mode);
+        await utils.checkDatasetGeneral(full_ds);
 
-        let summ = await full_ds.summary({ cache: true });
+        let summ = await utils.checkDatasetSummary(full_ds);
         expect(Object.keys(summ.modality_features)).toEqual(["gene", "repeat", "ERCC"]);
-        for (const mod of Object.values(summ.modality_features)) {
-            expect(mod instanceof bioc.DataFrame).toBe(true);
-            expect(mod.numberOfRows()).toBeGreaterThan(0);
-        }
-        expect(summ.cells instanceof bioc.DataFrame).toBe(true);
 
         full_ds.setOptions({
             rnaExperiment: "gene",
@@ -123,22 +112,26 @@ test("AlabasterAbstractDataset for multimodal datasets", async () => {
             adtCountAssay: "counts",
             crisprCountAssay: "counts"
         });
-        let preview = await full_ds.previewPrimaryIds({ cache: true });
-        expect(Object.keys(preview)).toEqual(["RNA", "ADT", "CRISPR"]);
-        for (const mod of Object.values(preview)) {
-            expect(mod.length).toBeGreaterThan(0);
-        }
 
-        let loaded = await full_ds.load({ cache: true });
-        expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
+        let loaded = await utils.checkDatasetLoad(full_ds);
         expect(loaded.matrix.available()).toEqual(["RNA", "ADT", "CRISPR"]);
-        for (const mod of loaded.matrix.available()) {
-            const mat = loaded.matrix.get(mod);
-            const feat = loaded.features[mod];
-            expect(mat.numberOfRows()).toEqual(feat.numberOfRows());
-            expect(mat.isSparse()).toEqual(true); // we force all count matrices to be sparse.
-            expect(loaded.primary_ids[mod]).toEqual(feat.rowNames());
-        }
+
+        let copy = await utils.checkDatasetSerialize(full_ds);
+        utils.sameDatasetSummary(summ, await copy.summary());
+        utils.sameDatasetLoad(loaded, await copy.load());
+
+        // Try with integer codes for the experiment and assays.
+        full_ds.setOptions({
+            rnaExperiment: "gene",
+            adtExperiment: 1,
+            crisprExperiment: 0,
+            rnaCountAssay: 0,
+            adtCountAssay: 0,
+            crisprCountAssay: 0
+        });
+
+        let reloaded = await utils.checkDatasetLoad(full_ds);
+        expect(reloaded.matrix.available()).toEqual(["RNA", "ADT", "CRISPR"]);
 
         full_ds.clear();
     }
@@ -148,8 +141,8 @@ test("AlabasterAbstractDataset for multimodal datasets", async () => {
 
 class LocalAlabasterResult extends bakana.AbstractAlabasterResult {
     #dir;
-    constructor(dir, options={}) {
-        super(new LocalDirectoryNavigator(dir), options);
+    constructor(dir) {
+        super(new LocalDirectoryNavigator(dir));
         this.#dir = dir;
     }
 }
@@ -158,16 +151,9 @@ test("AlabasterAbstractResult behaves with simple results", async () => {
     for (const extra of [ "", "-delayed", "-delayed-external" ]) {
         let res = new LocalAlabasterResult("files/datasets/alabaster/zeisel-brain-sparse-results" + extra);
 
-        let summ = await res.summary({ cache: true });
+        let summ = await utils.checkResultSummary(res);
         expect(Object.keys(summ.modality_features)).toEqual(["rna"]);
-        const mod = summ.modality_features["rna"];
-        expect(mod instanceof bioc.DataFrame).toBe(true);
-        expect(mod.numberOfRows()).toBeGreaterThan(0);
-
-        expect(summ.cells instanceof bioc.DataFrame).toBe(true);
-        expect(summ.cells.numberOfRows()).toBeGreaterThan(0);
         expect(summ.reduced_dimension_names).toEqual(["pca", "tsne", "umap"]);
-
         expect(summ.modality_assay_names["rna"]).toEqual(["filtered", "normalized"]);
 
         // Checking that we can load the log counts.
@@ -176,16 +162,17 @@ test("AlabasterAbstractResult behaves with simple results", async () => {
             reducedDimensionNames: [ "tsne", "umap" ]
         });
 
-        let loaded = await res.load({ cache: true });
+        let loaded = await utils.checkResultLoad(res);
         expect(loaded.matrix.available()).toEqual(["rna"]);
-        expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
-        expect(loaded.matrix.get("rna").numberOfRows()).toEqual(loaded.features["rna"].numberOfRows());
+        let col0 = loaded.matrix.get("rna").column(0);
+        expect(utils.hasNonInteger(col0)).toBe(true);
 
         expect(Object.keys(loaded.reduced_dimensions)).toEqual(["tsne", "umap"]);
         for (const [key, val] of Object.entries(loaded.reduced_dimensions)) {
             expect(val.length).toEqual(2);
-            expect(val[0].length).toEqual(loaded.matrix.numberOfColumns());
         }
+
+        res.clear();
     }
 })
 
@@ -196,25 +183,18 @@ test("AlabasterAbstractResult performs normalization", async () => {
         isPrimaryNormalized: false
     });
 
-    let loaded = await res.load({ cache: true });
+    let loaded = await utils.checkResultLoad(res);
     expect(loaded.matrix.available()).toEqual(["rna"]);
-    expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
-    expect(loaded.matrix.get("rna").numberOfRows()).toEqual(loaded.features["rna"].numberOfRows());
+
+    res.clear();
 })
 
 test("AlabasterAbstractResult behaves with multimodal results", async () => {
     for (const extra of [ "", "-delayed", "-delayed-external" ]) {
         let res = new LocalAlabasterResult("files/datasets/alabaster/zeisel-brain-dense-multimodal-results" + extra);
 
-        let summ = await res.summary({ cache: true });
+        let summ = await utils.checkResultSummary(res);
         expect(Object.keys(summ.modality_features)).toEqual(["rna", "adt"]);
-        for (const mod of Object.values(summ.modality_features)) {
-            expect(mod instanceof bioc.DataFrame).toBe(true);
-            expect(mod.numberOfRows()).toBeGreaterThan(0);
-        }
-
-        expect(summ.cells instanceof bioc.DataFrame).toBe(true);
-        expect(summ.cells.numberOfRows()).toBeGreaterThan(0);
         expect(summ.reduced_dimension_names).toEqual(["pca", "combined.pca", "tsne", "umap"]);
         expect(summ.modality_assay_names["rna"]).toEqual(["filtered", "normalized"]);
         expect(summ.modality_assay_names["adt"]).toEqual(["filtered", "normalized"]);
@@ -225,17 +205,18 @@ test("AlabasterAbstractResult behaves with multimodal results", async () => {
             reducedDimensionNames: [ "tsne", "umap" ]
         });
 
-        let loaded = await res.load({ cache: true });
-        expect(loaded.matrix.numberOfColumns()).toEqual(loaded.cells.numberOfRows());
+        let loaded = await utils.checkResultLoad(res);
         expect(loaded.matrix.available()).toEqual(["rna", "adt"]);
-        for (const mod of loaded.matrix.available()) {
-            expect(loaded.matrix.get(mod).numberOfRows()).toEqual(loaded.features[mod].numberOfRows());
-        }
+        let col0 = loaded.matrix.get("rna").column(0);
+        expect(utils.hasNonInteger(col0)).toBe(true);
+        let acol0 = loaded.matrix.get("adt").column(0);
+        expect(utils.hasNonInteger(acol0)).toBe(false); // we just took the counts, see above.
 
         expect(Object.keys(loaded.reduced_dimensions)).toEqual(["tsne", "umap"]);
         for (const [key, val] of Object.entries(loaded.reduced_dimensions)) {
             expect(val.length).toEqual(2);
-            expect(val[0].length).toEqual(loaded.matrix.numberOfColumns());
         }
+
+        res.clear();
     }
 })

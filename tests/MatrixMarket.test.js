@@ -1,5 +1,4 @@
 import * as bakana from "../src/index.js";
-import * as butils from "../src/steps/utils/general.js";
 import * as scran from "scran.js";
 import * as utils from "./utils.js";
 import * as bioc from "bioconductor";
@@ -7,121 +6,73 @@ import * as bioc from "bioconductor";
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
-let mtx_file = "files/datasets/pbmc3k-matrix.mtx.gz";
-let feat_file = "files/datasets/pbmc3k-features.tsv.gz";
-let files = { 
-    default: new bakana.TenxMatrixMarketDataset(mtx_file, feat_file, "files/datasets/pbmc3k-barcodes.tsv.gz")
-};
+test("MatrixMarket reader works with all files", async () => {
+    let mtx_file = "files/datasets/pbmc3k-matrix.mtx.gz";
+    let feat_file = "files/datasets/pbmc3k-features.tsv.gz";
+    let ds = new bakana.TenxMatrixMarketDataset(mtx_file, feat_file, "files/datasets/pbmc3k-barcodes.tsv.gz")
+    await utils.checkDatasetGeneral(ds);
 
-test("MatrixMarket summary works correctly", async () => {
-    let summ = await files.default.summary();
-    expect(summ.modality_features["Gene Expression"] instanceof bioc.DataFrame).toBe(true);
-    expect(summ.modality_features["Gene Expression"].numberOfColumns()).toBeGreaterThan(0);
-    expect(summ.cells instanceof bioc.DataFrame).toBe(true);
-    expect(summ.cells.numberOfColumns()).toBeGreaterThan(0);
+    let summ = await utils.checkDatasetSummary(ds);
+    expect(Object.keys(summ.modality_features)).toEqual(["Gene Expression"]);
 
-    let preview = await files.default.previewPrimaryIds();
-    expect("RNA" in preview).toBe(true);
-    expect(preview.RNA.length).toBeGreaterThan(0);
-})
+    let loaded = await utils.checkDatasetLoad(ds);
+    expect(loaded.matrix.available()).toEqual(["RNA"]);
 
-test("runAnalysis works correctly (MatrixMarket)", async () => {
-    let attempts = new Set;
-    let started = step => {
-        attempts.add(step);
-    };
-
-    let completed = new Set;
-    let finished = (step) => {
-        completed.add(step);
-    };
-
-    let state = await bakana.createAnalysis();
-    let params = utils.baseParams();
-    let res = await bakana.runAnalysis(state, files, params, { startFun: started, finishFun: finished });
-
-    // Check that the callbacks are actually called.
-    expect(attempts.has("rna_quality_control")).toBe(true);
-    expect(attempts.has("rna_pca")).toBe(true);
-    expect(completed.has("rna_pca")).toBe(true);
-    expect(completed.has("feature_selection")).toBe(true);
-    expect(completed.has("cell_labelling")).toBe(true);
+    let copy = await utils.checkDatasetSerialize(ds);
+    utils.sameDatasetSummary(summ, await copy.summary());
+    utils.sameDatasetLoad(loaded, await copy.load());
 
     // Input reorganization is done correctly.
     {
-        let loaded = state.inputs.fetchCountMatrix().get("RNA");
-        let loaded_names = state.inputs.fetchFeatureAnnotations()["RNA"].column("id");
-
+        let mat = loaded.matrix.get("RNA");
+        let names = loaded.primary_ids["RNA"];
         let simple = scran.initializeSparseMatrixFromMatrixMarket(mtx_file, { layered: false });
         let parsed = bakana.readTable((new bakana.SimpleFile(feat_file)).buffer(), { compression: "gz" });
         let simple_names = parsed.map(x => x[0]);
-
-        utils.checkMatrixContents(simple, simple_names, loaded, loaded_names);
+        utils.checkMatrixContents(simple, simple_names, mat, names);
         simple.free();
     }
 
-    // Basic consistency checks.
-    await utils.overlordCheckStandard(state);
-    utils.checkClusterVersusMode(state);
-    await utils.triggerAnimation(state);
-
-    // Check saving of results.
-    utils.purgeDirectory("miscellaneous/from-tests/MatrixMarket");
-    await bakana.saveSingleCellExperiment(state, "MatrixMarket", { directory: "miscellaneous/from-tests" });
-    utils.purgeDirectory("miscellaneous/from-tests/MatrixMarket_genes");
-    await bakana.saveGenewiseResults(state, "MatrixMarket_genes", { directory: "miscellaneous/from-tests" });
-
-    // Check reloading of the parameters/datasets.
-    {
-        let saved = [];
-        let saver = (n, k, f) => {
-            saved.push(f.content());
-            return String(saved.length);
-        };
-
-        let serialized = await bakana.serializeConfiguration(state, saver);
-        let reloaded = bakana.unserializeDatasets(serialized.datasets, x => saved[Number(x) - 1]); 
-        expect(reloaded.default instanceof bakana.TenxMatrixMarketDataset);
-        expect(serialized.parameters).toEqual(bakana.retrieveParameters(state));
-    }
-
-    // Release me!
-    await bakana.freeAnalysis(state);
+    ds.clear();
 })
 
-let minimal_files = { 
-    default: new bakana.TenxMatrixMarketDataset("files/datasets/pbmc3k-matrix.mtx.gz", null, null)
-};
+test("MatrixMarket reader works with minimal files", async () => {
+    let mtx_file = "files/datasets/pbmc3k-matrix.mtx.gz";
+    let ds = new bakana.TenxMatrixMarketDataset(mtx_file, null, null);
+    await utils.checkDatasetGeneral(ds);
 
-test("MatrixMarket summary works correctly with the bare minimum", async () => {
-    let summ = await minimal_files.default.summary();
+    let summ = await utils.checkDatasetSummary(ds);
+    expect(Object.keys(summ.modality_features)).toEqual([""]);
     expect(summ.modality_features[""] instanceof bioc.DataFrame).toBe(true);
     expect(summ.modality_features[""].numberOfColumns()).toBe(0);
     expect(summ.cells instanceof bioc.DataFrame).toBe(true);
     expect(summ.cells.numberOfColumns()).toBe(0);
+
+    let loaded = await utils.checkDatasetLoad(ds);
+    expect(loaded.matrix.available()).toEqual(["RNA"]);
+    expect(loaded.features["RNA"] instanceof bioc.DataFrame).toBe(true);
+    expect(loaded.features["RNA"].numberOfColumns()).toBe(0);
+    expect(loaded.cells instanceof bioc.DataFrame).toBe(true);
+    expect(loaded.cells.numberOfColumns()).toBe(0);
+
+    ds.clear();
 })
 
-test("runAnalysis works correctly with the bare minimum (MatrixMarket)", async () => {
-    let state = await bakana.createAnalysis();
-    let params = utils.baseParams();
-    let res = await bakana.runAnalysis(state, minimal_files, params);
+test("MatrixMarket reader works with multiple modalities", async () => {
+    let mtx_file = "files/datasets/immune_3.0.0-matrix.mtx.gz";
+    let feat_file = "files/datasets/immune_3.0.0-features.tsv.gz";
+    let ds = new bakana.TenxMatrixMarketDataset(mtx_file, feat_file, "files/datasets/immune_3.0.0-barcodes.tsv.gz")
+    await utils.checkDatasetGeneral(ds);
 
-    // Basic consistency checks.
-    await utils.checkStateResultsMinimal(state);
-    await utils.checkStateResultsRna(state, { exclusive: true, hasMito: false });
-    await utils.checkStateResultsUnblocked(state);
+    let summ = await utils.checkDatasetSummary(ds);
+    expect(Object.keys(summ.modality_features)).toEqual(["Gene Expression", "Antibody Capture"]);
 
-    // No annotations, so no mitochondrial proportions.
-    expect(state.inputs.fetchFeatureAnnotations()["RNA"].numberOfColumns()).toBe(0);
-    expect(state.rna_quality_control.fetchFilters().subsetProportion(0)[0]).toBe(0);
+    let loaded = await utils.checkDatasetLoad(ds);
+    expect(loaded.matrix.available()).toEqual(["RNA", "ADT"]);
 
-    // Feature set enrichment behaves.
-    params.feature_set_enrichment.skip = false;
-    await bakana.runAnalysis(state, minimal_files, params);
-    expect(state.marker_detection.changed).toBe(false);
-    expect(state.feature_set_enrichment.changed).toBe(true);
-    expect(state.feature_set_enrichment.fetchCollectionDetails().names.length).toBe(0);
+    let copy = await utils.checkDatasetSerialize(ds);
+    utils.sameDatasetSummary(summ, await copy.summary());
+    utils.sameDatasetLoad(loaded, await copy.load());
 
-    // Release me!
-    await bakana.freeAnalysis(state);
+    ds.clear();
 })

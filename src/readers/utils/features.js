@@ -29,11 +29,20 @@ function is_subset_noop(indices, full_length) {
     return true;
 }
 
-function renameByModality(input, featureTypeMapping) {
+function renameByModality(input, indexToNames, featureTypeMapping) {
     let output = {};
-    for (const [k, v] of Object.entries(featureTypeMapping)) {
-        if (v !== null && v in input) {
-            output[k] = input[v];
+    for (let [k, v] of Object.entries(featureTypeMapping)) {
+        if (v !== null) {
+            if (typeof v !== "string") {
+                if (v < indexToNames.length) {
+                    v = indexToNames[v];
+                } else {
+                    continue;
+                }
+            }
+            if (v in input) {
+                output[k] = input[v];
+            }
         }
     }
     return output;
@@ -44,7 +53,7 @@ function splitByModality(features, typeField, featureTypeMapping) {
     if (featureTypeMapping === null) {
         return by_type;
     }
-    return renameByModality(by_type, featureTypeMapping);
+    return renameByModality(by_type, [], featureTypeMapping); // positional indices for feature types don't make sense when splitting by (string) levels of a type column.
 }
 
 function findUnnamedDefault(featureTypeMapping, featureTypeDefault) {
@@ -107,8 +116,12 @@ export function splitScranMatrixAndFeatures(loaded, rawFeatures, typeField, feat
             output.features = bioc.SPLIT(current_features, by_type);
 
         } else {
-            output.matrix.rename("", featureTypeDefault);
-            output.features = create_solo_default_object(current_features, featureTypeDefault);
+            let new_default = featureTypeDefault;
+            if (featureTypeMapping !== null) {
+                new_default = findUnnamedDefault(featureTypeMapping, featureTypeDefault);
+            }
+            output.matrix.rename("", new_default);
+            output.features = create_solo_default_object(current_features, new_default);
         }
     } catch (e) {
         scran.free(output.matrix);
@@ -139,7 +152,7 @@ export function extractPrimaryIds(features, primary) {
     return output;
 }
 
-export function extractRemappedPrimaryIds(features, featureTypeMapping, primary) {
-    let renamed = renameByModality(features, featureTypeMapping);
+export function extractRemappedPrimaryIds(features, indexToNames, featureTypeMapping, primary) {
+    let renamed = renameByModality(features, indexToNames, featureTypeMapping);
     return extractPrimaryIds(renamed, primary);
 }
