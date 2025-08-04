@@ -383,7 +383,7 @@ export class H5adDataset {
         if (chosen_assay == null) {
             chosen_assay = this.#assay_details.names[0];
         }
-        let loaded = scran.initializeSparseMatrixFromHdf5(this.#h5_path, chosen_assay);
+        let loaded = scran.initializeSparseMatrixFromHdf5(this.#h5_path, chosen_assay); 
 
         let output = futils.splitScranMatrixAndFeatures(loaded, this.#raw_features, this.#options.featureTypeColumnName, this.#feature_type_mapping(), "RNA");
         output.cells = this.#raw_cells;
@@ -670,20 +670,14 @@ export class H5adResult {
             for (const k of chosen_reddims) {
                 let loaded = ohandle.open(k, { load: true });
                 let shape = loaded.shape;
-                let ndims = shape[1];
                 let ncells = shape[0];
-
+                let ndims = shape[1];
+                let transposed = scran.transposeMatrix(ncells, ndims, loaded.values, { columnMajor: false }); // HDF5 stores matrices in row-major format.
                 let contents = [];
                 for (var d = 0; d < ndims; d++) {
-                    contents.push(new Float64Array(ncells));
+                    let offset = d * ncells;
+                    contents.push(transposed.slice(offset, offset + ncells));
                 }
-
-                for (var c = 0; c < ncells; c++) {
-                    for (var d = 0; d < ndims; d++) {
-                        contents[d][c] = loaded.values[c * ndims + d];
-                    }
-                }
-
                 reddims[k] = contents;
             }
         }
@@ -696,4 +690,3 @@ export class H5adResult {
     }
 
 }
-

@@ -62,13 +62,13 @@ test("H5AD result readers work correctly with manual count normalization", async
     let res = new bakana.H5adResult("files/datasets/zeisel-brain-with-results.h5ad");
     res.setOptions({ primaryMatrixName: "X" });
 
-    let loaded = res.load();
+    let loaded = await res.load();
     let col0 = loaded.matrix.get("").column(0);
     expect(utils.hasNonInteger(col0)).toBe(false);
 
     // Trying again after flagging it as normalizable.
     res.setOptions({ isPrimaryNormalized: false });
-    let loaded2 = res.load();
+    let loaded2 = await res.load();
     let col0_2 = loaded2.matrix.get("").column(0);
     expect(utils.hasNonInteger(col0_2)).toBe(true);
 
