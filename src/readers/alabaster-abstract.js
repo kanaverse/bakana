@@ -580,7 +580,7 @@ export class AbstractAlabasterDataset {
         let raw_features = extract_all_features(this.#raw_se);
         let altnames = [];
         if (this.#raw_se instanceof bioc.SingleCellExperiment) {
-            altnames = this.#raw_se.alternativeExperimentNames().length;
+            altnames = this.#raw_se.alternativeExperimentNames();
         }
         let preview = futils.extractRemappedPrimaryIds(raw_features, altnames, fmapping, this.#primary_mapping());
 

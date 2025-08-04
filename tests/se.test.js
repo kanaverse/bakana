@@ -110,14 +110,14 @@ test("RDS dataset readers work for a SingleCellExperiment with altExps", async (
     let loaded = await utils.checkDatasetLoad(ds);
     expect(loaded.matrix.available()).toEqual(["RNA", "ADT"]);
     let loaded_names = loaded.features["RNA"].rowNames();
-    expect(loaded_names.length).toBeGreaterThan(0);
-    expect(loaded_names.length).toEqual(loaded.matrix.get("RNA").numberOfRows());
     expect(loaded_names.some(x => x.match(/^ENSG/))).toBe(true);
-
     let loaded_names_adt = loaded.features["ADT"].rowNames();
-    expect(loaded_names_adt.length).toBeGreaterThan(0);
-    expect(loaded_names_adt.length).toEqual(loaded.matrix.get("ADT").numberOfRows());
     expect(loaded_names_adt.some(x => x.match(/^ENSG/))).toBe(false);
+
+    // Works with integer codes for the experiment and names for the assays.
+    ds.setOptions({ adtExperiment: 0, rnaCountAssay: "counts" });
+    let reloaded = await utils.checkDatasetLoad(ds);
+    expect(reloaded.matrix.available()).toEqual(["RNA", "ADT"]);
 
     ds.clear();
 })

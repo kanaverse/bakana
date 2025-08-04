@@ -26,13 +26,13 @@ check_genes <- function(dir) {
 }
 
 test_that("basic PBMC output is correct", {
-    expect_error(validateObject(file.path("from-tests", "PBMC")), NA)
-    check_genes("PBMC_genes")
+    expect_error(validateObject(file.path("from-tests", "pbmc")), NA)
+    check_genes("pbmc_genes")
 })
 
 test_that("basic zeisel output is correct", {
     expect_error(validateObject(file.path("from-tests", "zeisel")), NA)
-    check_genes("zeisel_genes")
+    check_genes("zeisel_results")
 })
 
 test_that("block information is correctly saved", {

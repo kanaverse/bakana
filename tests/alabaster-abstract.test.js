@@ -120,6 +120,19 @@ test("AlabasterAbstractDataset for multimodal datasets", async () => {
         utils.sameDatasetSummary(summ, await copy.summary());
         utils.sameDatasetLoad(loaded, await copy.load());
 
+        // Try with integer codes for the experiment and assays.
+        full_ds.setOptions({
+            rnaExperiment: "gene",
+            adtExperiment: 1,
+            crisprExperiment: 0,
+            rnaCountAssay: 0,
+            adtCountAssay: 0,
+            crisprCountAssay: 0
+        });
+
+        let reloaded = await utils.checkDatasetLoad(full_ds);
+        expect(reloaded.matrix.available()).toEqual(["RNA", "ADT", "CRISPR"]);
+
         full_ds.clear();
     }
 })
