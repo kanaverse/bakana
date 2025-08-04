@@ -321,6 +321,44 @@ function extract_assay(handle, assay, forceInteger) {
     return output;
 }
 
+function extract_main_exp_name(handle) {
+    let int_handle;
+    let name_handle;
+    let me_handle;
+
+    try {
+        let int_dx = handle.findAttribute("int_metadata");
+        if (int_dx < 0) {
+            return "";
+        }
+        int_handle = handle.attribute(int_dx);
+
+        let name_dx = int_handle.findAttribute("names");
+        if (name_dx < 0) {
+            return "";
+        }
+
+        name_handle = int_handle.attribute(name_dx);
+        let names = name_handle.values();
+        let me_dx = names.indexOf("mainExpName");
+        if (me_dx < 0) {
+            return "";
+        }
+
+        me_handle = int_handle.load(me_dx);
+        let me_name = me_handle.values();
+        if (me_name.length != 1 || typeof me_name[0] !== "string") {
+            return "";
+        } else {
+            return me_name[0];
+        }
+    } finally {
+        scran.free(int_handle);
+        scran.free(name_handle);
+        scran.free(me_handle);
+    }
+}
+
 function extract_alt_exps(handle) {
     let output = { handles: {}, order: [] };
     let indx = handle.findAttribute("int_colData");
@@ -500,8 +538,6 @@ function check_for_se(handle) {
     }, "SummarizedExperiment");
 }
 
-const main_experiment_name = "";
-
 /************************
  ******* Dataset ********
  ************************/
@@ -514,6 +550,8 @@ export class SummarizedExperimentDataset {
 
     #rds_handle;
     #se_handle;
+
+    #main_exp_name;
     #alt_handles;
     #alt_handle_order;
 
@@ -552,7 +590,7 @@ export class SummarizedExperimentDataset {
             rnaCountAssay: 0, 
             adtCountAssay: 0, 
             crisprCountAssay: 0,
-            rnaExperiment: "", 
+            rnaExperiment: "Gene Expression", 
             adtExperiment: "Antibody Capture", 
             crisprExperiment: "CRISPR Guide Capture",
             primaryRnaFeatureIdColumn: null, 
@@ -573,18 +611,18 @@ export class SummarizedExperimentDataset {
      * @param {string|number} [options.rnaCountAssay] - Name or index of the assay containing the RNA count matrix.
      * @param {string|number} [options.adtCountAssay] - Name or index of the assay containing the ADT count matrix.
      * @param {string|number} [options.crisprCountAssay] - Name or index of the assay containing the CRISPR count matrix.
-     * @param {?(string|number)} [options.rnaExperiment] - Name or index of the alternative experiment containing gene expression data.
-     *
+     * @param {?(string|number)} [options.rnaExperiment] - Name of the main/alternative experiment containing gene expression data,
+     * as reported in the keys of the `modality_assay_names` of {@linkcode AbstractAlabasterDataset#summary summary}).
+     * Alternatively, the positional index of one of the alternative experiments.
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.
-     * If `i` is an empty string, the main experiment is assumed to contain the gene expression data.
-     * @param {?(string|number)} [options.adtExperiment] - Name or index of the alternative experiment containing ADT data.
-     *
+     * @param {?(string|number)} [options.adtExperiment] - Name of the main/alternative experiment containing ADT data,
+     * as reported in the keys of the `modality_assay_names` of {@linkcode AbstractAlabasterDataset#summary summary}).
+     * Alternatively, the positional index of one of the alternative experiments.
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.
-     * If `i` is an empty string, the main experiment is assumed to contain the ADT data.
-     * @param {?(string|number)} [options.crisprExperiment] - Name or index of the alternative experiment containing CRISPR guide data.
-     *
+     * @param {?(string|number)} [options.crisprExperiment] - Name of the main/alternative experiment containing CRISPR guide data,
+     * as reported in the keys of the `modality_assay_names` of {@linkcode AbstractAlabasterDataset#summary summary}).
+     * Alternatively, the positional index of one of the alternative experiments.
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.
-     * If `i` is an empty string, the main experiment is assumed to contain the guide data.
      * @param {?(string|number)} [options.primaryRnaFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
      *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
@@ -652,6 +690,7 @@ export class SummarizedExperimentDataset {
             const { handles, order } = extract_alt_exps(this.#se_handle);
             this.#alt_handles = handles;
             this.#alt_handle_order = order;
+            this.#main_exp_name = extract_main_exp_name(this.#se_handle);
         } catch (e) {
             this.#se_handle.free();
             this.#rds_handle.free();
@@ -665,13 +704,15 @@ export class SummarizedExperimentDataset {
         }
         this.#initialize();
         this.#raw_features = {};
-        this.#raw_features[main_experiment_name] = extract_features(this.#se_handle);
+        this.#raw_features[this.#main_exp_name] = extract_features(this.#se_handle);
 
         for (const [k, v] of Object.entries(this.#alt_handles)) {
-            try {
-                this.#raw_features[k] = extract_features(v);
-            } catch (e) {
-                console.warn("failed to extract features for alternative Experiment '" + k + "'; " + e.message);
+            if (!(k in this.#raw_features)) {
+                try {
+                    this.#raw_features[k] = extract_features(v);
+                } catch (e) {
+                    console.warn("failed to extract features for alternative Experiment '" + k + "'; " + e.message);
+                }
             }
         }
 
@@ -708,6 +749,9 @@ export class SummarizedExperimentDataset {
      * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
      * - `modality_assay_names`: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.
      *    If a modality's assays are unnamed, an array of empty strings is returned instead.
+     *
+     * If the main experiment is unnamed, its modality name is set to an empty string.
+     * If the main experiment's name is the same as any alternative experiment name, the former will be reported in the returned objects.
      */
     summary({ cache = false } = {}) {
         this.#initialize();
@@ -715,12 +759,14 @@ export class SummarizedExperimentDataset {
         this.#cells();
 
         let assays = {};
-        assays[main_experiment_name] = extract_assay_names(this.#se_handle);
+        assays[this.#main_exp_name] = extract_assay_names(this.#se_handle);
         for (const [k, v] of Object.entries(this.#alt_handles)) {
-            try {
-                assays[k] = extract_assay_names(v);
-            } catch (e) {
-                console.warn("failed to extract features for alternative Experiment '" + k + "'; " + e.message);
+            if (!(k in assays)) {
+                try {
+                    assays[k] = extract_assay_names(v);
+                } catch (e) {
+                    console.warn("failed to extract features for alternative Experiment '" + k + "'; " + e.message);
+                }
             }
         }
 
@@ -812,7 +858,7 @@ export class SummarizedExperimentDataset {
                 let handle;
                 let name = v.exp;
                 if (typeof v.exp == "string") {
-                    if (v.exp === "") {
+                    if (v.exp === this.#main_exp_name) {
                         handle = this.#se_handle;
                     } else {
                         if (!(v.exp in this.#alt_handles)) {
@@ -870,7 +916,7 @@ export class SummarizedExperimentDataset {
             throw new Error("expected exactly one file of type 'rds' for SummarizedExperiment unserialization");
         }
         let output = new SummarizedExperimentDataset(files[0].file);
-        output.setOptions(output);
+        output.setOptions(options);
         return output;
     }
 }
@@ -887,6 +933,8 @@ export class SummarizedExperimentResult {
 
     #rds_handle;
     #se_handle;
+
+    #main_exp_name;
     #alt_handles;
     #alt_handle_order;
 
@@ -999,6 +1047,7 @@ export class SummarizedExperimentResult {
                 const { handles, order } = extract_alt_exps(this.#se_handle);
                 this.#alt_handles = handles;
                 this.#alt_handle_order = order;
+                this.#main_exp_name = extract_main_exp_name(this.#se_handle);
             }
 
             {
@@ -1021,13 +1070,15 @@ export class SummarizedExperimentResult {
 
         this.#initialize();
         this.#raw_features = {};
-        this.#raw_features[main_experiment_name] = extract_features(this.#se_handle);
+        this.#raw_features[this.#main_exp_name] = extract_features(this.#se_handle);
 
         for (const [k, v] of Object.entries(this.#alt_handles)) {
-            try {
-                this.#raw_features[k] = extract_features(v);
-            } catch (e) {
-                console.warn("failed to extract features for alternative Experiment '" + k + "'; " + e.message);
+            if (!(k in this.#raw_features)) {
+                try {
+                    this.#raw_features[k] = extract_features(v);
+                } catch (e) {
+                    console.warn("failed to extract features for alternative Experiment '" + k + "'; " + e.message);
+                }
             }
         }
 
@@ -1065,6 +1116,9 @@ export class SummarizedExperimentResult {
      * - `modality_assay_names`: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.
      *    Unnamed assays are represented as `null` names.
      * - `reduced_dimension_names`: an Array of strings containing names of dimensionality reduction results.
+     *
+     * If the main experiment is unnamed, its modality name is set to an empty string.
+     * If the main experiment's name is the same as any alternative experiment name, the former will be reported in the returned objects.
      */
     summary({ cache = false } = {}) {
         this.#initialize();
@@ -1072,12 +1126,14 @@ export class SummarizedExperimentResult {
         this.#cells();
 
         let assays = {};
-        assays[main_experiment_name] = extract_assay_names(this.#se_handle);
+        assays[this.#main_exp_name] = extract_assay_names(this.#se_handle);
         for (const [k, v] of Object.entries(this.#alt_handles)) {
-            try {
-                assays[k] = extract_assay_names(v);
-            } catch (e) {
-                console.warn("failed to extract features for alternative Experiment '" + k + "'; " + e.message);
+            if (!(k in assays)) {
+                try {
+                    assays[k] = extract_assay_names(v);
+                } catch (e) {
+                    console.warn("failed to extract features for alternative Experiment '" + k + "'; " + e.message);
+                }
             }
         }
 
@@ -1107,6 +1163,9 @@ export class SummarizedExperimentResult {
      * - `matrix`: a {@linkplain external:MultiMatrix MultiMatrix} containing one {@linkplain external:ScranMatrix ScranMatrix} per modality.
      * - `reduced_dimensions`: an object containing the dimensionality reduction results.
      *   Each value is an array of arrays, where each inner array contains the coordinates for one dimension.
+     *
+     * If the main experiment is unnamed, its modality name is set to an empty string.
+     * If the main experiment's name is the same as any alternative experiment name, the former will be reported in the returned objects.
      */
     load({ cache = false } = {}) {
         this.#initialize();
@@ -1159,7 +1218,7 @@ export class SummarizedExperimentResult {
                 }
 
                 let handle;
-                if (k === "") {
+                if (k === this.#main_exp_name) {
                     handle = this.#se_handle;
                 } else {
                     handle = this.#alt_handles[k];

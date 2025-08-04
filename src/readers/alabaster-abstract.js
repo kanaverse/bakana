@@ -381,7 +381,9 @@ function apply_over_experiments(se, fun) {
     output[main_experiment_name] = fun(se);
     if (is_sce) {
         for (const alt of se.alternativeExperimentNames()) {
-            output[alt] = fun(se.alternativeExperiment(alt));
+            if (alt !== main_experiment_name) { // do not clobber the main experiment!
+                output[alt] = fun(se.alternativeExperiment(alt));
+            }
         }
     }
     return output;
@@ -458,18 +460,18 @@ export class AbstractAlabasterDataset {
      * @param {string|number} [options.rnaCountAssay] - Name or index of the assay containing the RNA count matrix.
      * @param {string|number} [options.adtCountAssay] - Name or index of the assay containing the ADT count matrix.
      * @param {string|number} [options.crisprCountAssay] - Name or index of the assay containing the CRISPR count matrix.
-     * @param {?(string|number)} [options.rnaExperiment] - Name or index of the alternative experiment containing gene expression data.
-     *
+     * @param {?(string|number)} [options.rnaExperiment] - Name of the main/alternative experiment containing gene expression data,
+     * as reported in the keys of the `modality_assay_names` of {@linkcode AbstractAlabasterDataset#summary summary}).
+     * Alternatively, the positional index of one of the alternative experiments.
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.
-     * If `i` is an empty string, the main experiment is assumed to contain the gene expression data.
-     * @param {?(string|number)} [options.adtExperiment] - Name or index of the alternative experiment containing ADT data.
-     *
+     * @param {?(string|number)} [options.adtExperiment] - Name of the main/alternative experiment containing ADT data,
+     * as reported in the keys of the `modality_assay_names` of {@linkcode AbstractAlabasterDataset#summary summary}).
+     * Alternatively, the positional index of one of the alternative experiments.
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.
-     * If `i` is an empty string, the main experiment is assumed to contain the ADT data.
-     * @param {?(string|number)} [options.crisprExperiment] - Name or index of the alternative experiment containing CRISPR guide data.
-     *
+     * @param {?(string|number)} [options.crisprExperiment] - Name of the main/alternative experiment containing CRISPR guide data,
+     * as reported in the keys of the `modality_assay_names` of {@linkcode AbstractAlabasterDataset#summary summary}).
+     * Alternatively, the positional index of one of the alternative experiments.
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.
-     * If `i` is an empty string, the main experiment is assumed to contain the guide data.
      * @param {?(string|number)} [options.primaryRnaFeatureIdColumn] - Name or index of the column of the `features` {@linkplain external:DataFrame DataFrame} that contains the primary feature identifier for gene expression.
      *
      * If `i` is `null` or invalid (e.g., out of range index, unavailable name), it is ignored and the primary identifier is defined as the existing row names.
@@ -531,8 +533,9 @@ export class AbstractAlabasterDataset {
      * - `modality_features`: an object where each key is a modality name and each value is a {@linkplain external:DataFrame DataFrame} of per-feature annotations for that modality.
      * - `cells`: a {@linkplain external:DataFrame DataFrame} of per-cell annotations.
      * - `modality_assay_names`: an object where each key is a modality name and each value is an Array containing the names of available assays for that modality.
-     *    Unnamed assays are represented as `null` names.
      *
+     * If the main experiment is unnamed, its modality name is set to an empty string.
+     * If the main experiment's name is the same as any alternative experiment name, the former will be reported in the returned objects.
      * @async
      */
     async summary({ cache = false } = {}) {
@@ -566,6 +569,8 @@ export class AbstractAlabasterDataset {
      * @return {object} An object where each key is a modality name and each value is an array (usually of strings) containing the primary feature identifiers for each row in that modality.
      * The contents are the same as the `primary_ids` returned by {@linkcode AbstractAlabasterDataset#load load} but the order of values may be different.
      *
+     * If the main experiment is unnamed, its modality name is set to an empty string.
+     * If the main experiment's name is the same as any alternative experiment name, the former will be reported in the returned object.
      * @async
      */
     async previewPrimaryIds({ cache = false } = {}) {
@@ -777,6 +782,8 @@ export class AbstractAlabasterResult {
      *    Unnamed assays are represented as `null` names.
      * - `reduced_dimension_names`: an Array of strings containing names of dimensionality reduction results.
      *
+     * If the main experiment is unnamed, its modality name is set to an empty string.
+     * If the main experiment's name is the same as any alternative experiment name, the former will be reported in the returned objects.
      * @async 
      */
     async summary({ cache = false } = {}) {
@@ -813,6 +820,8 @@ export class AbstractAlabasterResult {
      * - `reduced_dimensions`: an object containing the dimensionality reduction results.
      *   Each value is an array of arrays, where each inner array contains the coordinates for one dimension.
      *
+     * If the main experiment is unnamed, its modality name is set to an empty string.
+     * If the main experiment's name is the same as any alternative experiment name, the former will be reported in the returned objects.
      * @async
      */
     async load({ cache = false } = {}) {

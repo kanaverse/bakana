@@ -68,6 +68,7 @@ test("basic runAnalysis works correctly (Zeisel)", async () => {
     let files = { 
         default: new bakana.SummarizedExperimentDataset(fpath)
     };
+    files.default.setOptions({ rnaExperiment: "endogenous" });
 
     let state = await bakana.createAnalysis();
     let params = utils.baseParams();

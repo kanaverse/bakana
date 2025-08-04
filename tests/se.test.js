@@ -13,8 +13,9 @@ test("RDS dataset readers works for SCEs", async () => {
     await utils.checkDatasetGeneral(ds);
 
     let summ = await utils.checkDatasetSummary(ds);
-    expect(Object.keys(summ.modality_features)).toEqual(["", "ERCC", "repeat"]);
+    expect(Object.keys(summ.modality_features)).toEqual(["endogenous", "ERCC", "repeat"]);
 
+    ds.setOptions({ rnaExperiment: "endogenous" });
     let loaded = await utils.checkDatasetLoad(ds);
     expect(loaded.matrix.available()).toEqual(["RNA"]);
 
@@ -56,6 +57,7 @@ test("RDS dataset readers work for a base SummarizedExperiment", async () => {
     let summ = await utils.checkDatasetSummary(ds);
     expect(Object.keys(summ.modality_features)).toEqual([""]);
 
+    ds.setOptions({ rnaExperiment: "" });
     let loaded = await utils.checkDatasetLoad(ds);
     expect(loaded.matrix.available()).toEqual(["RNA"]);
 
@@ -77,8 +79,9 @@ test("RDS dataset readers work for GRanges SE", async () => {
     await utils.checkDatasetGeneral(ds);
 
     let summ = await utils.checkDatasetSummary(ds);
-    expect(Object.keys(summ.modality_features)).toEqual(["", "ERCC", "repeat"]);
+    expect(Object.keys(summ.modality_features)).toEqual(["endogenous", "ERCC", "repeat"]);
 
+    ds.setOptions({ rnaExperiment: "endogenous" });
     let loaded = await utils.checkDatasetLoad(ds);
     expect(loaded.matrix.available()).toEqual(["RNA"]);
 
@@ -105,7 +108,7 @@ test("RDS dataset readers work for a SingleCellExperiment with altExps", async (
     await utils.checkDatasetGeneral(ds);
 
     let summ = await utils.checkDatasetSummary(ds);
-    expect(Object.keys(summ.modality_features)).toEqual(["", "Antibody Capture"]);
+    expect(Object.keys(summ.modality_features)).toEqual(["Gene Expression", "Antibody Capture"]);
 
     let loaded = await utils.checkDatasetLoad(ds);
     expect(loaded.matrix.available()).toEqual(["RNA", "ADT"]);
@@ -126,25 +129,25 @@ test("RDS result readers work", async () => {
     let res = new bakana.SummarizedExperimentResult("files/datasets/zeisel-brain-with-results.rds");
 
     let details = await utils.checkResultSummary(res);
-    expect(Object.keys(details.modality_features)).toEqual(["", "ERCC", "repeat"]);
-    expect(details.modality_assay_names[""]).toEqual(["counts", "logcounts"]);
+    expect(Object.keys(details.modality_features)).toEqual(["endogenous", "ERCC", "repeat"]);
+    expect(details.modality_assay_names["endogenous"]).toEqual(["counts", "logcounts"]);
     expect(details.reduced_dimension_names).toEqual(["PCA", "TSNE", "UMAP"]);
 
     // Already normalized.
     {
         res.setOptions({ 
-            primaryAssay: { "": "logcounts" },
+            primaryAssay: { "endogenous": "logcounts" },
             isPrimaryNormalized: true,
             reducedDimensionNames: ["TSNE", "UMAP"]
         });
 
         let payload = await utils.checkResultLoad(res);
-        expect(payload.matrix.available()).toEqual([""]);
+        expect(payload.matrix.available()).toEqual(["endogenous"]);
         expect(Object.keys(payload.reduced_dimensions)).toEqual(["TSNE", "UMAP"]);
         expect(payload.reduced_dimensions["TSNE"].length).toEqual(2);
         expect(payload.reduced_dimensions["UMAP"].length).toEqual(2);
 
-        let col0 = payload.matrix.get("").column(0);
+        let col0 = payload.matrix.get("endogenous").column(0);
         expect(utils.hasNonInteger(col0)).toBe(true);
     }
 
@@ -156,11 +159,11 @@ test("RDS result readers work", async () => {
         });
 
         let payload = await utils.checkResultLoad(res);
-        expect(payload.matrix.available()).toEqual(["", "ERCC", "repeat"]);
+        expect(payload.matrix.available()).toEqual(["endogenous", "ERCC", "repeat"]);
 
         // Checking that naked gene counts are loaded, as a control.
         {
-            let col0 = payload.matrix.get("").column(0);
+            let col0 = payload.matrix.get("endogenous").column(0);
             expect(utils.hasNonInteger(col0)).toBe(false);
         }
 
