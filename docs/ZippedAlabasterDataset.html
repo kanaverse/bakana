@@ -541,7 +541,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line498">line 498</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line495">line 495</a>
     </li></ul></dd>
     
 
@@ -628,7 +628,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line617">line 617</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line614">line 614</a>
     </li></ul></dd>
     
 
@@ -999,7 +999,7 @@ either from the <code>defaults</code> or with <a href="AbstractAlabasterDataset.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line576">line 576</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line573">line 573</a>
     </li></ul></dd>
     
 
@@ -1368,7 +1368,7 @@ Each object corresponds to a single file and contains:
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line488">line 488</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line485">line 485</a>
     </li></ul></dd>
     
 
@@ -1608,9 +1608,6 @@ Each object corresponds to a single file and contains:
             
                 
 <span class="param-type">string</span>
-|
-
-<span class="param-type">number</span>
 
 
 
@@ -1635,8 +1632,7 @@ Each object corresponds to a single file and contains:
 
             <td class="description last"><p>Name of the main/alternative experiment containing gene expression data,
 as reported in the keys of the <code>modality_assay_names</code> of <a href="AbstractAlabasterDataset.html#summary"><code>summary</code></a>).
-Alternatively, the positional index of one of the alternative experiments.
-If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.</p></td>
+If <code>i</code> is <code>null</code> or the name does not exist, it is ignored and no RNA data is assumed to be present.</p></td>
         </tr>
 
     
@@ -1650,9 +1646,6 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
             
                 
 <span class="param-type">string</span>
-|
-
-<span class="param-type">number</span>
 
 
 
@@ -1677,8 +1670,7 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
 
             <td class="description last"><p>Name of the main/alternative experiment containing ADT data,
 as reported in the keys of the <code>modality_assay_names</code> of <a href="AbstractAlabasterDataset.html#summary"><code>summary</code></a>).
-Alternatively, the positional index of one of the alternative experiments.
-If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.</p></td>
+If <code>i</code> is <code>null</code> or the name does not exist, it is ignored and no ADTs are assumed to be present.</p></td>
         </tr>
 
     
@@ -1692,9 +1684,6 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
             
                 
 <span class="param-type">string</span>
-|
-
-<span class="param-type">number</span>
 
 
 
@@ -1719,8 +1708,7 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
 
             <td class="description last"><p>Name of the main/alternative experiment containing CRISPR guide data,
 as reported in the keys of the <code>modality_assay_names</code> of <a href="AbstractAlabasterDataset.html#summary"><code>summary</code></a>).
-Alternatively, the positional index of one of the alternative experiments.
-If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.</p></td>
+If <code>i</code> is <code>null</code> or the name does not exist, it is ignored and no CRISPR guides are assumed to be present.</p></td>
         </tr>
 
     
@@ -1893,7 +1881,7 @@ However, if no row names are present in the SummarizedExperiment, no primary ide
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line541">line 541</a>
+        <a href="readers_alabaster-abstract.js.html">readers/alabaster-abstract.js</a>, <a href="readers_alabaster-abstract.js.html#line538">line 538</a>
     </li></ul></dd>
     
 
@@ -2438,7 +2426,7 @@ If the main experiment's name is the same as any alternative experiment name, th
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Mon Aug 04 2025 18:36:26 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Mon Aug 04 2025 22:00:34 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

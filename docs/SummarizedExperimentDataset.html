@@ -254,7 +254,7 @@ On Node.js, this may also be a string containing a file path.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line677">line 677</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line674">line 674</a>
     </li></ul></dd>
     
 
@@ -363,7 +363,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line649">line 649</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line646">line 646</a>
     </li></ul></dd>
     
 
@@ -445,7 +445,7 @@ This may be called at any time but only has an effect if <code>cache = true</cod
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line835">line 835</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line832">line 832</a>
     </li></ul></dd>
     
 
@@ -806,7 +806,7 @@ either from the <code>defaults</code> or with <a href="SummarizedExperimentDatas
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line801">line 801</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line798">line 798</a>
     </li></ul></dd>
     
 
@@ -1053,7 +1053,7 @@ The contents are the same as the <code>primary_ids</code> returned by <a href="S
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line904">line 904</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line891">line 891</a>
     </li></ul></dd>
     
 
@@ -1168,7 +1168,7 @@ Each object corresponds to a single file and contains:
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line639">line 639</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line636">line 636</a>
     </li></ul></dd>
     
 
@@ -1403,9 +1403,6 @@ Each object corresponds to a single file and contains:
             
                 
 <span class="param-type">string</span>
-|
-
-<span class="param-type">number</span>
 
 
 
@@ -1430,8 +1427,7 @@ Each object corresponds to a single file and contains:
 
             <td class="description last"><p>Name of the main/alternative experiment containing gene expression data,
 as reported in the keys of the <code>modality_assay_names</code> of <a href="AbstractAlabasterDataset.html#summary"><code>summary</code></a>).
-Alternatively, the positional index of one of the alternative experiments.
-If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no RNA data is assumed to be present.</p></td>
+If <code>i</code> is <code>null</code> or the name does not exist, it is ignored and no RNA data is assumed to be present.</p></td>
         </tr>
 
     
@@ -1445,9 +1441,6 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
             
                 
 <span class="param-type">string</span>
-|
-
-<span class="param-type">number</span>
 
 
 
@@ -1472,8 +1465,7 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
 
             <td class="description last"><p>Name of the main/alternative experiment containing ADT data,
 as reported in the keys of the <code>modality_assay_names</code> of <a href="AbstractAlabasterDataset.html#summary"><code>summary</code></a>).
-Alternatively, the positional index of one of the alternative experiments.
-If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no ADTs are assumed to be present.</p></td>
+If <code>i</code> is <code>null</code> or the name does not exist, it is ignored and no ADTs are assumed to be present.</p></td>
         </tr>
 
     
@@ -1487,9 +1479,6 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
             
                 
 <span class="param-type">string</span>
-|
-
-<span class="param-type">number</span>
 
 
 
@@ -1514,8 +1503,7 @@ If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, una
 
             <td class="description last"><p>Name of the main/alternative experiment containing CRISPR guide data,
 as reported in the keys of the <code>modality_assay_names</code> of <a href="AbstractAlabasterDataset.html#summary"><code>summary</code></a>).
-Alternatively, the positional index of one of the alternative experiments.
-If <code>i</code> is <code>null</code> or invalid (e.g., out of range index, unavailable name), it is ignored and no CRISPR guides are assumed to be present.</p></td>
+If <code>i</code> is <code>null</code> or the name does not exist, it is ignored and no CRISPR guides are assumed to be present.</p></td>
         </tr>
 
     
@@ -1688,7 +1676,7 @@ However, if no row names are present in the SummarizedExperiment, no primary ide
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line756">line 756</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line753">line 753</a>
     </li></ul></dd>
     
 
@@ -2048,7 +2036,7 @@ If the main experiment's name is the same as any alternative experiment name, th
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line670">line 670</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line667">line 667</a>
     </li></ul></dd>
     
 
@@ -2153,7 +2141,7 @@ If the main experiment's name is the same as any alternative experiment name, th
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line914">line 914</a>
+        <a href="readers_se.js.html">readers/se.js</a>, <a href="readers_se.js.html#line901">line 901</a>
     </li></ul></dd>
     
 
@@ -2334,7 +2322,7 @@ If the main experiment's name is the same as any alternative experiment name, th
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Mon Aug 04 2025 18:36:26 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Mon Aug 04 2025 22:00:34 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
