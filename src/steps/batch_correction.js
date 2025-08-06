@@ -78,37 +78,53 @@ export class BatchCorrectionState {
      ***************************/
 
     /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode BatchCorrectionState#compute compute} for details.
+     */
+    static defaults() {
+        return {
+            method: "mnn",
+            num_neighbors: 15,
+            approximate: true
+        };
+    }
+
+    /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `batch_correction` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {string} parameters.method - The correction method to use.
+     * @param {string} [parameters.method] - The correction method to use.
      * Currently this can be either `"mnn"` or `"none"`.
      * If `"mnn"`, it is recommended that upstream PCA steps (i.e., {@linkplain RnaPcaState} and {@linkplain AdtPcaState}) use `block_method = "project"`.
-     * @param {number} parameters.num_neighbors - Number of neighbors to use during MNN correction.
-     * @param {boolean} parameters.approximate - Whether to use an approximate method to identify MNNs.
+     * @param {number} [parameters.num_neighbors] - Number of neighbors to use during MNN correction.
+     * @param {boolean} [parameters.approximate] - Whether to use an approximate method to identify MNNs.
      *
      * @return The object is updated with new results.
      */
     compute(parameters) {
-        let { method, num_neighbors, approximate} = parameters;
+        parameters = utils.defaultizeParameters(parameters, BatchCorrectionState.defaults());
         this.changed = false;
 
         if (this.#filter.changed || this.#combined.changed) {
             this.changed = true;
         }
         let block = this.#filter.fetchFilteredBlock();
-        let needs_correction = (method == "mnn" && block !== null);
+        let needs_correction = (parameters.method == "mnn" && block !== null);
 
-        if (this.changed || method !== this.#parameters.method || num_neighbors !== this.#parameters.num_neighbors || approximate !== this.#parameters.approximate) { 
+        if (this.changed || 
+            parameters.method !== this.#parameters.method || 
+            parameters.num_neighbors !== this.#parameters.num_neighbors || 
+            parameters.approximate !== this.#parameters.approximate)
+        { 
             if (needs_correction) {
                 let pcs = this.#combined.fetchCombined();
                 let corrected = utils.allocateCachedArray(pcs.length, "Float64Array", this.#cache, "corrected");
                 scran.mnnCorrect(pcs, block, { 
-                    k: num_neighbors, 
+                    k: parameters.num_neighbors, 
                     buffer: corrected, 
                     numberOfCells: this.#combined.fetchNumberOfCells(), 
                     numberOfDims: this.#combined.fetchNumberOfDimensions(), 
-                    approximate: approximate 
+                    approximate: parameters.approximate 
                 });
                 this.changed = true;
             }
@@ -124,17 +140,7 @@ export class BatchCorrectionState {
         }
 
         // Updating all parameters, even if they weren't used.
-        this.#parameters.method = method;
-        this.#parameters.num_neighbors = num_neighbors;
-        this.#parameters.approximate = approximate;
+        this.#parameters = parameters;
         return;
-    }
-
-    static defaults() {
-        return {
-            method: "mnn",
-            num_neighbors: 15,
-            approximate: true
-        };
     }
 }

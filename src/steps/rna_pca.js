@@ -85,9 +85,9 @@ export class RnaPcaState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `rna_pca` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {number} parameters.num_pcs - Number of PCs to return.
-     * @param {number} parameters.num_hvgs - Number of highly variable genes (see {@linkplain FeatureSelectionState}) to use in the PCA.
-     * @param {string} parameters.block_method - Blocking method to use when dealing with multiple samples.
+     * @param {number} [parameters.num_pcs] - Number of PCs to return.
+     * @param {number} [parameters.num_hvgs] - Number of highly variable genes (see {@linkplain FeatureSelectionState}) to use in the PCA.
+     * @param {string} [parameters.block_method] - Blocking method to use when dealing with multiple samples.
      * This can be one of:
      *
      * - `"none"`, in which case nothing is done using the sample information. 
@@ -97,39 +97,41 @@ export class RnaPcaState {
      * @return The object is updated with the new results.
      */
     compute(parameters) {
-        let { num_hvgs, num_pcs, block_method } = parameters;
-        if (block_method == "weight") {
-            block_method = "project";
-        }
+        parameters = utils.defaultizeParameters(parameters, RnaPcaState.defaults());
         this.changed = false;
 
-        if (this.#feat.changed || num_hvgs !== this.#parameters.num_hvgs) {
-            if (this.valid()) {
-                choose_hvgs(num_hvgs, this.#feat, this.#cache);
-                this.changed = true;
-            }
-
-            this.#parameters.num_hvgs = num_hvgs;
+        // For back-compatibility.
+        if (parameters.block_method == "weight") {
+            parameters.block_method = "project";
         }
 
-        if (this.changed || this.#norm.changed || num_pcs !== this.#parameters.num_pcs || block_method !== this.#parameters.block_method) { 
+        if (this.#feat.changed || parameters.num_hvgs !== this.#parameters.num_hvgs) {
+            if (this.valid()) {
+                choose_hvgs(parameters.num_hvgs, this.#feat, this.#cache);
+                this.changed = true;
+            }
+        }
+
+        if (this.changed || this.#norm.changed || parameters.num_pcs !== this.#parameters.num_pcs || parameters.block_method !== this.#parameters.block_method) { 
             utils.freeCache(this.#cache.pcs);
 
             if (this.valid()) {
                 let sub = this.#cache.hvg_buffer;
                 let block = this.#filter.fetchFilteredBlock();
                 var mat = this.#norm.fetchNormalizedMatrix();
-                this.#cache.pcs = scran.runPca(mat, { features: sub, numberOfPCs: num_pcs, block: block, blockMethod: block_method });
+                this.#cache.pcs = scran.runPca(mat, { features: sub, numberOfPCs: parameters.num_pcs, block: block, blockMethod: parameters.block_method });
                 this.changed = true;
             }
-
-            this.#parameters.num_pcs = num_pcs;
-            this.#parameters.block_method = block_method;
         }
 
+        this.#parameters = parameters;
         return;
     }
 
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode RnaPcaState#compute compute} for details.
+     */
     static defaults() {
         return {
             num_hvgs: 2000,

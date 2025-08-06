@@ -156,31 +156,40 @@ export class CellFilteringState {
     }
 
     /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode CellFilteringState#compute compute} for details.
+     */
+    static defaults() {
+        return {
+            use_rna: true,
+            use_adt: true,
+            use_crispr: true
+        };
+    }
+
+    /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `cell_filtering` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {boolean} parameters.use_rna - Whether to use the RNA-derived QC metrics for filtering.
-     * @param {boolean} parameters.use_adt - Whether to use the ADT-derived QC metrics for filtering.
-     * @param {boolean} parameters.use_crispr - Whether to use the CRISPR-derived QC metrics for filtering.
+     * @param {boolean} [parameters.use_rna] - Whether to use the RNA-derived QC metrics for filtering.
+     * @param {boolean} [parameters.use_adt] - Whether to use the ADT-derived QC metrics for filtering.
+     * @param {boolean} [parameters.use_crispr] - Whether to use the CRISPR-derived QC metrics for filtering.
      *
      * @return The object is updated with the new results.
      */
     compute(parameters) {
-        let { use_rna, use_adt, use_crispr } = parameters;
+        parameters = utils.defaultizeParameters(parameters, CellFilteringState.defaults());
         this.changed = false;
 
-        if (this.#inputs.changed) {
+        if (this.#inputs.changed ||
+            this.#parameters.use_rna !== parameters.use_rna || 
+            this.#parameters.use_adt !== parameters.use_adt || 
+            this.#parameters.use_crispr !== parameters.use_crispr)
+        {
             this.changed = true;
         }
 
-        if (this.#parameters.use_rna !== use_rna || this.#parameters.use_adt !== use_adt || this.#parameters.use_crispr !== use_crispr) {
-            this.#parameters.use_rna = use_rna;
-            this.#parameters.use_adt = use_adt;
-            this.#parameters.use_crispr = use_crispr;
-            this.changed = true;
-        }
-
-        let to_use = find_usable_upstream_states(this.#qc_states, { RNA: use_rna, ADT: use_adt, CRISPR: use_crispr });
+        let to_use = find_usable_upstream_states(this.#qc_states, { RNA: parameters.use_rna, ADT: parameters.use_adt, CRISPR: parameters.use_crispr });
         if (!this.changed) {
             for (const u of to_use) {
                 if (u.changed) {
@@ -219,14 +228,8 @@ export class CellFilteringState {
             this.#raw_compute_matrix();
             this.#raw_compute_block();
         }
-    }
 
-    static defaults() {
-        return {
-            use_rna: true,
-            use_adt: true,
-            use_crispr: true
-        };
+        this.#parameters = parameters;
     }
 
     /**

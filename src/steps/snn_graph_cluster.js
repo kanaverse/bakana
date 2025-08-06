@@ -92,6 +92,10 @@ export class SnnGraphClusterState {
         return;
     }
 
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode SnnGraphClusterState#compute compute} for details.
+     */
     static defaults() {
         return { 
             k: 10,
@@ -108,64 +112,58 @@ export class SnnGraphClusterState {
      *
      * @param {boolean} run_me - Whether or not to run this step, depending on the clustering method chosen by the user (see {@linkplain ChooseClusteringState}).
      * @param {object} parameters - Parameter object, equivalent to the `snn_graph_cluster` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {number} parameters.k - Number of nearest neighbors used to construct the graph.
-     * @param {string} parameters.scheme - Weighting scheme for graph construction.
+     * @param {number} [parameters.k] - Number of nearest neighbors used to construct the graph.
+     * @param {string} [parameters.scheme] - Weighting scheme for graph construction.
      * This can be one of `"rank"`, `"number"` or `"jaccard"`.
-     * @param {string} parameters.algorithm - Algorithm to use for community detection.
+     * @param {string} [parameters.algorithm] - Algorithm to use for community detection.
      * This can be one of `"multilevel"`, `"walktrap"` or `"leiden"`.
-     * @param {number} parameters.multilevel_resolution - Resolution of the multi-level community detection.
-     * @param {number} parameters.leiden_resolution - Resolution of the Leiden community detection.
-     * @param {number} parameters.walktrap_steps - Number of merge steps for the Walktrap algorithm.
+     * @param {number} [parameters.multilevel_resolution] - Resolution of the multi-level community detection.
+     * @param {number} [parameters.leiden_resolution] - Resolution of the Leiden community detection.
+     * @param {number} [parameters.walktrap_steps] - Number of merge steps for the Walktrap algorithm.
      *
      * @return The object is updated with the new results.
      */
     compute(run_me, parameters) {
-        let { k, scheme, algorithm, multilevel_resolution, leiden_resolution, walktrap_steps } = parameters;
+        parameters = utils.defaultizeParameters(parameters, SnnGraphClusterState.defaults());
         this.changed = false;
 
-        if (this.#index.changed || k !== this.#parameters.k) {
+        if (this.#index.changed || parameters.k !== this.#parameters.k) {
             utils.freeCache(this.#cache.neighbors);
             if (run_me) {
-                this.#compute_neighbors(k);
+                this.#compute_neighbors(parameters.k);
             } else {
                 delete this.#cache.neighbors; // ensuring that this is re-run on future calls to compute() with run_me = true.
             }
-            this.#parameters.k = k;
             this.changed = true;
         }
 
-        if (this.changed || scheme !== this.#parameters.scheme) {
+        if (this.changed || parameters.scheme !== this.#parameters.scheme) {
             utils.freeCache(this.#cache.graph);
             if (run_me) {
-                this.#compute_graph(scheme);
+                this.#compute_graph(parameters.scheme);
             } else {
                 delete this.#cache.graph;
             }
-            this.#parameters.scheme = scheme;
             this.changed = true 
         }
 
         if (this.changed 
-            || algorithm !== this.#parameters.algorithm 
-            || multilevel_resolution !== this.#parameters.multilevel_resolution 
-            || leiden_resolution !== this.#parameters.leiden_resolution 
-            || walktrap_steps !== this.#parameters.walktrap_steps 
+            || parameters.algorithm !== this.#parameters.algorithm 
+            || parameters.multilevel_resolution !== this.#parameters.multilevel_resolution 
+            || parameters.leiden_resolution !== this.#parameters.leiden_resolution 
+            || parameters.walktrap_steps !== this.#parameters.walktrap_steps 
             || (!this.#valid() && run_me))
         {
             utils.freeCache(this.#cache.clusters);
             if (run_me) {
-                this.#compute_clusters(algorithm, multilevel_resolution, leiden_resolution, walktrap_steps);
+                this.#compute_clusters(parameters.algorithm, parameters.multilevel_resolution, parameters.leiden_resolution, parameters.walktrap_steps);
             } else {
                 delete this.#cache.clusters;
             }
-
-            this.#parameters.algorithm = algorithm;
-            this.#parameters.multilevel_resolution = multilevel_resolution;
-            this.#parameters.leiden_resolution = leiden_resolution;
-            this.#parameters.walktrap_steps = walktrap_steps;
             this.changed = true;
         }
 
+        this.#parameters = parameters;
         return;
     }
 }

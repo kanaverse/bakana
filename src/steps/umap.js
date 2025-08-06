@@ -4,6 +4,8 @@ import * as utils from "./utils/general.js";
 import * as neighbor_module from "./neighbor_index.js";
 import * as aworkers from "./abstract/worker_parent.js";
 
+export const step_name = "umap";
+
 /**
  * This creates a UMAP embedding based on the neighbor index constructed at {@linkplain NeighborIndexState}.
  * This wraps [`runUMAP`](https://kanaverse.github.io/scran.js/global.html#runUMAP)
@@ -100,6 +102,19 @@ export class UmapState {
      ******** Compute **********
      ***************************/
 
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode UmapState#compute compute} for details.
+     */
+    static defaults()  {
+        return {
+            num_neighbors: 15,
+            num_epochs: 500,
+            min_dist: 0.1,
+            animate: false
+        };
+    }
+
     #core(num_neighbors, num_epochs, min_dist, animate, reneighbor) {
         var nn_out = null;
         if (reneighbor) {
@@ -126,19 +141,19 @@ export class UmapState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `umap` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {number} parameters.num_neighbors - Number of neighbors to use to construct the simplicial sets.
-     * @param {number} parameters.num_epochs - Number of epochs to run the algorithm.
-     * @param {number} parameters.min_dist - Number specifying the minimum distance between points.
-     * @param {boolean} parameters.animate - Whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
+     * @param {number} [parameters.num_neighbors] - Number of neighbors to use to construct the simplicial sets.
+     * @param {number} [parameters.num_epochs] - Number of epochs to run the algorithm.
+     * @param {number} [parameters.min_dist] - Number specifying the minimum distance between points.
+     * @param {boolean} [parameters.animate] - Whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
      *
      * @return UMAP coordinates are computed in parallel on a separate worker thread.
      * A promise that resolves when the calculations are complete.
      */
     compute(parameters) {
-        let { num_neighbors, num_epochs, min_dist, animate } = parameters;
+        parameters = utils.defaultizeParameters(parameters, UmapState.defaults());
 
-        let same_neighbors = (!this.#index.changed && this.#parameters.num_neighbors === num_neighbors);
-        if (same_neighbors && num_epochs === this.#parameters.num_epochs && min_dist === this.#parameters.min_dist) {
+        let same_neighbors = (!this.#index.changed && parameters.num_neighbors === this.#parameters.num_neighbors);
+        if (same_neighbors && parameters.num_epochs === this.#parameters.num_epochs && parameters.min_dist === this.#parameters.min_dist) {
             this.changed = false;
             return new Promise(resolve => resolve(null));
         }
@@ -150,13 +165,9 @@ export class UmapState {
             this.#reloaded = null;
         }
 
-        this.#core(num_neighbors, num_epochs, min_dist, animate, !same_neighbors);
+        this.#core(parameters.num_neighbors, parameters.num_epochs, parameters.min_dist, parameters.animate, !same_neighbors);
 
-        this.#parameters.num_neighbors = num_neighbors;
-        this.#parameters.num_epochs = num_epochs;
-        this.#parameters.min_dist = min_dist;
-        this.#parameters.animate = animate;
-
+        this.#parameters = parameters;
         this.changed = true;
         return this.#run;
     }

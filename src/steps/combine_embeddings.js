@@ -92,6 +92,10 @@ export class CombineEmbeddingsState {
      ******** Compute **********
      ***************************/
 
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode CombineEmbeddingsState#compute compute} for details.
+     */
     static defaults() {
         return { 
             rna_weight: 1,
@@ -101,26 +105,22 @@ export class CombineEmbeddingsState {
         };
     }
 
-    static createPcsView(cache, upstream) {
-        utils.freeCache(cache.combined_buffer);
-        cache.combined_buffer = upstream.principalComponents({ copy: "view" }).view();
-        cache.num_cells = upstream.numberOfCells();
-        cache.total_dims = upstream.numberOfPCs();
+    static #createPcsView(cache, upstream) {
     }
 
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `adt_normalization` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {number} parameters.rna_weight - Relative weight of the RNA embeddings.
-     * @param {number} parameters.adt_weight - Relative weight of the ADT embeddings.
-     * @param {number} parameters.crispr_weight - Relative weight of the CRISPR embeddings.
-     * @param {boolean} parameters.approximate - Whether an approximate nearest neighbor search should be used by `scaleByNeighbors`.
+     * @param {number} [parameters.rna_weight] - Relative weight of the RNA embeddings.
+     * @param {number} [parameters.adt_weight] - Relative weight of the ADT embeddings.
+     * @param {number} [parameters.crispr_weight] - Relative weight of the CRISPR embeddings.
+     * @param {boolean} [parameters.approximate] - Whether an approximate nearest neighbor search should be used by `scaleByNeighbors`.
      *
      * @return The object is updated with new results.
      */
     compute(parameters) {
-        let { rna_weight, adt_weight, crispr_weight, approximate } = parameters;
+        parameters = utils.defaultizeParameters(parameters, CombineEmbeddingsState.defaults());
         this.changed = false;
 
         for (const v of Object.values(this.#pca_states)) {
@@ -130,20 +130,23 @@ export class CombineEmbeddingsState {
             }
         }
 
-        if (approximate !== this.#parameters.approximate) {
-            this.#parameters.approximate = approximate;
+        if (parameters.approximate !== this.#parameters.approximate) {
+            this.#parameters.approximate = parameters.approximate;
             this.changed = true;
         }
 
-        if (rna_weight !== this.#parameters.rna_weight || adt_weight !== this.#parameters.adt_weight || crispr_weight !== this.#parameters.crispr_weight) {
-            this.#parameters.rna_weight = rna_weight;
-            this.#parameters.adt_weight = adt_weight;
-            this.#parameters.crispr_weight = crispr_weight;
+        if (parameters.rna_weight !== this.#parameters.rna_weight ||
+            parameters.adt_weight !== this.#parameters.adt_weight ||
+            parameters.crispr_weight !== this.#parameters.crispr_weight)
+        {
+            this.#parameters.rna_weight = parameters.rna_weight;
+            this.#parameters.adt_weight = parameters.adt_weight;
+            this.#parameters.crispr_weight = parameters.crispr_weight;
             this.changed = true;
         }
 
         if (this.changed) { 
-            const weights = { RNA: rna_weight, ADT: adt_weight, CRISPR: crispr_weight };
+            const weights = { RNA: parameters.rna_weight, ADT: parameters.adt_weight, CRISPR: parameters.crispr_weight };
             let to_use = find_nonzero_upstream_states(this.#pca_states, weights);
 
             if (to_use.length > 1) {
@@ -164,20 +167,22 @@ export class CombineEmbeddingsState {
                 }
 
                 let buffer = utils.allocateCachedArray(ncells * total, "Float64Array", this.#cache, "combined_buffer");
-                scran.scaleByNeighbors(collected, ncells, { buffer: buffer, weights: weight_arr, approximate: approximate });
+                scran.scaleByNeighbors(collected, ncells, { buffer: buffer, weights: weight_arr, approximate: parameters.approximate });
                 this.#cache.num_cells = ncells;
                 this.#cache.total_dims = total;
 
             } else {
                 // If there's only one embedding, we shouldn't respond to changes
                 // in parameters, because they won't have any effect.
-                let pcs = this.#pca_states[to_use[0]].fetchPCs();
-                this.constructor.createPcsView(this.#cache, pcs);
+                let upstream = this.#pca_states[to_use[0]].fetchPCs();
+
+                utils.freeCache(this.#cache.combined_buffer);
+                this.#cache.combined_buffer = upstream.principalComponents({ copy: "view" }).view();
+                this.#cache.num_cells = upstream.numberOfCells();
+                this.#cache.total_dims = upstream.numberOfPCs();
             }
         }
 
-        // Updating all parameters anyway. This requires us to take ownership
-        // of 'weights' to avoid pass-by-reference shenanigans.
         return;
     }
 }

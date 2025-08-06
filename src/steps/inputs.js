@@ -136,6 +136,10 @@ export class InputsState {
      ******** Compute **********
      ***************************/
 
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode InputsState#compute compute} for details.
+     */
     static defaults() {
         return {
             block_factor: null,
@@ -165,13 +169,13 @@ export class InputsState {
      * Each property corresponds to a single dataset and its value should satisfy the {@linkplain Dataset} contract.
      * See the description of the argument of the same name in {@linkcode runAnalysis}.
      * @param {object} parameters - Parameter object, equivalent to the `inputs` property of the `parameters` in {@linkcode runAnalysis}.
-     * @param {?string} parameters.block_factor - Name of the column of the cell annotations specifying the sample of origin for each cell.
+     * @param {?string} [parameters.block_factor] - Name of the column of the cell annotations specifying the sample of origin for each cell.
      * This is only used if a single count matrix is supplied.
      *
      * If `null`, all cells are assumed to originate from the same sample.
      *
      * If any entries of the blocking factor are invalid (i.e., `null`), they are removed from downstream analyses.
-     * @param {?subset} parameters.subset - Object describing if any pre-analysis subsetting should be applied.
+     * @param {?subset} [parameters.subset] - Object describing if any pre-analysis subsetting should be applied.
      * This should contain `field`, a string specifying a field of the column annotation.
      *
      * - For categorical variables, the object should also contain `values`, an array of allowed values for that annotation.
@@ -183,10 +187,10 @@ export class InputsState {
      * If `subset` is `null`, no subsetting is performed and all cells are used in the downstream analysis.
      *
      * @return The object is updated with the new results.
-     * A promise is returned that resolves to `null` once input loading is complete - this should be resolved before any downstream steps are run.
+     * A promise is returned that resolves once input loading is complete, after which downstream steps can be run.
      */
     async compute(datasets, parameters) {
-        let { block_factor, subset } = parameters;
+        parameters = utils.defaultizeParameters(parameters, InputsState.defaults());
         this.changed = false;
 
         // Don't bother proceeding with any of the below
@@ -206,20 +210,20 @@ export class InputsState {
             }
         }
 
-        if (this.changed || this.#parameters.block_factor !== block_factor) {
-            block_and_cache(block_factor, this.#cache);
-            this.#parameters.block_factor = block_factor;
+        if (this.changed || this.#parameters.block_factor !== parameters.block_factor) {
+            block_and_cache(parameters.block_factor, this.#cache);
             this.changed = true;
         }
 
         // final condition handles loss of 'matrix' when setDirectSubset() is called.
-        if (this.changed || (!(RAW_SUBSET_OVERRIDE in this.#cache) && utils.changedParameters(subset, this.#parameters.subset)) || !("matrix" in this.#cache)) { 
-            subset_and_cache(subset, this.#cache);
-            this.#parameters.subset = this.constructor.#cloneSubset(subset);
+        if (this.changed || (!(RAW_SUBSET_OVERRIDE in this.#cache) && utils.changedParameters(parameters.subset, this.#parameters.subset)) || !("matrix" in this.#cache)) { 
+            subset_and_cache(parameters.subset, this.#cache);
             this.changed = true;
         }
 
-        return null;
+        this.#parameters = parameters;
+        this.#parameters.subset = InputsState.#cloneSubset(this.#parameters.subset);
+        return;
     }
 
     /******************************

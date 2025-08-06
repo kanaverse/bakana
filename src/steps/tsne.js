@@ -4,6 +4,8 @@ import * as utils from "./utils/general.js";
 import * as neighbor_module from "./neighbor_index.js";
 import * as aworkers from "./abstract/worker_parent.js";
 
+export const step_name = "tsne";
+
 /**
  * This creates a t-SNE embedding based on the neighbor index constructed by {@linkplain NeighborIndexState}.
  * This wraps [`runTSNE`](https://kanaverse.github.io/scran.js/global.html#runTSNE)
@@ -123,22 +125,35 @@ export class TsneState {
         return;
     }
 
+    
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode AdtQualityControlState#compute compute} for details.
+     */
+    static defaults() {
+        return {
+            perplexity: 30,
+            iterations: 500,
+            animate: false
+        };
+    }
+
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `tsne` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {number} parameters.perplexity - Number specifying the perplexity for the probability calculations.
-     * @param {number} parameters.iterations - Number of iterations to run the algorithm.
-     * @param {boolean} parameters.animate - Whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
+     * @param {number} [parameters.perplexity] - Number specifying the perplexity for the probability calculations.
+     * @param {number} [parameters.iterations] - Number of iterations to run the algorithm.
+     * @param {boolean} [parameters.animate] - Whether to process animation iterations, see {@linkcode setVisualizationAnimate} for details.
      *
      * @return t-SNE coordinates are computed in parallel on a separate worker thread.
      * A promise is returned that resolves when those calculations are complete.
      */
     compute(parameters) {
-        let { perplexity, iterations, animate } = parameters;
+        parameters = utils.defaultizeParameters(parameters, TsneState.defaults());
 
-        let same_neighbors = (!this.#index.changed && perplexity === this.#parameters.perplexity);
-        if (same_neighbors && iterations == this.#parameters.iterations) {
+        let same_neighbors = (!this.#index.changed && parameters.perplexity === this.#parameters.perplexity);
+        if (same_neighbors && parameters.iterations == this.#parameters.iterations) {
             this.changed = false;
             return new Promise(resolve => resolve(null));
         }
@@ -150,12 +165,9 @@ export class TsneState {
             this.#reloaded = null;
         }
 
-        this.#core(perplexity, iterations, animate, !same_neighbors);
+        this.#core(parameters.perplexity, parameters.iterations, parameters.animate, !same_neighbors);
 
-        this.#parameters.perplexity = perplexity;
-        this.#parameters.iterations = iterations;
-        this.#parameters.animate = animate;
-
+        this.#parameters = parameters;
         this.changed = true;
         return this.#run;
     }

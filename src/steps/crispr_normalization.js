@@ -102,7 +102,9 @@ export class CrisprNormalizationState {
      * @return The object is updated with new results.
      */
     compute(parameters) {
+        parameters = utils.defaultizeParameters(parameters, CrisprNormalizationState.defaults());
         this.changed = false;
+
         if (this.#qc.changed || this.#filter.changed) {
             if (this.valid()) {
                 this.#raw_compute();
@@ -110,9 +112,14 @@ export class CrisprNormalizationState {
             }
         } 
 
+        this.#parameters = parameters;
         return;
     }
 
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode CrisprNormalizationState#compute compute} for details.
+     */
     static defaults() {
         return {};
     }

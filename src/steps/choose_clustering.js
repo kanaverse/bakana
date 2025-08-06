@@ -3,6 +3,8 @@ import * as utils from "./utils/general.js";
 import * as snn_module from "./snn_graph_cluster.js";
 import * as kmeans_module from "./kmeans_cluster.js";
 
+export const step_name = "choose_clustering";
+
 /**
  * This step chooses between the k-means and SNN graph clusterings from {@linkplain KmeansClusterState} and {@linkplain SnnGraphClusterState}, respectively.
  * We added this step to preserve the cache for each clustering step - 
@@ -63,30 +65,38 @@ export class ChooseClusteringState {
      ***************************/
 
     /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode ChooseClusteringState#compute compute} for details.
+     */
+    static defaults() {
+        return { method: "snn_graph" };
+    }
+
+    /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `choose_clustering` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {string} parameters.method - Clustering method to use, either `"kmeans"` or `"snn_graph"`.
+     * @param {string} [parameters.method] - Clustering method to use, either `"kmeans"` or `"snn_graph"`.
      *
      * @return The object is updated with the new results.
      */
     compute(parameters) {
-        let { method } = parameters;
+        parameters = utils.defaultizeParameters(parameters, ChooseClusteringState.defaults());
         this.changed = true;
         
-        if (method == this.#parameters.method) {
-            if (method == "snn_graph") {
+        if (parameters.method == this.#parameters.method) {
+            if (parameters.method == "snn_graph") {
                 if (!this.#snn_cluster.changed) {
                     this.changed = false;
                 }
-            } else if (method == "kmeans") {
+            } else if (parameters.method == "kmeans") {
                 if (!this.#kmeans_cluster.changed) {
                     this.changed = false;
                 }
             }
         }
 
-        this.#parameters.method = method;
+        this.#parameters = parameters;
         return;
     }
 }

@@ -97,6 +97,10 @@ export class CrisprQualityControlState {
      ******** Compute **********
      ***************************/
 
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode CrisprQualityControlState#compute compute} for details.
+     */
     static defaults() {
         return {
             filter_strategy: "automatic",
@@ -110,18 +114,18 @@ export class CrisprQualityControlState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `crispr_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {string} parameters.filter_strategy - Strategy for defining a filter threshold for the QC metrics.
+     * @param {string} [parameters.filter_strategy][- Strategy for defining a filter threshold for the QC metrics.
      * This can be `"automatic"` or `"manual"`.
-     * @param {number} parameters.nmads - Number of MADs to use for automatically selecting the filter threshold on the maximum count. 
+     * @param {number} [parameters.nmads] - Number of MADs to use for automatically selecting the filter threshold on the maximum count. 
      * Only used when `filter_strategy = "automatic"`.
-     * @param {number} parameters.max_threshold - Manual threshold on the maximum count for each cell.
+     * @param {number} [parameters.max_threshold] - Manual threshold on the maximum count for each cell.
      * Cells are only retained if their maximums are greater than or equal to this threshold.
      * Only used when `filter_strategy = "manual"`.
      *
      * @return The object is updated with the new results.
      */
     compute(parameters) {
-        let { filter_strategy, nmads, max_threshold } = parameters;
+        parameters = utils.defaultizeParameters(parameters, CrisprQualityControlState.defaults());
         this.changed = false;
 
         if (this.#inputs.changed) {
@@ -137,21 +141,21 @@ export class CrisprQualityControlState {
         }
 
         if (this.changed || 
-            filter_strategy !== this.#parameters.filter_strategy ||
-            nmads !== this.#parameters.nmads ||
-            max_threshold !== this.#parameters.max_threshold
+            parameters.filter_strategy !== this.#parameters.filter_strategy ||
+            parameters.nmads !== this.#parameters.nmads ||
+            parameters.max_threshold !== this.#parameters.max_threshold
         ) {
             utils.freeCache(this.#cache.filters);
 
             if (this.valid()) {
                 let block = this.#inputs.fetchBlock();
 
-                if (filter_strategy === "automatic") {
-                    this.#cache.filters = scran.suggestCrisprQcFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
-                } else if (filter_strategy === "manual") {
+                if (parameters.filter_strategy === "automatic") {
+                    this.#cache.filters = scran.suggestCrisprQcFilters(this.#cache.metrics, { numberOfMADs: parameters.nmads, block: block });
+                } else if (parameters.filter_strategy === "manual") {
                     let block_levels = this.#inputs.fetchBlockLevels();
                     this.#cache.filters = scran.emptySuggestCrisprQcFiltersResults(block_levels === null ? 1 : block_levels.length);
-                    this.#cache.filters.maxValue({ copy: false }).fill(max_threshold);
+                    this.#cache.filters.maxValue({ copy: false }).fill(parameters.max_threshold);
                 } else {
                     throw new Error("unknown CRISPR QC filter strategy '" + filter_strategy + "'");
                 }
@@ -163,9 +167,9 @@ export class CrisprQualityControlState {
                 delete this.#cache.filters;
             }
 
-            this.#parameters.filter_strategy = filter_strategy;
-            this.#parameters.nmads = nmads;
-            this.#parameters.max_threshold = max_threshold;
+            this.#parameters.filter_strategy = parameters.filter_strategy;
+            this.#parameters.nmads = parameters.nmads;
+            this.#parameters.max_threshold = parameters.max_threshold;
         }
 
         return;

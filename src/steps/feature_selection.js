@@ -3,6 +3,8 @@ import * as utils from "./utils/general.js";
 import * as filter_module from "./cell_filtering.js";
 import * as norm_module from "./rna_normalization.js";
 
+export const step_name = "feature_selection";
+
 /**
  * Results of per-gene variance modelling,
  * see [here](https://kanaverse.github.io/scran.js/ModelGeneVarResults.html) for details.
@@ -79,7 +81,17 @@ export class FeatureSelectionState {
     /***************************
      ******** Compute **********
      ***************************/
- 
+
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode FeatureSelectionState#compute compute} for details.
+     */
+    static defaults() {
+        return {
+            span: 0.3
+        };
+    }
+
     /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
@@ -89,26 +101,25 @@ export class FeatureSelectionState {
      * @return The object is updated with the new results.
      */
     compute(parameters) {
-        let { span } = parameters;
+        parameters = utils.defaultizeParameters(parameters, FeatureSelectionState.defaults());
         this.changed = false;
         
-        if (this.#norm.changed || span != this.#parameters.span) {
+        if (this.#norm.changed || parameters.span != this.#parameters.span) {
             utils.freeCache(this.#cache.results);
 
             if (this.valid()) {
                 let mat = this.#norm.fetchNormalizedMatrix();
                 let block = this.#filter.fetchFilteredBlock();
-                this.#cache.results = scran.modelGeneVariances(mat, { span: span, block: block });
+                this.#cache.results = scran.modelGeneVariances(mat, { span: parameters.span, block: block });
 
                 this.#cache.sorted_residuals = this.#cache.results.residuals().slice(); // a separate copy.
                 this.#cache.sorted_residuals.sort();
 
                 this.changed = true;
             }
-
-            this.#parameters.span = span;
         }
 
+        this.#parameters = parameters;
         return;
     }
 }

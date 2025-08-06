@@ -143,17 +143,17 @@ export class MarkerDetectionState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `marker_detection` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {number} parameters.lfc_threshold - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
-     * @param {boolean} parameters.compute_auc - Whether to compute the AUCs.
+     * @param {number} [parameters.lfc_threshold] - Log-fold change threshold to use when computing the Cohen's d and AUC for each pairwise comparison.
+     * @param {boolean} [parameters.compute_auc] - Whether to compute the AUCs.
      * Setting this to `false` will skip AUC calculations and improve speed and memory efficiency.
      *
      * @return The state is updated with new results.
      */
     compute(parameters) {
-        let { lfc_threshold, compute_auc } = parameters;
+        parameters = utils.defaultizeParameters(parameters, MarkerDetectionState.defaults());
         this.changed = false;
-        let changed_params = (lfc_threshold !== this.#parameters.lfc_threshold || compute_auc !== this.#parameters.compute_auc);
-        
+
+        let changed_params = (parameters.lfc_threshold !== this.#parameters.lfc_threshold || parameters.compute_auc !== this.#parameters.compute_auc);
         for (const [k, v] of Object.entries(this.#norm_states)) {
             if (!v.valid()) {
                 continue;
@@ -165,14 +165,13 @@ export class MarkerDetectionState {
                 var block = this.#filter.fetchFilteredBlock();
                 
                 utils.freeCache(this.#cache.raw[k]);
-                this.#cache.raw[k] = scran.scoreMarkers(mat, clusters, { block: block, threshold: lfc_threshold, computeAuc: compute_auc });
+                this.#cache.raw[k] = scran.scoreMarkers(mat, clusters, { block: block, threshold: parameters.lfc_threshold, computeAuc: parameters.compute_auc });
 
                 this.changed = true;
             }
         }
 
-        this.#parameters.lfc_threshold = lfc_threshold;
-        this.#parameters.compute_auc = compute_auc;
+        this.#parameters = parameters;
         if (this.changed) {
             markers.freeVersusResults(this.#cache.versus);
         }
@@ -181,7 +180,8 @@ export class MarkerDetectionState {
     }
 
     /**
-     * @return {object} Default parameters that may be modified and fed into {@linkcode MarkerDetectionCore#compute compute}.
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode MarkerDetectionState#compute compute} for details.
      */
     static defaults() {
         return {
@@ -392,18 +392,25 @@ export class MarkerDetectionStandalone {
     }
 
     /**
-     * If this method is not called, the parameters default to those in {@linkcode MarkerDetectionState#defaults MarkerDetectionState.defaults}.
-     *
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode MarkerDetectionStandalone#compute compute} for details.
+     */
+    static defaults() {
+        return MarkerDetectionState.defaults();
+    }
+
+    /**
      * @param {object} parameters - Parameter object, see the argument of the same name in {@linkcode MarkerDetectionState#compute MarkerDetectionState.compute} for more details.
      *
      * @return The state is updated with new parameters.
      */
     setParameters(parameters) {
+        parameters = utils.defaultizeParameters(parameters, MarkerDetectionStandalone.defaults());
         if (this.#parameters.lfc_threshold !== parameters.lfc_threshold || this.#parameters.compute_auc !== parameters.compute_auc) {
             // Removing existing results, as they are now invalid.
             _free_results(this.#cache);
         }
-        this.#parameters = { ...parameters };
+        this.#parameters = parameters;
         return;
     }
 

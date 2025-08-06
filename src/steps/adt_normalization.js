@@ -100,26 +100,32 @@ export class AdtNormalizationState {
     }
 
     /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode AdtNormalizationState#compute compute} for details.
+     */
+    static defaults() {
+        return {
+            remove_bias: true
+        }
+    }
+
+    /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `adt_normalization` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {boolean} parameters.remove_bias - Whether to remove composition bias between cell subpopulations via the CLRm1 method.
-     * Users can set this to `false` to speed up the compute.
+     * @param {boolean} [parameters.remove_bias] - Whether to remove composition bias between cell subpopulations via the CLRm1 method.
+     * Users can set this to `false` to speed up the compute, at the cost of retaining biases in downstream steps.
      *
      * @return The object is updated with new results.
      */
     compute(parameters) {
-        let remove_bias = true;
-        if ("remove_bias" in parameters) {
-            remove_bias = parameters.remove_bias;
-        }
-
+        parameters = utils.defaultizeParameters(parameters, AdtNormalizationState.defaults());
         this.changed = false;
 
-        if (this.#qc.changed || this.#filter.changed || remove_bias !== this.#parameters.remove_bias) {
+        if (this.#qc.changed || this.#filter.changed || parameters.remove_bias !== this.#parameters.remove_bias) {
             if (this.valid()) {
                 var mat = this.#filter.fetchFilteredMatrix().get("ADT");
-                if (remove_bias) {
+                if (parameters.remove_bias) {
                     this.#cache.raw_sf_buffer = scran.computeClrm1Factors(mat);
                 } else {
                     this.#cache.raw_sf_buffer = nutils.subsetSums(this.#qc, this.#filter, mat);
@@ -129,22 +135,13 @@ export class AdtNormalizationState {
             }
         } 
 
-        this.#parameters.remove_bias = remove_bias;
-
         if (this.changed) {
             if (this.valid()) {
                 this.#raw_compute();
             }
         }
 
+        this.#parameters = parameters;
         return;
-    }
-
-    static defaults() {
-        return {
-           remove_bias: true,
-           num_pcs: 25,
-           num_clusters: 20
-        };
     }
 }

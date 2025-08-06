@@ -6,6 +6,18 @@ export function freeCache(object) {
     return;
 }
 
+export function defaultizeParameters(parameters, defaults, extra = []) {
+    let output = defaults;
+    for (const [name, val] of Object.entries(parameters)) {
+        if (name in defaults || extra.indexOf(name) >= 0) {
+            output[name] = val;
+        } else {
+            throw new Error("unknown parameter '" + name + "'");
+        }
+    }
+    return output;
+}
+
 function changedParametersIllegal(x, y, xskip, yskip) {
     // Failing if this is a TypedArray or ArrayBuffer;
     // we shouldn't be seeing these things here anyway.

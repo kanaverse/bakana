@@ -71,36 +71,42 @@ export class CrisprPcaState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `crispr_pca` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {number} parameters.num_pcs - Number of PCs to return.
-     * @param {string} parameters.block_method - Blocking method to use when dealing with multiple samples.
+     * @param {number} [parameters.num_pcs] - Number of PCs to return.
+     * @param {string} [parameters.block_method] - Blocking method to use when dealing with multiple samples.
      * This can be `"none"`, `"regress"` or `"project"`, see comments in {@linkplain RnaPcaState}.
      *
      * @return The object is updated with the new results.
      */
     compute(parameters) {
-        let { num_pcs, block_method } = parameters;
-        if (block_method == "weight") {
-            block_method = "project";
-        }
+        parameters = utils.defaultizeParameters(parameters, CrisprPcaState.defaults());
         this.changed = false;
 
-        if (this.#norm.changed || num_pcs !== this.#parameters.num_pcs || block_method !== this.#parameters.block_method) { 
+        // For back-compatibility.
+        if (parameters.block_method == "weight") {
+            parameters.block_method = "project";
+        }
+
+        if (this.#norm.changed || parameters.num_pcs !== this.#parameters.num_pcs || parameters.block_method !== this.#parameters.block_method) { 
             if (this.valid()) {
                 let block = this.#filter.fetchFilteredBlock();
                 var mat = this.#norm.fetchNormalizedMatrix();
                 utils.freeCache(this.#cache.pcs);
-                this.#cache.pcs = scran.runPca(mat, { numberOfPCs: num_pcs, block: block, blockMethod: block_method });
+                this.#cache.pcs = scran.runPca(mat, { numberOfPCs: parameters.num_pcs, block: block, blockMethod: parameters.block_method });
 
                 this.changed = true;
             }
 
-            this.#parameters.num_pcs = num_pcs;
-            this.#parameters.block_method = block_method;
+            this.#parameters.num_pcs = parameters.num_pcs;
+            this.#parameters.block_method = parameters.block_method;
         }
 
         return;
     }
 
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode CrisprPcaState#compute compute} for details.
+     */
     static defaults() {
         return {
             num_pcs: 20,

@@ -102,7 +102,9 @@ export class RnaNormalizationState {
      * @return The object is updated with new results.
      */
     compute(parameters) {
+        parameters = utils.defaultizeParameters(parameters, RnaNormalizationState.defaults());
         this.changed = false;
+
         if (this.#qc.changed || this.#filter.changed) {
             if (this.valid()) {
                 this.changed = true;
@@ -112,9 +114,15 @@ export class RnaNormalizationState {
         if (this.changed) {
             this.#raw_compute();
         }
+
+        this.#parameters = parameters;
         return;
     }
 
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode RnaNormalizationState#compute compute} for details.
+     */
     static defaults() {
         return {};
     }

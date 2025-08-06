@@ -6,6 +6,7 @@ import * as filter from "./steps/cell_filtering.js";
 import * as norm from "./steps/rna_normalization.js";
 import * as normadt from "./steps/adt_normalization.js";
 import * as normcrispr from "./steps/crispr_normalization.js";
+import * as fsel from "./steps/feature_selection.js";
 import * as pca from "./steps/rna_pca.js";
 import * as pcaadt from "./steps/adt_pca.js";
 import * as pcacrispr from "./steps/crispr_pca.js";
@@ -13,6 +14,10 @@ import * as combine from "./steps/combine_embeddings.js";
 import * as correct from "./steps/batch_correction.js";
 import * as index from "./steps/neighbor_index.js";
 import * as snngraph from "./steps/snn_graph_cluster.js";
+import * as tsne from "./steps/tsne.js";
+import * as umap from "./steps/umap.js";
+import * as kmeans from "./steps/kmeans_cluster.js";
+import * as choose from "./steps/choose_clustering.js";
 import * as markers from "./steps/marker_detection.js";
 import * as custom from "./steps/custom_selections.js";
 import * as enrichment from "./steps/feature_set_enrichment.js";
@@ -48,36 +53,10 @@ import * as labelling from "./steps/cell_labelling.js";
  * See also {@linkcode configureBatchCorrection} and {@linkcode configureApproximateNeighbors} to synchronize certain parameter settings across multiple steps.
  */
 export function analysisDefaults() {
-    var output = {
-        feature_selection: {
-            span: 0.3
-        },
-        combine_embeddings: {
-            weights: null
-        },
-        batch_correction: {
-            method: "none"
-        },
-        tsne: {
-            perplexity: 30,
-            iterations: 500,
-            animate: false
-        },
-        umap: {
-            num_neighbors: 15,
-            num_epochs: 500,
-            min_dist: 0.1,
-            animate: false
-        },
-        kmeans_cluster: {
-            k: 10
-        },
-        choose_clustering: {
-            method: "snn_graph"
-        }
-    };
+    var output = {};
 
     output[inputs.step_name] = inputs.InputsState.defaults();
+    output[fsel.step_name] = fsel.FeatureSelectionState.defaults();
 
     output[qc.step_name] = qc.RnaQualityControlState.defaults();
     output[qcadt.step_name] = qcadt.AdtQualityControlState.defaults();
@@ -97,6 +76,11 @@ export function analysisDefaults() {
 
     output[index.step_name] = index.NeighborIndexState.defaults();
     output[snngraph.step_name] = snngraph.SnnGraphClusterState.defaults();
+    output[tsne.step_name] = tsne.TsneState.defaults();
+    output[umap.step_name] = umap.UmapState.defaults();
+
+    output[kmeans.step_name] = kmeans.KmeansClusterState.defaults();
+    output[choose.step_name] = choose.ChooseClusteringState.defaults();
 
     output[markers.step_name] = markers.MarkerDetectionState.defaults();
     output[custom.step_name] = custom.CustomSelectionsState.defaults();

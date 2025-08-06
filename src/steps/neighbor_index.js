@@ -58,6 +58,10 @@ export class NeighborIndexState {
      ******** Compute **********
      ***************************/
 
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode NeighborIndexState#compute compute} for details.
+     */
     static defaults() {
         return {
             approximate: true
@@ -77,22 +81,22 @@ export class NeighborIndexState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `neighbor_index` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {boolean} parameters.approximate - Whether to create an approximate search index.
+     * @param {boolean} [parameters.approximate] - Whether to create an approximate search index.
      * If `false`, an exact index is used.
      *
      * @return The object is updated with the new results.
      */
     compute(parameters) {
-        let { approximate } = parameters;
+        parameters = utils.defaultizeParameters(parameters, NeighborIndexState.defaults());
         this.changed = false;
 
-        if (this.#correct.changed || approximate != this.#parameters.approximate) {
+        if (this.#correct.changed || parameters.approximate != this.#parameters.approximate) {
             utils.freeCache(this.#cache.raw);
-            this.#raw_compute(approximate);
-            this.#parameters.approximate = approximate;
+            this.#raw_compute(parameters.approximate);
             this.changed = true;
         }
 
+        this.#parameters = parameters;
         return;
     }
 }

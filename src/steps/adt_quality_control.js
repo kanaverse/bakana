@@ -97,6 +97,10 @@ export class AdtQualityControlState {
      ******** Defaults **********
      ****************************/
 
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode AdtQualityControlState#compute compute} for details.
+     */
     static defaults() {
         return {
             guess_ids: true,
@@ -112,7 +116,7 @@ export class AdtQualityControlState {
         };
     }
 
-    static configureFeatureParameters(lower_igg, annotations) {
+    static #configureFeatureParameters(lower_igg, annotations) {
         let counter = val => {
             let n = 0;
             val.forEach(x => {
@@ -150,47 +154,46 @@ export class AdtQualityControlState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      * 
      * @param {object} parameters - Parameter object, equivalent to the `adt_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {boolean} parameters.guess_ids - Automatically choose feature-based parameters based on the feature annotations. 
+     * @param {boolean} [parameters.guess_ids] - Automatically choose feature-based parameters based on the feature annotations. 
      * Specifically, `tag_id_column` is set to the column with the most matches to `igg_prefix`.
-     * @param {?(string|number)} parameters.tag_id_column - Name or index of the column of the feature annotations that contains the tag identifiers.
+     * @param {?(string|number)} [parameters.tag_id_column] - Name or index of the column of the feature annotations that contains the tag identifiers.
      * If `null`, the row names are used.
      * Ignored if `guess_ids = true`.
-     * @param {?string} parameters.igg_prefix - Prefix of the identifiers for isotype controls.
+     * @param {?string} [parameters.igg_prefix]  - Prefix of the identifiers for isotype controls.
      * If `null`, no prefix-based identification is performed.
-     * @param {string} parameters.filter_strategy - Strategy for defining a filter threshold for the QC metrics.
+     * @param {string} [parameters.filter_strategy] - Strategy for defining a filter threshold for the QC metrics.
      * This can be `"automatic"` or `"manual"`.
-     * @param {number} parameters.nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
+     * @param {number} [parameters.nmads] - Number of MADs to use for automatically selecting the filter threshold for each metric.
      * Only used when `filter_strategy = "automatic"`.
-     * @param {number} parameters.min_detected_drop - Minimum proportional drop in the number of detected features before a cell is to be considered low-quality.
+     * @param {number} [parameters.min_detected_drop] - Minimum proportional drop in the number of detected features before a cell is to be considered low-quality.
      * Only used when `filter_strategy = "automatic"`.
-     * @param {number} parameters.detected_threshold - Manual threshold on the detected number of features for each cell.
+     * @param {number} [parameters.detected_threshold] - Manual threshold on the detected number of features for each cell.
      * Cells are only retained if the detected number is equal to or greater than this threshold.
      * Only used when `filter_strategy = "manual"`.
-     * @param {number} parameters.igg_threshold - Manual threshold on the isotype control totals for each cell.
+     * @param {number} [parameters.igg_threshold] - Manual threshold on the isotype control totals for each cell.
      * Cells are only retained if their totals are less than or equal to this threshold.
      * Only used when `filter_strategy = "manual"`.
      *
      * @return The object is updated with the new results.
      */
     compute(parameters) {
-        let { guess_ids, tag_id_column, igg_prefix, filter_strategy, nmads, min_detected_drop, detected_threshold, igg_threshold } = parameters;
+        parameters = utils.defaultizeParameters(parameters, AdtQualityControlState.defaults(), [ "automatic" ]);
         this.changed = false;
 
         // Some back-compatibility here.
-        if (typeof guess_ids === "undefined") {
+        if (typeof parameters.guess_ids === "undefined") {
             if ("automatic" in parameters) {
-                guess_ids = parameters.automatic;
+                parameters.guess_ids = parameters.automatic;
             } else {
-                guess_ids = true;
-                tag_id_column = null;
+                parameters.guess_ids = true;
             }
         }
 
         if (
             this.#inputs.changed || 
-            guess_ids !== this.#parameters.guess_ids ||
-            igg_prefix !== this.#parameters.igg_prefix ||
-            (!guess_ids && tag_id_column !== this.#parameters.tag_id_column)
+            parameters.guess_ids !== this.#parameters.guess_ids ||
+            parameters.igg_prefix !== this.#parameters.igg_prefix ||
+            (!parameters.guess_ids && parameters.tag_id_column !== this.#parameters.tag_id_column)
         ) {
             utils.freeCache(this.#cache.metrics);
 
@@ -199,11 +202,11 @@ export class AdtQualityControlState {
                 var subsets = utils.allocateCachedArray(tag_info.numberOfRows(), "Uint8Array", this.#cache, "metrics_buffer");
                 subsets.fill(0);
 
-                if (igg_prefix !== null) {
-                    var lower_igg = igg_prefix.toLowerCase();
-                    let key = tag_id_column;
-                    if (guess_ids) {
-                        key = AdtQualityControlState.configureFeatureParameters(lower_igg, tag_info);
+                if (parameters.igg_prefix !== null) {
+                    var lower_igg = parameters.igg_prefix.toLowerCase();
+                    let key = parameters.tag_id_column;
+                    if (parameters.guess_ids) {
+                        key = AdtQualityControlState.#configureFeatureParameters(lower_igg, tag_info);
                     }
 
                     let val = (key == null ? tag_info.rowNames() : tag_info.column(key));
@@ -225,29 +228,25 @@ export class AdtQualityControlState {
             }
         }
 
-        this.#parameters.guess_ids = guess_ids;
-        this.#parameters.tag_id_column = tag_id_column;
-        this.#parameters.igg_prefix = igg_prefix;
-
         if (this.changed || 
-            filter_strategy !== this.#parameters.filter_strategy ||
-            nmads !== this.#parameters.nmads || 
-            min_detected_drop !== this.#parameters.min_detected_drop ||
-            detected_threshold !== this.#parameters.detected_threshold ||
-            igg_threshold !== this.#parameters.igg_threshold
+            parameters.filter_strategy !== this.#parameters.filter_strategy ||
+            parameters.nmads !== this.#parameters.nmads || 
+            parameters.min_detected_drop !== this.#parameters.min_detected_drop ||
+            parameters.detected_threshold !== this.#parameters.detected_threshold ||
+            parameters.igg_threshold !== this.#parameters.igg_threshold
         ) {
             utils.freeCache(this.#cache.filters);
 
             if (this.valid()) {
                 let block = this.#inputs.fetchBlock();
 
-                if (filter_strategy === "automatic") {
-                    this.#cache.filters = scran.suggestAdtQcFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
-                } else if (filter_strategy === "manual") {
+                if (parameters.filter_strategy === "automatic") {
+                    this.#cache.filters = scran.suggestAdtQcFilters(this.#cache.metrics, { numberOfMADs: parameters.nmads, block: block });
+                } else if (parameters.filter_strategy === "manual") {
                     let block_levels = this.#inputs.fetchBlockLevels();
                     this.#cache.filters = scran.emptySuggestAdtQcFiltersResults(1, block_levels === null ? 1 : block_levels.length);
-                    this.#cache.filters.detected({ copy: false }).fill(detected_threshold);
-                    this.#cache.filters.subsetSum(0, { copy: false }).fill(igg_threshold);
+                    this.#cache.filters.detected({ copy: false }).fill(parameters.detected_threshold);
+                    this.#cache.filters.subsetSum(0, { copy: false }).fill(parameters.igg_threshold);
                 } else {
                     throw new Error("unknown ADT QC filtering strategy '" + filter_strategy + "'");
                 }
@@ -258,14 +257,9 @@ export class AdtQualityControlState {
             } else {
                 delete this.#cache.filters;
             }
-
-            this.#parameters.filter_strategy = filter_strategy;
-            this.#parameters.nmads = nmads;
-            this.#parameters.min_detected_drop = min_detected_drop;
-            this.#parameters.detected_threshold = detected_threshold;
-            this.#parameters.igg_threshold = igg_threshold;
         }
 
+        this.#parameters = parameters;
         return;
     }
 }

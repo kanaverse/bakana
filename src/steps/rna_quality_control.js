@@ -103,6 +103,10 @@ export class RnaQualityControlState {
      ******** Defaults **********
      ****************************/
 
+    /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode RnaQualityControlState#compute compute} for details.
+     */
     static defaults () {
         return {
             guess_ids: true,
@@ -222,38 +226,38 @@ export class RnaQualityControlState {
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `rna_quality_control` property of the `parameters` of {@linkcode runAnalysis}.
-     * @param {boolean} parameters.guess_ids - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
+     * @param {boolean} [parameters.guess_ids] - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
      * If set to `true`, the following logic is applied:
      *
      * - If `use_reference_mito = true`, the annotation column that best matches human/mouse Ensembl/symbols is set as `gene_id_column`.
      *   Based on the identified species and feature type, `species` and `gene_id_type` are also set.
      * - If `use_reference_mito = false`, the annotation column that best matches human/mouse symbols is set as `gene_id_column`.
      *
-     * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the feature annotations that contains the gene identifiers for the RNA modality.
+     * @param {?(string|number)} [parameters.gene_id_column] - Name or index of the column of the feature annotations that contains the gene identifiers for the RNA modality.
      * If `null`, the row names are used.
      * Ignored if `guess_ids = true`.
-     * @param {boolean} parameters.use_reference_mito - Whether to use the reference lists of mitochondrial genes.
+     * @param {boolean} [parameters.use_reference_mito] - Whether to use the reference lists of mitochondrial genes.
      * If `false`, mitochondrial genes are instead identified from their prefix.
-     * @param {Array} parameters.species - Array of strings specifying zero, one or more species to use to obtain a reference list of mitochondrial genes.
+     * @param {Array} [parameters.species] - Array of strings specifying zero, one or more species to use to obtain a reference list of mitochondrial genes.
      * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) as specified in {@linkcode RnaQualityControlState#mitochondriaSpecies mitochondriaSpecies}).
      * Ignored if `guess_ids = true`.
-     * @param {string} parameters.gene_id_type - Name of the feature type in the reference list of mitochondrial genes.
+     * @param {string} [parameters.gene_id_type] - Name of the feature type in the reference list of mitochondrial genes.
      * This can be any one of `"ENSEMBL"`, `"SYMBOL"`, or `"ENTREZ"`.
      * Ignored if `guess_ids = true`.
-     * @param {?string} parameters.mito_prefix - Case-insensitive prefix to use to identify mitochondrial genes from the dataset.
+     * @param {?string} [parameters.mito_prefix] - Case-insensitive prefix to use to identify mitochondrial genes from the dataset.
      * Only used when `use_reference_mito = false`; in such cases, `gene_id_column` should point to symbols.
      * If `null`, no prefix-based identification is performed.
-     * @param {string} parameters.filter_strategy - Strategy for defining a filter threshold for the QC metrics.
+     * @param {string} [parameters.filter_strategy] - Strategy for defining a filter threshold for the QC metrics.
      * This can be `"automatic"` or `"manual"`.
-     * @param {number} parameters.nmads - Number of MADs to use for automatically selecting the filter threshold for each metric.
+     * @param {number} [parameters.nmads] - Number of MADs to use for automatically selecting the filter threshold for each metric.
      * Only used when `filter_strategy = "automatic"`.
-     * @param {number} parameters.sum_threshold - Manual threshold on the sum of counts for each cell.
+     * @param {number} [parameters.sum_threshold] - Manual threshold on the sum of counts for each cell.
      * Cells are only retained if their sums are equal to or greater than this threshold.
      * Only used when `filter_strategy = "manual"`.
-     * @param {number} parameters.detected_threshold - Manual threshold on the detected number of features for each cell.
+     * @param {number} [parameters.detected_threshold] - Manual threshold on the detected number of features for each cell.
      * Cells are only retained if the detected number is equal to or greater than this threshold.
      * Only used when `filter_strategy = "manual"`.
-     * @param {number} parameters.mito_threshold - Manual threshold on the mitochondrial proportion for each cell.
+     * @param {number} [parameters.mito_threshold] - Manual threshold on the mitochondrial proportion for each cell.
      * Cells are only retained if their totals are less than or equal to this threshold.
      * Only used when `filter_strategy = "manual"`.
      *
@@ -261,38 +265,32 @@ export class RnaQualityControlState {
      * @async
      */
     async compute(parameters) {
-        let { guess_ids, gene_id_column, use_reference_mito, species, gene_id_type, mito_prefix, filter_strategy, nmads, sum_threshold, detected_threshold, mito_threshold } = parameters;
+        parameters = utils.defaultizeParameters(parameters, RnaQualityControlState.defaults(), ["automatic"]);
+        this.changed = false;
 
         // Some back-compatibility here.
-        if (typeof guess_ids == "undefined") {
+        if (typeof parameters.guess_ids == "undefined") {
             if ("automatic" in parameters) {
-                guess_ids = parameters.automatic;
+                parameters.guess_ids = parameters.automatic;
             } else {
-                guess_ids = true;
-                use_reference_mito = parameters.use_mito_default;
-                let def = RnaQualityControlState.defaults();
-                gene_id_column = def.gene_id_column;
-                species = def.species;
-                gene_id_type = def.gene_id_type;
+                parameters.guess_ids = true;
             }
         }
 
-        this.changed = false;
-
         if (
             this.#inputs.changed || 
-            guess_ids !== this.#parameters.guess_ids ||
-            use_reference_mito !== this.#parameters.use_reference_mito || 
+            parameters.guess_ids !== this.#parameters.guess_ids ||
+            parameters.use_reference_mito !== this.#parameters.use_reference_mito || 
             (
-                !guess_ids && 
+                !parameters.guess_ids && 
                 (
-                    gene_id_column !== this.#parameters.gene_id_column || 
-                    (!use_reference_mito && mito_prefix !== this.#parameters.mito_prefix) ||
+                    parameters.gene_id_column !== this.#parameters.gene_id_column || 
+                    (!parameters.use_reference_mito && parameters.mito_prefix !== this.#parameters.mito_prefix) ||
                     (
-                        use_reference_mito && 
+                        parameters.use_reference_mito && 
                         (
-                            utils.changedParameters(species, this.#parameters.species) || 
-                            gene_id_type !== this.#parameters.gene_id_type
+                            utils.changedParameters(parameters.species, this.#parameters.species) || 
+                            parameters.gene_id_type !== this.#parameters.gene_id_type
                         )
                     )
                 )
@@ -301,13 +299,13 @@ export class RnaQualityControlState {
             utils.freeCache(this.#cache.metrics);
 
             if (this.valid()) {
-                let gene_id_column2 = gene_id_column;
-                let species2 = species;
-                let gene_id_type2 = gene_id_type;
+                let gene_id_column2 = parameters.gene_id_column;
+                let species2 = parameters.species;
+                let gene_id_type2 = parameters.gene_id_type;
 
-                if (guess_ids) {
+                if (parameters.guess_ids) {
                     let guesses = this.#inputs.guessRnaFeatureTypes();
-                    let backcomp = RnaQualityControlState.configureFeatureParameters(use_reference_mito, guesses);
+                    let backcomp = RnaQualityControlState.configureFeatureParameters(parameters.use_reference_mito, guesses);
                     gene_id_column2 = backcomp.gene_id_column;
                     species2 = backcomp.species;
                     gene_id_type2 = backcomp.gene_id_type;
@@ -319,7 +317,7 @@ export class RnaQualityControlState {
                 subsets.fill(0);
 
                 if (val !== null) {
-                    if (use_reference_mito) {
+                    if (parameters.use_reference_mito) {
                         let lists = await this.#acquire_reference(species2, gene_id_type2);
                         var sub_arr = subsets.array();
                         val.forEach((x, i) => {
@@ -327,8 +325,8 @@ export class RnaQualityControlState {
                                 sub_arr[i] = 1;
                             }
                         });
-                    } else if (mito_prefix !== null) {
-                        var lower_mito = mito_prefix.toLowerCase();
+                    } else if (parameters.mito_prefix !== null) {
+                        var lower_mito = parameters.mito_prefix.toLowerCase();
                         var sub_arr = subsets.array();
                         val.forEach((x, i) => {
                             if(x.toLowerCase().startsWith(lower_mito)) {
@@ -346,33 +344,26 @@ export class RnaQualityControlState {
             }
         }
 
-        this.#parameters.guess_ids = guess_ids;
-        this.#parameters.gene_id_column = gene_id_column;
-        this.#parameters.use_reference_mito = use_reference_mito;
-        this.#parameters.species = bioc.CLONE(species); // avoid pass-by-reference behavior.
-        this.#parameters.gene_id_type = gene_id_type;
-        this.#parameters.mito_prefix = mito_prefix;
-
         if (this.changed || 
-            filter_strategy !== this.#parameters.filter_strategy ||
-            nmads !== this.#parameters.nmads ||
-            sum_threshold !== this.#parameters.sum_threshold ||
-            detected_threshold !== this.#parameters.detected_threshold ||
-            mito_threshold !== this.#parameters.mito_threshold
+            parameters.filter_strategy !== this.#parameters.filter_strategy ||
+            parameters.nmads !== this.#parameters.nmads ||
+            parameters.sum_threshold !== this.#parameters.sum_threshold ||
+            parameters.detected_threshold !== this.#parameters.detected_threshold ||
+            parameters.mito_threshold !== this.#parameters.mito_threshold
         ) {
             utils.freeCache(this.#cache.filters);
 
             if (this.valid()) {
                 let block = this.#inputs.fetchBlock();
 
-                if (filter_strategy === "automatic") {
-                    this.#cache.filters = scran.suggestRnaQcFilters(this.#cache.metrics, { numberOfMADs: nmads, block: block });
-                } else if (filter_strategy === "manual") {
+                if (parameters.filter_strategy === "automatic") {
+                    this.#cache.filters = scran.suggestRnaQcFilters(this.#cache.metrics, { numberOfMADs: parameters.nmads, block: block });
+                } else if (parameters.filter_strategy === "manual") {
                     let block_levels = this.#inputs.fetchBlockLevels();
                     this.#cache.filters = scran.emptySuggestRnaQcFiltersResults(1, block_levels === null ? 1 : block_levels.length);
-                    this.#cache.filters.sum({ copy: false }).fill(sum_threshold);
-                    this.#cache.filters.detected({ copy: false }).fill(detected_threshold);
-                    this.#cache.filters.subsetProportion(0, { copy: false }).fill(mito_threshold);
+                    this.#cache.filters.sum({ copy: false }).fill(parameters.sum_threshold);
+                    this.#cache.filters.detected({ copy: false }).fill(parameters.detected_threshold);
+                    this.#cache.filters.subsetProportion(0, { copy: false }).fill(parameters.mito_threshold);
                 } else {
                     throw new Error("unknown RNA QC filtering strategy '" + filter_strategy + "'");
                 }
@@ -383,14 +374,10 @@ export class RnaQualityControlState {
             } else {
                 delete this.#cache.filters;
             }
-
-            this.#parameters.filter_strategy = filter_strategy;
-            this.#parameters.nmads = nmads;
-            this.#parameters.sum_threshold = sum_threshold;
-            this.#parameters.detected_threshold = detected_threshold;
-            this.#parameters.mito_threshold = mito_threshold;
         }
 
+        this.#parameters = parameters;
+        this.#parameters.species = bioc.CLONE(this.#parameters.species); // avoid pass-by-reference behavior.
         return;
     }
 }

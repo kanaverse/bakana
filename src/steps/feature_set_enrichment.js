@@ -333,12 +333,9 @@ function configure_feature_parameters(guesses) {
     };
 }
 
-function transplant_parameters(parameters, guess_ids, species, gene_id_column, gene_id_type, top_markers) {
-    parameters.guess_ids = guess_ids;
-    parameters.species = bioc.CLONE(species); // make a copy to avoid pass-by-ref behavior.
-    parameters.gene_id_column = gene_id_column;
-    parameters.gene_id_type = gene_id_type;
-    parameters.top_markers = top_markers;
+function dereference_parameters(parameters) {
+    parameters.species = bioc.CLONE(parameters.species); // make a copy to avoid pass-by-ref behavior.
+    return parameters;
 }
 
 function fetch_parameters(parameters) {
@@ -514,17 +511,6 @@ export class FeatureSetEnrichmentState {
         return fetch_parameters(this.#parameters);
     }
 
-    /****************************
-     ******** Defaults **********
-     ****************************/
-
-    /**
-     * @return {object} Default parameters that may be modified and fed into {@linkcode FeatureSetEnrichmentState#compute compute}.
-     */
-    static defaults() {
-        return all_defaults();
-    }
-
     /***************************
      ******** Remotes **********
      ***************************/
@@ -542,6 +528,14 @@ export class FeatureSetEnrichmentState {
      ***************************/
 
     /**
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode CellFilteringState#compute compute} for details.
+     */
+    static defaults() {
+        return all_defaults();
+    }
+
+    /**
      * This method should not be called directly by users, but is instead invoked by {@linkcode runAnalysis}.
      *
      * @param {object} parameters - Parameter object, equivalent to the `feature_set_enrichment` property of the `parameters` of {@linkcode runAnalysis}.
@@ -553,7 +547,8 @@ export class FeatureSetEnrichmentState {
      * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) supported by **gesel**.
      * This is used internally to filter `collections` to the entries relevant to these species. 
      * Ignored if `guess_ids = true`.
-     * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the RNA entry of {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each gene. 
+     * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the RNA entry of
+     * {@linkcode InputsState#fetchFeatureAnnotations InputsState.fetchFeatureAnnotations} containing the identity of each gene. 
      * If `null`, identifiers are taken from the row names.
      * Ignored if `guess_ids = true`.
      * @param {string} parameters.gene_id_type - Type of feature identifier in `gene_id_column`.
@@ -564,27 +559,27 @@ export class FeatureSetEnrichmentState {
      * @return The state is updated with new results.
      */
     async compute(parameters) {
+        parameters = utils.defaultizeParameters(parameters, FeatureSetEnrichmentState.defaults());
         this.changed = false;
+
         if (this.#inputs.changed) {
             this.changed = true;
         }
-
-        let { skip, guess_ids, species, gene_id_column, gene_id_type, top_markers } = parameters;
-        if (skip !== this.#parameters.skip) {
+        if (parameters.skip !== this.#parameters.skip) {
             this.changed = true;
         }
 
-        if (this.valid() && !skip) {
+        if (this.valid() && !parameters.skip) {
             if (this.changed) { // Force an update.
                 this.#parameters = {};
             }
 
             let modified = await this.#manager.buildCollections(
                 this.#parameters, 
-                guess_ids, 
-                species, 
-                gene_id_column, 
-                gene_id_type, 
+                parameters.guess_ids, 
+                parameters.species, 
+                parameters.gene_id_column, 
+                parameters.gene_id_type, 
                 () => this.#inputs.fetchFeatureAnnotations()["RNA"],
                 () => this.#inputs.guessRnaFeatureTypes()
             );
@@ -592,13 +587,12 @@ export class FeatureSetEnrichmentState {
                 this.changed = true;
             }
 
-            if (top_markers !== this.#parameters.top_markers) {
+            if (parameters.top_markers !== this.#parameters.top_markers) {
                 this.changed = true;
             }
         }
 
-        transplant_parameters(this.#parameters, guess_ids, species, gene_id_column, gene_id_type, top_markers);
-        this.#parameters.skip = skip;
+        this.#parameters = dereference_parameters(parameters);
         return;
     }
 }
@@ -701,7 +695,8 @@ export class FeatureSetEnrichmentStandalone {
     }
 
     /**
-     * @return {object} Default parameters that may be modified and fed into {@linkcode FeatureSetEnrichmentStandalone#compute compute}.
+     * @return {object} Object containing default parameters,
+     * see the `parameters` argument in {@linkcode CellFilteringState#setParameters setParameters} for details.
      */
     static defaults() {
         return all_defaults();
@@ -729,14 +724,14 @@ export class FeatureSetEnrichmentStandalone {
      * Note that the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method should be called in order for the new parameters to take effect.
      */
     setParameters(parameters) {
-        let { guess_ids, species, gene_id_column, gene_id_type, top_markers } = parameters;
+        parameters = utils.defaultizeParameters(parameters, FeatureSetEnrichmentStandalone.defaults(), ["automatic"]);
 
         // For some back-compatibility.
-        if (typeof guess_ids == "undefined") {
-            guess_ids = parameters.automatic;
+        if (typeof parameters.guess_ids == "undefined") {
+            parameters.guess_ids = parameters.automatic;
         }
 
-        transplant_parameters(this.#pre_parameters, guess_ids, species, gene_id_column, gene_id_type, top_markers);
+        this.#pre_parameters = dereference_parameters(parameters);
     }
 
     /**
