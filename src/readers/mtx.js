@@ -42,14 +42,7 @@ export class TenxMatrixMarketDataset {
      * @param {?(SimpleFile|string|Uint8Array|File)} barcodeFile - Contents of a barcode annotation file.
      * If `null`, it is assumed that no file was available.
      */
-    constructor(matrixFile, featureFile, barcodeFile, { 
-        featureTypeRnaName = "Gene Expression", 
-        featureTypeAdtName = "Antibody Capture", 
-        featureTypeCrisprName = "CRISPR Guide Capture", 
-        primaryRnaFeatureIdColumn = 0, 
-        primaryAdtFeatureIdColumn = 0,
-        primaryCrisprFeatureIdColumn = 0
-    } = {}) {
+    constructor(matrixFile, featureFile, barcodeFile) {
         if (matrixFile instanceof afile.SimpleFile) {
             this.#matrix_file = matrixFile;
         } else {
