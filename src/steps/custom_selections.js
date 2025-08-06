@@ -543,7 +543,7 @@ export class CustomSelectionsStandalone {
     }
 
     /**
-     * If this method is not called, the parameters default to those in {@linkcode CustomSelectionsState#defaults CustomSelectionsState.defaults}.
+     * If this method is not called, the parameters default to those in {@linkcode CustomSelectionsStandalone.defaults defaults}.
      *
      * @param {object} parameters - Parameter object, see the argument of the same name in {@linkcode CustomSelectionsState#compute CustomSelectionsState.compute} for more details.
      *

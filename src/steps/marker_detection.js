@@ -400,6 +400,8 @@ export class MarkerDetectionStandalone {
     }
 
     /**
+     * If this method is not called, the parameters default to those in {@linkcode MarkerDetectionStandalone.defaults defaults}.
+     *
      * @param {object} parameters - Parameter object, see the argument of the same name in {@linkcode MarkerDetectionState#compute MarkerDetectionState.compute} for more details.
      *
      * @return The state is updated with new parameters.

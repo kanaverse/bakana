@@ -696,6 +696,8 @@ export class CellLabellingStandalone {
     }
 
     /**
+     * If this method is not called, the parameters default to those in {@linkcode CellLabellingStandalone.defaults defaults}.
+     *
      * @param {object} parameters - Parameter object, see {@linkcode CellLabellingState#compute CellLabellingState.compute} for details.
      * @return The object is updated with the new parameters.
      * Note that this will not affect existing results computed by {@linkcode CellLabellingStandalone#computeLabels computeLabels}.

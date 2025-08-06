@@ -540,7 +540,8 @@ export class FeatureSetEnrichmentState {
      *
      * @param {object} parameters - Parameter object, equivalent to the `feature_set_enrichment` property of the `parameters` of {@linkcode runAnalysis}.
      * @param {boolean} parameters.skip - Whether to skip the preparation of feature set collections.
-     * If `true`, none of the other methods (e.g., {@linkcode computeEnrichment}, {@linkcode computePerCellScores}) should be called.
+     * If `true`, none of the other methods (e.g., {@linkcode FeatureSetEnrichmentState#computeEnrichment computeEnrichment},
+     * {@linkcode FeatureSetEnrichmentState#computePerCellScores computePerCellScores}) should be called.
      * @param {boolean} parameters.guess_ids - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
      * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column`, `gene_id_type`.
      * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
@@ -696,29 +697,16 @@ export class FeatureSetEnrichmentStandalone {
 
     /**
      * @return {object} Object containing default parameters,
-     * see the `parameters` argument in {@linkcode CellFilteringState#setParameters setParameters} for details.
+     * see the `parameters` argument in {@linkcode FeatureSetEnrichmentStandalone#setParameters setParameters} for details.
      */
     static defaults() {
         return all_defaults();
     }
 
     /**
-     * If this method is not called, the parameters default to those in {@linkcode FeatureSetEnrichmentStandalone#defaults FeatureSetEnrichmentStandalone.defaults}.
+     * If this method is not called, the parameters default to those in {@linkcode FeatureSetEnrichmentStandalone.defaults defaults}.
      *
-     * @param {object} parameters - Parameter object.
-     * @param {boolean} parameters.guess_ids - Automatically choose feature-based parameters based on the feature annotation for the RNA modality.
-     * If `true`, the column of the annotation that best matches human/mouse Ensembl/symbols is identified and used to set `species`, `gene_id_column`, `gene_id_type`.
-     * @param {Array} parameters.species - Array of strings specifying zero, one or more species involved in this dataset.
-     * Each entry should be a taxonomy ID (e.g. `"9606"`, `"10090"`) supported by **gesel**.
-     * This is used internally to filter `collections` to the entries relevant to these species. 
-     * Ignored if `guess_ids = true`.
-     * @param {?(string|number)} parameters.gene_id_column - Name or index of the column of the `annotations` (supplied in the constructor) containing the identity of each gene. 
-     * If `null`, identifiers are taken from the row names.
-     * Ignored if `guess_ids = true`.
-     * @param {string} parameters.gene_id_type - Type of feature identifier in `gene_id_column`.
-     * This should be one of `"ENSEMBL"`, `"SYMBOL"` or `"ENTREZ"`
-     * Ignored if `guess_ids = true`.
-     * @param {number} parameters.top_markers - Number of top markers to use when testing for enrichment.
+     * @param {object} parameters - Parameter object, see {@linkcode FeatureSetEnrichmentState#compute FeatureSetEnrichmentState.compute} for details.
      *
      * @return The object is updated with new parameters.
      * Note that the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method should be called in order for the new parameters to take effect.
@@ -735,7 +723,7 @@ export class FeatureSetEnrichmentStandalone {
     }
 
     /**
-     * This should be called after construction and/or {@linkcode FeatureSetEnrichmenStandalone#setParameters setParameters}. 
+     * This should be called after construction and/or {@linkcode FeatureSetEnrichmentStandalone#setParameters setParameters}. 
      * Users should wait for the return value to resolve before calling any other methods of this class.
      * 
      * @return Feature set collections are loaded into memory. 
@@ -764,10 +752,10 @@ export class FeatureSetEnrichmentStandalone {
 
     /**
      * Obtain the details about the feature set collections in the reference database.
-     * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
+     * It is assumed that the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method has already resolved before calling this method.
      *
      * @return {object} Object containing the details about the available feature set collections,
-     * see {@linkcode FeatureSetEnrichmentStandalone#fetchCollectionDetails FeatureSetEnrichmentStandalone.fetchCollectionDetails} for more details.
+     * see {@linkcode FeatureSetEnrichmentState#fetchCollectionDetails FeatureSetEnrichmentState.fetchCollectionDetails} for more details.
      */
     fetchCollectionDetails() {
         return this.#manager.fetchCollectionDetails();
@@ -775,10 +763,10 @@ export class FeatureSetEnrichmentStandalone {
 
     /**
      * Obtain the details about the feature sets in the reference database.
-     * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
+     * It is assumed that the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method has already resolved before calling this method.
      *
      * @return {object} Object containing the details about the available feature sets,
-     * see {@linkcode FeatureSetEnrichmentStandalone#fetchSetDetails FeatureSetEnrichmentStandalone.fetchSetDetails} for more details.
+     * see {@linkcode FeatureSetEnrichmentState#fetchSetDetails FeatureSetEnrichmentState.fetchSetDetails} for more details.
      */
     fetchSetDetails() {
         return this.#manager.fetchSetDetails();
@@ -786,7 +774,7 @@ export class FeatureSetEnrichmentStandalone {
 
     /**
      * Obtain the size of the universe of features that were successfully mapped to features in the reference database.
-     * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
+     * It is assumed that the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method has already resolved before calling this method.
      *
      * @return {number} Number of features from the input dataset that were successfully mapped to at least one gene in the reference database.
      */
@@ -796,7 +784,7 @@ export class FeatureSetEnrichmentStandalone {
 
     /**
      * Compute enrichment of top markers in each feature set.
-     * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
+     * It is assumed that the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method has already resolved before calling this method.
      *
      * @param {external:ScoreMarkersResults} markers - Marker detection results for an RNA modality.
      * @param {number} group - Group index of interest.
@@ -806,7 +794,7 @@ export class FeatureSetEnrichmentStandalone {
      * This should be one of `"min"`, `"mean"` or `"min_rank"`.
      *
      * @return {object} Object containing statistics for the enrichment of the top marker genes in each feature set.
-     * See {@linkcode FeatureSetEnrichmentStandalone#computeEnrichment FeatureSetEnrichmentStandalone.computeEnrichment} for more details.
+     * See {@linkcode FeatureSetEnrichmentState#computeEnrichment FeatureSetEnrichmentState.computeEnrichment} for more details.
      */
     computeEnrichment(markers, group, effect_size, summary) {
         return this.#manager.computeEnrichment(group, effect_size, summary, markers, this.#parameters.top_markers);
@@ -814,9 +802,9 @@ export class FeatureSetEnrichmentStandalone {
 
     /**
      * Extract row indices of the members of a desired feature set of interest.
-     * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
+     * It is assumed that the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method has already resolved before calling this method.
      *
-     * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode FeatureSetEnrichmentStandlone#fetchSetDetails fetchSetDetails}.
+     * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode FeatureSetEnrichmentStandalone#fetchSetDetails fetchSetDetails}.
      *
      * @return {Int32Array} Array containing the row indices of the RNA count matrix corresponding to the genes in the specified set.
      */
@@ -833,12 +821,12 @@ export class FeatureSetEnrichmentStandalone {
 
     /**
      * Compute per-cell scores for the activity of a feature set.
-     * It is assumed that the {@linkcode FeatureSetEnrichmenStandalone#ready ready} method has already resolved before calling this method.
+     * It is assumed that the {@linkcode FeatureSetEnrichmentStandalone#ready ready} method has already resolved before calling this method.
      *
-     * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode FeatureSetEnrichmentStandlone#fetchSetDetails fetchSetDetails}.
+     * @param {number} set_id - Feature set ID, defined as an index into the arrays returned by {@linkcode FeatureSetEnrichmentStandalone#fetchSetDetails fetchSetDetails}.
      *
      * @return {Object} Object containing the per-cell scores for the feature set activity.
-     * See {@linkcode FeatureSetEnrichmentStandalone#computePerCellScores FeatureSetEnrichmentStandalone.computePerCellScores} for more details.
+     * See {@linkcode FeatureSetEnrichmentState#computePerCellScores FeatureSetEnrichmentState.computePerCellScores} for more details.
      */
     computePerCellScores(set_id) {
         if (this.#normalized == null) {
