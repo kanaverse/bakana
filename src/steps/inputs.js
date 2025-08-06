@@ -464,7 +464,7 @@ function bind_datasets(names, loaded) {
 function rename_dataset(single) {
     let modalities = single.matrix.available();
     if (modalities.length == 0) {
-        throw new Error("");
+        throw new Error("no available modalities");
     }
 
     let output = { 
