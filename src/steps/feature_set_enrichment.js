@@ -228,12 +228,14 @@ class FeatureSetManager {
         } else if (effect_size == "lfc") {
             effect_size = "deltaDetected";
         }
+        if (summary == "min_rank") {
+            summary = "min-rank";
+        }
 
         let use_largest = true;
         let min_threshold = null;
-        if (summary == "min_rank") {
+        if (summary == "min-rank") {
             use_largest = false;
-            summary = "min-rank";
         } else {
             min_threshold = (effect_size == "auc" ? 0.5 : 0);
         }
