@@ -77,7 +77,9 @@ export async function formatSingleCellExperiment(state, { reportOneIndex = false
             assays,
             {
                 rowData: all_rowdata[m],
+                rowNames: all_rowdata[m].rowNames(),
                 columnData: all_coldata[m],
+                columnNames: all_coldata[m].rowNames(),
                 metadata: metadata,
                 reducedDimensions: reddim
             }

@@ -150,8 +150,12 @@ export async function saveGenewiseResults(state, path, { includeMarkerDetection 
     }
 
     if (state.feature_selection.valid() && includeFeatureSelection) {
+        let dir = "feature_selection";
+        if (path !== null) {
+            dir = jsp.joinPath(path, dir);
+        }
         let df = markers.formatFeatureSelectionResults(state, modalities.RNA);
-        await jsp.saveObject(df, jsp.joinPath(path, "feature_selection"), globals, { DataFrame_saveOther: saveOtherDataFrameColumns });
+        await jsp.saveObject(df, dir, globals, { DataFrame_saveOther: saveOtherDataFrameColumns });
     }
 
     if (directory === null) {
