@@ -246,8 +246,11 @@ async function extract_delayed(handle, path, globals, forceInteger, forceSparse)
 
             const dhandle = handle.open("value");
             let arg = dhandle.values;
+            let along = "row";
             if (dhandle.shape.length == 0) {
                 arg = arg[0];
+            } else {
+                along = (handle.open("along").values[0] === 0 ? "row" : "column");
             }
 
             return scran.delayedArithmetic(
@@ -255,7 +258,8 @@ async function extract_delayed(handle, path, globals, forceInteger, forceSparse)
                 handle.open("method").values[0],
                 arg,
                 {
-                    right: handle.open("side").values[0] !== "right",
+                    right: handle.open("side").values[0] === "right",
+                    along: along,
                     inPlace: true
                 }
             );
