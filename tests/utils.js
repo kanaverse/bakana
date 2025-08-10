@@ -1216,6 +1216,8 @@ export async function triggerAnimation(state) {
     return;
 }
 
+/***********************************/
+
 export function mockBlocks(input, output, nblocks) {
     // Mocking up a blocking file with pretend batches.
     let f = fs.readFileSync(input);
@@ -1240,4 +1242,138 @@ export function hasNonInteger(x) {
         }
     }
     return false;
+}
+
+/***********************************/
+
+export class LocalDirectoryNavigator {
+    #host;
+
+    constructor(d) {
+        this.#host = d;
+    }
+
+    #full(path) {
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
+        return this.#host + path;
+    }
+
+    get(path, asBuffer) {
+        let full = this.#full(path);
+        if (asBuffer) {
+            let contents = fs.readFileSync(full);
+            return new Uint8Array(contents);
+        } else {
+            return full;
+        }
+    }
+
+    exists(path) {
+        return fs.existsSync(this.#full(path));
+    }
+
+    clean(getPath) {}
+}
+
+export async function checkSavedExperiment(save_dir, state) {
+    let res = new bakana.AbstractAlabasterResult(new LocalDirectoryNavigator(save_dir));
+
+    // Check the count matrix.
+    res.setOptions({ primaryAssay: "counts", isPrimaryNormalized: true });
+    let loaded = await res.load();
+    {
+        let expected_mat = state.cell_filtering.fetchFilteredMatrix();
+        expect(expected_mat.available()).toEqual(loaded.matrix.available());
+        for (const mod of expected_mat.available()) {
+            let expected_mod = expected_mat.get(mod);
+            let reloaded_mod = loaded.matrix.get(mod);
+
+            let NR = expected_mod.numberOfRows();
+            let NC = expected_mod.numberOfColumns();
+            expect(NR).toEqual(reloaded_mod.numberOfRows());
+            expect(NC).toEqual(reloaded_mod.numberOfColumns());
+
+            expect(expected_mod.row(0)).toEqual(reloaded_mod.row(0));
+            expect(expected_mod.column(0)).toEqual(reloaded_mod.column(0));
+            expect(expected_mod.row(NR - 1)).toEqual(reloaded_mod.row(NR - 1));
+            expect(expected_mod.column(NC - 1)).toEqual(reloaded_mod.column(NC - 1));
+        }
+    }
+
+    // Check the log-count matrix.
+    res.setOptions({ primaryAssay: "logcounts", isPrimaryNormalized: true });
+    {
+        let loaded = await res.load();
+        for (const mod of ["RNA", "ADT", "CRISPR"]) {
+            const step = state[mod.toLowerCase() + "_normalization"];
+            if (!step.valid()) {
+                continue;
+            }
+            let expected_mod = step.fetchNormalizedMatrix();
+            let reloaded_mod = loaded.matrix.get(mod);
+
+            let NR = expected_mod.numberOfRows();
+            let NC = expected_mod.numberOfColumns();
+            expect(NR).toEqual(reloaded_mod.numberOfRows());
+            expect(NC).toEqual(reloaded_mod.numberOfColumns());
+
+            expect(expected_mod.row(0)).toEqual(reloaded_mod.row(0));
+            expect(expected_mod.column(0)).toEqual(reloaded_mod.column(0));
+            expect(expected_mod.row(NR - 1)).toEqual(reloaded_mod.row(NR - 1));
+            expect(expected_mod.column(NC - 1)).toEqual(reloaded_mod.column(NC - 1));
+        }
+    }
+
+    // Check the reduced dimensions.
+    {
+        let vals = loaded.reduced_dimensions["pca"];
+        let expected = state.rna_pca.fetchPCs();
+        expect(vals.length).toEqual(expected.numberOfPCs());
+        let offset = 0, shift = expected.numberOfCells();
+        for (const v of vals) {
+            expect(v).toEqual(expected.principalComponents({ copy: false }).slice(offset, offset + shift));
+            offset += shift;
+        }
+    }
+
+    if (state.combine_embeddings.fetchCombined().owner === null) {
+        let vals = loaded.reduced_dimensions["combined"];
+        const step = state.combine_embeddings;
+        let buffer = step.fetchCombined();
+        let offset = 0, shift = step.fetchNumberOfCells();
+        for (const v of vals) {
+            expect(v).toEqual(buffer.slice(offset, offset + shift));
+            offset += shift;
+        }
+    }
+
+    if (state.batch_correction.fetchCorrected().owner === null) {
+        let vals = loaded.reduced_dimensions["corrected"];
+        const step = state.batch_correction;
+        expect(vals.length).toEqual(step.fetchNumberOfDimensions());
+        let buffer = step.fetchCorrected();
+        let offset = 0, shift = step.fetchNumberOfCells();
+        for (const v of vals) {
+            expect(v).toEqual(buffer.slice(offset, offset + shift));
+            offset += shift;
+        }
+    }
+
+    {
+        let vals = loaded.reduced_dimensions["tsne"];
+        expect(vals.length).toBe(2);
+        let expected = await state.tsne.fetchResults();
+        expect(vals[0]).toEqual(expected.x);
+        expect(vals[1]).toEqual(expected.y);
+    }
+
+    {
+        let vals = loaded.reduced_dimensions["umap"];
+        expect(vals.length).toBe(2);
+        let expected = await state.umap.fetchResults();
+        expect(vals[0]).toEqual(expected.x);
+        expect(vals[1]).toEqual(expected.y);
+    }
 }

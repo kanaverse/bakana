@@ -87,6 +87,24 @@ export async function formatSingleCellExperiment(state, { reportOneIndex = false
     }
 
     // Saving the dimensionality reduction results.
+    let comb = state.combine_embeddings.fetchCombined();
+    if (comb.owner === null) {
+        all_se[main].setReducedDimension(
+            "combined",
+            new MockReducedDimensionMatrix(state.combine_embeddings.fetchNumberOfCells(), state.combine_embeddings.fetchNumberOfDimensions(), comb),
+            { inPlace: true }
+        );
+    }
+
+    let corr = state.batch_correction.fetchCorrected();
+    if (corr.owner === null) {
+        all_se[main].setReducedDimension(
+            "corrected",
+            new MockReducedDimensionMatrix(state.batch_correction.fetchNumberOfCells(), state.batch_correction.fetchNumberOfDimensions(), corr),
+            { inPlace: true }
+        );
+    }
+
     for (const name of [ "tsne", "umap" ]) {
         let res = await state[name].fetchResults({ copy: false });
         let payload = new Float64Array(res.x.length * 2);
@@ -112,6 +130,8 @@ export async function formatSingleCellExperiment(state, { reportOneIndex = false
     for (const mod of modalities) {
         if (mod !== main) {
             main_se.setAlternativeExperiment(mod, all_se[mod], { inPlace: true });
+        } else {
+            main_se.setMainExperimentName(main, { inPlace: true });
         }
     }
 

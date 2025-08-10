@@ -81,7 +81,10 @@ test("addition, fetching and removal of custom selections works correctly", asyn
     }
 
     // Check saving of results.
+    utils.purgeDirectory("miscellaneous/from-tests/custom");
     await bakana.saveSingleCellExperiment(state, "custom", { directory: "miscellaneous/from-tests", reportOneIndex: true });
+    await utils.checkSavedExperiment("miscellaneous/from-tests/custom", state);
+    utils.purgeDirectory("miscellaneous/from-tests/custom_genes");
     await bakana.saveGenewiseResults(state, "custom_genes", { directory: "miscellaneous/from-tests" });
 
     // Serialization and reloading works as expected.

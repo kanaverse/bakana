@@ -76,6 +76,7 @@ test("runAnalysis works correctly (10X)", async () => {
     // Check saving of results.
     utils.purgeDirectory("miscellaneous/from-tests/crispr");
     await bakana.saveSingleCellExperiment(state, "crispr", { directory: "miscellaneous/from-tests" });
+    await utils.checkSavedExperiment("miscellaneous/from-tests/crispr", state);
     utils.purgeDirectory("miscellaneous/from-tests/crispr_genes");
     await bakana.saveGenewiseResults(state, "crispr_genes", { directory: "miscellaneous/from-tests" });
 

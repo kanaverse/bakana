@@ -30,6 +30,7 @@ test("analysis works when we skip the QC steps", async () => {
     // Check saving of results.
     utils.purgeDirectory("miscellaneous/from-tests/no-qc");
     await bakana.saveSingleCellExperiment(state, "no-qc", { directory: "miscellaneous/from-tests" });
+    await utils.checkSavedExperiment("miscellaneous/from-tests/no-qc", state);
 
     // Just applying the RNA filtering.
     {

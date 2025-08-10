@@ -7,42 +7,11 @@ import * as fs from "fs";
 beforeAll(utils.initializeAll);
 afterAll(async () => await bakana.terminate());
 
-export class LocalDirectoryNavigator {
-    #host;
-
-    constructor(d) {
-        this.#host = d;
-    }
-
-    #full(path) {
-        if (!path.startsWith("/")) {
-            path = "/" + path;
-        }
-        return this.#host + path;
-    }
-
-    get(path, asBuffer) {
-        let full = this.#full(path);
-        if (asBuffer) {
-            let contents = fs.readFileSync(full);
-            return new Uint8Array(contents);
-        } else {
-            return full;
-        }
-    }
-
-    exists(path) {
-        return fs.existsSync(this.#full(path));
-    }
-
-    clean(getPath) {}
-}
-
 class LocalAlabasterDataset extends bakana.AbstractAlabasterDataset {
     #dir;
 
     constructor(dir) {
-        super(new LocalDirectoryNavigator(dir));
+        super(new utils.LocalDirectoryNavigator(dir));
         this.#dir = dir;
     }
 
@@ -126,17 +95,9 @@ test("AlabasterAbstractDataset for multimodal datasets", async () => {
 
 /***********************************************/
 
-class LocalAlabasterResult extends bakana.AbstractAlabasterResult {
-    #dir;
-    constructor(dir) {
-        super(new LocalDirectoryNavigator(dir));
-        this.#dir = dir;
-    }
-}
-
 test("AlabasterAbstractResult behaves with simple results", async () => {
     for (const extra of [ "", "-delayed", "-delayed-external" ]) {
-        let res = new LocalAlabasterResult("files/datasets/alabaster/zeisel-brain-sparse-results" + extra);
+        let res = new bakana.AbstractAlabasterResult(new utils.LocalDirectoryNavigator("files/datasets/alabaster/zeisel-brain-sparse-results" + extra));
 
         let summ = await utils.checkResultSummary(res);
         expect(Object.keys(summ.modality_features)).toEqual(["rna"]);
@@ -164,7 +125,7 @@ test("AlabasterAbstractResult behaves with simple results", async () => {
 })
 
 test("AlabasterAbstractResult performs normalization", async () => {
-    let res = new LocalAlabasterResult("files/datasets/alabaster/zeisel-brain-sparse-results");
+    let res = new bakana.AbstractAlabasterResult(new utils.LocalDirectoryNavigator("files/datasets/alabaster/zeisel-brain-sparse-results"));
     res.setOptions({
         primaryAssay: "filtered",
         isPrimaryNormalized: false
@@ -178,7 +139,7 @@ test("AlabasterAbstractResult performs normalization", async () => {
 
 test("AlabasterAbstractResult behaves with multimodal results", async () => {
     for (const extra of [ "", "-delayed", "-delayed-external" ]) {
-        let res = new LocalAlabasterResult("files/datasets/alabaster/zeisel-brain-dense-multimodal-results" + extra);
+        let res = new bakana.AbstractAlabasterResult(new utils.LocalDirectoryNavigator("files/datasets/alabaster/zeisel-brain-dense-multimodal-results" + extra));
 
         let summ = await utils.checkResultSummary(res);
         expect(Object.keys(summ.modality_features)).toEqual(["rna", "adt"]);

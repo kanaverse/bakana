@@ -42,6 +42,7 @@ test("basic runAnalysis works correctly (PBMC)", async () => {
     // Check saving of results.
     utils.purgeDirectory("miscellaneous/from-tests/pbmc");
     await bakana.saveSingleCellExperiment(state, "pbmc", { directory: "miscellaneous/from-tests" });
+    await utils.checkSavedExperiment("miscellaneous/from-tests/pbmc", state);
     utils.purgeDirectory("miscellaneous/from-tests/pbmc_genes");
     await bakana.saveGenewiseResults(state, "pbmc_genes", { directory: "miscellaneous/from-tests" });
 
@@ -95,7 +96,10 @@ test("basic runAnalysis works correctly (Zeisel)", async () => {
         expect(filtered_sex_anno.length).toBe(nfilt);
     }
 
+    utils.purgeDirectory("miscellaneous/from-tests/zeisel");
     await bakana.saveSingleCellExperiment(state, "zeisel", { directory: "miscellaneous/from-tests" });
+    await utils.checkSavedExperiment("miscellaneous/from-tests/zeisel", state);
+    utils.purgeDirectory("miscellaneous/from-tests/zeisel_results");
     await bakana.saveGenewiseResults(state, "zeisel_results", { directory: "miscellaneous/from-tests" });
 
     // Release me!

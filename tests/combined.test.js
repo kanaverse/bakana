@@ -69,6 +69,7 @@ test("multi-matrix analyses work correctly", async () => {
     // Check saving of results.
     utils.purgeDirectory("miscellaneous/from-tests/combined");
     await bakana.saveSingleCellExperiment(state, "combined", { directory: "miscellaneous/from-tests" });
+    await utils.checkSavedExperiment("miscellaneous/from-tests/combined", state);
     utils.purgeDirectory("miscellaneous/from-tests/combined_genes");
     await bakana.saveGenewiseResults(state, "combined_genes", { directory: "miscellaneous/from-tests" });
 

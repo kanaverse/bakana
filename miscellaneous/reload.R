@@ -28,11 +28,21 @@ check_genes <- function(dir) {
 test_that("basic PBMC output is correct", {
     expect_error(validateObject(file.path("from-tests", "pbmc")), NA)
     check_genes("pbmc_genes")
+
+    X <- readObject(file.path("from-tests", "pbmc"))
+    expect_identical(mainExpName(X), "RNA")
+    expect_identical(altExpNames(X), character(0))
+    expect_identical(reducedDimNames(X), c("pca", "tsne", "umap"))
 })
 
 test_that("basic zeisel output is correct", {
     expect_error(validateObject(file.path("from-tests", "zeisel")), NA)
     check_genes("zeisel_results")
+
+    X <- readObject(file.path("from-tests", "zeisel"))
+    expect_identical(mainExpName(X), "RNA")
+    expect_identical(altExpNames(X), character(0))
+    expect_identical(reducedDimNames(X), c("pca", "tsne", "umap"))
 })
 
 test_that("block information is correctly saved", {
@@ -41,6 +51,7 @@ test_that("block information is correctly saved", {
 
     X <- readObject(file.path("from-tests", "combined"))
     expect_type(colData(X)[["kana::block"]], "character")
+    expect_true("corrected" %in% reducedDimNames(X))
 })
 
 test_that("custom selections are correctly saved", {
@@ -59,6 +70,7 @@ test_that("ADTs are correctly saved", {
     expect_true(nrow(altExp(X, "ADT")) < nrow(X))
     expect_true(any(grepl("kana::ADT::quality_control", colnames(colData(X)))))
     expect_false(any(grepl("kana::quality_control", colnames(colData(altExp(X, "ADT"))))))
+    expect_true("combined" %in% reducedDimNames(X))
 
     X <- readObject(file.path("from-tests", "adt_split"))
     expect_false(any(grepl("kana::ADT::quality_control", colnames(colData(X)))))
@@ -71,4 +83,15 @@ test_that("CRISPR guides are correctly saved", {
 
     X <- readObject(file.path("from-tests", "crispr"))
     expect_true(nrow(altExp(X, "CRISPR")) < nrow(X))
+    expect_true("combined" %in% reducedDimNames(X))
 })
+
+test_that("no-QC output is correct", {
+    expect_error(validateObject(file.path("from-tests", "no-qc")), NA)
+
+    X <- readObject(file.path("from-tests", "no-qc"))
+    expect_identical(mainExpName(X), "RNA")
+    expect_identical(altExpNames(X), "ADT")
+    expect_identical(reducedDimNames(X), c("pca", "combined", "tsne", "umap"))
+})
+

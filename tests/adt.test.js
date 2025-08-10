@@ -86,6 +86,7 @@ test("runAnalysis works correctly (MatrixMarket)", async () => {
     // Check saving of results.
     utils.purgeDirectory("miscellaneous/from-tests/adt");
     await bakana.saveSingleCellExperiment(state, "adt", { directory: "miscellaneous/from-tests" });
+    await utils.checkSavedExperiment("miscellaneous/from-tests/adt", state);
     utils.purgeDirectory("miscellaneous/from-tests/adt_split");
     await bakana.saveSingleCellExperiment(state, "adt_split", { directory: "miscellaneous/from-tests", storeModalityColumnData: true });
     utils.purgeDirectory("miscellaneous/from-tests/adt_genes");
